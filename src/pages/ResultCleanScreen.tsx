@@ -8,9 +8,9 @@ function ResultCleanScreen() {
       <PageHeader rightSlot={<ModeToggle value={mode} onChange={setMode} />} />
       <div className="mt-5 flex flex-col gap-5">
         <ScoreCard scenario="low" mode={mode} />
-        <PropertyOverview />
         <WhyCard scenario="low" />
         <ListingsPanel scenario="low" />
+        <PropertyOverview />
       </div>
     </AppShell>
   );
