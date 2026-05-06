@@ -1,0 +1,30 @@
+/* True Occupancy — Type Pairings
+ *
+ * Three pairings, switched at runtime by the Tweaks panel via a
+ * `data-type-pairing` attribute on <body>. Each pairing overrides the
+ * --serif / --sans / --mono custom properties from tokens.css.
+ *
+ * Required Google Fonts (load once in the document head):
+ *   Instrument Serif, Geist, Geist Mono   — default
+ *   IBM Plex Serif, IBM Plex Sans, IBM Plex Mono — institutional
+ *   Newsreader, Inter, JetBrains Mono     — editorial-warm
+ *   Recoleta, General Sans, JetBrains Mono — brand-forward
+ */
+
+body[data-type-pairing="institutional"] {
+  --serif: "IBM Plex Serif", Georgia, serif;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+body[data-type-pairing="editorial-warm"] {
+  --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --sans: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+body[data-type-pairing="brand-forward"] {
+  --serif: "Recoleta", Georgia, serif;
+  --sans: "General Sans", "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}

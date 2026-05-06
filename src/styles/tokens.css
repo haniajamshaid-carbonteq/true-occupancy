@@ -1,0 +1,67 @@
+/* True Occupancy — Design Tokens
+ * Extracted from design-spec.html. Semantic naming preserved verbatim
+ * so existing component CSS keeps working unchanged.
+ */
+
+:root {
+  /* === Surfaces === */
+  --bg: #FFFFFF;          /* page background — pure white */
+  --surface: #FFFFFF;     /* card / panel background */
+  --surface-2: #F7F9FB;   /* tinted surface (sidebar, nested cards) — subtle COOL cast so it can't read as cream next to white */
+
+  /* === Lines — neutral grays, no warm tan === */
+  --line: #ECECEC;        /* default border / divider */
+  --line-strong: #D9D9D9; /* emphasized border (buttons, frames) */
+
+  /* === Ink (text) — descending contrast === */
+  --ink: #1C1B17;         /* primary body text, headings */
+  --ink-2: #45433C;       /* secondary text, body copy */
+  --ink-3: #76736A;       /* tertiary / muted */
+  --ink-4: #A19D91;       /* placeholder / disabled */
+
+  /* === Brand (teal) === */
+  --brand: #0F8FB8;
+  --brand-2: #14B5A6;     /* accent / gradient pair */
+  --brand-soft: #E0F4F4;  /* tinted background for brand pills */
+  --brand-tint: #ECF8F8;  /* lightest brand wash (active nav) */
+  --brand-deep: #0A6E92;  /* hover / pressed brand */
+
+  /* === Status: clean (positive / safe) === */
+  --clean: #5B8A6A;
+  --clean-soft: #E8F0E5;
+  --clean-ink: #2C4A36;
+
+  /* === Status: warn (caution) === */
+  --warn: #C68A3C;
+  --warn-soft: #FBF0DB;
+  --warn-ink: #6B4914;
+
+  /* === Status: risk (danger / negative) === */
+  --risk: #C0533C;
+  --risk-soft: #FBE3DB;
+  --risk-ink: #6F2917;
+
+  /* === Platform brand colors === */
+  --airbnb: #FF5A5F;
+  --vrbo: #245ABE;
+  --fb: #1877F2;
+
+  /* === Radii === */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-xl: 28px;
+
+  /* === Shadows — bumped slightly so cards still float on the new white bg === */
+  --shadow-sm: 0 1px 3px rgba(28, 27, 23, .055), 0 1px 1px rgba(28, 27, 23, .035);
+  --shadow-md: 0 4px 16px -4px rgba(28, 27, 23, .09), 0 2px 5px rgba(28, 27, 23, .05);
+  --shadow-lg: 0 24px 48px -16px rgba(28, 27, 23, .14), 0 8px 16px -8px rgba(28, 27, 23, .07);
+
+  /* === Type families ===
+   * Defaults below match the live UI. Override via
+   * body[data-type-pairing="..."] selectors in typography.css.
+   */
+  --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}

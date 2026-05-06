@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light" />
+<title>True Occupancy</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Recoleta&family=General+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="src/styles/tokens.css">
+<link rel="stylesheet" href="src/styles/typography.css">
+
+<!-- Tailwind Play CDN — config mirrors tailwind.config.js so utilities resolve to our tokens -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          bg: 'var(--bg)',
+          surface: { DEFAULT: 'var(--surface)', 2: 'var(--surface-2)' },
+          line:    { DEFAULT: 'var(--line)',    strong: 'var(--line-strong)' },
+          ink:     { DEFAULT: 'var(--ink)', 2: 'var(--ink-2)', 3: 'var(--ink-3)', 4: 'var(--ink-4)' },
+          brand:   { DEFAULT: 'var(--brand)', 2: 'var(--brand-2)', soft: 'var(--brand-soft)', tint: 'var(--brand-tint)', deep: 'var(--brand-deep)' },
+          clean:   { DEFAULT: 'var(--clean)', soft: 'var(--clean-soft)', ink: 'var(--clean-ink)' },
+          warn:    { DEFAULT: 'var(--warn)',  soft: 'var(--warn-soft)',  ink: 'var(--warn-ink)' },
+          risk:    { DEFAULT: 'var(--risk)',  soft: 'var(--risk-soft)',  ink: 'var(--risk-ink)' },
+          airbnb:  'var(--airbnb)',
+          vrbo:    'var(--vrbo)',
+          fb:      'var(--fb)',
+        },
+        borderRadius: { sm: 'var(--r-sm)', md: 'var(--r-md)', lg: 'var(--r-lg)', xl: 'var(--r-xl)' },
+        boxShadow:    { sm: 'var(--shadow-sm)', md: 'var(--shadow-md)', lg: 'var(--shadow-lg)' },
+        fontFamily:   { serif: 'var(--serif)', sans: 'var(--sans)', mono: 'var(--mono)' },
+      },
+    },
+  };
+</script>
+
+<style>
+  html, body { margin: 0; padding: 0; background: #FFFFFF; color-scheme: light; }
+  body { font-family: var(--sans, system-ui, sans-serif); color: var(--ink, #1C1B17); background: var(--bg, #FFFFFF); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  #boot-status { position: fixed; left: 16px; bottom: 16px; font: 12px/1.4 ui-monospace, monospace; color: var(--ink-3); background: var(--surface); border: 1px solid var(--line); padding: 6px 10px; border-radius: 6px; box-shadow: var(--shadow-sm); z-index: 9999; }
+  #boot-status.error { color: var(--risk-ink); background: var(--risk-soft); border-color: transparent; }
+</style>
+</head>
+
+<body data-type-pairing="brand-forward">
+
+<div id="root"></div>
+<div id="boot-status">Loading…</div>
+
+<!-- React 18 + React Router v5 (UMD) + Babel Standalone -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-router@5.3.4/umd/react-router.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-router-dom@5.3.4/umd/react-router-dom.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+
+<script>
+/*
+ * Bootstrap: fetch each .tsx, compile with explicit TS+React preset
+ * options (isTSX + allExtensions), and inject the result as a plain
+ * <script> so top-level function declarations land in shared global
+ * script scope. This matches the existing *.jsx pattern in the repo.
+ *
+ * Load order matters: data → primitives → compositions → pages → router.
+ */
+(async () => {
+  const status = document.getElementById('boot-status');
+  const files = [
+    // 1. Domain
+    'src/data/scenarios.tsx',
+    // 2. Primitives
+    'src/components/ui/Icons.tsx',
+    'src/components/ui/Button.tsx',
+    'src/components/ui/Pill.tsx',
+    'src/components/ui/Card.tsx',
+    'src/components/ui/RiskBadge.tsx',
+    'src/components/ui/SearchBar.tsx',
+    'src/components/ui/Avatar.tsx',
+    'src/components/ui/Tag.tsx',
+    // 3. Structural
+    'src/components/AppShell.tsx',
+    'src/components/Sidebar.tsx',
+    'src/components/PageHeader.tsx',
+    // 4. Scan
+    'src/components/scan/ScanCard.tsx',
+    // 5. Result
+    'src/components/result/ModeToggle.tsx',
+    'src/components/result/ScoreCard.tsx',
+    'src/components/result/WhyCard.tsx',
+    'src/components/result/PropertyMap.tsx',
+    'src/components/result/PropertySpecs.tsx',
+    'src/components/result/PropertyOverview.tsx',
+    'src/components/result/ListingsPanel.tsx',
+    // 6. Pages
+    'src/pages/Components.tsx',
+    'src/pages/HomeScreen.tsx',
+    'src/pages/BatchScreen.tsx',
+    'src/pages/ScanStartScreen.tsx',
+    'src/pages/ScanMidScreen.tsx',
+    'src/pages/ResultCleanScreen.tsx',
+    'src/pages/ResultMediumScreen.tsx',
+    'src/pages/ResultHighScreen.tsx',
+    'src/pages/WhyExpandedScreen.tsx',
+    // 7. Router
+    'src/App.tsx',
+  ];
+
+  const compileOpts = {
+    presets: [
+      ['typescript', { isTSX: true, allExtensions: true, allowDeclareFields: true, onlyRemoveTypeImports: true }],
+      ['react', { runtime: 'classic' }],
+    ],
+  };
+
+  function inject(code, filename) {
+    const s = document.createElement('script');
+    s.textContent = code + `\n//# sourceURL=${filename}`;
+    document.head.appendChild(s);
+  }
+
+  try {
+    for (const path of files) {
+      status.textContent = `Compiling ${path}…`;
+      const src = await fetch(path).then((r) => {
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText} — ${path}`);
+        return r.text();
+      });
+      const { code } = Babel.transform(src, { ...compileOpts, filename: path });
+      inject(code, path);
+    }
+    status.textContent = 'Mounting…';
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+    status.remove();
+  } catch (err) {
+    status.className = 'error';
+    status.textContent = 'Boot error — see console';
+    console.error('[app.html] boot failed:', err);
+  }
+})();
+</script>
+
+</body>
+</html>
