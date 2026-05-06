@@ -98,10 +98,15 @@
     document.head.appendChild(s);
   }
 
+  // Cache-bust .tsx fetches with a per-page-load token. Set
+  // `window.__CACHE_BUST = ''` in the console to disable while debugging.
+  const cacheBust =
+    typeof window.__CACHE_BUST === 'string' ? window.__CACHE_BUST : `?v=${Date.now()}`;
+
   try {
     for (const path of files) {
       status.textContent = `Compiling ${path}…`;
-      const src = await fetch(path).then((r) => {
+      const src = await fetch(path + cacheBust).then((r) => {
         if (!r.ok) throw new Error(`${r.status} ${r.statusText} — ${path}`);
         return r.text();
       });
