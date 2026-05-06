@@ -14,37 +14,33 @@ function WhyCard({ scenario, defaultOpen = true }: WhyCardProps) {
 
   return (
     <Card>
-      {/* Head */}
+      {/* Head — tighter padding, smaller H3, drop the redundant "Explainability" pill */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-7 py-5 flex items-center justify-between bg-transparent border-0 cursor-pointer text-left"
+        className="w-full px-5 py-3.5 flex items-center justify-between bg-transparent border-0 cursor-pointer text-left"
       >
-        <div className="flex items-center gap-3.5">
-          <Pill variant="brand">
-            <Icon name="spark" size={11} />
-            Explainability
-          </Pill>
-          <h3 className="font-serif text-[20px] font-normal m-0">Why this score?</h3>
-          <span className="font-mono text-[11.5px] text-ink-3">
+        <div className="flex items-center gap-3">
+          <h3 className="font-serif text-[17px] font-normal m-0">Why this score?</h3>
+          <span className="font-mono text-[11px] text-ink-3">
             {rows.length} signals · net {net >= 0 ? '+' : ''}
             {net}%
           </span>
         </div>
         <span
-          className={`w-7 h-7 rounded-full bg-surface-2 grid place-items-center text-ink-2 transition-transform ${
+          className={`w-6 h-6 rounded-full bg-surface-2 grid place-items-center text-ink-2 transition-transform ${
             open ? 'rotate-180' : ''
           }`}
         >
-          <Icon name="chevron" />
+          <Icon name="chevron" size={14} />
         </span>
       </button>
 
       {/* Body */}
       {open && (
-        <div className="px-7 pb-7">
-          <div className="grid grid-cols-[220px_1fr_180px] gap-6 pt-2.5 pb-3 border-b border-line font-mono text-[10.5px] uppercase tracking-widest text-ink-3">
-            <div>Signal Type</div>
+        <div className="px-5 pb-5">
+          <div className="grid grid-cols-[200px_1fr_160px] gap-5 pt-2 pb-2 border-b border-line font-mono text-[10px] uppercase tracking-widest text-ink-3">
+            <div>Signal</div>
             <div>Detail</div>
             <div className="text-right">Impact</div>
           </div>
@@ -61,25 +57,25 @@ function WhyCard({ scenario, defaultOpen = true }: WhyCardProps) {
             return (
               <div
                 key={i}
-                className={`grid grid-cols-[220px_1fr_180px] gap-6 py-[18px] items-center ${
+                className={`grid grid-cols-[200px_1fr_160px] gap-5 py-2.5 items-center ${
                   last ? '' : 'border-b border-dashed border-line'
                 }`}
               >
-                <div className="flex items-center gap-2.5 text-[14.5px] font-medium text-ink">
-                  <span className={`w-[26px] h-[26px] rounded-md grid place-items-center shrink-0 ${iconBg}`}>
-                    <Icon name={trendIcon} size={13} />
+                <div className="flex items-center gap-2 text-[13px] font-medium text-ink">
+                  <span className={`w-[20px] h-[20px] rounded grid place-items-center shrink-0 ${iconBg}`}>
+                    <Icon name={trendIcon} size={11} />
                   </span>
                   <span>{r.title}</span>
                 </div>
-                <div className="text-[13px] text-ink-3 leading-normal">{r.desc}</div>
-                <div className="flex items-center gap-3 justify-end">
-                  <div className="flex-1 max-w-[90px] h-1.5 bg-line rounded-full overflow-hidden">
+                <div className="text-[12px] text-ink-3 leading-snug">{r.desc}</div>
+                <div className="flex items-center gap-2.5 justify-end">
+                  <div className="flex-1 max-w-[80px] h-1 bg-line rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full ${barColor}`}
                       style={{ width: `${Math.min(100, Math.abs(r.impact) * 2)}%` }}
                     />
                   </div>
-                  <div className={`font-mono text-[13px] font-semibold min-w-[42px] text-right ${pctColor}`}>
+                  <div className={`font-mono text-[12px] font-semibold min-w-[38px] text-right ${pctColor}`}>
                     {pos ? '+' : ''}
                     {r.impact}%
                   </div>
