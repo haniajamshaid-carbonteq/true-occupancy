@@ -8,7 +8,11 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Recoleta&family=General+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Hanken+Grotesk:wght@200;300;400;500;600;700;800&family=Archivo+Narrow:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Fontshare: Recoleta + General Sans (used by the "brand-forward" pairing; not on Google Fonts) -->
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=recoleta@400,500,600,700&f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="src/styles/tokens.css">
 <link rel="stylesheet" href="src/styles/typography.css">
@@ -84,11 +88,13 @@
     'src/components/ui/Avatar.tsx',
     'src/components/ui/Tag.tsx',
     // 3. Structural
+    'src/components/TopNav.tsx',
     'src/components/AppShell.tsx',
     'src/components/Sidebar.tsx',
     'src/components/PageHeader.tsx',
     // 4. Scan
     'src/components/scan/ScanCard.tsx',
+    'src/components/scan/ScanStage.tsx',
     // 5. Result
     'src/components/result/ModeToggle.tsx',
     'src/components/result/ScoreCard.tsx',

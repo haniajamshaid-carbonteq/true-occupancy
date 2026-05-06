@@ -13,7 +13,7 @@ function PropertySpecs() {
     <div className="px-9 py-8">
       <div className="flex items-start justify-between gap-6 mb-6">
         <div>
-          <h2 className="font-serif text-[32px] font-semibold leading-tight tracking-tight m-0 mb-1.5 text-ink">
+          <h2 className="font-sans font-light text-[34px] leading-tight tracking-[-0.02em] m-0 mb-1.5 text-ink">
             {PROPERTY.short}
           </h2>
           <div className="text-base text-ink-3">{PROPERTY.city}</div>
@@ -23,11 +23,13 @@ function PropertySpecs() {
         </span>
       </div>
 
-      <div className="grid grid-cols-5 gap-8 py-5 border-t border-b border-line">
+      <div className="grid grid-cols-5 gap-4 py-5 border-t border-b border-line">
         {SPECS.map((s) => (
-          <div key={s.k}>
-            <div className="text-sm text-ink-3 mb-2 font-normal">{s.k}</div>
-            <div className="text-xl font-semibold text-ink tracking-tight">{s.v}</div>
+          <div key={s.k} className="min-w-0">
+            <div className="text-[12px] text-ink-3 mb-1.5 font-normal">{s.k}</div>
+            <div className="text-[16px] font-semibold text-ink tracking-tight whitespace-nowrap">
+              {s.v}
+            </div>
           </div>
         ))}
       </div>

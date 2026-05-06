@@ -25,6 +25,6 @@ body[data-type-pairing="editorial-warm"] {
 
 body[data-type-pairing="brand-forward"] {
   --serif: "Recoleta", Georgia, serif;
-  --sans: "General Sans", "Inter", system-ui, sans-serif;
+  --sans: "Hanken Grotesk", "General Sans", "Inter", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
 }

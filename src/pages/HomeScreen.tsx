@@ -1,73 +1,561 @@
-/* global React, AppShell, Sidebar, Button, Icon, SearchBar, ReactRouterDOM */
-// Home / landing screen.
-// Hero + centered search bar; below, a muted "how it works" row that
-// suggests what the tool does without competing with the input.
+/* global React, AppShell, Button, Icon, SearchBar, ReactRouterDOM */
+// Home — single-purpose tool. User types a property address, we route them
+// through the scan animation and into the matching result.
+//
+// Scenario routing is keyed off the ZIP for the demo:
+//   28804 -> clean      (low risk)
+//   28805 -> medium     (questionable)
+//   28806 -> high       (red flag)
+//   anything else -> clean (safe default)
 
 const { useHistory } = ReactRouterDOM;
 
+const ZIP_TO_SCENARIO: Record<string, 'low' | 'medium' | 'high'> = {
+  '28804': 'low',
+  '28805': 'medium',
+  '28806': 'high',
+};
+
 const STEPS = [
   {
-    label: 'Step 01',
+    numeral: '01',
+    icon: 'search' as const,
     title: 'Enter an address',
     body: 'Paste any U.S. street address, parcel ID, or geocoded coordinates.',
   },
   {
-    label: 'Step 02',
+    numeral: '02',
+    icon: 'layers' as const,
     title: 'We sweep the platforms',
     body: 'Cross-check Airbnb, Vrbo, and Facebook Marketplace within a 1 mile radius — in seconds.',
   },
   {
-    label: 'Step 03',
+    numeral: '03',
+    icon: 'shield' as const,
     title: 'Read the verdict',
     body: 'Get a 0–100 confidence score with every contributing signal, ready to share or export.',
   },
 ];
 
-function HomeScreen() {
-  const history = useHistory();
+const STEP_VISUALS: Record<string, { src: string; objectPosition?: string }> = {
+  '01': { src: 'uploads/step-01.jpg' },
+  '02': { src: 'uploads/step-02.jpg' },
+  '03': { src: 'uploads/step-03.jpg' },
+};
+
+// Cycles through three risk states (clean → questionable → red flag) with a
+// count-up animation per cycle, so the client can watch the score behave.
+const DEMO_CYCLE: {
+  score: number;
+  label: string;
+  tint: string;
+  ring: string;
+  text: string;
+  platforms: { airbnb: string; vrbo: string; fb: string };
+}[] = [
+  {
+    score: 12, label: 'Clean', tint: 'bg-clean-soft', ring: 'ring-clean/30', text: 'text-clean-ink',
+    platforms: { airbnb: 'No matches', vrbo: 'No matches', fb: 'No matches' },
+  },
+  {
+    score: 54, label: 'Questionable', tint: 'bg-warn-soft', ring: 'ring-warn/30', text: 'text-warn-ink',
+    platforms: { airbnb: '1 partial match', vrbo: 'No matches', fb: '1 unrelated' },
+  },
+  {
+    score: 87, label: 'Red flag', tint: 'bg-risk-soft', ring: 'ring-risk/30', text: 'text-risk-ink',
+    platforms: { airbnb: '2 strong matches', vrbo: '1 strong match', fb: '1 partial match' },
+  },
+];
+
+const COUNT_MS = 1200;
+const HOLD_MS = 1600;
+
+// Phase clock shared by both demo cards so they stay in sync.
+function useDemoPhase() {
+  const [phase, setPhase] = React.useState(0);
+  React.useEffect(() => {
+    const t = window.setTimeout(
+      () => setPhase((p) => (p + 1) % DEMO_CYCLE.length),
+      COUNT_MS + HOLD_MS
+    );
+    return () => clearTimeout(t);
+  }, [phase]);
+  return phase;
+}
+
+function AnimatedScoreCard({ phase }: { phase: number }) {
+  const [display, setDisplay] = React.useState(0);
+  const target = DEMO_CYCLE[phase];
+
+  // Count-up animation toward the current target.
+  React.useEffect(() => {
+    let start: number | null = null;
+    let raf = 0;
+    const from = display;
+
+    function tick(t: number) {
+      if (start === null) start = t;
+      const k = Math.min(1, (t - start) / COUNT_MS);
+      const eased = 1 - Math.pow(1 - k, 3);
+      setDisplay(Math.round(from + (target.score - from) * eased));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // Score arc: maps 0–100 to a 270° arc (3/4 circle).
+  const radius = 78;
+  const circumference = 2 * Math.PI * radius;
+  const arcLen = circumference * 0.75;
+  const dash = arcLen * (display / 100);
 
   return (
-    <AppShell sidebar={<Sidebar />}>
-      <div className="min-h-[calc(100vh-7rem)] flex flex-col items-center justify-center px-6">
-        {/* Hero */}
-        <div className="text-center max-w-[58ch] mb-10">
-          <h1 className="font-serif text-7xl font-normal leading-[1.02] tracking-[-0.02em] m-0 mb-5">
-            True <em className="italic text-brand">Occupancy</em>
-          </h1>
-          <p className="text-[17px] text-ink-3 leading-relaxed m-0">
-            Check whether a property is being rented short-term on Airbnb, Vrbo, or
-            Facebook Marketplace — all from a single address.
-          </p>
+    <div
+      className={`rounded-2xl border border-line bg-surface p-4 shadow-lg transition-colors duration-500 ${target.tint}`}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-ink-3">
+          Confidence
         </div>
-
-        {/* Centered search */}
-        <div className="w-full max-w-[680px] mb-20">
-          <SearchBar
-            icon={<Icon name="search" size={18} />}
-            placeholder="Enter a property address — e.g. 1428 Maplewood Drive, Asheville, NC"
-            trailing={
-              <Button variant="primary" onClick={() => history.push('/scan/start')}>
-                Run scan
-              </Button>
-            }
-          />
-        </div>
-
-        {/* Muted how-it-works */}
-        <div className="w-full max-w-[920px] grid grid-cols-3 gap-x-12 opacity-60">
-          {STEPS.map((s) => (
-            <div key={s.label}>
-              <div className="font-mono text-[11px] uppercase tracking-widest text-ink-3 mb-2">
-                {s.label}
-              </div>
-              <div className="font-serif text-xl font-normal text-ink-2 mb-1.5">
-                {s.title}
-              </div>
-              <p className="text-[13px] text-ink-3 leading-relaxed m-0">{s.body}</p>
-            </div>
-          ))}
+        <div
+          className={`inline-flex items-center px-2 py-0.5 rounded-full bg-surface border border-line font-mono text-[9.5px] uppercase tracking-wider ${target.text}`}
+        >
+          {target.label}
         </div>
       </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-baseline">
+          <div className="font-sans font-light text-ink text-[56px] leading-none tracking-[-0.04em] tabular-nums">
+            {display}
+          </div>
+          <div className="font-sans text-ink-3 text-[15px] ml-1">/100</div>
+        </div>
+
+        <svg viewBox="0 0 200 200" className="w-[88px] h-[88px] -rotate-[135deg]" aria-hidden>
+          <circle
+            cx="100"
+            cy="100"
+            r={radius}
+            fill="none"
+            stroke="var(--line)"
+            strokeWidth="14"
+            strokeLinecap="round"
+            strokeDasharray={`${arcLen} ${circumference}`}
+          />
+          <circle
+            cx="100"
+            cy="100"
+            r={radius}
+            fill="none"
+            stroke="var(--ink)"
+            strokeWidth="14"
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${circumference}`}
+            style={{ transition: 'stroke-dasharray 80ms linear' }}
+          />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function AnimatedPlatformsCard({ phase }: { phase: number }) {
+  const target = DEMO_CYCLE[phase];
+  const rows: { name: string; dot: string; key: 'airbnb' | 'vrbo' | 'fb' }[] = [
+    { name: 'Airbnb',   dot: 'bg-airbnb', key: 'airbnb' },
+    { name: 'Vrbo',     dot: 'bg-vrbo',   key: 'vrbo' },
+    { name: 'Facebook', dot: 'bg-fb',     key: 'fb' },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-line bg-surface p-4 shadow-lg">
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-ink-3">
+          Platforms scanned
+        </div>
+        <div className="font-mono text-[10px] text-ink-3 tabular-nums">3 / 3</div>
+      </div>
+
+      {rows.map((p) => (
+        <div
+          key={p.name}
+          className="flex items-center gap-2.5 py-1.5 border-b last:border-b-0 border-line"
+        >
+          <span className={`w-2 h-2 rounded-full ${p.dot}`} />
+          <span className="text-[12.5px] text-ink font-medium leading-none">
+            {p.name}
+          </span>
+          <span
+            key={`${phase}-${p.key}`}
+            className="ml-auto text-[11.5px] text-ink-3 transition-opacity duration-500 animate-[fadeIn_0.4s_ease-out]"
+            style={{ animation: 'platformFade 0.45s ease-out' }}
+          >
+            {target.platforms[p.key]}
+          </span>
+        </div>
+      ))}
+
+      <style>{`
+        @keyframes platformFade {
+          from { opacity: 0; transform: translateY(2px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// Fade + lift on scroll-into-view. Uses IntersectionObserver, runs once.
+function Reveal({
+  children,
+  className = '',
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const ref = React.useRef<HTMLDivElement | null>(null);
+  const [shown, setShown] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            setShown(true);
+            io.disconnect();
+          }
+        });
+      },
+      { threshold: 0.05, rootMargin: '0px 0px 20% 0px' }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: shown ? 1 : 0,
+        transform: shown ? 'translateY(0)' : 'translateY(20px)',
+        transition: `opacity 1100ms cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, transform 1100ms cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`,
+        willChange: 'opacity, transform',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function pickScenario(input: string): 'low' | 'medium' | 'high' {
+  const zip = (input.match(/\b(\d{5})(?:-\d{4})?\b/) || [])[1];
+  if (zip && ZIP_TO_SCENARIO[zip]) return ZIP_TO_SCENARIO[zip];
+  return 'low';
+}
+
+function HomeScreen() {
+  const history = useHistory();
+  const [address, setAddress] = React.useState('');
+  const demoPhase = useDemoPhase();
+
+  function startScan() {
+    const scenario = pickScenario(address);
+    sessionStorage.setItem('scanScenario', scenario);
+    sessionStorage.setItem(
+      'scanAddress',
+      address || '1428 Maplewood Drive, Asheville, NC 28804'
+    );
+    history.push('/scan/start');
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') startScan();
+  }
+
+  return (
+    <AppShell contained={false}>
+      {/* Image hero — full-bleed within a small page margin, like the reference */}
+      <section className="relative rounded-[28px] overflow-hidden mb-12 mx-4 md:mx-6">
+        <img
+          src="uploads/hero.jpg"
+          alt=""
+          className="block w-full h-[640px] object-cover"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = 'none';
+          }}
+        />
+        {/* Center-weighted gradient for text legibility */}
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(15,18,22,0.55) 0%, rgba(15,18,22,0.25) 60%, rgba(15,18,22,0) 100%)',
+          }}
+        />
+
+        {/* Centered hero copy + inline search, vertically + horizontally centered */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+          <h1 className="font-sans font-light text-white text-[88px] leading-[1.02] tracking-[-0.025em] m-0 mb-4 drop-shadow-[0_2px_24px_rgba(0,0,0,0.35)]">
+            True Occupancy
+          </h1>
+          <p className="text-white/85 text-[17px] leading-relaxed m-0 mb-7 max-w-[52ch]">
+            Check whether a property is being rented short-term on Airbnb, Vrbo,
+            or Facebook Marketplace — all from a single address.
+          </p>
+
+          <div className="w-[min(820px,100%)]">
+            <SearchBar
+              icon={<Icon name="search" size={18} />}
+              value={address}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setAddress(e.target.value)
+              }
+              onKeyDown={onKeyDown}
+              placeholder="Enter a property address — e.g. 1428 Maplewood Drive, Asheville, NC 28804"
+              containerClassName="rounded-2xl shadow-2xl ring-1 ring-white/40 bg-surface/95 backdrop-blur transition-shadow focus-within:shadow-2xl focus-within:ring-2 focus-within:ring-brand/40 pl-4 pr-2 py-2"
+              trailing={
+                <Button
+                  variant="primary"
+                  onClick={startScan}
+                  className="h-10 rounded-lg px-5"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Icon name="search" size={14} />
+                    Run scan
+                  </span>
+                </Button>
+              }
+            />
+          </div>
+
+          {/* Demo "Try" chips — sit directly under the search, on the image */}
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-[12px]">
+            <span className="font-mono uppercase tracking-wider text-white/60 mr-1">Try</span>
+            {[
+              { zip: '28804', label: 'Clean' },
+              { zip: '28805', label: 'Questionable' },
+              { zip: '28806', label: 'Red flag' },
+            ].map((d) => (
+              <button
+                key={d.zip}
+                type="button"
+                onClick={() =>
+                  setAddress(`1428 Maplewood Drive, Asheville, NC ${d.zip}`)
+                }
+                className="px-2.5 py-1 rounded-full border border-white/30 bg-white/10 backdrop-blur hover:bg-white/20 hover:border-white/50 text-white/90 text-[12px] transition"
+              >
+                {d.zip} · {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works — header always visible, only the cards fade in */}
+      <div className="px-4 md:px-6">
+        {/* Header — always rendered so the heading peeks above the fold,
+            telling the user there's more below */}
+        <Reveal className="mb-10 grid grid-cols-1 md:grid-cols-[auto_1fr] gap-x-12 gap-y-6 items-start">
+          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-line bg-surface text-[12px] text-ink-2 self-start">
+            /How it works
+          </div>
+          <div className="max-w-[760px]">
+            <h2 className="font-sans font-light text-[64px] leading-[1.02] tracking-[-0.025em] text-ink m-0 mb-5">
+              From address to verdict in seconds
+            </h2>
+            <p className="text-[14px] text-ink-3 leading-relaxed m-0 max-w-[52ch]">
+              One scan cross-references every public short-term-rental listing
+              within a one-mile radius and returns a confidence score with the
+              signals that drove it.
+            </p>
+          </div>
+        </Reveal>
+
+        {/* All three steps visible side-by-side — fade in slightly after the header */}
+        <Reveal className="grid grid-cols-1 md:grid-cols-3 gap-6" delay={140}>
+          {STEPS.map((s) => (
+            <article
+              key={s.numeral}
+              className="bg-surface border border-line rounded-2xl p-6 transition-all hover:border-brand/40 hover:shadow-md"
+            >
+              {/* Top row: left image + right-aligned numeral */}
+              <div className="flex items-start justify-between mb-6">
+                <div className="rounded-xl overflow-hidden w-[55%] aspect-[16/10] bg-surface-2">
+                  <img
+                    src={STEP_VISUALS[s.numeral].src}
+                    alt=""
+                    className="w-full h-full object-cover block"
+                    style={{
+                      objectPosition: STEP_VISUALS[s.numeral].objectPosition || 'center',
+                    }}
+                  />
+                </div>
+                <div className="font-serif text-[36px] leading-none text-ink-3">
+                  {s.numeral}
+                </div>
+              </div>
+
+              {/* Body spans the full bottom of the card */}
+              <p className="text-[15px] text-ink leading-[1.5] m-0">
+                {s.body}
+              </p>
+            </article>
+          ))}
+        </Reveal>
+      </div>
+
+      {/* Quote / mission section */}
+      <Reveal>
+      <section className="mt-28 mb-24 px-6">
+        <div className="max-w-[860px] mx-auto text-center">
+          <p className="font-sans font-light text-ink text-[34px] md:text-[40px] leading-[1.25] tracking-[-0.01em] m-0">
+            <span className="text-ink-3 mr-1">&ldquo;</span>
+            True Occupancy is committed to giving code-compliance teams an
+            honest, evidence-backed read on every short-term rental in their
+            jurisdiction.
+            <span className="text-ink-3 ml-1">&rdquo;</span>
+          </p>
+        </div>
+      </section>
+      </Reveal>
+
+      {/* Sample result — asymmetric two-column with overlapping score card */}
+      <section className="px-6 mt-48 mb-32">
+        <div className="max-w-[1080px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-y-12 lg:gap-x-6 items-center">
+          {/* LEFT — text column (5/12). Always visible so it acts as the
+              landing cue that there's more below the fold. */}
+          <Reveal className="lg:col-span-5 lg:pl-2 lg:pr-6 max-w-[560px]">
+            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-line bg-surface text-[12px] text-ink-2 mb-7">
+              /Sample result
+            </div>
+
+            <h2 className="font-sans font-light text-[56px] leading-[1.02] tracking-[-0.03em] text-ink m-0 mb-6">
+              See what a scan returns
+            </h2>
+
+            <p className="text-[15.5px] text-ink-2 leading-[1.55] m-0 max-w-[48ch]">
+              A live preview of an actual result for a questionable property —
+              the confidence score, contributing factors, and matched listings
+              across every platform we cover.
+            </p>
+          </Reveal>
+
+          {/* RIGHT — smaller image with score card overlapping top-left (7/12) */}
+          <Reveal className="lg:col-span-7 relative lg:pt-10" delay={120}>
+            {/* Property image — wider, shorter aspect */}
+            <div className="relative rounded-[28px] overflow-hidden aspect-[16/9] lg:aspect-[3/2] shadow-md">
+              <img
+                src="uploads/property-sample.jpg"
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div
+                aria-hidden
+                className="absolute inset-0"
+                style={{
+                  background:
+                    'linear-gradient(180deg, rgba(15,18,22,0.35) 0%, rgba(15,18,22,0) 55%)',
+                }}
+              />
+            </div>
+
+            {/* Confidence card — overlaps top-left, smaller, slight tilt */}
+            <div className="relative -mt-12 lg:mt-0 lg:absolute lg:left-[-48px] lg:top-[-20px] lg:w-[260px] mx-4 lg:mx-0 z-10 lg:-rotate-[3deg] origin-top-left">
+              <AnimatedScoreCard phase={demoPhase} />
+            </div>
+
+            {/* Platform-coverage card — overlaps bottom-right of the image, slight tilt the other way */}
+            <div className="hidden lg:block absolute right-[-32px] bottom-[-28px] w-[240px] z-10 rotate-[3deg] origin-bottom-right">
+              <AnimatedPlatformsCard phase={demoPhase} />
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <Reveal>
+      <footer className="border-t border-line bg-surface-2">
+        <div className="max-w-[1320px] mx-auto px-8 py-12 grid grid-cols-1 md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10">
+          {/* Brand */}
+          <div>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8">
+                <img
+                  src="halcyon-mark-v2.png"
+                  alt="Halcyon"
+                  className="w-full h-full object-contain block"
+                />
+              </div>
+              <div className="font-sans font-light text-[18px] leading-none tracking-[-0.02em] text-ink">
+                True Occupancy
+              </div>
+            </div>
+            <p className="text-[13px] text-ink-3 leading-relaxed m-0 max-w-[36ch]">
+              Evidence-backed occupancy scans for code-compliance teams.
+              Built by Halcyon.
+            </p>
+          </div>
+
+          {/* Product */}
+          <div>
+            <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
+              Product
+            </div>
+            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
+              <li><a href="#" className="no-underline hover:text-brand">New scan</a></li>
+              <li><a href="#" className="no-underline hover:text-brand">Batch scan</a></li>
+              <li><a href="#" className="no-underline hover:text-brand">Flagged listings</a></li>
+              <li><a href="#" className="no-underline hover:text-brand">Pricing</a></li>
+            </ul>
+          </div>
+
+          {/* Resources */}
+          <div>
+            <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
+              Resources
+            </div>
+            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
+              <li><a href="#" className="no-underline hover:text-brand">How it works</a></li>
+              <li><a href="#" className="no-underline hover:text-brand">Methodology</a></li>
+              <li><a href="#" className="no-underline hover:text-brand">Sample report</a></li>
+              <li><a href="#" className="no-underline hover:text-brand">API</a></li>
+            </ul>
+          </div>
+
+          {/* Contact */}
+          <div>
+            <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
+              Contact
+            </div>
+            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
+              <li><a href="mailto:hello@halcyon.dev" className="no-underline hover:text-brand">hello@halcyon.dev</a></li>
+              <li><a href="#" className="no-underline hover:text-brand">Request a demo</a></li>
+              <li><a href="#" className="no-underline hover:text-brand">Support</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="border-t border-line">
+          <div className="max-w-[1320px] mx-auto px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-3 text-[12px] text-ink-3">
+            <div>© 2026 Halcyon · True Occupancy</div>
+            <div className="flex items-center gap-5">
+              <a href="#" className="no-underline hover:text-ink-2">Privacy</a>
+              <a href="#" className="no-underline hover:text-ink-2">Terms</a>
+              <a href="#" className="no-underline hover:text-ink-2">Status</a>
+            </div>
+          </div>
+        </div>
+      </footer>
+      </Reveal>
     </AppShell>
   );
 }

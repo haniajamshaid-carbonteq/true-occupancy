@@ -19,7 +19,7 @@ function ModeToggle({ value, onChange }: ModeToggleProps) {
       <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">
         View as
       </span>
-      <div className="inline-flex bg-surface border border-line-strong rounded-md p-0.5 shadow-sm">
+      <div className="inline-flex bg-surface border border-line-strong rounded-lg p-1 shadow-sm">
         {OPTIONS.map((opt) => {
           const active = opt.value === value;
           return (
@@ -27,7 +27,7 @@ function ModeToggle({ value, onChange }: ModeToggleProps) {
               key={opt.value}
               type="button"
               onClick={() => onChange(opt.value)}
-              className={`px-3.5 h-8 rounded-sm font-sans text-[13px] font-medium transition-colors ${
+              className={`px-3.5 h-8 rounded-md font-sans text-[13px] font-medium transition-colors ${
                 active
                   ? 'bg-brand text-white'
                   : 'bg-transparent text-ink-2 hover:text-ink'

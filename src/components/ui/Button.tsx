@@ -15,7 +15,7 @@ interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 const BTN_BASE =
-  'inline-flex items-center gap-2 h-9 px-3.5 rounded-sm text-[13px] font-medium font-sans border cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+  'inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-[13px] font-medium font-sans border cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
 const BTN_VARIANTS: Record<ButtonVariant, string> = {
   primary: 'bg-brand text-white border-brand hover:bg-brand-deep hover:border-brand-deep',

@@ -3,7 +3,7 @@
 
 function PropertyOverview() {
   return (
-    <div className="grid grid-cols-[1.05fr_1fr] bg-surface border border-line rounded-lg shadow-sm overflow-hidden">
+    <div className="grid grid-cols-[0.85fr_1.15fr] bg-surface border border-line rounded-lg shadow-sm overflow-hidden">
       <PropertyMap />
       <PropertySpecs />
     </div>
