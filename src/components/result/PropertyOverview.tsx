@@ -11,7 +11,7 @@ function PropertyOverview() {
       <h2 className="font-sans font-light text-[20px] sm:text-[28px] tracking-[-0.015em] m-0 mb-3 sm:mb-3.5">
         Property overview
       </h2>
-      <div className="grid grid-cols-1 lg:grid-cols-[0.85fr_1.15fr] bg-surface border border-line rounded-lg shadow-sm overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-[0.55fr_1.45fr] bg-surface border border-line rounded-lg shadow-sm overflow-hidden">
         {/* Map: always-visible on lg+, toggled on mobile */}
         <div className="hidden lg:block">
           <PropertyMap />

@@ -13,7 +13,7 @@ function PageHeader({ showSearch = true, showTitle = true, rightSlot }: PageHead
   return (
     <>
       {(showTitle || rightSlot) && (
-        <div className={`flex items-end ${showTitle ? 'justify-start sm:justify-between' : 'justify-end'} gap-3 sm:gap-6 mb-5 sm:mb-6`}>
+        <div className={`flex items-end ${showTitle ? 'justify-start sm:justify-between' : 'justify-start'} gap-3 sm:gap-6 mb-5 sm:mb-6`}>
           {showTitle && (
             <h1
               className="hidden sm:block font-sans font-light leading-[1.05] tracking-[-0.025em] m-0"
