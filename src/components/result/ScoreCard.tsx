@@ -213,13 +213,7 @@ function ScoreCard({ scenario, mode = 'investigator' }: ScoreCardProps) {
         <ScoreHalfGauge score={sc.score} risk={sc.risk} />
       )}
 
-      <div className="mt-3 mb-4">
-        <RiskBadge level={sc.risk} glyph={<Icon name={RISK_ICON[sc.risk]} size={11} />}>
-          {sc.riskLabel}
-        </RiskBadge>
-      </div>
-
-      <h3 className="font-sans font-semibold text-[22px] m-0 leading-tight tracking-[-0.01em] mb-2 max-w-[44ch]">
+      <h3 className="font-sans font-semibold text-[22px] m-0 leading-tight tracking-[-0.01em] mb-2 mt-5 max-w-[44ch]">
         {isResident ? 'What does this mean?' : sc.headline}
       </h3>
       <p className="m-0 text-ink-2 text-[14px] leading-snug max-w-[56ch]">

@@ -13,7 +13,7 @@ function PageHeader({ showSearch = true, showTitle = true, rightSlot }: PageHead
   return (
     <>
       {(showTitle || rightSlot) && (
-        <div className={`flex items-end ${showTitle ? 'justify-start sm:justify-between' : 'justify-end'} gap-3 sm:gap-6 mb-5 sm:mb-6`}>
+        <div className={`flex items-end ${showTitle ? 'justify-start sm:justify-between' : 'justify-start'} gap-3 sm:gap-6 mb-5 sm:mb-6`}>
           {showTitle && (
             <h1
               className="hidden sm:block font-sans font-light leading-[1.05] tracking-[-0.025em] m-0"
@@ -32,11 +32,9 @@ function PageHeader({ showSearch = true, showTitle = true, rightSlot }: PageHead
           defaultValue={(typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) || PROPERTY.address}
           readOnly
           trailing={
-            <Button variant="primary" tabIndex={-1} className="rounded-full sm:rounded-lg w-10 sm:w-auto px-0 sm:px-4 grid place-items-center">
-              <span className="inline-flex items-center gap-1.5">
-                <Icon name="search" size={14} />
-                <span className="hidden sm:inline">Run scan</span>
-              </span>
+            <Button variant="primary" tabIndex={-1} className="rounded-full sm:rounded-lg w-9 sm:w-auto !p-0 sm:!px-4 !flex items-center justify-center gap-1.5">
+              <Icon name="search" size={14} />
+              <span className="hidden sm:inline">Run scan</span>
             </Button>
           }
         />

@@ -328,12 +328,10 @@ function HomeScreen() {
                 <Button
                   variant="primary"
                   onClick={startScan}
-                  className="h-10 rounded-full sm:rounded-lg w-10 sm:w-auto px-0 sm:px-5 grid place-items-center"
+                  className="h-10 rounded-full sm:rounded-lg w-10 sm:w-auto !p-0 sm:!px-5 !flex items-center justify-center gap-1.5"
                 >
-                  <span className="inline-flex items-center gap-1.5">
-                    <Icon name="search" size={14} />
-                    <span className="hidden sm:inline">Run scan</span>
-                  </span>
+                  <Icon name="search" size={14} />
+                  <span className="hidden sm:inline">Run scan</span>
                 </Button>
               }
             />

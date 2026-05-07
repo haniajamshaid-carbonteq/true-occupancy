@@ -5,7 +5,7 @@
 
 function PropertyMap() {
   return (
-    <div className="relative min-h-[260px] sm:min-h-[360px] lg:min-h-[480px] border-b lg:border-b-0 lg:border-r border-line bg-[#ECEEF1] overflow-hidden">
+    <div className="relative min-h-[260px] sm:min-h-[360px] lg:min-h-[360px] border-b lg:border-b-0 lg:border-r border-line bg-[#ECEEF1] overflow-hidden">
       {/* Streets */}
       <svg
         className="absolute inset-0 w-full h-full"

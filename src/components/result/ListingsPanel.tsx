@@ -52,23 +52,22 @@ function ListingRow({
   const src = LISTING_IMAGES[imageIndex % LISTING_IMAGES.length];
   return (
     <div
-      className={`grid grid-cols-[48px_1fr] sm:grid-cols-[64px_1fr_auto] gap-3 sm:gap-4 py-3 sm:py-4 ${
+      className={`grid grid-cols-[72px_1fr] sm:grid-cols-[96px_1fr_auto] items-center gap-3 sm:gap-4 py-3 sm:py-4 ${
         isFirst ? '' : 'border-t border-line'
       }`}
     >
       <img
         src={src}
         alt=""
-        className="w-12 h-12 sm:w-16 sm:h-16 rounded-md object-cover block bg-surface-2"
+        className="w-[72px] h-[56px] sm:w-[96px] sm:h-[72px] rounded-md object-cover block bg-surface-2"
       />
       <div className="min-w-0">
         <a
           href="#"
           onClick={(e) => e.preventDefault()}
-          className="inline-flex items-center gap-1.5 text-[13.5px] sm:text-[15px] font-medium leading-tight mb-1 sm:mb-1.5 text-ink no-underline hover:underline underline-offset-2 decoration-ink-3"
+          className="block text-[13.5px] sm:text-[15px] font-medium leading-tight mb-1 sm:mb-1.5 text-ink no-underline hover:underline underline-offset-2 decoration-ink-3"
         >
           <span className="break-words">{listing.title}</span>
-          <Icon name="external" size={12} className="text-ink-4 shrink-0" />
         </a>
         <div className="flex items-center gap-2.5 font-sans text-[13px] text-ink-2 flex-wrap">
           {listing.beds != null && (
@@ -135,7 +134,6 @@ function PlatformSection({
           {platform.mark}
         </div>
         <div className="text-[14px] sm:text-[15px] font-semibold truncate min-w-0">{platform.name}</div>
-        <span className="hidden sm:inline font-sans text-xs text-ink-3 truncate">{platform.domain}</span>
         <div className="ml-auto flex items-center gap-2 sm:gap-3 shrink-0">
           {empty ? (
             <span className="font-sans text-[9.5px] sm:text-[10.5px] uppercase tracking-[0.08em] sm:tracking-[0.12em] text-ink-3 inline-flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
