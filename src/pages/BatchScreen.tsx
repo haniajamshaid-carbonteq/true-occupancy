@@ -73,7 +73,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
           <div className="font-medium text-ink-2 mb-1">
             Drop a CSV here, or <span className="text-brand">browse</span>
           </div>
-          <div className="font-mono text-[11px] uppercase tracking-widest text-ink-4">
+          <div className="font-sans text-[11px] uppercase tracking-widest text-ink-4">
             Required column: address · Up to 500 rows
           </div>
           <input
@@ -111,7 +111,7 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
         <div className="px-7 py-6">
           <div className="flex items-start justify-between gap-6 mb-5">
             <div>
-              <div className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3 mb-1.5">
+              <div className="font-sans text-[10.5px] uppercase tracking-widest text-ink-3 mb-1.5">
                 Batch · asheville-q2-2026.csv
               </div>
               <h2 className="font-sans font-light text-[32px] tracking-[-0.02em] m-0 leading-tight">
@@ -134,7 +134,7 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <div className="font-mono text-xs text-ink-3 shrink-0">
+            <div className="font-sans text-xs text-ink-3 shrink-0">
               {done}/{total} scanned · {running > 0 ? `${running} in progress` : 'queued'}
             </div>
           </div>
@@ -152,11 +152,11 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
       <Card>
         <div className="px-7 py-5 border-b border-line flex items-center justify-between">
           <h3 className="font-sans font-medium text-[18px] m-0">Properties</h3>
-          <span className="font-mono text-[11.5px] text-ink-3">click any row to view detail</span>
+          <span className="font-sans text-[11.5px] text-ink-3">click any row to view detail</span>
         </div>
 
         {/* Table header */}
-        <div className="grid grid-cols-[40px_1fr_80px_140px_100px_36px] gap-4 px-7 py-3 bg-surface-2 border-b border-line font-mono text-[10.5px] uppercase tracking-widest text-ink-3">
+        <div className="grid grid-cols-[40px_1fr_80px_140px_100px_36px] gap-4 px-7 py-3 bg-surface-2 border-b border-line font-sans text-[10.5px] uppercase tracking-widest text-ink-3">
           <div>#</div>
           <div>Address</div>
           <div className="text-right">Score</div>
@@ -221,7 +221,7 @@ function BatchRowItem({ index, row }: { index: number; row: BatchRow }) {
 
   return (
     <div className={rowCls} onClick={onClick}>
-      <div className="font-mono text-[11.5px] text-ink-4">{String(index).padStart(2, '0')}</div>
+      <div className="font-sans text-[11.5px] text-ink-4">{String(index).padStart(2, '0')}</div>
       <div className="text-[13.5px] font-medium text-ink truncate">{row.address}</div>
       <div className="text-right font-sans font-medium text-[18px] leading-none">
         {isDone ? row.score : <span className="text-ink-4">—</span>}

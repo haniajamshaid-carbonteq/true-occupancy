@@ -131,6 +131,11 @@ const __TWEAKS_STYLE = `
   .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
   .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
   .twk-swatch::-moz-color-swatch{border:0;border-radius:5.5px}
+
+  @media (max-width:480px){
+    .twk-panel{width:calc(100vw - 24px) !important;right:12px !important;left:12px !important;
+      bottom:12px !important;max-height:60vh}
+  }
 `;
 
 // ── useTweaks ───────────────────────────────────────────────────────────────

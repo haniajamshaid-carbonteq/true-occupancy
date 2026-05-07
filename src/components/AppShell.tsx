@@ -17,7 +17,7 @@ function AppShell({ children, contained = true }: AppShellProps) {
       <TopNav />
       <main
         className={
-          contained ? 'max-w-[1320px] mx-auto px-8 pt-8 pb-20' : 'pt-8'
+          contained ? 'max-w-[1320px] mx-auto px-4 sm:px-6 md:px-8 pt-6 sm:pt-8 pb-16 sm:pb-20' : 'pt-6 sm:pt-8'
         }
       >
         {children}

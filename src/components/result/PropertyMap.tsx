@@ -5,7 +5,7 @@
 
 function PropertyMap() {
   return (
-    <div className="relative min-h-[480px] border-r border-line bg-[#ECEEF1] overflow-hidden">
+    <div className="relative min-h-[260px] sm:min-h-[360px] lg:min-h-[480px] border-b lg:border-b-0 lg:border-r border-line bg-[#ECEEF1] overflow-hidden">
       {/* Streets */}
       <svg
         className="absolute inset-0 w-full h-full"
@@ -69,21 +69,21 @@ function PropertyMap() {
       </div>
 
       {/* Zoom controls */}
-      <div className="absolute top-3.5 left-3.5 flex flex-col bg-white border border-black/20 rounded overflow-hidden shadow">
-        <button type="button" className="w-[30px] h-[30px] border-0 bg-white text-lg text-neutral-700 leading-none">+</button>
-        <button type="button" className="w-[30px] h-[30px] border-0 bg-white text-lg text-neutral-700 leading-none border-t border-black/20">−</button>
+      <div className="absolute top-2 left-2 sm:top-3.5 sm:left-3.5 flex flex-col bg-white border border-black/20 rounded overflow-hidden shadow">
+        <button type="button" className="w-[24px] h-[24px] sm:w-[30px] sm:h-[30px] border-0 bg-white text-base sm:text-lg text-neutral-700 leading-none">+</button>
+        <button type="button" className="w-[24px] h-[24px] sm:w-[30px] sm:h-[30px] border-0 bg-white text-base sm:text-lg text-neutral-700 leading-none border-t border-black/20">−</button>
       </div>
 
       {/* Info popup */}
-      <div className="absolute left-[24%] top-[30%] bg-white border border-black/10 rounded p-3 pr-4 shadow-md min-w-[200px]">
-        <div className="absolute top-1.5 right-2.5 text-neutral-400 text-sm cursor-pointer leading-none">×</div>
-        <div className="font-semibold text-sm text-ink mb-1">Searched Property</div>
-        <div className="text-[13px] text-ink-2">{PROPERTY.short}</div>
-        <div className="text-[13px] text-ink-2 mb-2">{PROPERTY.city}</div>
-        <div className="text-[13px] text-ink-2">
+      <div className="absolute left-[24%] top-[30%] bg-white border border-black/10 rounded p-2 pr-3 sm:p-3 sm:pr-4 shadow-md min-w-[150px] sm:min-w-[200px] max-w-[60%]">
+        <div className="absolute top-1 right-2 sm:top-1.5 sm:right-2.5 text-neutral-400 text-xs sm:text-sm cursor-pointer leading-none">×</div>
+        <div className="font-semibold text-[12px] sm:text-sm text-ink mb-0.5 sm:mb-1">Searched Property</div>
+        <div className="text-[11px] sm:text-[13px] text-ink-2">{PROPERTY.short}</div>
+        <div className="text-[11px] sm:text-[13px] text-ink-2 mb-1.5 sm:mb-2">{PROPERTY.city}</div>
+        <div className="text-[11px] sm:text-[13px] text-ink-2">
           {PROPERTY.bedrooms} beds · {PROPERTY.bathrooms} baths
         </div>
-        <div className="absolute -bottom-[7px] left-8 w-3 h-3 bg-white border-r border-b border-black/10 rotate-45" />
+        <div className="absolute -bottom-[7px] left-6 sm:left-8 w-3 h-3 bg-white border-r border-b border-black/10 rotate-45" />
       </div>
 
       {/* Attribution */}

@@ -25,7 +25,7 @@ function SearchBar({
       className={`bg-surface border border-line rounded-lg shadow-sm p-2 flex items-center gap-2 ${containerClassName}`.trim()}
     >
       {icon && (
-        <span className="w-9 grid place-items-center text-ink-3 shrink-0 [&>svg]:w-4 [&>svg]:h-4">
+        <span className="hidden sm:grid w-9 place-items-center text-ink-3 shrink-0 [&>svg]:w-4 [&>svg]:h-4">
           {icon}
         </span>
       )}

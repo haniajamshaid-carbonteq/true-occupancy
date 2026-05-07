@@ -30,6 +30,7 @@ const Ico = ({ name, size = 16, ...rest }) => {
     case 'globe': return <svg viewBox="0 0 24 24" {...s}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>;
     case 'pdf': return <svg viewBox="0 0 24 24" {...s}><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/></svg>;
     case 'share': return <svg viewBox="0 0 24 24" {...s}><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="m8 11 8-4M8 13l8 4"/></svg>;
+    case 'menu': return <svg viewBox="0 0 24 24" {...s}><path d="M4 7h16M4 12h16M4 17h16"/></svg>;
     default: return null;
   }
 };

@@ -55,12 +55,13 @@ function ScoreHalfGauge({
   const cx = size / 2;
   const cy = size / 2;
 
-  // Segment ranges (0–100). Lower = safer, higher = riskier.
+  // Segment ranges (0–100). Four distinct hues so each band reads as its
+  // own zone instead of two amber blends.
   const segments = [
-    { from: 0,  to: 30, color: 'var(--clean)' },
-    { from: 30, to: 55, color: '#E0A23E' },     // softer amber
-    { from: 55, to: 75, color: 'var(--warn)' },
-    { from: 75, to: 100, color: 'var(--risk)' },
+    { from: 0,   to: 30,  color: '#5B8A6A' }, // green — clean
+    { from: 30,  to: 55,  color: '#E5C45A' }, // yellow — caution
+    { from: 55,  to: 75,  color: '#E0884E' }, // orange — questionable
+    { from: 75,  to: 100, color: '#C0533C' }, // red — high risk
   ];
 
   const polar = (pct: number) => {
@@ -88,7 +89,7 @@ function ScoreHalfGauge({
       className="relative shrink-0"
       style={{ width: size, height: size / 2 + 24 }}
     >
-      <svg width={size} height={size / 2 + 24} aria-hidden>
+      <svg width={size} height={size / 2 + 24} aria-hidden style={{ overflow: 'visible' }}>
         {segments.map((s, i) => (
           <path
             key={i}
@@ -111,7 +112,7 @@ function ScoreHalfGauge({
       >
         {centerSlot ?? (
           <>
-            <div className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-ink-3 mb-1">
+            <div className="font-sans text-[10.5px] uppercase tracking-[0.2em] text-ink-3 mb-1">
               Confidence
             </div>
             <div className="flex items-baseline gap-1">
@@ -129,13 +130,13 @@ function ScoreHalfGauge({
 
       {/* Range labels at the arc tips */}
       <div
-        className="absolute font-mono text-[11px] text-ink-4 tabular-nums"
+        className="absolute font-sans text-[11px] text-ink-4 tabular-nums"
         style={{ left: 0, top: size / 2 + 4 }}
       >
         0
       </div>
       <div
-        className="absolute font-mono text-[11px] text-ink-4 tabular-nums"
+        className="absolute font-sans text-[11px] text-ink-4 tabular-nums"
         style={{ right: 0, top: size / 2 + 4 }}
       >
         100
@@ -177,7 +178,7 @@ function MiniHalfGauge({
         <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${dash} ${circumference}`} />
       </svg>
       <div
-        className="absolute inset-0 flex items-end justify-center pb-0.5"
+        className="absolute inset-0 flex items-end justify-center pb-1"
         style={{ height: size / 2 }}
       >
         <div className="font-sans font-semibold text-[14px] leading-none tabular-nums">
@@ -199,7 +200,7 @@ function ScoreCard({ scenario, mode = 'investigator' }: ScoreCardProps) {
     <div className="px-6 pt-7 pb-6 flex flex-col items-center text-center">
       {isResident ? (
         <div className="flex flex-col items-center mt-2 mb-2">
-          <div className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-ink-3 mb-2">
+          <div className="font-sans text-[10.5px] uppercase tracking-[0.2em] text-ink-3 mb-2">
             Rental status
           </div>
           <div
@@ -234,7 +235,7 @@ function InvestigatorHero({ scenario }: { scenario: ScenarioKey }) {
   const sc = SCENARIOS[scenario];
   return (
     <div className={`px-5 py-4 border-r border-line flex flex-col justify-center gap-2 ${HERO_BG_BY_RISK[sc.risk]}`}>
-      <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-3">
+      <div className="font-sans text-[10px] uppercase tracking-[0.16em] text-ink-3">
         Confidence score
       </div>
       <div className="flex items-baseline gap-2">
@@ -277,7 +278,7 @@ function ResidentHero({ scenario }: { scenario: ScenarioKey }) {
 
   return (
     <div className={`px-5 py-4 border-r border-line flex flex-col justify-center gap-2 ${HERO_BG_BY_RISK[sc.risk]}`}>
-      <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-3">
+      <div className="font-sans text-[10px] uppercase tracking-[0.16em] text-ink-3">
         Rental status
       </div>
       <div
@@ -287,7 +288,7 @@ function ResidentHero({ scenario }: { scenario: ScenarioKey }) {
       </div>
       {foundOn.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-3">
+          <span className="font-sans text-[10px] uppercase tracking-[0.12em] text-ink-3">
             Found on
           </span>
           {foundOn.map((n) => (
