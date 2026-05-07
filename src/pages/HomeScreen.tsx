@@ -113,28 +113,28 @@ function AnimatedScoreCard({ phase }: { phase: number }) {
 
   return (
     <div
-      className={`rounded-2xl border border-line bg-surface p-4 shadow-lg transition-colors duration-500 ${target.tint}`}
+      className={`rounded-xl sm:rounded-2xl border border-line bg-surface p-3.5 sm:p-4 shadow-lg transition-colors duration-500 ${target.tint}`}
     >
-      <div className="flex items-center justify-between mb-1">
-        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-ink-3">
+      <div className="flex items-center justify-between mb-2 sm:mb-1 gap-2">
+        <div className="font-sans text-[8.5px] sm:text-[9.5px] uppercase tracking-[0.16em] sm:tracking-[0.18em] text-ink-3">
           Confidence
         </div>
         <div
-          className={`inline-flex items-center px-2 py-0.5 rounded-full bg-surface border border-line font-mono text-[9.5px] uppercase tracking-wider ${target.text}`}
+          className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-surface border border-line font-sans text-[9.5px] uppercase tracking-wider ${target.text}`}
         >
           {target.label}
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-2">
         <div className="flex items-baseline">
-          <div className="font-sans font-light text-ink text-[56px] leading-none tracking-[-0.04em] tabular-nums">
+          <div className="font-sans font-light text-ink text-[34px] sm:text-[56px] leading-none tracking-[-0.04em] tabular-nums">
             {display}
           </div>
-          <div className="font-sans text-ink-3 text-[15px] ml-1">/100</div>
+          <div className="font-sans text-ink-3 text-[11px] sm:text-[15px] ml-0.5 sm:ml-1">/100</div>
         </div>
 
-        <svg viewBox="0 0 200 200" className="w-[88px] h-[88px] -rotate-[135deg]" aria-hidden>
+        <svg viewBox="0 0 200 200" className="w-[52px] h-[52px] sm:w-[88px] sm:h-[88px] -rotate-[135deg]" aria-hidden>
           <circle
             cx="100"
             cy="100"
@@ -171,26 +171,26 @@ function AnimatedPlatformsCard({ phase }: { phase: number }) {
   ];
 
   return (
-    <div className="rounded-2xl border border-line bg-surface p-4 shadow-lg">
-      <div className="flex items-center justify-between mb-3">
-        <div className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-ink-3">
+    <div className="rounded-xl sm:rounded-2xl border border-line bg-surface p-3.5 sm:p-4 shadow-lg">
+      <div className="flex items-center justify-between mb-2.5 sm:mb-3 gap-2">
+        <div className="font-sans text-[8px] sm:text-[9.5px] uppercase tracking-[0.16em] sm:tracking-[0.18em] text-ink-3">
           Platforms scanned
         </div>
-        <div className="font-mono text-[10px] text-ink-3 tabular-nums">3 / 3</div>
+        <div className="font-sans text-[8.5px] sm:text-[10px] text-ink-3 tabular-nums">3 / 3</div>
       </div>
 
       {rows.map((p) => (
         <div
           key={p.name}
-          className="flex items-center gap-2.5 py-1.5 border-b last:border-b-0 border-line"
+          className="flex items-center gap-1.5 sm:gap-2.5 py-1 sm:py-1.5 border-b last:border-b-0 border-line"
         >
-          <span className={`w-2 h-2 rounded-full ${p.dot}`} />
-          <span className="text-[12.5px] text-ink font-medium leading-none">
+          <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${p.dot}`} />
+          <span className="text-[10.5px] sm:text-[12.5px] text-ink font-medium leading-none">
             {p.name}
           </span>
           <span
             key={`${phase}-${p.key}`}
-            className="ml-auto text-[11.5px] text-ink-3 transition-opacity duration-500 animate-[fadeIn_0.4s_ease-out]"
+            className="ml-auto text-[9.5px] sm:text-[11.5px] text-ink-3 transition-opacity duration-500 animate-[fadeIn_0.4s_ease-out] truncate max-w-[55%]"
             style={{ animation: 'platformFade 0.45s ease-out' }}
           >
             {target.platforms[p.key]}
@@ -283,11 +283,11 @@ function HomeScreen() {
   return (
     <AppShell contained={false}>
       {/* Image hero — full-bleed within a small page margin, like the reference */}
-      <section className="relative rounded-[28px] overflow-hidden mb-12 mx-4 md:mx-6">
+      <section className="relative rounded-[20px] sm:rounded-[28px] overflow-hidden mb-12 mx-3 sm:mx-4 md:mx-6">
         <img
           src="uploads/hero.jpg"
           alt=""
-          className="block w-full h-[640px] object-cover"
+          className="block w-full h-[460px] sm:h-[540px] lg:h-[640px] object-cover"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).style.display = 'none';
           }}
@@ -303,34 +303,36 @@ function HomeScreen() {
         />
 
         {/* Centered hero copy + inline search, vertically + horizontally centered */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
-          <h1 className="font-sans font-light text-white text-[88px] leading-[1.02] tracking-[-0.025em] m-0 mb-4 drop-shadow-[0_2px_24px_rgba(0,0,0,0.35)]">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 sm:px-6">
+          <h1
+            className="font-sans font-light text-white leading-[1.02] tracking-[-0.025em] m-0 mb-4 drop-shadow-[0_2px_24px_rgba(0,0,0,0.35)]"
+            style={{ fontSize: 'clamp(32px, 10vw, 88px)' }}
+          >
             True Occupancy
           </h1>
-          <p className="text-white/85 text-[17px] leading-relaxed m-0 mb-7 max-w-[52ch]">
+          <p className="text-white/85 text-[13px] sm:text-[17px] leading-relaxed m-0 mb-6 sm:mb-7 max-w-[52ch]">
             Check whether a property is being rented short-term on Airbnb, Vrbo,
             or Facebook Marketplace — all from a single address.
           </p>
 
           <div className="w-[min(820px,100%)]">
             <SearchBar
-              icon={<Icon name="search" size={18} />}
               value={address}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setAddress(e.target.value)
               }
               onKeyDown={onKeyDown}
-              placeholder="Enter a property address — e.g. 1428 Maplewood Drive, Asheville, NC 28804"
-              containerClassName="rounded-2xl shadow-2xl ring-1 ring-white/40 bg-surface/95 backdrop-blur transition-shadow focus-within:shadow-2xl focus-within:ring-2 focus-within:ring-brand/40 pl-4 pr-2 py-2"
+              placeholder="Enter a property address"
+              containerClassName="rounded-2xl shadow-2xl ring-1 ring-white/40 bg-surface/95 backdrop-blur transition-shadow focus-within:shadow-2xl focus-within:ring-2 focus-within:ring-brand/40 pl-3 sm:pl-4 pr-2 py-2 flex-wrap sm:flex-nowrap"
               trailing={
                 <Button
                   variant="primary"
                   onClick={startScan}
-                  className="h-10 rounded-lg px-5"
+                  className="h-10 rounded-full sm:rounded-lg w-10 sm:w-auto px-0 sm:px-5 grid place-items-center"
                 >
                   <span className="inline-flex items-center gap-1.5">
                     <Icon name="search" size={14} />
-                    Run scan
+                    <span className="hidden sm:inline">Run scan</span>
                   </span>
                 </Button>
               }
@@ -339,7 +341,7 @@ function HomeScreen() {
 
           {/* Demo "Try" chips — sit directly under the search, on the image */}
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-[12px]">
-            <span className="font-mono uppercase tracking-wider text-white/60 mr-1">Try</span>
+            <span className="font-sans uppercase tracking-wider text-white/60 mr-1">Try</span>
             {[
               { zip: '28804', label: 'Clean' },
               { zip: '28805', label: 'Questionable' },
@@ -361,27 +363,35 @@ function HomeScreen() {
       </section>
 
       {/* How it works — header always visible, only the cards fade in */}
-      <div className="px-4 md:px-6">
+      <div className="px-4 md:px-6 lg:px-32 xl:px-44">
         {/* Header — always rendered so the heading peeks above the fold,
             telling the user there's more below */}
-        <Reveal className="mb-10 grid grid-cols-1 md:grid-cols-[auto_1fr] gap-x-12 gap-y-6 items-start">
-          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-line bg-surface text-[12px] text-ink-2 self-start">
-            /How it works
+        <Reveal>
+          {/* Header row — heading on the left, pill top-right. Both share the
+              same horizontal extent as the cards row below, so the pill's
+              right edge aligns with card 3's right edge (minus mr-8 nudge). */}
+          <div className="flex flex-col-reverse md:flex-row md:items-start md:justify-between gap-4 md:gap-12 mb-10">
+            <div className="max-w-[760px]">
+              <h2
+                className="font-sans font-light leading-[1.05] tracking-[-0.025em] text-ink m-0 mb-5"
+                style={{ fontSize: 'clamp(32px, 7vw, 64px)' }}
+              >
+                From address to verdict in seconds
+              </h2>
+              <p className="text-[14px] text-ink-3 leading-relaxed m-0 max-w-[52ch]">
+                One scan cross-references every public short-term-rental listing
+                within a one-mile radius and returns a confidence score with the
+                signals that drove it.
+              </p>
+            </div>
+            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-line bg-surface text-[12px] text-ink-2 w-fit shrink-0 self-start">
+              /How it works
+            </div>
           </div>
-          <div className="max-w-[760px]">
-            <h2 className="font-sans font-light text-[64px] leading-[1.02] tracking-[-0.025em] text-ink m-0 mb-5">
-              From address to verdict in seconds
-            </h2>
-            <p className="text-[14px] text-ink-3 leading-relaxed m-0 max-w-[52ch]">
-              One scan cross-references every public short-term-rental listing
-              within a one-mile radius and returns a confidence score with the
-              signals that drove it.
-            </p>
-          </div>
-        </Reveal>
 
-        {/* All three steps visible side-by-side — fade in slightly after the header */}
-        <Reveal className="grid grid-cols-1 md:grid-cols-3 gap-6" delay={140}>
+          {/* Cards row — same horizontal extent as header row above. */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
           {STEPS.map((s) => (
             <article
               key={s.numeral}
@@ -410,14 +420,16 @@ function HomeScreen() {
               </p>
             </article>
           ))}
+          </div>
         </Reveal>
       </div>
 
+
       {/* Quote / mission section */}
       <Reveal>
-      <section className="mt-28 mb-24 px-6">
+      <section className="mt-16 sm:mt-28 mb-16 sm:mb-24 px-4 sm:px-6">
         <div className="max-w-[860px] mx-auto text-center">
-          <p className="font-sans font-light text-ink text-[34px] md:text-[40px] leading-[1.25] tracking-[-0.01em] m-0">
+          <p className="font-sans font-light text-ink text-[22px] sm:text-[34px] md:text-[40px] leading-[1.25] tracking-[-0.01em] m-0">
             <span className="text-ink-3 mr-1">&ldquo;</span>
             True Occupancy is committed to giving code-compliance teams an
             honest, evidence-backed read on every short-term rental in their
@@ -429,7 +441,7 @@ function HomeScreen() {
       </Reveal>
 
       {/* Sample result — asymmetric two-column with overlapping score card */}
-      <section className="px-6 mt-48 mb-32">
+      <section className="px-4 sm:px-6 mt-24 sm:mt-48 mb-20 sm:mb-32">
         <div className="max-w-[1080px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-y-12 lg:gap-x-6 items-center">
           {/* LEFT — text column (5/12). Always visible so it acts as the
               landing cue that there's more below the fold. */}
@@ -438,7 +450,10 @@ function HomeScreen() {
               /Sample result
             </div>
 
-            <h2 className="font-sans font-light text-[56px] leading-[1.02] tracking-[-0.03em] text-ink m-0 mb-6">
+            <h2
+              className="font-sans font-light leading-[1.05] tracking-[-0.03em] text-ink m-0 mb-6"
+              style={{ fontSize: 'clamp(30px, 6.5vw, 56px)' }}
+            >
               See what a scan returns
             </h2>
 
@@ -452,7 +467,7 @@ function HomeScreen() {
           {/* RIGHT — smaller image with score card overlapping top-left (7/12) */}
           <Reveal className="lg:col-span-7 relative lg:pt-10" delay={120}>
             {/* Property image — wider, shorter aspect */}
-            <div className="relative rounded-[28px] overflow-hidden aspect-[16/9] lg:aspect-[3/2] shadow-md">
+            <div className="relative rounded-[20px] sm:rounded-[28px] overflow-hidden aspect-[5/4] sm:aspect-[16/9] lg:aspect-[3/2] shadow-md">
               <img
                 src="uploads/property-sample.jpg"
                 alt=""
@@ -469,12 +484,12 @@ function HomeScreen() {
             </div>
 
             {/* Confidence card — overlaps top-left, smaller, slight tilt */}
-            <div className="relative -mt-12 lg:mt-0 lg:absolute lg:left-[-48px] lg:top-[-20px] lg:w-[260px] mx-4 lg:mx-0 z-10 lg:-rotate-[3deg] origin-top-left">
+            <div className="absolute left-[-8px] top-[-12px] sm:left-[-20px] sm:top-[-20px] lg:left-[-48px] lg:top-[-20px] w-[150px] sm:w-[220px] lg:w-[260px] z-10 -rotate-[3deg] origin-top-left">
               <AnimatedScoreCard phase={demoPhase} />
             </div>
 
             {/* Platform-coverage card — overlaps bottom-right of the image, slight tilt the other way */}
-            <div className="hidden lg:block absolute right-[-32px] bottom-[-28px] w-[240px] z-10 rotate-[3deg] origin-bottom-right">
+            <div className="absolute right-[-8px] bottom-[-12px] sm:right-[-20px] sm:bottom-[-20px] lg:right-[-32px] lg:bottom-[-28px] w-[150px] sm:w-[210px] lg:w-[240px] z-10 rotate-[3deg] origin-bottom-right">
               <AnimatedPlatformsCard phase={demoPhase} />
             </div>
           </Reveal>
@@ -484,7 +499,7 @@ function HomeScreen() {
       {/* Footer */}
       <Reveal>
       <footer className="border-t border-line bg-surface-2">
-        <div className="max-w-[1320px] mx-auto px-8 py-12 grid grid-cols-1 md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10">
+        <div className="max-w-[1320px] mx-auto px-5 sm:px-8 py-10 sm:py-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-8 sm:gap-10">
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2.5 mb-4">
@@ -507,7 +522,7 @@ function HomeScreen() {
 
           {/* Product */}
           <div>
-            <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
+            <div className="font-sans text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
               Product
             </div>
             <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
@@ -520,7 +535,7 @@ function HomeScreen() {
 
           {/* Resources */}
           <div>
-            <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
+            <div className="font-sans text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
               Resources
             </div>
             <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
@@ -533,7 +548,7 @@ function HomeScreen() {
 
           {/* Contact */}
           <div>
-            <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
+            <div className="font-sans text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
               Contact
             </div>
             <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
@@ -545,7 +560,7 @@ function HomeScreen() {
         </div>
 
         <div className="border-t border-line">
-          <div className="max-w-[1320px] mx-auto px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-3 text-[12px] text-ink-3">
+          <div className="max-w-[1320px] mx-auto px-5 sm:px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-3 text-[12px] text-ink-3">
             <div>© 2026 Halcyon · True Occupancy</div>
             <div className="flex items-center gap-5">
               <a href="#" className="no-underline hover:text-ink-2">Privacy</a>

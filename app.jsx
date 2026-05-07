@@ -18,6 +18,7 @@ function App() {
   const [scoreLive, setScoreLive] = useState(0);
   const [showResults, setShowResults] = useState(false);
   const [doneAt, setDoneAt] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const timersRef = useRef([]);
 
@@ -64,8 +65,8 @@ function App() {
 
   useEffect(() => { startScan(scenario); return () => timersRef.current.forEach(clearTimeout); }, [scenario, startScan]);
 
-  const setScenario = (s) => setTweak('scenario', s);
-  const replay = () => startScan(scenario);
+  const setScenario = (s) => { setTweak('scenario', s); setSidebarOpen(false); };
+  const replay = () => { startScan(scenario); setSidebarOpen(false); };
 
   const total = steps.length;
   const completed = steps.filter(s => s.status === 'done').length;
@@ -73,10 +74,10 @@ function App() {
   const progressPct = scanning ? Math.min(100, ((completed + running * 0.5) / total) * 100) : 100;
 
   return (
-    <div className="app">
-      <Sidebar />
+    <div className={`app ${sidebarOpen ? 'sidebar-open' : ''}`}>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="main">
-        <Topbar scenario={scenario} setScenario={setScenario} onReplay={replay} scanning={scanning} />
+        <Topbar scenario={scenario} setScenario={setScenario} onReplay={replay} scanning={scanning} onMenuOpen={() => setSidebarOpen(true)} />
         <PageHead scanning={scanning} doneAt={doneAt} />
 
         <div className="res-2col">

@@ -15,8 +15,8 @@ const OPTIONS: { value: AudienceMode; label: string }[] = [
 
 function ModeToggle({ value, onChange }: ModeToggleProps) {
   return (
-    <div className="inline-flex items-center gap-3">
-      <span className="font-mono text-[10.5px] uppercase tracking-widest text-ink-3">
+    <div className="inline-flex items-center gap-2 sm:gap-3">
+      <span className="hidden sm:inline font-sans text-[10.5px] uppercase tracking-widest text-ink-3">
         View as
       </span>
       <div className="inline-flex bg-surface border border-line-strong rounded-lg p-1 shadow-sm">
@@ -27,7 +27,7 @@ function ModeToggle({ value, onChange }: ModeToggleProps) {
               key={opt.value}
               type="button"
               onClick={() => onChange(opt.value)}
-              className={`px-3.5 h-8 rounded-md font-sans text-[13px] font-medium transition-colors ${
+              className={`px-2.5 sm:px-3.5 h-7 sm:h-8 rounded-md font-sans text-[11.5px] sm:text-[13px] font-medium transition-colors ${
                 active
                   ? 'bg-brand text-white'
                   : 'bg-transparent text-ink-2 hover:text-ink'

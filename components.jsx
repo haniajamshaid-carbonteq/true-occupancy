@@ -3,47 +3,80 @@
 const { useState, useEffect, useMemo, useRef } = React;
 
 // ---------- Sidebar ----------
-function Sidebar() {
+function Sidebar({ open, onClose }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose && onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
   return (
-    <aside className="sidebar">
-      <div className="logo">
-        <div className="mark">TO</div>
-        <div>True <em>Occupancy</em></div>
-      </div>
-
-      <div className="nav">
-        <div className="nav-section">Workspace</div>
-        <div className="nav-item active"><Ico name="search" /> New scan</div>
-        <div className="nav-item"><Ico name="history" /> History <span className="badge">142</span></div>
-        <div className="nav-item"><Ico name="flag" /> Flagged <span className="badge">9</span></div>
-
-        <div className="nav-section">Tools</div>
-        <div className="nav-item"><Ico name="globe" /> Watchlist</div>
-        <div className="nav-item"><Ico name="pdf" /> Reports</div>
-        <div className="nav-item"><Ico name="settings" /> Settings</div>
-      </div>
-
-      <div className="sidebar-footer">
-        <div className="avatar">JM</div>
-        <div className="avatar-meta">
-          <div className="name">J. Marlow</div>
-          <div className="role">Code Compliance · Asheville</div>
+    <>
+      <div
+        className={`sidebar-backdrop ${open ? 'open' : ''}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside className={`sidebar ${open ? 'open' : ''}`}>
+        <div className="sidebar-top">
+          <div className="logo">
+            <div className="mark">TO</div>
+            <div>True <em>Occupancy</em></div>
+          </div>
+          <button
+            className="sidebar-close"
+            type="button"
+            aria-label="Close menu"
+            onClick={onClose}
+          >
+            <Ico name="x" size={18} />
+          </button>
         </div>
-      </div>
-    </aside>
+
+        <div className="nav">
+          <div className="nav-section">Workspace</div>
+          <div className="nav-item active"><Ico name="search" /> New scan</div>
+          <div className="nav-item"><Ico name="history" /> History <span className="badge">142</span></div>
+          <div className="nav-item"><Ico name="flag" /> Flagged <span className="badge">9</span></div>
+
+          <div className="nav-section">Tools</div>
+          <div className="nav-item"><Ico name="globe" /> Watchlist</div>
+          <div className="nav-item"><Ico name="pdf" /> Reports</div>
+          <div className="nav-item"><Ico name="settings" /> Settings</div>
+        </div>
+
+        <div className="sidebar-footer">
+          <div className="avatar">JM</div>
+          <div className="avatar-meta">
+            <div className="name">J. Marlow</div>
+            <div className="role">Code Compliance · Asheville</div>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }
 
 // ---------- Topbar ----------
-function Topbar({ scenario, setScenario, onReplay, scanning }) {
+function Topbar({ scenario, setScenario, onReplay, scanning, onMenuOpen }) {
   return (
     <div className="topbar">
-      <div className="breadcrumb">
-        <span>Investigations</span>
-        <span className="sep">/</span>
-        <span>Asheville · Active</span>
-        <span className="sep">/</span>
-        <span className="current">1428 Maplewood Drive</span>
+      <div className="topbar-left">
+        <button
+          className="menu-btn"
+          type="button"
+          aria-label="Open menu"
+          onClick={onMenuOpen}
+        >
+          <Ico name="menu" size={18} />
+        </button>
+        <div className="breadcrumb">
+          <span>Investigations</span>
+          <span className="sep">/</span>
+          <span>Asheville · Active</span>
+          <span className="sep">/</span>
+          <span className="current">1428 Maplewood Drive</span>
+        </div>
       </div>
       <div className="topbar-actions">
         <div className="state-chips" role="tablist" aria-label="Outcome scenarios">
@@ -51,11 +84,11 @@ function Topbar({ scenario, setScenario, onReplay, scanning }) {
           <button className={scenario === 'medium' ? 'active' : ''} onClick={() => setScenario('medium')}>Questionable</button>
           <button className={scenario === 'high' ? 'active' : ''} onClick={() => setScenario('high')}>Red flag</button>
         </div>
-        <button className="btn ghost" onClick={onReplay} disabled={scanning}>
-          <Ico name="replay" /> Replay scan
+        <button className="btn ghost replay-btn-action" onClick={onReplay} disabled={scanning}>
+          <Ico name="replay" /> <span className="btn-label">Replay scan</span>
         </button>
-        <button className="btn"><Ico name="share" /> Share</button>
-        <button className="btn primary"><Ico name="pdf" /> Export report</button>
+        <button className="btn share-btn"><Ico name="share" /> <span className="btn-label">Share</span></button>
+        <button className="btn primary export-btn"><Ico name="pdf" /> <span className="btn-label">Export report</span></button>
       </div>
     </div>
   );

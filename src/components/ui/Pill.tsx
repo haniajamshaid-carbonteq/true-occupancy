@@ -15,7 +15,7 @@ interface PillProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'childre
 }
 
 const PILL_BASE =
-  "inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full font-mono text-[11px] font-medium uppercase tracking-[0.04em] border";
+  "inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full font-sans text-[11px] font-medium uppercase tracking-[0.04em] border";
 
 const PILL_VARIANTS: Record<PillVariant, string> = {
   default: 'bg-surface-2 text-ink-2 border-line',

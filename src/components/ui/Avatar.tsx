@@ -30,7 +30,7 @@ function Avatar({
   return (
     <span
       {...rest}
-      className={`inline-grid place-items-center rounded-full text-white font-mono font-semibold overflow-hidden shrink-0 ${className}`.trim()}
+      className={`inline-grid place-items-center rounded-full text-white font-sans font-semibold overflow-hidden shrink-0 ${className}`.trim()}
       style={{
         width: size,
         height: size,

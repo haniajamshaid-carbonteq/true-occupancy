@@ -22,7 +22,7 @@ function WhyCard({ scenario, defaultOpen = true }: WhyCardProps) {
       >
         <div className="flex items-center gap-3">
           <h3 className="font-sans font-medium text-[16px] m-0">Why this score?</h3>
-          <span className="font-mono text-[11px] text-ink-3">
+          <span className="font-sans text-[11px] text-ink-3">
             {rows.length} signals · net {net >= 0 ? '+' : ''}
             {net}%
           </span>
@@ -36,9 +36,9 @@ function WhyCard({ scenario, defaultOpen = true }: WhyCardProps) {
         </span>
       </button>
 
-      {/* Body — stacked rows with mini gauge + title/desc + impact pill */}
+      {/* Body — borderless rows separated by hairline dividers */}
       {open && (
-        <div className="px-3 pb-3 flex flex-col gap-2.5">
+        <div className="px-5 pb-5">
           {rows.map((r, i) => {
             const abs = Math.min(100, Math.abs(r.impact) * 2);
             const pos = r.impact > 0;
@@ -68,7 +68,9 @@ function WhyCard({ scenario, defaultOpen = true }: WhyCardProps) {
             return (
               <div
                 key={i}
-                className="grid grid-cols-[64px_1fr_auto] items-center gap-4 px-4 py-3 rounded-2xl border border-line bg-surface"
+                className={`grid grid-cols-[64px_1fr_auto] items-center gap-5 py-5 ${
+                  i > 0 ? 'border-t border-line' : ''
+                }`}
               >
                 <MiniHalfGauge score={Math.round(abs)} risk={risk} />
                 <div className="min-w-0">

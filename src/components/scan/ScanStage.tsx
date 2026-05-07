@@ -61,7 +61,7 @@ function ScanStage({ steps, progress }: ScanStageProps) {
         <div className="font-sans font-light text-ink text-[42px] leading-[1.05] tracking-[-0.02em] max-w-[28ch] mx-auto mb-4">
           {address}
         </div>
-        <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-3 inline-flex items-center gap-2">
+        <div className="font-sans text-[11px] uppercase tracking-[0.22em] text-ink-3 inline-flex items-center gap-2">
           <span className="relative inline-flex w-2 h-2">
             <span className="absolute inset-0 rounded-full bg-brand opacity-70 animate-ping" />
             <span className="relative w-2 h-2 rounded-full bg-brand" />
@@ -101,7 +101,7 @@ function ScanStage({ steps, progress }: ScanStageProps) {
           return (
             <div
               key={s.id}
-              className={`relative flex items-center gap-3.5 px-3 py-3.5 ${
+              className={`relative flex items-start gap-3.5 px-3 py-3.5 ${
                 i > 0 ? 'border-t border-line/60' : ''
               } ${isPending ? 'opacity-45' : ''}`}
               style={{
@@ -109,7 +109,9 @@ function ScanStage({ steps, progress }: ScanStageProps) {
                 transition: 'opacity 600ms ease',
               }}
             >
-              <StepDot status={s.status} kind={s.kind} />
+              <div className="flex items-center h-[17.5px] shrink-0">
+                <StepDot status={s.status} kind={s.kind} />
+              </div>
               <div className="flex-1 min-w-0">
                 <div
                   className={`text-[14px] leading-tight font-medium ${
@@ -122,13 +124,6 @@ function ScanStage({ steps, progress }: ScanStageProps) {
                   {isDone || isRunning ? s.result : s.sub}
                 </div>
               </div>
-              {isRunning && (
-                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-brand inline-flex items-center gap-1">
-                  <span className="w-1 h-1 rounded-full bg-brand animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1 h-1 rounded-full bg-brand animate-bounce" style={{ animationDelay: '120ms' }} />
-                  <span className="w-1 h-1 rounded-full bg-brand animate-bounce" style={{ animationDelay: '240ms' }} />
-                </span>
-              )}
             </div>
           );
         })}
