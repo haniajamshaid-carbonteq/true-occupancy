@@ -3,9 +3,9 @@
 // Spec defines `.match-pill` as a separate, smaller chip (mono 10.5px,
 // 2px y-padding, no fixed height) — distinct from the 24px Pill primitive.
 const MATCH_PILL: Record<'high' | 'med' | 'low', { className: string; label: string }> = {
-  high: { className: 'bg-risk-soft text-risk-ink',                      label: 'High match' },
-  med:  { className: 'bg-warn-soft text-warn-ink',                      label: 'Med match' },
-  low:  { className: 'bg-surface-2 text-ink-3 border border-line',      label: 'Low match' },
+  high: { className: 'bg-risk/20 text-white border border-risk/40',          label: 'High match' },
+  med:  { className: 'bg-warn/20 text-white border border-warn/40',          label: 'Med match' },
+  low:  { className: 'bg-white/10 text-white/70 border border-white/15',     label: 'Low match' },
 };
 
 function MatchPill({ kind }: { kind: 'high' | 'med' | 'low' }) {
@@ -31,78 +31,103 @@ interface Listing {
 }
 
 const LISTING_IMAGES = [
-  'uploads/property-sample.jpg',
-  'uploads/step-01.jpg',
-  'uploads/step-02.jpg',
-  'uploads/step-03.jpg',
-  'uploads/hero.jpg',
+  'uploads/pexels-2159872754-37437491.jpg',
+  'uploads/pexels-artbovich-8143698.jpg',
+  'uploads/pexels-cmoon-12558848.jpg',
+  'uploads/pexels-introspectivedsgn-9150640.jpg',
 ];
 
 function ListingRow({
   listing,
   platformName,
-  isFirst,
   imageIndex,
 }: {
   listing: Listing;
   platformName: string;
-  isFirst: boolean;
   imageIndex: number;
 }) {
   const src = LISTING_IMAGES[imageIndex % LISTING_IMAGES.length];
   return (
-    <div
-      className={`grid grid-cols-[72px_1fr] sm:grid-cols-[96px_1fr_auto] items-center gap-3 sm:gap-4 py-3 sm:py-4 ${
-        isFirst ? '' : 'border-t border-line'
-      }`}
-    >
-      <img
-        src={src}
-        alt=""
-        className="w-[72px] h-[56px] sm:w-[96px] sm:h-[72px] rounded-md object-cover block bg-surface-2"
+    <div className="group relative rounded-2xl overflow-hidden cursor-pointer transition hover:ring-1 hover:ring-white/20 w-full">
+      {/* Photo fills the whole card */}
+      <img src={src} alt="" className="block w-full aspect-square object-cover" />
+
+      {/* Progressive dim — strongest at the bottom, fades to clear at the top */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/0"
       />
-      <div className="min-w-0">
-        <a
-          href="#"
-          onClick={(e) => e.preventDefault()}
-          className="block text-[13.5px] sm:text-[15px] font-medium leading-tight mb-1 sm:mb-1.5 text-ink no-underline hover:underline underline-offset-2 decoration-ink-3"
-        >
-          <span className="break-words">{listing.title}</span>
-        </a>
-        <div className="flex items-center gap-2.5 font-sans text-[13px] text-ink-2 flex-wrap">
-          {listing.beds != null && (
-            <span className="inline-flex items-center gap-1">
-              <Icon name="bed" size={13} /> {listing.beds} bd
+
+      {/* Extra contrast wash directly behind the text */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[38%] bg-black/25"
+      />
+
+      {/* Backdrop-blur covering the whole card; mask fades gradually so the blur eases out toward the top */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 backdrop-blur-[6px]"
+        style={{
+          WebkitMaskImage:
+            'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 75%)',
+          maskImage:
+            'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 75%)',
+        }}
+      />
+
+      {/* Info content — sits over the gradient + blur */}
+      <div className="absolute inset-x-0 bottom-0 text-white px-3.5 pt-3 pb-3">
+        {/* Top row: rating + match pill */}
+        <div className="flex items-center justify-between gap-3 mb-2">
+          {listing.rating ? (
+            <span className="inline-flex items-center gap-1 font-sans text-[11.5px] text-white/75">
+              <Icon name="star" size={11} /> {listing.rating} ({listing.reviews})
             </span>
+          ) : (
+            <span />
           )}
-          {listing.baths != null && (
-            <>
-              <span className="opacity-40">·</span>
-              <span className="inline-flex items-center gap-1">
-                <Icon name="bath" size={13} /> {listing.baths} ba
-              </span>
-            </>
-          )}
-          {listing.price && (
-            <>
-              <span className="opacity-40">·</span>
-              <span className="inline-flex items-center gap-1">
-                <Icon name="price" size={13} /> {listing.price}
-              </span>
-            </>
-          )}
-          {listing.rating && (
-            <>
-              <span className="opacity-40">·</span>
-              <span className="inline-flex items-center gap-1">
-                <Icon name="star" size={13} /> {listing.rating} ({listing.reviews})
-              </span>
-            </>
-          )}
+          <MatchPill kind={listing.match} />
         </div>
-      </div>
-      <div className="col-span-2 sm:col-span-1 flex sm:flex-col items-start sm:items-end gap-2 sm:gap-1 shrink-0 mt-1 sm:mt-0">
-        <MatchPill kind={listing.match} />
+
+        {/* Price */}
+        {listing.price && (
+          <div className="font-sans text-[17px] font-semibold leading-none mb-2 tabular-nums">
+            {listing.price}
+          </div>
+        )}
+
+        {/* Title + stats */}
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <a
+              href="#"
+              onClick={(e) => e.preventDefault()}
+              className="block font-sans text-[12px] leading-snug text-white/90 no-underline hover:underline underline-offset-2 decoration-white/40"
+            >
+              <span className="break-words line-clamp-2">{listing.title}</span>
+            </a>
+          </div>
+
+          <div className="grid grid-cols-2 divide-x divide-white/20 text-center shrink-0">
+            <div className="px-2.5">
+              <div className="font-sans text-[13px] font-semibold leading-none">
+                {listing.beds ?? '—'}
+              </div>
+              <div className="font-sans text-[9.5px] uppercase tracking-[0.14em] text-white/60 mt-1">
+                Beds
+              </div>
+            </div>
+            <div className="px-2.5">
+              <div className="font-sans text-[13px] font-semibold leading-none">
+                {listing.baths ?? '—'}
+              </div>
+              <div className="font-sans text-[9.5px] uppercase tracking-[0.14em] text-white/60 mt-1">
+                Baths
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -117,7 +142,8 @@ function PlatformSection({
   platform,
   listings,
   isFirst,
-}: PlatformSectionProps & { isFirst: boolean }) {
+  startIndex,
+}: PlatformSectionProps & { isFirst: boolean; startIndex: number }) {
   const [open, setOpen] = React.useState(true);
   const empty = listings.length === 0;
 
@@ -156,14 +182,13 @@ function PlatformSection({
       </button>
 
       {open && !empty && (
-        <div className="pb-3">
+        <div className="pb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {listings.map((l, i) => (
             <ListingRow
               key={i}
               listing={l}
               platformName={platform.name}
-              isFirst={i === 0}
-              imageIndex={i + (platform.id === 'vrbo' ? 2 : platform.id === 'fb' ? 4 : 0)}
+              imageIndex={startIndex + i}
             />
           ))}
         </div>
@@ -199,14 +224,23 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
         </div>
       </div>
       <div>
-        {(PLATFORMS as PlatformSectionProps['platform'][]).map((p, i) => (
-          <PlatformSection
-            key={p.id}
-            platform={p}
-            listings={sc.listings[p.id] || []}
-            isFirst={i === 0}
-          />
-        ))}
+        {(() => {
+          let running = 0;
+          return (PLATFORMS as PlatformSectionProps['platform'][]).map((p, i) => {
+            const listings = sc.listings[p.id] || [];
+            const startIndex = running;
+            running += listings.length;
+            return (
+              <PlatformSection
+                key={p.id}
+                platform={p}
+                listings={listings}
+                isFirst={i === 0}
+                startIndex={startIndex}
+              />
+            );
+          });
+        })()}
       </div>
     </div>
   );
