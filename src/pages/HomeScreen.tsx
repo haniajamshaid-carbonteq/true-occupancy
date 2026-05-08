@@ -59,7 +59,7 @@ const VERDICT_VARIANT: Record<'low' | 'medium' | 'high', 'clean' | 'warn' | 'ris
   high: 'risk',
 };
 
-const VERDICT_LABEL: Record<'low' | 'medium' | 'high', string> = {
+const HOME_VERDICT_LABEL: Record<'low' | 'medium' | 'high', string> = {
   low: 'Clean',
   medium: 'Questionable',
   high: 'Red flag',
@@ -136,7 +136,7 @@ function ScanRow({ row, onOpen }: { row: RecentScan; onOpen: (row: RecentScan) =
       </div>
       <div className="hidden sm:flex">
         <Pill variant={VERDICT_VARIANT[row.scenario]} dot>
-          {VERDICT_LABEL[row.scenario]}
+          {HOME_VERDICT_LABEL[row.scenario]}
         </Pill>
       </div>
       <div className="hidden sm:block text-right tabular-nums font-semibold text-[14px]" style={{ color: 'var(--navy)' }}>

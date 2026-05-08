@@ -413,7 +413,7 @@ Sentence case for every headline (brand-book §4.2). Weight 600 on display / H1 
 - **Cards.** `bg-surface` + 1 px `--line` hairline + `rounded-xl` (12 px). No shadow at rest; shadow only on hover or for elevated chrome (modals, popovers).
 - **Tables.** Hairline-divided rows, `bg-surface-2` header strip with mono uppercase column labels, hover row tint = `bg-brand-tint/40`.
 - **KPI tiles.** Hairline-divided horizontal strip inside a single rounded-xl card. Each tile: mono uppercase label · 36 px tabular-numeral in navy · optional delta (▲ green, ▼ red) + hint caption. No per-tile borders; the dividers carry the structure.
-- **Buttons.** Primary = solid `--brand-deep` on white, no gradient. Default = white surface + line-strong border, hovering tints to brand-tint. Ghost = transparent until hover.
+- **Buttons.** Primary = solid `--brand` (Teal Green `#0AB7A3`, the brand-book §3.1 primary brand color) on white, white text, no gradient. Hover = `--brand-deep` (Teal Dark `#015E7A`), mirroring the brand-book §10 hyperlink hover pattern. Default = white surface + line-strong border, hover tints to brand-tint. Ghost = transparent until hover.
 - **Pills.** Status `*-soft` background tints, status `*-ink` text, no border. Brand pill = `brand-soft` background + `brand-deep` text.
 
 ### 13.4 Spacing
