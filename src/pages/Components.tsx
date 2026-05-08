@@ -203,13 +203,13 @@ function ComponentsPage() {
         <Section num="04" title="RiskBadge" desc="Verdict pill with a 22×22 circular glyph. Background is the soft tone; glyph fills with the solid status color.">
           <Stage>
             <Row label="Clean">
-              <RiskBadge level="clean" glyph={Glyph.check}>No risk detected</RiskBadge>
+              <RiskBadge level="clean" glyph={Glyph.check}>Not rented · High confidence</RiskBadge>
             </Row>
             <Row label="Warn">
-              <RiskBadge level="warn" glyph={Glyph.alert}>Questionable · review</RiskBadge>
+              <RiskBadge level="warn" glyph={Glyph.alert}>Possibly rented · Medium confidence</RiskBadge>
             </Row>
             <Row label="Risk">
-              <RiskBadge level="risk" glyph={Glyph.x}>High Risk · Red Flag</RiskBadge>
+              <RiskBadge level="risk" glyph={Glyph.x}>Rented · High confidence</RiskBadge>
             </Row>
           </Stage>
         </Section>

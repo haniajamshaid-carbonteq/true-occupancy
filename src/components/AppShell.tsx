@@ -11,16 +11,11 @@ interface AppShellProps {
   sidebar?: React.ReactNode;
 }
 
-const NAV_WIDTH = 248;
-
 function AppShell({ children, contained = true }: AppShellProps) {
   return (
     <div className="min-h-screen bg-bg text-ink font-sans">
       <SideNav />
-      <div
-        className="md:pl-[var(--nav-w)]"
-        style={{ ['--nav-w' as any]: `${NAV_WIDTH}px` }}
-      >
+      <div className="md:pl-[248px]">
         <main
           className={
             contained

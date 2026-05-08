@@ -373,3 +373,70 @@ These are tracked here so the rebrand PR can find them. Don't change them in the
 | 1 | License a web cut of Century Gothic, or settle on URW Geometric / Futura PT? | Marketing | Use the fallback stack in §4.4 |
 | 2 | White-on-gradient body copy fails WCAG AA at small sizes — restrict gradient to display-only, or allow Teal Dark body copy on gradient? | Marketing + design | Restrict gradient to display-size headlines (option 1) |
 | 3 | Does the existing `true-occupancy.html` inline-style surface get migrated to `tokens.css`, or rewritten in place? | Engineering | Migrate to `tokens.css` in the rebrand PR |
+
+---
+
+## 13. Product surface posture (modern-fintech B2B)
+
+Brand-book §6 prescribes the visual language for **one-pager marketing collateral** (full-bleed teal-gradient hero banners, navy-quote testimonial blocks, four-column gradient footer bars). Brand-book §10 prescribes the visual language for **web/digital product** (white content area, content cards on white, hyperlinks in Link Teal, gradient confined to small accents). The two are not in conflict — they govern different surfaces.
+
+`app.html` is a **product surface** and follows §10. Marketing surfaces (a future `/about` page, sell-sheets, decks) follow §6. This section pins the §10 implementation so it's not weakened later.
+
+### 13.1 Color budget on the product surface
+
+Approximate area allocation across any visible viewport:
+
+- **~85% white** (`--bg`, `--surface`).
+- **~12% navy / near-black ink** (`--ink`, `--navy`, `--ink-2/3/4`) for type and dividers.
+- **~3% brand teal**, used as accents only — active nav, link hover, primary button fill, focus rings, KPI deltas, the 4 px brand strip on the side nav, the `ScanCard` progress bar.
+- Amber `#EDA436` only on Problem-framed callouts (Batch "Rented" stat dot, future "Manual / Legacy" comparison columns).
+- No full-bleed gradient banners on product pages. The teal gradient appears as a 4 px brand strip on the side nav, the avatar circle in the workspace block, and the `ScanCard` progress bar — that is the entire gradient inventory on the product surface.
+
+### 13.2 Type usage
+
+| Style       | Size    | Weight | Tracking  | Color        |
+|-------------|---------|--------|-----------|--------------|
+| Display     | 32–40 px| 600    | -0.012 em | navy         |
+| H1          | 28–32 px| 600    | -0.008 em | navy         |
+| H2          | 20–22 px| 600    | -0.005 em | navy         |
+| H3 / card   | 16 px   | 600    | 0         | navy         |
+| Eyebrow     | 11 px   | 600    | 0.14 em uc| brand-deep   |
+| Body lg     | 14.5 px | 400    | 0         | ink-2        |
+| Body        | 14 px   | 400    | 0         | ink-2        |
+| Caption     | 12.5 px | 500    | 0         | ink-3        |
+| Mono label  | 10.5 px | 600    | 0.16 em uc| ink-3        |
+
+Sentence case for every headline (brand-book §4.2). Weight 600 on display / H1 / H2 — not 700 — so the type reads modern instead of heavy.
+
+### 13.3 Surfaces
+
+- **Cards.** `bg-surface` + 1 px `--line` hairline + `rounded-xl` (12 px). No shadow at rest; shadow only on hover or for elevated chrome (modals, popovers).
+- **Tables.** Hairline-divided rows, `bg-surface-2` header strip with mono uppercase column labels, hover row tint = `bg-brand-tint/40`.
+- **KPI tiles.** Hairline-divided horizontal strip inside a single rounded-xl card. Each tile: mono uppercase label · 36 px tabular-numeral in navy · optional delta (▲ green, ▼ red) + hint caption. No per-tile borders; the dividers carry the structure.
+- **Buttons.** Primary = solid `--brand-deep` on white, no gradient. Default = white surface + line-strong border, hovering tints to brand-tint. Ghost = transparent until hover.
+- **Pills.** Status `*-soft` background tints, status `*-ink` text, no border. Brand pill = `brand-soft` background + `brand-deep` text.
+
+### 13.4 Spacing
+
+Use only: 8 / 12 / 16 / 20 / 24 / 32 / 40 / 56 / 80. Section spacing on the home / batch surfaces: `mt-10/12 mb-10/12` between major bands.
+
+### 13.5 Numbers
+
+Every numeric display gets `tabular-nums`. Big numerals (KPI tiles, scores, counts) at weight 600, `tracking-[-0.012em]`, navy.
+
+### 13.6 What this looks like in practice
+
+The Home page is a working dashboard, not a marketing landing. Top-to-bottom:
+
+1. Page header (eyebrow + sentence-case bold H1 + 1-line subhead + sync status).
+2. Scanner card (the primary affordance).
+3. KPI strip (hairline-divided, four tiles).
+4. Recent scans table (hairline rows, mono column labels).
+5. Two-card row: Flagged for review + Methodology.
+6. Utility footer (single hairline strip, copyright + legal links).
+
+The Batch page mirrors steps 1–3 (header → KPI strip → table) so the two surfaces feel like one product.
+
+### 13.7 Brand preservation rule
+
+If at any point the product surface reads as *less* Halcyon than this doc prescribes — logo missing, palette muted to gray, side-nav brand strip removed, sentence-case voice replaced with title case — that is a regression and gets reverted. The bar is not "less brand"; it is "brand applied via §10, not §6".

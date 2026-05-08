@@ -22,7 +22,7 @@ const PILL_VARIANTS: Record<PillVariant, string> = {
   clean: 'bg-clean-soft text-clean-ink border-transparent',
   warn: 'bg-warn-soft text-warn-ink border-transparent',
   risk: 'bg-risk-soft text-risk-ink border-transparent',
-  brand: 'bg-brand-soft text-brand border-transparent',
+  brand: 'bg-brand-soft text-brand-deep border-transparent',
 };
 
 function Pill({ variant = 'default', dot, children, className = '', ...rest }: PillProps) {

@@ -3,7 +3,7 @@
 interface PageHeaderProps {
   /** Persistent address search bar. */
   showSearch?: boolean;
-  /** Show the "True Occupancy" page title. */
+  /** Show the page title (Halcyon eyebrow + bold sentence-case H1). */
   showTitle?: boolean;
   /** Optional right-aligned slot beside the H1 (e.g. a view-mode toggle). */
   rightSlot?: React.ReactNode;
@@ -13,18 +13,22 @@ function PageHeader({ showSearch = true, showTitle = true, rightSlot }: PageHead
   return (
     <>
       {(showTitle || rightSlot) && (
-        <div className={`flex items-end ${showTitle ? 'justify-start sm:justify-between' : 'justify-start'} gap-3 sm:gap-6 mb-5 sm:mb-6`}>
+        <div
+          className={`flex items-end ${
+            showTitle ? 'justify-start sm:justify-between' : 'justify-start'
+          } gap-3 sm:gap-6 mb-6 pb-5 border-b border-line`}
+        >
           {showTitle && (
             <div className="hidden sm:block">
               <div
-                className="font-sans text-[10.5px] font-bold tracking-[0.16em] uppercase mb-1.5"
+                className="font-sans text-[11px] font-semibold tracking-[0.14em] uppercase mb-1.5"
                 style={{ color: 'var(--brand-deep)' }}
               >
                 Halcyon · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
               </div>
               <h1
-                className="font-sans font-bold leading-[1.08] tracking-[-0.005em] m-0"
-                style={{ fontSize: 'clamp(26px, 5vw, 40px)', color: 'var(--navy)' }}
+                className="font-sans font-semibold leading-[1.1] tracking-[-0.008em] m-0"
+                style={{ fontSize: 'clamp(24px, 4.4vw, 32px)', color: 'var(--navy)' }}
               >
                 Verify property occupancy.
               </h1>

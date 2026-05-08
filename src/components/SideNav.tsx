@@ -146,16 +146,44 @@ function SideNav() {
           ))}
         </nav>
 
-        <div className="px-5 py-4 border-t border-line">
-          <div
-            className="font-sans text-[10px] uppercase tracking-[0.16em] font-bold mb-1"
-            style={{ color: 'var(--ink-3)' }}
+        <div className="px-3 py-3 border-t border-line">
+          <button
+            type="button"
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-brand-tint transition-colors text-left"
           >
-            Decide with certainty.
-          </div>
-          <div className="text-[11.5px] text-ink-3 leading-snug">
-            AI-powered data intelligence for financial services.
-          </div>
+            <span
+              className="w-9 h-9 rounded-full grid place-items-center text-white text-[12px] font-semibold tabular-nums shrink-0"
+              style={{
+                background:
+                  'linear-gradient(135deg, var(--navy) 0%, var(--brand-deep) 100%)',
+              }}
+            >
+              JM
+            </span>
+            <span className="leading-tight min-w-0 flex-1">
+              <span
+                className="block text-[13px] font-semibold truncate"
+                style={{ color: 'var(--navy)' }}
+              >
+                J. Marlow
+              </span>
+              <span className="block text-[11.5px] text-ink-3 truncate">
+                Code Compliance · Asheville
+              </span>
+            </span>
+            <svg
+              viewBox="0 0 16 16"
+              className="w-3.5 h-3.5 shrink-0 text-ink-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M5 6l3-3 3 3M5 10l3 3 3-3" />
+            </svg>
+          </button>
         </div>
       </aside>
 

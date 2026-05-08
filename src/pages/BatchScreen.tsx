@@ -139,11 +139,11 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
             </div>
           </div>
 
-          {/* Status counts */}
-          <div className="grid grid-cols-3 gap-3">
-            <SummaryStat tone="risk"  count={flagged} label="Flagged" />
-            <SummaryStat tone="warn"  count={warn}    label="Questionable" />
-            <SummaryStat tone="clean" count={clean}   label="Clean" />
+          {/* Status counts — KPI strip, hairline-divided to match Home */}
+          <div className="bg-surface border border-line rounded-xl grid grid-cols-3 divide-y-0 divide-line overflow-hidden">
+            <SummaryStat tone="risk"  count={flagged} label="Rented" isLast={false} />
+            <SummaryStat tone="warn"  count={warn}    label="Possibly rented" isLast={false} />
+            <SummaryStat tone="clean" count={clean}   label="Not rented" isLast={true} />
           </div>
         </div>
       </Card>
@@ -176,25 +176,40 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
 
 // ---------- Sub-components ----------
 
-const SUMMARY_TONE: Record<Risk, string> = {
-  risk:  'bg-risk-soft text-risk-ink',
-  warn:  'bg-warn-soft text-warn-ink',
-  clean: 'bg-clean-soft text-clean-ink',
+const SUMMARY_DOT: Record<Risk, string> = {
+  risk:  'bg-risk',
+  warn:  'bg-warn',
+  clean: 'bg-clean',
 };
 
-function SummaryStat({ tone, count, label }: { tone: Risk; count: number; label: string }) {
+// KPI-tile pattern: mono uppercase label, big tabular-nums numeral, status
+// dot. Mirrors the Home KPI strip so the two surfaces feel like one product.
+function SummaryStat({ tone, count, label, isLast }: { tone: Risk; count: number; label: string; isLast: boolean }) {
   return (
-    <div className={`px-5 py-4 rounded-md ${SUMMARY_TONE[tone]}`}>
-      <div className="font-sans font-bold text-[36px] leading-none tracking-[-0.02em] mb-1 tabular-nums">{count}</div>
-      <div className="text-[13px] font-medium">{label}</div>
+    <div className={`px-5 py-4 sm:px-6 sm:py-5 ${isLast ? '' : 'sm:border-r sm:border-line'}`}>
+      <div className="flex items-center gap-2">
+        <span className={`w-1.5 h-1.5 rounded-full ${SUMMARY_DOT[tone]}`} aria-hidden />
+        <div
+          className="font-sans text-[10.5px] font-semibold tracking-[0.16em] uppercase"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          {label}
+        </div>
+      </div>
+      <div
+        className="font-sans font-semibold text-[34px] sm:text-[36px] leading-none tracking-[-0.012em] tabular-nums mt-2.5"
+        style={{ color: 'var(--navy)' }}
+      >
+        {count}
+      </div>
     </div>
   );
 }
 
 const VERDICT_LABEL: Record<Risk, string> = {
-  risk: 'Red flag',
-  warn: 'Questionable',
-  clean: 'Clean',
+  risk: 'Rented',
+  warn: 'Possibly rented',
+  clean: 'Not rented',
 };
 
 // Map a row's risk band to the matching detail-screen route, so the demo
