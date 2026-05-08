@@ -65,10 +65,12 @@
     --shadow-md: 0 4px 16px -4px rgba(20,45,85,.09), 0 2px 5px rgba(20,45,85,.05);
     --shadow-lg: 0 24px 48px -16px rgba(20,45,85,.14), 0 8px 16px -8px rgba(20,45,85,.07);
 
-    --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    /* Type — Halcyon brand book §4: Century Gothic everywhere, no mixing.
+       Jost is the licensed-geometric web fallback. */
     --sans: "Century Gothic", "CenturyGothic", "Jost", "URW Geometric", "Futura PT",
             "Avenir Next", ui-sans-serif, system-ui, -apple-system, sans-serif;
-    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --serif: var(--sans);
+    --mono:  var(--sans);
 
     --brand-gradient: linear-gradient(90deg, #0AB7A3 0%, #0498C6 100%);
   }

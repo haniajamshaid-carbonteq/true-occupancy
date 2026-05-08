@@ -6,7 +6,7 @@
 <title>True Occupancy — Design Spec</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Recoleta&family=General+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Recoleta&family=General+Sans:wght@400;500;600&family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* Inherit the production design tokens & components */
   :root {
@@ -25,11 +25,13 @@
     --shadow-sm: 0 1px 3px rgba(20,45,85,.055), 0 1px 1px rgba(20,45,85,.035);
     --shadow-md: 0 4px 16px -4px rgba(20,45,85,.09), 0 2px 5px rgba(20,45,85,.05);
     --shadow-lg: 0 24px 48px -16px rgba(20,45,85,.14), 0 8px 16px -8px rgba(20,45,85,.07);
-    --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-    --sans: "Century Gothic", "CenturyGothic", "URW Geometric", "Futura PT",
-            "Avenir Next", ui-sans-serif, system-ui, -apple-system, sans-serif;
-    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
     --brand-gradient: linear-gradient(90deg, #0AB7A3 0%, #0498C6 100%);
+    /* Type — Halcyon brand book §4: Century Gothic everywhere, no mixing.
+       Jost is the licensed-geometric web fallback. */
+    --sans: "Century Gothic", "CenturyGothic", "Jost", "URW Geometric",
+            "Futura PT", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+    --serif: var(--sans);
+    --mono:  var(--sans);
   }
   /* Type pairings — switched via Tweaks panel */
   body[data-type-pairing="institutional"] {
@@ -421,7 +423,7 @@
   .nav-anchor .brand { font-family:var(--serif); font-size:16px; font-style:italic; color:var(--brand); margin-right:auto; }
 </style>
 </head>
-<body>
+<body data-type-pairing="halcyon">
 
 <div id="root"></div>
 

@@ -44,13 +44,14 @@ function ScoreHalfGauge({
   const cx = size / 2;
   const cy = size / 2;
 
-  // Segment ranges (0–100). Four distinct hues so each band reads as its
-  // own zone instead of two amber blends.
+  // Neutral certainty bands — same hue across the arc so the gauge reads
+  // as descriptive (where on the scale) rather than evaluative
+  // (good/bad). Verdict color is carried by the indicator dot only.
   const segments = [
-    { from: 0,   to: 30,  color: '#5B8A6A' }, // green — clean
-    { from: 30,  to: 55,  color: '#E5C45A' }, // yellow — caution
-    { from: 55,  to: 75,  color: '#E0884E' }, // orange — questionable
-    { from: 75,  to: 100, color: '#C0533C' }, // red — high risk
+    { from: 0,   to: 30,  color: 'var(--line-strong)' },
+    { from: 30,  to: 55,  color: 'var(--line-strong)' },
+    { from: 55,  to: 75,  color: 'var(--line-strong)' },
+    { from: 75,  to: 100, color: 'var(--line-strong)' },
   ];
 
   const polar = (pct: number) => {
@@ -71,7 +72,13 @@ function ScoreHalfGauge({
   // credit-score reference where bands sit clearly apart.
   const gap = 4;
   const indicator = polar(Math.max(0.5, Math.min(99.5, score)));
-  const riskLabel = risk === 'clean' ? 'Low' : risk === 'warn' ? 'Watch' : 'High';
+  const indicatorColor = ARC_RING_BY_RISK[risk];
+  const verdictLabel =
+    risk === 'clean'
+      ? 'Not rented · High confidence'
+      : risk === 'warn'
+      ? 'Possibly rented · Medium confidence'
+      : 'Rented · High confidence';
 
   return (
     <div
@@ -90,8 +97,8 @@ function ScoreHalfGauge({
           />
         ))}
 
-        {/* Indicator dot — no stroke */}
-        <circle cx={indicator.x} cy={indicator.y} r={stroke - 4} fill="var(--ink)" />
+        {/* Indicator dot — verdict color carries the meaning */}
+        <circle cx={indicator.x} cy={indicator.y} r={stroke - 2} fill={indicatorColor} stroke="var(--surface)" strokeWidth={2} />
       </svg>
 
       {/* Centered readout — score by default, or caller-provided slot */}
@@ -102,7 +109,7 @@ function ScoreHalfGauge({
         {centerSlot ?? (
           <>
             <div className="font-sans text-[10.5px] uppercase tracking-[0.2em] text-ink-3 mb-1">
-              Confidence
+              Signal strength
             </div>
             <div className="flex items-baseline gap-1">
               <div className="font-sans font-semibold text-[56px] leading-none tracking-[-0.03em] tabular-nums text-ink">
@@ -110,8 +117,8 @@ function ScoreHalfGauge({
               </div>
               <div className="font-sans text-[16px] text-ink-4 tabular-nums">/ 100</div>
             </div>
-            <div className="font-sans font-medium text-[13px] mt-1.5 text-ink-2">
-              {riskLabel}
+            <div className="font-sans font-medium text-[13px] mt-1.5 text-ink-2 max-w-[24ch]">
+              {verdictLabel}
             </div>
           </>
         )}

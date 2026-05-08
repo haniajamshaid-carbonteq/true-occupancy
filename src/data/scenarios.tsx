@@ -101,9 +101,9 @@ const SCENARIOS: Record<ScenarioKey, Scenario> = {
   high: {
     score: 87,
     risk: 'risk',
-    riskLabel: 'High Risk · Red Flag',
-    summary: 'Strong evidence this property is operating as a short-term rental across multiple platforms without a permit on file.',
-    headline: 'Listed across 3 platforms',
+    riskLabel: 'Rented · High confidence',
+    summary: 'Active listings on Airbnb, Vrbo, and Facebook Marketplace geocode to this parcel and report the same bedroom layout. No STR permit is on file for this address.',
+    headline: '4 matched listings across 3 platforms',
     listings: {
       airbnb: [
         { title: 'Charming Mountain Retreat near Blue Ridge — Hot Tub & Fire Pit', beds: 3, baths: 2, price: '$248/nt', rating: 4.92, reviews: 184, match: 'high', img: 'linear-gradient(135deg,#3a4a3a,#7a8b6c)' },
@@ -126,9 +126,9 @@ const SCENARIOS: Record<ScenarioKey, Scenario> = {
   medium: {
     score: 54,
     risk: 'warn',
-    riskLabel: 'Medium Risk · Questionable',
-    summary: 'We found one strong match and one ambiguous signal. Worth a closer look before flagging.',
-    headline: 'Possible match on Airbnb',
+    riskLabel: 'Possibly rented · Medium confidence',
+    summary: 'One Airbnb listing within 0.4 mi shares the neighborhood and a keyword. Layout and exact address don\'t fully match — additional review may resolve.',
+    headline: '1 partial match on Airbnb',
     listings: {
       airbnb: [
         { title: 'Quiet Studio near Maplewood — perfect for solo travelers', beds: 1, baths: 1, price: '$112/nt', rating: 4.81, reviews: 23, match: 'med', img: 'linear-gradient(135deg,#5b6b5e,#9bb29a)' },
