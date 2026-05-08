@@ -1,11 +1,12 @@
-/* global React, AppShell, PageHeader, ScoreCard, PropertyOverview, WhyCard, ListingsPanel */
-// Screen 03 — Result · clean (low risk).
+/* global React, AppShell, ScanContextBar, ScoreCard, PropertyOverview, WhyCard, ListingsPanel, ReportCertificateBar */
+// Screen 03 — Result · "Not rented · High confidence" (low signal strength).
 
 function ResultCleanScreen() {
   return (
     <AppShell>
-      <PageHeader showTitle={false} />
+      <ScanContextBar />
       <div className="mt-5 flex flex-col gap-5">
+        <ReportCertificateBar kind="single" />
         <ScoreCard scenario="low" />
         <WhyCard scenario="low" />
         <ListingsPanel scenario="low" />

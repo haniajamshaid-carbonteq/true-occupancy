@@ -45,8 +45,8 @@
 </script>
 
 <style>
-  html, body { margin: 0; padding: 0; background: #FFFFFF; color-scheme: light; }
-  body { font-family: var(--sans, "Century Gothic", "URW Geometric", "Avenir Next", system-ui, sans-serif); color: var(--ink, #1C1C1E); background: var(--bg, #FFFFFF); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; overflow-x: hidden; }
+  html, body { margin: 0; padding: 0; background: #F4F6F8; color-scheme: light; }
+  body { font-family: var(--sans, "Century Gothic", "URW Geometric", "Avenir Next", system-ui, sans-serif); color: var(--ink, #1C1C1E); background: var(--bg, #F4F6F8); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; overflow-x: hidden; }
   #boot-status { position: fixed; left: 16px; bottom: 16px; font: 12px/1.4 ui-monospace, monospace; color: var(--ink-3); background: var(--surface); border: 1px solid var(--line); padding: 6px 10px; border-radius: 6px; box-shadow: var(--shadow-sm); z-index: 9999; }
   #boot-status.error { color: var(--risk-ink); background: var(--risk-soft); border-color: transparent; }
 </style>
@@ -85,12 +85,15 @@
     'src/components/ui/Card.tsx',
     'src/components/ui/RiskBadge.tsx',
     'src/components/ui/SearchBar.tsx',
+    'src/components/ui/CommandSearch.tsx',
+    'src/components/ui/CommandPalette.tsx',
     'src/components/ui/Avatar.tsx',
     'src/components/ui/Tag.tsx',
     // 3. Structural
     'src/components/SideNav.tsx',
     'src/components/AppShell.tsx',
     'src/components/PageHeader.tsx',
+    'src/components/ScanContextBar.tsx',
     // 4. Scan
     'src/components/scan/ScanCard.tsx',
     'src/components/scan/ScanStage.tsx',
@@ -101,9 +104,11 @@
     'src/components/result/PropertySpecs.tsx',
     'src/components/result/PropertyOverview.tsx',
     'src/components/result/ListingsPanel.tsx',
+    'src/components/result/ReportCertificateBar.tsx',
     // 6. Pages
     'src/pages/Components.tsx',
     'src/pages/HomeScreen.tsx',
+    'src/pages/HistoryScreen.tsx',
     'src/pages/BatchScreen.tsx',
     'src/pages/ScanStartScreen.tsx',
     'src/pages/ScanMidScreen.tsx',

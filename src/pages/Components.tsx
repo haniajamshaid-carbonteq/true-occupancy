@@ -1,4 +1,4 @@
-/* global React, Button, Pill, Card, RiskBadge, SearchBar, Avatar, Tag */
+/* global React, Button, Pill, Card, RiskBadge, SearchBar, CommandSearch, Avatar, Tag, openCommandPalette */
 // Visual QA showcase. Renders every variant of every primitive so a
 // designer / engineer can scan the whole UI library on one page.
 
@@ -159,7 +159,7 @@ function ComponentsPage() {
               <Pill variant="warn" dot>Review</Pill>
             </Row>
             <Row label="Risk">
-              <Pill variant="risk">Red flag</Pill>
+              <Pill variant="risk">Rented</Pill>
               <Pill variant="risk" dot>3 platforms</Pill>
             </Row>
             <Row label="Brand">
@@ -214,23 +214,40 @@ function ComponentsPage() {
           </Stage>
         </Section>
 
-        {/* === SearchBar === */}
-        <Section num="05" title="SearchBar" desc="Card-shaped wrapper around a borderless input. 36px icon gutter, 16px input. Trailing slot for a Button.">
-          <div className="space-y-5">
-            <SearchBar
-              icon={Glyph.search}
-              placeholder="Search by address, parcel, or owner…"
-              value={query}
-              onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
-            />
-            <SearchBar
-              icon={Glyph.search}
-              placeholder="With a trailing action…"
-              trailing={<Button variant="primary">Scan</Button>}
-            />
-            <SearchBar
-              placeholder="No icon — bare input variant"
-            />
+        {/* === CommandSearch === */}
+        <Section num="05" title="CommandSearch" desc="The hero search of the platform. 64px input, animated gradient focus ring, brand-tinted glow on focus, typewriter placeholder cycling through example queries. Inline mode hosts the Run scan button + try-chips; overlay mode is the body of the global ⌘K palette.">
+          <div className="space-y-8">
+            <div>
+              <div className="text-[11px] text-ink-3 uppercase tracking-[0.14em] font-semibold mb-2">Inline (HomeScreen hero)</div>
+              <CommandSearch
+                mode="inline"
+                value={query}
+                onChange={setQuery}
+                onRun={() => {}}
+                sampleChips={[
+                  { label: '28804 · Not rented', value: '1428 Maplewood Drive, Asheville, NC 28804' },
+                  { label: '28805 · Possibly rented', value: '1428 Maplewood Drive, Asheville, NC 28805' },
+                  { label: '28806 · Rented', value: '1428 Maplewood Drive, Asheville, NC 28806' },
+                ]}
+              />
+            </div>
+            <div>
+              <div className="text-[11px] text-ink-3 uppercase tracking-[0.14em] font-semibold mb-2">Overlay (⌘K palette body)</div>
+              <div className="rounded-[18px] p-6" style={{ background: 'rgba(20, 45, 85, 0.06)' }}>
+                <CommandSearch
+                  mode="overlay"
+                  value=""
+                  onChange={() => {}}
+                  onRun={() => {}}
+                  onClose={() => {}}
+                />
+              </div>
+              <div className="mt-3">
+                <Button variant="default" onClick={() => openCommandPalette()}>
+                  Open the real ⌘K palette
+                </Button>
+              </div>
+            </div>
           </div>
         </Section>
 

@@ -1,6 +1,6 @@
 /* global React, ReactRouterDOM, HomeScreen, ScanStartScreen, ScanMidScreen,
    ResultCleanScreen, ResultMediumScreen, ResultHighScreen,
-   WhyExpandedScreen, ComponentsPage, BatchScreen */
+   WhyExpandedScreen, ComponentsPage, BatchScreen, HistoryScreen, CommandPalette */
 // Top-level router. Each route = one screen.
 // HashRouter so the static server doesn't need URL-rewriting config.
 
@@ -10,6 +10,7 @@ const { HashRouter, Switch, Route, Redirect } = ReactRouterDOM;
 // nested paths. Order matters with v5's Switch.
 const ROUTES = [
   { path: '/batch',          component: BatchScreen },
+  { path: '/history',        component: HistoryScreen },
   { path: '/scan/start',     component: ScanStartScreen },
   { path: '/scan/mid',       component: ScanMidScreen },
   { path: '/result/clean',   component: ResultCleanScreen },
@@ -22,6 +23,7 @@ const ROUTES = [
 function App() {
   return (
     <HashRouter>
+      <CommandPalette />
       <Switch>
         {ROUTES.map((r) => (
           <Route key={r.path} path={r.path} component={r.component} />

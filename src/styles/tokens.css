@@ -5,9 +5,13 @@
  */
 
 :root {
-  /* === Surfaces === */
-  --bg: #FFFFFF;
-  --surface: #FFFFFF;
+  /* === Surfaces ===
+   * Page background carries a barely-there cool/teal cast so cards on
+   * --surface (pure white) lift off it. Reads as white at first glance —
+   * gives the product surface depth without pulling color into the fold.
+   */
+  --bg: #F4F6F8;              /* page background — neutral cool off-white, lifts white cards */
+  --surface: #FFFFFF;         /* cards lift off the bg */
   --surface-2: #F2F2F2;       /* alt-row gray, also subtle nested-card fill */
 
   /* === Lines === */
@@ -57,11 +61,14 @@
   --vrbo: #245ABE;
   --fb: #1877F2;
 
-  /* === Radii === */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 18px;
-  --r-xl: 28px;
+  /* === Radii — modern-fintech crisp.
+   * Tightened from 8/12/18/28 to 6/8/10/14 so cards and tables read as
+   * product chrome, not consumer-app marshmallows.
+   */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --r-xl: 14px;
 
   /* === Shadows — tinted with navy so cards still feel grounded === */
   --shadow-sm: 0 1px 3px rgba(20, 45, 85, .055), 0 1px 1px rgba(20, 45, 85, .035);

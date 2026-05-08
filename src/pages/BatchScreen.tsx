@@ -1,4 +1,4 @@
-/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, ReactRouterDOM */
+/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, ReactRouterDOM, ReportCertificateBar */
 // Batch processing — upload a CSV (or click "Try sample data") to scan
 // dozens of properties in one queue. Shows a partially-complete batch:
 // some scanned, some scanning, some queued.
@@ -106,6 +106,8 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <ReportCertificateBar kind="batch" />
+
       {/* Summary card */}
       <Card>
         <div className="px-7 py-6">
@@ -140,7 +142,7 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
           </div>
 
           {/* Status counts — KPI strip, hairline-divided to match Home */}
-          <div className="bg-surface border border-line rounded-xl grid grid-cols-3 divide-y-0 divide-line overflow-hidden">
+          <div className="bg-surface border border-line rounded-lg grid grid-cols-3 divide-y-0 divide-line overflow-hidden">
             <SummaryStat tone="risk"  count={flagged} label="Rented" isLast={false} />
             <SummaryStat tone="warn"  count={warn}    label="Possibly rented" isLast={false} />
             <SummaryStat tone="clean" count={clean}   label="Not rented" isLast={true} />

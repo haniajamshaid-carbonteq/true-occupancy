@@ -15,7 +15,7 @@ interface NavItem {
 const PRIMARY: NavItem[] = [
   { to: '/', label: 'New scan', icon: 'search', exact: true },
   { to: '/batch', label: 'Batch', icon: 'layers' },
-  { to: '/scan/start', label: 'In progress', icon: 'history', badge: '1' },
+  { to: '/history', label: 'History', icon: 'history' },
   { to: '/result/high', label: 'Flagged', icon: 'flag', badge: '9' },
 ];
 
@@ -124,12 +124,6 @@ function SideNav() {
         className="hidden md:flex fixed inset-y-0 left-0 flex-col bg-surface border-r border-line z-30"
         style={{ width: NAV_WIDTH }}
       >
-        {/* Halcyon brand strip — teal gradient per brand book §6 */}
-        <div
-          aria-hidden
-          className="h-1 w-full shrink-0"
-          style={{ background: 'var(--brand-gradient)' }}
-        />
         <div className="px-5 pt-6 pb-5 border-b border-line">
           <BrandLockup />
         </div>
@@ -153,10 +147,7 @@ function SideNav() {
           >
             <span
               className="w-9 h-9 rounded-full grid place-items-center text-white text-[12px] font-semibold tabular-nums shrink-0"
-              style={{
-                background:
-                  'linear-gradient(135deg, var(--navy) 0%, var(--brand-deep) 100%)',
-              }}
+              style={{ background: 'var(--navy)' }}
             >
               JM
             </span>
@@ -189,11 +180,6 @@ function SideNav() {
 
       {/* Mobile top bar (hidden on md+) */}
       <header className="md:hidden sticky top-0 z-40 bg-surface border-b border-line">
-        <div
-          aria-hidden
-          className="h-1 w-full"
-          style={{ background: 'var(--brand-gradient)' }}
-        />
         <div className="px-4 h-14 flex items-center justify-between gap-3">
           <BrandLockup size="mobile" />
           <button
@@ -237,11 +223,6 @@ function SideNav() {
             className="md:hidden fixed inset-y-0 left-0 z-50 bg-surface border-r border-line flex flex-col"
             style={{ width: 'min(86vw, 320px)' }}
           >
-            <div
-              aria-hidden
-              className="h-1 w-full shrink-0"
-              style={{ background: 'var(--brand-gradient)' }}
-            />
             <div className="px-5 pt-5 pb-4 border-b border-line flex items-center justify-between">
               <BrandLockup size="mobile" onClick={() => setOpen(false)} />
               <button
