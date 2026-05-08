@@ -10,22 +10,26 @@
 <style>
   /* Inherit the production design tokens & components */
   :root {
-    --bg: #F7F5F0; --surface: #FFFFFF; --surface-2: #FBF9F4;
-    --line: #E8E3D8; --line-strong: #D6CFBF;
-    --ink: #1C1B17; --ink-2: #45433C; --ink-3: #76736A; --ink-4: #A19D91;
-    --brand: #0F8FB8; --brand-2: #14B5A6; --brand-soft: #E0F4F4; --brand-tint: #ECF8F8;
-    --brand-deep: #0A6E92;
-    --clean: #5B8A6A; --clean-soft: #E8F0E5; --clean-ink: #2C4A36;
-    --warn: #C68A3C; --warn-soft: #FBF0DB; --warn-ink: #6B4914;
+    /* Halcyon Brand 2026 — mirrors src/styles/tokens.css. See docs/DESIGN.md. */
+    --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #F2F2F2;
+    --line: #E5E7EB; --line-strong: #CBD5E1;
+    --ink: #1C1C1E; --ink-2: #142D55; --ink-3: #475569; --ink-4: #94A3B8;
+    --brand: #0AB7A3; --brand-2: #0498C6; --brand-soft: #E6F8F5; --brand-tint: #F2FBFA;
+    --brand-deep: #015E7A; --brand-link: #0292BE; --brand-mid: #02AF9B; --brand-footer: #079FAD;
+    --navy: #142D55; --navy-quote: #3E6BA4; --navy-mid: #1E4380; --navy-link: #3374DD;
+    --clean: #0AB7A3; --clean-soft: #E6F8F5; --clean-ink: #015E7A;
+    --warn: #EDA436; --warn-soft: #FDF1DC; --warn-ink: #6B4914; --warn-deep: #C3872D;
     --risk: #C0533C; --risk-soft: #FBE3DB; --risk-ink: #6F2917;
     --airbnb: #FF5A5F; --vrbo: #245ABE; --fb: #1877F2;
     --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-xl: 28px;
-    --shadow-sm: 0 1px 2px rgba(28,27,23,.04), 0 1px 1px rgba(28,27,23,.03);
-    --shadow-md: 0 4px 14px -4px rgba(28,27,23,.08), 0 2px 4px rgba(28,27,23,.04);
-    --shadow-lg: 0 24px 48px -16px rgba(28,27,23,.12), 0 8px 16px -8px rgba(28,27,23,.06);
+    --shadow-sm: 0 1px 3px rgba(20,45,85,.055), 0 1px 1px rgba(20,45,85,.035);
+    --shadow-md: 0 4px 16px -4px rgba(20,45,85,.09), 0 2px 5px rgba(20,45,85,.05);
+    --shadow-lg: 0 24px 48px -16px rgba(20,45,85,.14), 0 8px 16px -8px rgba(20,45,85,.07);
     --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-    --sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --sans: "Century Gothic", "CenturyGothic", "URW Geometric", "Futura PT",
+            "Avenir Next", ui-sans-serif, system-ui, -apple-system, sans-serif;
     --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --brand-gradient: linear-gradient(90deg, #0AB7A3 0%, #0498C6 100%);
   }
   /* Type pairings — switched via Tweaks panel */
   body[data-type-pairing="institutional"] {

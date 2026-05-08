@@ -379,17 +379,17 @@ function StaticPropertyMap() {
             <path d="M 560 0 L 555 480" />
           </g>
           {/* selection box */}
-          <rect x="58" y="186" width="324" height="186" fill="rgba(15,143,184,.08)" stroke="#0F8FB8" strokeWidth="1.5" />
+          <rect x="58" y="186" width="324" height="186" fill="rgba(10,183,163,.08)" stroke="#0AB7A3" strokeWidth="1.5" />
           {/* small water blob */}
           <ellipse cx="540" cy="170" rx="34" ry="22" fill="#CFE0EE" />
           {/* labels */}
-          <g fill="#76736A" fontFamily="Geist, sans-serif" fontSize="11">
+          <g fill="#475569" fontFamily="var(--sans), sans-serif" fontSize="11">
             <text x="20" y="335" transform="rotate(-2 20 335)">Silver Creek Drive</text>
             <text x="240" y="245">Kynette Drive</text>
             <text x="280" y="402">Signet Drive</text>
             <text x="160" y="50" transform="rotate(-2 160 50)">Westpark</text>
           </g>
-          <g fill="#A19D91" fontFamily="Geist, sans-serif" fontSize="9">
+          <g fill="#94A3B8" fontFamily="var(--sans), sans-serif" fontSize="9">
             <text x="180" y="220">202</text><text x="180" y="265">204</text>
             <text x="245" y="220">208</text><text x="245" y="265">210</text>
             <text x="305" y="220">212</text><text x="305" y="265">214</text>
@@ -397,8 +397,8 @@ function StaticPropertyMap() {
           </g>
           {/* church marker */}
           <g transform="translate(290 295)">
-            <path d="M 0 0 L -3 -3 L 0 -8 L 3 -3 Z" fill="#76736A" />
-            <text x="6" y="2" fontFamily="Geist, sans-serif" fontSize="9" fill="#76736A">Grace Community Church</text>
+            <path d="M 0 0 L -3 -3 L 0 -8 L 3 -3 Z" fill="#475569" />
+            <text x="6" y="2" fontFamily="var(--sans), sans-serif" fontSize="9" fill="#475569">Grace Community Church</text>
           </g>
         </svg>
         {/* Pin */}
@@ -406,8 +406,8 @@ function StaticPropertyMap() {
           <svg viewBox="0 0 24 32" width="36" height="48">
             <defs>
               <linearGradient id="pinGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="#1B7BD6" />
-                <stop offset="1" stopColor="#14B5A6" />
+                <stop offset="0" stopColor="#0498C6" />
+                <stop offset="1" stopColor="#0AB7A3" />
               </linearGradient>
             </defs>
             <path d="M 12 0 C 5 0 0 5 0 12 C 0 22 12 32 12 32 C 12 32 24 22 24 12 C 24 5 19 0 12 0 Z" fill="url(#pinGrad)" />

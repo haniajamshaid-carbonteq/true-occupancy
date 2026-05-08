@@ -93,17 +93,17 @@ const Tokens = () => (
     <h3 style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 400, margin: '0 0 16px' }}>Color tokens</h3>
     <div className="token-row">
       {[
-        ['Background',     '--bg',          '#F7F5F0'],
+        ['Background',     '--bg',          '#FFFFFF'],
         ['Surface',        '--surface',     '#FFFFFF'],
-        ['Surface 2',      '--surface-2',   '#FBF9F4'],
-        ['Line',           '--line',        '#E8E3D8'],
-        ['Ink',            '--ink',         '#1C1B17'],
-        ['Ink 3',          '--ink-3',       '#76736A'],
-        ['Brand',          '--brand',       '#0F8FB8'],
-        ['Brand 2',        '--brand-2',     '#14B5A6'],
-        ['Brand soft',     '--brand-soft',  '#E0F4F4'],
-        ['Clean',          '--clean',       '#5B8A6A'],
-        ['Warn',           '--warn',        '#C68A3C'],
+        ['Surface 2',      '--surface-2',   '#F2F2F2'],
+        ['Line',           '--line',        '#E5E7EB'],
+        ['Ink',            '--ink',         '#1C1C1E'],
+        ['Ink 2 (navy)',   '--ink-2',       '#142D55'],
+        ['Brand teal',     '--brand',       '#0AB7A3'],
+        ['Brand blue',     '--brand-2',     '#0498C6'],
+        ['Brand deep',     '--brand-deep',  '#015E7A'],
+        ['Brand link',     '--brand-link',  '#0292BE'],
+        ['Warn (amber)',   '--warn',        '#EDA436'],
         ['Risk',           '--risk',        '#C0533C'],
       ].map(([n, v, h]) => (
         <div className="token" key={v}>
