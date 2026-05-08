@@ -6,7 +6,7 @@
 <title>True Occupancy</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist+Mono:wght@400;500&family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     /* Halcyon Brand 2026 — see docs/DESIGN.md */
@@ -66,7 +66,7 @@
     --shadow-lg: 0 24px 48px -16px rgba(20,45,85,.14), 0 8px 16px -8px rgba(20,45,85,.07);
 
     --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-    --sans: "Century Gothic", "CenturyGothic", "URW Geometric", "Futura PT",
+    --sans: "Century Gothic", "CenturyGothic", "Jost", "URW Geometric", "Futura PT",
             "Avenir Next", ui-sans-serif, system-ui, -apple-system, sans-serif;
     --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
@@ -111,23 +111,32 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-family: var(--serif);
-    font-size: 22px;
     color: var(--ink);
-    letter-spacing: -0.01em;
   }
   .logo .mark {
-    width: 28px; height: 28px;
-    border-radius: 8px;
-    background: var(--brand);
-    display: grid; place-items: center;
-    color: #fff;
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 600;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 1px 2px rgba(0,0,0,.15);
+    width: 36px; height: 36px;
+    object-fit: contain;
+    flex-shrink: 0;
+    display: block;
   }
-  .logo em { font-style: italic; color: var(--brand); }
+  .logo-text { line-height: 1.1; }
+  .logo-parent {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--navy);
+    text-transform: uppercase;
+  }
+  .logo-product {
+    font-family: var(--sans);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--brand-deep);
+    margin-top: 2px;
+    letter-spacing: 0.01em;
+  }
+  .logo-product sup { font-size: 0.6em; vertical-align: top; margin-left: 1px; }
 
   .nav {
     display: flex;
@@ -188,17 +197,59 @@
 
   /* ---------- Main ---------- */
   .main {
-    padding: 32px 48px 80px;
-    max-width: 1280px;
     width: 100%;
+    max-width: 1280px;
+    padding: 0 0 80px;
   }
+  .main > * { padding-left: 48px; padding-right: 48px; }
+  .main > .topbar-band { padding-left: 0; padding-right: 0; }
 
+  /* Halcyon hero band — teal gradient at top, brand-book §6 */
+  .topbar-band {
+    background: var(--brand-gradient);
+    color: #fff;
+    margin: 0 0 28px;
+    border-bottom: 1px solid rgba(255,255,255,.18);
+    box-shadow: inset 0 -1px 0 rgba(20,45,85,.08);
+  }
   .topbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 28px;
+    padding: 18px 48px;
+    margin: 0;
+    color: #fff;
   }
+  .topbar .breadcrumb { color: rgba(255,255,255,.78); }
+  .topbar .breadcrumb .sep { color: rgba(255,255,255,.4); }
+  .topbar .breadcrumb .current { color: #fff; font-weight: 500; }
+  .topbar .btn {
+    background: rgba(255,255,255,.12);
+    border-color: rgba(255,255,255,.22);
+    color: #fff;
+    backdrop-filter: blur(6px);
+  }
+  .topbar .btn:hover { background: rgba(255,255,255,.20); border-color: rgba(255,255,255,.36); color: #fff; }
+  .topbar .btn.primary {
+    background: #fff;
+    color: var(--brand-deep);
+    border-color: #fff;
+    font-weight: 600;
+  }
+  .topbar .btn.primary:hover { background: var(--brand-soft); color: var(--brand-deep); border-color: var(--brand-soft); }
+  .topbar .btn.ghost { background: transparent; border-color: transparent; color: rgba(255,255,255,.85); }
+  .topbar .btn.ghost:hover { background: rgba(255,255,255,.14); color: #fff; }
+  .topbar .state-chips button {
+    background: rgba(255,255,255,.10);
+    border-color: rgba(255,255,255,.20);
+    color: rgba(255,255,255,.88);
+  }
+  .topbar .state-chips button.active {
+    background: #fff;
+    color: var(--brand-deep);
+    border-color: #fff;
+  }
+
   .breadcrumb {
     display: flex;
     align-items: center;
@@ -293,15 +344,15 @@
     gap: 24px;
   }
   .page-title {
-    font-family: var(--serif);
-    font-size: clamp(28px, 5vw, 40px);
-    font-weight: 400;
-    line-height: 1.05;
-    letter-spacing: -0.015em;
-    color: var(--ink);
+    font-family: var(--sans);
+    font-size: clamp(26px, 4.4vw, 36px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.005em;
+    color: var(--navy);
     margin: 0 0 6px;
   }
-  .page-title em { font-style: italic; color: var(--brand); }
+  .page-title em { font-style: normal; color: var(--brand-deep); font-weight: 700; }
   .page-sub {
     font-size: 14.5px;
     color: var(--ink-3);
