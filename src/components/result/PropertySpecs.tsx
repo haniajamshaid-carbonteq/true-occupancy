@@ -14,8 +14,8 @@ function PropertySpecs() {
       <div className="flex items-start justify-between gap-3 sm:gap-6 mb-5 sm:mb-6">
         <div className="min-w-0">
           <h2
-            className="font-sans font-light leading-tight tracking-[-0.02em] m-0 mb-1.5 text-ink"
-            style={{ fontSize: 'clamp(16px, 5vw, 30px)' }}
+            className="font-sans font-bold leading-tight tracking-[-0.005em] m-0 mb-1.5"
+            style={{ fontSize: 'clamp(16px, 5vw, 30px)', color: 'var(--navy)' }}
           >
             {PROPERTY.short}
           </h2>

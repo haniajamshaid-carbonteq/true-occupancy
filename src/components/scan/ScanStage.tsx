@@ -58,7 +58,10 @@ function ScanStage({ steps, progress }: ScanStageProps) {
     <div className="relative min-h-[calc(100vh-9rem)] flex flex-col items-center justify-start pt-12 px-6 overflow-hidden">
       {/* Header */}
       <div className="text-center mb-12 relative">
-        <div className="font-sans font-light text-ink text-[42px] leading-[1.05] tracking-[-0.02em] max-w-[28ch] mx-auto mb-4">
+        <div
+          className="font-sans font-bold text-[36px] sm:text-[42px] leading-[1.08] tracking-[-0.005em] max-w-[28ch] mx-auto mb-4"
+          style={{ color: 'var(--navy)' }}
+        >
           {address}
         </div>
         <div className="font-sans text-[11px] uppercase tracking-[0.22em] text-ink-3 inline-flex items-center gap-2">

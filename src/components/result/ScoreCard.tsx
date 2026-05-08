@@ -233,7 +233,7 @@ function InvestigatorHero({ scenario }: { scenario: ScenarioKey }) {
         Confidence score
       </div>
       <div className="flex items-baseline gap-2">
-        <div className="font-sans font-light text-[56px] leading-none tracking-[-0.04em] tabular-nums">
+        <div className="font-sans font-bold text-[56px] leading-none tracking-[-0.02em] tabular-nums" style={{ color: 'var(--navy)' }}>
           {sc.score}
         </div>
         <span className="text-[14px] text-ink-4 tracking-tight">/100</span>
@@ -276,7 +276,7 @@ function ResidentHero({ scenario }: { scenario: ScenarioKey }) {
         Rental status
       </div>
       <div
-        className={`font-sans font-light text-[52px] leading-none tracking-[-0.03em] ${VERDICT_COLOR[sc.risk]}`}
+        className={`font-sans font-bold text-[52px] leading-none tracking-[-0.02em] ${VERDICT_COLOR[sc.risk]}`}
       >
         {v.word}
       </div>

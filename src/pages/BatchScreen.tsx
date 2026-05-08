@@ -56,8 +56,8 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
         <div className="w-14 h-14 rounded-full bg-brand-soft text-brand grid place-items-center mb-5">
           <Icon name="upload" size={24} />
         </div>
-        <h2 className="font-sans font-light text-[34px] tracking-[-0.02em] m-0 mb-2">
-          Scan many properties at once
+        <h2 className="font-sans font-bold text-[28px] sm:text-[34px] tracking-[-0.005em] m-0 mb-2" style={{ color: 'var(--navy)' }}>
+          Scan many properties at once.
         </h2>
         <p className="text-ink-3 text-[14.5px] leading-relaxed max-w-[48ch] m-0 mb-7">
           Drop a CSV with one address per row. We'll cross-check every entry against
@@ -114,7 +114,7 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
               <div className="font-sans text-[10.5px] uppercase tracking-widest text-ink-3 mb-1.5">
                 Batch · asheville-q2-2026.csv
               </div>
-              <h2 className="font-sans font-light text-[32px] tracking-[-0.02em] m-0 leading-tight">
+              <h2 className="font-sans font-bold text-[32px] tracking-[-0.005em] m-0 leading-tight" style={{ color: 'var(--navy)' }}>
                 {total} properties
               </h2>
             </div>
@@ -185,7 +185,7 @@ const SUMMARY_TONE: Record<Risk, string> = {
 function SummaryStat({ tone, count, label }: { tone: Risk; count: number; label: string }) {
   return (
     <div className={`px-5 py-4 rounded-md ${SUMMARY_TONE[tone]}`}>
-      <div className="font-sans font-light text-[36px] leading-none tracking-[-0.02em] mb-1">{count}</div>
+      <div className="font-sans font-bold text-[36px] leading-none tracking-[-0.02em] mb-1 tabular-nums">{count}</div>
       <div className="text-[13px] font-medium">{label}</div>
     </div>
   );

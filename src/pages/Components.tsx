@@ -76,7 +76,7 @@ function Section({ num, title, desc, children }: {
     <section className="mb-20">
       <div className="flex items-baseline gap-4 mb-6 pb-4 border-b border-line">
         <span className="font-mono text-[13px] text-ink-4">{num}</span>
-        <h2 className="font-serif text-4xl font-normal tracking-tight m-0">{title}</h2>
+        <h2 className="font-sans text-3xl font-bold tracking-[-0.005em] m-0" style={{ color: 'var(--navy)' }}>{title}</h2>
         {desc && <span className="ml-auto text-sm text-ink-3 max-w-[42ch] leading-snug">{desc}</span>}
       </div>
       {children}
@@ -110,8 +110,8 @@ function ComponentsPage() {
       {/* page header */}
       <header className="px-20 pt-16 pb-12 max-w-[1100px]">
         <div className="font-mono text-xs uppercase tracking-widest text-brand mb-3">UI Library</div>
-        <h1 className="font-serif text-6xl font-normal leading-none tracking-tight m-0 mb-4">
-          Components <em className="italic text-brand">showcase</em>
+        <h1 className="font-sans text-5xl font-bold leading-[1.05] tracking-[-0.005em] m-0 mb-4" style={{ color: 'var(--navy)' }}>
+          Components <span style={{ color: 'var(--brand-deep)' }}>showcase.</span>
         </h1>
         <p className="text-[17px] text-ink-2 leading-relaxed m-0 max-w-[60ch]">
           Every primitive in <code className="font-mono text-sm bg-surface-2 px-1.5 py-0.5 rounded border border-line">src/components/ui/</code>, with every variant. Use this page to visually QA against the spec in <code className="font-mono text-sm bg-surface-2 px-1.5 py-0.5 rounded border border-line">design-spec.html</code>.
@@ -174,7 +174,7 @@ function ComponentsPage() {
           <div className="grid grid-cols-3 gap-5">
             <Card padded>
               <div className="font-mono text-[11px] uppercase tracking-wider text-ink-3 mb-2">Default</div>
-              <div className="font-serif text-2xl">Padded card</div>
+              <div className="font-sans text-2xl font-bold" style={{ color: 'var(--navy)' }}>Padded card</div>
               <p className="text-[13.5px] text-ink-3 leading-relaxed mt-2 mb-0">
                 Use <code className="font-mono text-xs">padded</code> to get inset content.
               </p>
@@ -183,7 +183,7 @@ function ComponentsPage() {
               <div className="h-20 bg-gradient-to-b from-brand-soft to-surface" />
               <div className="p-5">
                 <div className="font-mono text-[11px] uppercase tracking-wider text-ink-3 mb-2">Edge-to-edge</div>
-                <div className="font-serif text-2xl">Bleed surface</div>
+                <div className="font-sans text-2xl font-bold" style={{ color: 'var(--navy)' }}>Bleed surface</div>
                 <p className="text-[13.5px] text-ink-3 leading-relaxed mt-2 mb-0">
                   No padding so the gradient header reaches the border.
                 </p>
@@ -191,7 +191,7 @@ function ComponentsPage() {
             </Card>
             <Card flat padded>
               <div className="font-mono text-[11px] uppercase tracking-wider text-ink-3 mb-2">Flat</div>
-              <div className="font-serif text-2xl">Nested</div>
+              <div className="font-sans text-2xl font-bold" style={{ color: 'var(--navy)' }}>Nested</div>
               <p className="text-[13.5px] text-ink-3 leading-relaxed mt-2 mb-0">
                 Drops the shadow when nested inside another card.
               </p>

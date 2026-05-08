@@ -218,7 +218,7 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3 mt-7 sm:mt-9 mb-3 sm:mb-3.5">
-        <h2 className="font-sans font-light text-[22px] sm:text-[28px] tracking-[-0.015em] m-0">Discovered listings</h2>
+        <h2 className="font-sans font-bold text-[22px] sm:text-[28px] tracking-[-0.005em] m-0" style={{ color: 'var(--navy)' }}>Discovered listings</h2>
         <div className="hidden sm:block font-sans text-[11.5px] text-ink-3 uppercase tracking-wider">
           Grouped by platform · {total} total
         </div>

@@ -52,7 +52,7 @@ function ScanCard({ steps, scanning, progress }: ScanCardProps) {
       {/* Head */}
       <div className="px-7 pt-5 pb-4 flex items-center justify-between border-b border-line gap-3.5">
         <div className="flex-1">
-          <h3 className="font-serif text-[22px] font-normal m-0">Live scan</h3>
+          <h3 className="font-sans text-[18px] font-bold tracking-[-0.005em] m-0" style={{ color: 'var(--navy)' }}>Live scan</h3>
           <div className="flex items-center gap-2 mt-3.5">
             <div className="flex-1 h-1 bg-line rounded-full overflow-hidden">
               <div

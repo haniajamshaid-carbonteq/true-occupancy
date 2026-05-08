@@ -128,7 +128,7 @@ function AnimatedScoreCard({ phase }: { phase: number }) {
 
       <div className="flex items-center justify-between gap-1.5 sm:gap-2">
         <div className="flex items-baseline">
-          <div className="font-sans font-light text-ink text-[34px] sm:text-[56px] leading-none tracking-[-0.04em] tabular-nums">
+          <div className="font-sans font-bold text-[34px] sm:text-[56px] leading-none tracking-[-0.02em] tabular-nums" style={{ color: 'var(--navy)' }}>
             {display}
           </div>
           <div className="font-sans text-ink-3 text-[11px] sm:text-[15px] ml-0.5 sm:ml-1">/100</div>
