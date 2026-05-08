@@ -74,8 +74,8 @@
    * fallback stack preserves the geometric brand intent.
    * Override via body[data-type-pairing="..."] selectors in typography.css.
    */
-  --sans:  "Century Gothic", "CenturyGothic", "URW Geometric", "Futura PT",
-           "Avenir Next", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --sans:  "Century Gothic", "CenturyGothic", "Jost", "URW Geometric",
+           "Futura PT", "Avenir Next", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
   --mono:  "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 

@@ -32,15 +32,35 @@ function TopNav() {
 
   return (
     <header className="sticky top-0 z-40 bg-surface border-b border-line">
-      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 md:px-8 h-14 sm:h-16 flex items-center gap-4 sm:gap-8">
-        {/* Logo */}
+      {/* Halcyon brand strip — teal gradient per brand book §6 */}
+      <div
+        aria-hidden
+        className="h-1 w-full"
+        style={{ background: 'var(--brand-gradient)' }}
+      />
+      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 md:px-8 h-16 sm:h-[72px] flex items-center gap-4 sm:gap-8">
+        {/* Logo — Halcyon mark + parent/product hierarchy */}
         <Link to="/" className="flex items-center gap-2.5 no-underline shrink-0">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0">
             <img
               src="halcyon-mark-v2.png"
-              alt="Halcyon"
+              alt="Halcyon Solutions — Decide with certainty."
               className="w-full h-full object-contain block"
             />
+          </div>
+          <div className="leading-tight hidden xs:block">
+            <div
+              className="font-sans text-[14px] sm:text-[15px] font-bold tracking-[0.04em] uppercase"
+              style={{ color: 'var(--navy)' }}
+            >
+              Halcyon
+            </div>
+            <div
+              className="font-sans text-[10.5px] sm:text-[11.5px] font-medium tracking-[0.01em]"
+              style={{ color: 'var(--brand-deep)' }}
+            >
+              TrueOccupancy<sup className="text-[0.6em] align-top ml-px">™</sup>
+            </div>
           </div>
         </Link>
 
@@ -51,13 +71,20 @@ function TopNav() {
               key={item.to + item.label}
               to={item.to}
               exact={item.exact}
-              className="flex items-center gap-2 px-3 h-9 rounded-md text-ink-2 text-[13px] font-medium hover:bg-surface-2 no-underline"
-              activeClassName="bg-brand-tint text-brand"
+              className="flex items-center gap-2 px-3 h-9 rounded-md text-[13px] font-medium hover:bg-brand-tint no-underline transition-colors"
+              activeClassName="!bg-brand-tint !text-brand-deep"
+              style={{ color: 'var(--navy)' }}
             >
               <Icon name={item.icon} size={14} className="opacity-80" />
               <span>{item.label}</span>
               {item.badge && (
-                <span className="font-sans text-[10.5px] text-ink-4 ml-0.5">
+                <span
+                  className="font-sans text-[10.5px] ml-0.5 px-1.5 py-0.5 rounded-full"
+                  style={{
+                    background: 'var(--warn-soft)',
+                    color: 'var(--warn-ink)',
+                  }}
+                >
                   {item.badge}
                 </span>
               )}

@@ -15,12 +15,20 @@ function PageHeader({ showSearch = true, showTitle = true, rightSlot }: PageHead
       {(showTitle || rightSlot) && (
         <div className={`flex items-end ${showTitle ? 'justify-start sm:justify-between' : 'justify-start'} gap-3 sm:gap-6 mb-5 sm:mb-6`}>
           {showTitle && (
-            <h1
-              className="hidden sm:block font-sans font-light leading-[1.05] tracking-[-0.025em] m-0"
-              style={{ fontSize: 'clamp(28px, 7vw, 44px)' }}
-            >
-              True Occupancy
-            </h1>
+            <div className="hidden sm:block">
+              <div
+                className="font-sans text-[10.5px] font-bold tracking-[0.16em] uppercase mb-1.5"
+                style={{ color: 'var(--brand-deep)' }}
+              >
+                Halcyon · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
+              </div>
+              <h1
+                className="font-sans font-bold leading-[1.08] tracking-[-0.005em] m-0"
+                style={{ fontSize: 'clamp(26px, 5vw, 40px)', color: 'var(--navy)' }}
+              >
+                Verify property occupancy.
+              </h1>
+            </div>
           )}
           {rightSlot && <div className="shrink-0 min-w-0">{rightSlot}</div>}
         </div>

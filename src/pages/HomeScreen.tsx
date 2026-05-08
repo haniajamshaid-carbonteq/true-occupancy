@@ -304,15 +304,26 @@ function HomeScreen() {
 
         {/* Centered hero copy + inline search, vertically + horizontally centered */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 sm:px-6">
+          {/* Halcyon eyebrow pill — brand parent → product hierarchy */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/30 mb-5">
+            <span className="font-sans text-[10.5px] sm:text-[11.5px] font-bold tracking-[0.16em] uppercase text-white">
+              Halcyon
+            </span>
+            <span className="text-white/50">·</span>
+            <span className="font-sans text-[10.5px] sm:text-[11.5px] font-medium tracking-[0.04em] text-white/90">
+              TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
+            </span>
+          </div>
           <h1
-            className="font-sans font-light text-white leading-[1.02] tracking-[-0.025em] m-0 mb-4 drop-shadow-[0_2px_24px_rgba(0,0,0,0.35)]"
-            style={{ fontSize: 'clamp(32px, 10vw, 88px)' }}
+            className="font-sans font-bold text-white leading-[1.05] tracking-[-0.01em] m-0 mb-5 drop-shadow-[0_2px_24px_rgba(20,45,85,0.45)] max-w-[18ch]"
+            style={{ fontSize: 'clamp(30px, 8.5vw, 72px)' }}
           >
-            True Occupancy
+            Verify property occupancy and flag short-term rental fraud.
           </h1>
-          <p className="text-white/85 text-[13px] sm:text-[17px] leading-relaxed m-0 mb-6 sm:mb-7 max-w-[52ch]">
-            Check whether a property is being rented short-term on Airbnb, Vrbo,
-            or Facebook Marketplace — all from a single address.
+          <p className="text-white/90 text-[13px] sm:text-[17px] leading-relaxed m-0 mb-6 sm:mb-7 max-w-[52ch]">
+            One address, every public short-term-rental listing within a one-mile
+            radius — cross-checked against Airbnb, Vrbo, and Facebook Marketplace
+            in seconds.
           </p>
 
           <div className="w-[min(820px,100%)]">
@@ -370,11 +381,17 @@ function HomeScreen() {
               right edge aligns with card 3's right edge (minus mr-8 nudge). */}
           <div className="flex flex-col-reverse md:flex-row md:items-start md:justify-between gap-4 md:gap-12 mb-10">
             <div className="max-w-[760px]">
-              <h2
-                className="font-sans font-light leading-[1.05] tracking-[-0.025em] text-ink m-0 mb-5"
-                style={{ fontSize: 'clamp(32px, 7vw, 64px)' }}
+              <div
+                className="inline-flex items-center px-3 py-1 rounded-full font-sans text-[10.5px] font-bold tracking-[0.16em] uppercase mb-5"
+                style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}
               >
-                From address to verdict in seconds
+                The solution
+              </div>
+              <h2
+                className="font-sans font-bold leading-[1.08] tracking-[-0.005em] m-0 mb-5"
+                style={{ fontSize: 'clamp(28px, 5.5vw, 48px)', color: 'var(--navy)' }}
+              >
+                From address to verdict in seconds.
               </h2>
               <p className="text-[14px] text-ink-3 leading-relaxed m-0 max-w-[52ch]">
                 One scan cross-references every public short-term-rental listing
@@ -382,8 +399,11 @@ function HomeScreen() {
                 signals that drove it.
               </p>
             </div>
-            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-line bg-surface text-[12px] text-ink-2 w-fit shrink-0 self-start">
-              /How it works
+            <div
+              className="inline-flex items-center px-3.5 py-1.5 rounded-full text-[11px] font-medium tracking-[0.04em] uppercase w-fit shrink-0 self-start"
+              style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}
+            >
+              How it works
             </div>
           </div>
 
@@ -407,7 +427,10 @@ function HomeScreen() {
                     }}
                   />
                 </div>
-                <div className="font-serif text-[36px] leading-none text-ink-3">
+                <div
+                  className="font-sans font-bold text-[36px] leading-none tabular-nums"
+                  style={{ color: 'var(--brand)' }}
+                >
                   {s.numeral}
                 </div>
               </div>
@@ -423,17 +446,28 @@ function HomeScreen() {
       </div>
 
 
-      {/* Quote / mission section */}
+      {/* Quote / mission section — brand-book §6 quote-block: navy-to-blue
+          gradient, white italic, attribution right-aligned */}
       <Reveal>
       <section className="mt-16 sm:mt-28 mb-16 sm:mb-24 px-4 sm:px-6">
-        <div className="max-w-[860px] mx-auto text-center">
-          <p className="font-sans font-light text-ink text-[22px] sm:text-[34px] md:text-[40px] leading-[1.25] tracking-[-0.01em] m-0">
-            <span className="text-ink-3 mr-1">&ldquo;</span>
-            True Occupancy is committed to giving code-compliance teams an
-            honest, evidence-backed read on every short-term rental in their
-            jurisdiction.
-            <span className="text-ink-3 ml-1">&rdquo;</span>
+        <div
+          className="max-w-[1080px] mx-auto rounded-[20px] sm:rounded-[28px] overflow-hidden px-8 sm:px-14 py-12 sm:py-16 relative"
+          style={{
+            background: 'linear-gradient(135deg, var(--navy) 0%, var(--navy-quote) 100%)',
+          }}
+        >
+          <div
+            aria-hidden
+            className="absolute -right-12 -top-12 w-[280px] h-[280px] rounded-full opacity-[0.06]"
+            style={{ background: 'var(--brand-gradient)', filter: 'blur(24px)' }}
+          />
+          <p className="relative font-sans italic text-white text-[22px] sm:text-[30px] md:text-[36px] leading-[1.3] tracking-[-0.005em] m-0 max-w-[42ch]">
+            We give code-compliance teams an honest, evidence-backed read on
+            every short-term rental in their jurisdiction.
           </p>
+          <div className="relative mt-8 flex items-center justify-end gap-3 text-white/70 text-[12px] tracking-[0.06em] uppercase font-sans">
+            <span>Halcyon · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup></span>
+          </div>
         </div>
       </section>
       </Reveal>
@@ -444,15 +478,18 @@ function HomeScreen() {
           {/* LEFT — text column (5/12). Always visible so it acts as the
               landing cue that there's more below the fold. */}
           <Reveal className="lg:col-span-5 lg:pl-2 lg:pr-6 max-w-[560px]">
-            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-line bg-surface text-[12px] text-ink-2 mb-7">
-              /Sample result
+            <div
+              className="inline-flex items-center px-3 py-1 rounded-full font-sans text-[10.5px] font-bold tracking-[0.16em] uppercase mb-7"
+              style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}
+            >
+              Sample result
             </div>
 
             <h2
-              className="font-sans font-light leading-[1.05] tracking-[-0.03em] text-ink m-0 mb-6"
-              style={{ fontSize: 'clamp(30px, 6.5vw, 56px)' }}
+              className="font-sans font-bold leading-[1.08] tracking-[-0.005em] m-0 mb-6"
+              style={{ fontSize: 'clamp(28px, 5.5vw, 48px)', color: 'var(--navy)' }}
             >
-              See what a scan returns
+              See exactly what a scan returns.
             </h2>
 
             <p className="text-[15.5px] text-ink-2 leading-[1.55] m-0 max-w-[48ch]">
@@ -494,76 +531,86 @@ function HomeScreen() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer — brand-book §6: teal-gradient footer bar, white type */}
       <Reveal>
-      <footer className="border-t border-line bg-surface-2">
-        <div className="max-w-[1320px] mx-auto px-5 sm:px-8 py-10 sm:py-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-8 sm:gap-10">
+      <footer
+        className="text-white"
+        style={{ background: 'var(--brand-gradient)' }}
+      >
+        <div className="max-w-[1320px] mx-auto px-5 sm:px-8 py-12 sm:py-14 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1.6fr_1fr_1fr_1fr] gap-10">
           {/* Brand */}
           <div>
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-md grid place-items-center">
                 <img
                   src="halcyon-mark-v2.png"
-                  alt="Halcyon"
-                  className="w-full h-full object-contain block"
+                  alt="Halcyon Solutions"
+                  className="w-7 h-7 object-contain block"
                 />
               </div>
-              <div className="font-sans font-light text-[18px] leading-none tracking-[-0.02em] text-ink">
-                True Occupancy
+              <div className="leading-tight">
+                <div className="font-sans text-[16px] font-bold tracking-[0.04em] uppercase text-white">
+                  Halcyon
+                </div>
+                <div className="font-sans text-[11.5px] font-medium text-white/80 tracking-[0.01em]">
+                  TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
+                </div>
               </div>
             </div>
-            <p className="text-[13px] text-ink-3 leading-relaxed m-0 max-w-[36ch]">
-              Evidence-backed occupancy scans for code-compliance teams.
-              Built by Halcyon.
+            <p className="text-[13.5px] text-white/85 leading-relaxed m-0 mb-3 max-w-[40ch]">
+              AI-powered data intelligence for financial services and the
+              jurisdictions that protect them. Decide with certainty.
             </p>
           </div>
 
           {/* Product */}
           <div>
-            <div className="font-sans text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
+            <div className="font-sans text-[10.5px] uppercase tracking-[0.16em] font-bold text-white/70 mb-3">
               Product
             </div>
-            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
-              <li><a href="#" className="no-underline hover:text-brand">New scan</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Batch scan</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Flagged listings</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Pricing</a></li>
+            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-white/90">
+              <li><a href="#" className="no-underline hover:text-white">New scan</a></li>
+              <li><a href="#" className="no-underline hover:text-white">Batch scan</a></li>
+              <li><a href="#" className="no-underline hover:text-white">Flagged listings</a></li>
+              <li><a href="#" className="no-underline hover:text-white">Pricing</a></li>
             </ul>
           </div>
 
-          {/* Resources */}
+          {/* Halcyon suite */}
           <div>
-            <div className="font-sans text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
-              Resources
+            <div className="font-sans text-[10.5px] uppercase tracking-[0.16em] font-bold text-white/70 mb-3">
+              Halcyon suite
             </div>
-            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
-              <li><a href="#" className="no-underline hover:text-brand">How it works</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Methodology</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Sample report</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">API</a></li>
+            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-white/90">
+              <li><a href="#" className="no-underline hover:text-white">TrueTax</a></li>
+              <li><a href="#" className="no-underline hover:text-white">TrueCalc</a></li>
+              <li><a href="#" className="no-underline hover:text-white">TrueMark</a></li>
+              <li><a href="#" className="no-underline hover:text-white">TrueYou</a></li>
+              <li><a href="#" className="no-underline hover:text-white">TrueReport</a></li>
             </ul>
           </div>
 
           {/* Contact */}
           <div>
-            <div className="font-sans text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
+            <div className="font-sans text-[10.5px] uppercase tracking-[0.16em] font-bold text-white/70 mb-3">
               Contact
             </div>
-            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
-              <li><a href="mailto:hello@halcyon.dev" className="no-underline hover:text-brand">hello@halcyon.dev</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Request a demo</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Support</a></li>
+            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-white/90">
+              <li><a href="https://www.halcyonsolutions.ai" className="no-underline hover:text-white">halcyonsolutions.ai</a></li>
+              <li><a href="mailto:sales@halcyonsolutions.ai" className="no-underline hover:text-white">sales@halcyonsolutions.ai</a></li>
+              <li><a href="mailto:info@halcyonsolutions.ai" className="no-underline hover:text-white">info@halcyonsolutions.ai</a></li>
+              <li><a href="tel:+18448801040" className="no-underline hover:text-white">844-880-1040</a></li>
             </ul>
           </div>
         </div>
 
-        <div className="border-t border-line">
-          <div className="max-w-[1320px] mx-auto px-5 sm:px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-3 text-[12px] text-ink-3">
-            <div>© 2026 Halcyon · True Occupancy</div>
+        <div className="border-t border-white/20">
+          <div className="max-w-[1320px] mx-auto px-5 sm:px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-3 text-[12px] text-white/75">
+            <div>© 2026 Halcyon Solutions · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup> — Decide with certainty.</div>
             <div className="flex items-center gap-5">
-              <a href="#" className="no-underline hover:text-ink-2">Privacy</a>
-              <a href="#" className="no-underline hover:text-ink-2">Terms</a>
-              <a href="#" className="no-underline hover:text-ink-2">Status</a>
+              <a href="#" className="no-underline hover:text-white">Privacy</a>
+              <a href="#" className="no-underline hover:text-white">Terms</a>
+              <a href="#" className="no-underline hover:text-white">Status</a>
             </div>
           </div>
         </div>
