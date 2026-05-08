@@ -94,13 +94,11 @@ declare function Sidebar(props?: any): any;
 declare function PageHeader(props?: any): any;
 declare function ScanCard(props?: any): any;
 declare function ScoreCard(props?: any): any;
-declare function ModeToggle(props?: any): any;
 declare function WhyCard(props?: any): any;
 
-// Cross-file type aliases (declared in scenarios.tsx / ModeToggle.tsx,
-// shared via the script-context type scope).
+// Cross-file type aliases (declared in scenarios.tsx, shared via the
+// script-context type scope).
 type ScenarioKey = 'low' | 'medium' | 'high';
-type AudienceMode = 'investigator' | 'resident';
 declare function PropertyOverview(props?: any): any;
 declare function PropertyMap(props?: any): any;
 declare function PropertySpecs(props?: any): any;

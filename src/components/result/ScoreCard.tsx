@@ -1,12 +1,9 @@
 /* global React, Card, RiskBadge, Icon, PROPERTY, SCENARIOS, PLATFORMS */
-// ScenarioKey is declared in src/data/scenarios.tsx, AudienceMode in
-// ./ModeToggle.tsx. In the no-bundler script context they're shared at
-// the top-level type scope — re-declaring here would conflict.
+// ScenarioKey is declared in src/data/scenarios.tsx and shared at the
+// top-level type scope in this no-bundler script context.
 
 interface ScoreCardProps {
   scenario: ScenarioKey;
-  /** Audience view. Defaults to investigator (numeric confidence score). */
-  mode?: AudienceMode;
 }
 
 const HERO_BG_BY_RISK: Record<'clean' | 'warn' | 'risk', string> = {
@@ -19,14 +16,6 @@ const RISK_ICON: Record<'clean' | 'warn' | 'risk', 'check' | 'info' | 'alert'> =
   clean: 'check',
   warn: 'info',
   risk: 'alert',
-};
-
-// Verdict text uses the brand teal for "No" so a clean result feels positive
-// (per spec) instead of just "absence-of-risk green".
-const VERDICT_COLOR: Record<'clean' | 'warn' | 'risk', string> = {
-  clean: 'text-clean',
-  warn: 'text-warn',
-  risk: 'text-risk',
 };
 
 const ARC_RING_BY_RISK: Record<'clean' | 'warn' | 'risk', string> = {
@@ -189,112 +178,20 @@ function MiniHalfGauge({
   );
 }
 
-function ScoreCard({ scenario, mode = 'investigator' }: ScoreCardProps) {
+function ScoreCard({ scenario }: ScoreCardProps) {
   const sc = SCENARIOS[scenario];
-  const isResident = mode === 'resident';
-  const v = VERDICT[sc.risk];
 
-  // Both modes share the half-arc gauge layout. Resident shows the Yes/Maybe/No
-  // verdict inside the arc; investigator shows the numeric confidence score.
   return (
     <div className="px-6 pt-7 pb-6 flex flex-col items-center text-center">
-      {isResident ? (
-        <div className="flex flex-col items-center mt-2 mb-2">
-          <div className="font-sans text-[10.5px] uppercase tracking-[0.2em] text-ink-3 mb-2">
-            Rental status
-          </div>
-          <div
-            className={`font-sans font-semibold text-[120px] leading-none tracking-[-0.04em] ${VERDICT_COLOR[sc.risk]}`}
-          >
-            {v.word}
-          </div>
-        </div>
-      ) : (
-        <ScoreHalfGauge score={sc.score} risk={sc.risk} />
-      )}
+      <ScoreHalfGauge score={sc.score} risk={sc.risk} />
 
       <h3 className="font-sans font-semibold text-[22px] m-0 leading-tight tracking-[-0.01em] mb-2 mt-5 max-w-[44ch]">
-        {isResident ? 'What does this mean?' : sc.headline}
+        {sc.headline}
       </h3>
       <p className="m-0 text-ink-2 text-[14px] leading-snug max-w-[56ch]">
-        {isResident ? RESIDENT_MEANING[sc.risk] : sc.summary}
+        {sc.summary}
       </p>
     </div>
   );
 }
 
-// ---- investigator hero ----
-
-function InvestigatorHero({ scenario }: { scenario: ScenarioKey }) {
-  const sc = SCENARIOS[scenario];
-  return (
-    <div className={`px-5 py-4 border-r border-line flex flex-col justify-center gap-2 ${HERO_BG_BY_RISK[sc.risk]}`}>
-      <div className="font-sans text-[10px] uppercase tracking-[0.16em] text-ink-3">
-        Confidence score
-      </div>
-      <div className="flex items-baseline gap-2">
-        <div className="font-sans font-bold text-[56px] leading-none tracking-[-0.02em] tabular-nums" style={{ color: 'var(--navy)' }}>
-          {sc.score}
-        </div>
-        <span className="text-[14px] text-ink-4 tracking-tight">/100</span>
-      </div>
-      <div className="flex items-center">
-        <RiskBadge level={sc.risk} glyph={<Icon name={RISK_ICON[sc.risk]} size={11} />}>
-          {sc.riskLabel}
-        </RiskBadge>
-      </div>
-    </div>
-  );
-}
-
-// ---- resident hero ----
-
-const VERDICT: Record<'clean' | 'warn' | 'risk', { word: string; sub: string }> = {
-  risk:  { word: 'Yes',   sub: 'This property appears to be rented out short-term.' },
-  warn:  { word: 'Maybe', sub: 'We found a possible match worth a closer look.' },
-  clean: { word: 'No',    sub: "We didn't find any active rental listings." },
-};
-
-const RESIDENT_MEANING: Record<'clean' | 'warn' | 'risk', string> = {
-  risk:  "If you're a neighbor or local official, this may be worth reporting to your municipality. If you're a prospective tenant, the property may not be available for long-term lease.",
-  warn:  "We're not certain. Open the details below to see exactly what we found, or run another scan in a few days to see if more listings appear.",
-  clean: "Based on the platforms we monitor, this property is not currently being offered as a short-term rental. This sweep refreshes daily.",
-};
-
-function ResidentHero({ scenario }: { scenario: ScenarioKey }) {
-  const sc = SCENARIOS[scenario];
-  const v = VERDICT[sc.risk];
-
-  // Platform display names, only those with at least one listing in this scenario.
-  const foundOn: string[] = (PLATFORMS as { id: string; name: string }[])
-    .filter((p) => (sc.listings[p.id] || []).length > 0)
-    .map((p) => p.name);
-
-  return (
-    <div className={`px-5 py-4 border-r border-line flex flex-col justify-center gap-2 ${HERO_BG_BY_RISK[sc.risk]}`}>
-      <div className="font-sans text-[10px] uppercase tracking-[0.16em] text-ink-3">
-        Rental status
-      </div>
-      <div
-        className={`font-sans font-bold text-[52px] leading-none tracking-[-0.02em] ${VERDICT_COLOR[sc.risk]}`}
-      >
-        {v.word}
-      </div>
-      {foundOn.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-sans text-[10px] uppercase tracking-[0.12em] text-ink-3">
-            Found on
-          </span>
-          {foundOn.map((n) => (
-            <span
-              key={n}
-              className="text-[11px] px-2 py-0.5 rounded-full bg-surface border border-line text-ink-2 font-medium"
-            >
-              {n}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

@@ -446,28 +446,17 @@ function HomeScreen() {
       </div>
 
 
-      {/* Quote / mission section — brand-book §6 quote-block: navy-to-blue
-          gradient, white italic, attribution right-aligned */}
+      {/* Mission statement — plain text, no banner */}
       <Reveal>
       <section className="mt-16 sm:mt-28 mb-16 sm:mb-24 px-4 sm:px-6">
-        <div
-          className="max-w-[1080px] mx-auto rounded-[20px] sm:rounded-[28px] overflow-hidden px-8 sm:px-14 py-12 sm:py-16 relative"
-          style={{
-            background: 'linear-gradient(135deg, var(--navy) 0%, var(--navy-quote) 100%)',
-          }}
-        >
-          <div
-            aria-hidden
-            className="absolute -right-12 -top-12 w-[280px] h-[280px] rounded-full opacity-[0.06]"
-            style={{ background: 'var(--brand-gradient)', filter: 'blur(24px)' }}
-          />
-          <p className="relative font-sans italic text-white text-[22px] sm:text-[30px] md:text-[36px] leading-[1.3] tracking-[-0.005em] m-0 max-w-[42ch]">
+        <div className="max-w-[860px] mx-auto text-center">
+          <p
+            className="font-sans font-medium text-[20px] sm:text-[26px] md:text-[30px] leading-[1.4] tracking-[-0.005em] m-0"
+            style={{ color: 'var(--navy)' }}
+          >
             We give code-compliance teams an honest, evidence-backed read on
             every short-term rental in their jurisdiction.
           </p>
-          <div className="relative mt-8 flex items-center justify-end gap-3 text-white/70 text-[12px] tracking-[0.06em] uppercase font-sans">
-            <span>Halcyon · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup></span>
-          </div>
         </div>
       </section>
       </Reveal>
