@@ -45,7 +45,7 @@ function BatchScreen() {
   return (
     <AppShell>
       {/* Page header — consistent across empty + loaded states */}
-      <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
+      <header className="flex items-end justify-between gap-6 mb-section-sub">
         <div>
           <h1
             className="font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0"
@@ -177,11 +177,11 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-section-tight">
       {/* Summary card */}
-      <Card>
-        <div className="px-7 py-6">
-          <div className="flex items-start justify-between gap-6 mb-5">
+      <Card allowOverflow>
+        <div className="px-card-loose py-card">
+          <div className="flex items-start justify-between gap-6 mb-section-tight">
             <div className="min-w-0">
               <h2 className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 leading-tight" style={{ color: 'var(--navy)' }}>
                 {isComplete ? (
@@ -258,7 +258,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           </div>
 
           {/* Progress */}
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-3 mb-section-tight">
             <div className="flex-1 h-1.5 bg-line rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
@@ -284,7 +284,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
 
       {/* Properties — same DataTable primitive as Home + History */}
       <div>
-        <div className="flex items-end justify-between mb-3 gap-4 flex-wrap">
+        <div className="flex items-end justify-between mb-stack-md gap-4 flex-wrap">
           <h3
             className="font-sans font-semibold text-h4 sm:text-h3 tracking-[-0.005em] m-0"
             style={{ color: 'var(--navy)' }}
@@ -498,7 +498,7 @@ function buildBatchColumns(): any[] {
         return <span className="text-ink-4">—</span>;
       }
       return (
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-inline">
           <span
             className="font-mono tabular-nums font-semibold text-label w-[24px] text-right leading-none"
             style={{ color: 'var(--navy)' }}

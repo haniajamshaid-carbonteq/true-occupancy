@@ -72,7 +72,7 @@ function AutomateModal({
             <button
               type="button"
               onClick={onCancelAutomation}
-              className="mr-auto inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-transparent border border-transparent font-sans text-label font-medium text-error-ink hover:bg-error-soft transition-colors cursor-pointer"
+              className="mr-auto inline-flex items-center gap-inline-tight h-9 px-control-x rounded-lg bg-transparent border border-transparent font-sans text-label font-medium text-error-ink hover:bg-error-soft transition-colors cursor-pointer"
             >
               <Icon name="x" size={14} />
               Cancel Automation
@@ -117,7 +117,7 @@ function AutomateModal({
               role="radio"
               aria-checked={active}
               onClick={() => setCadence(opt.value)}
-              className={`text-left flex items-start gap-3 px-3.5 py-3 rounded-md border transition-colors ${
+              className={`text-left flex items-start gap-inline-loose px-control-x py-3 rounded-md border transition-colors ${
                 active
                   ? '!bg-brand-tint !border-brand/50'
                   : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'

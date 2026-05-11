@@ -1,34 +1,41 @@
-/* global React, AppShell, Button, Icon, Pill, DataTable, DropdownMenu, Drawer, ReactRouterDOM, SCENARIOS,
-   HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, SCAN_COLUMNS, scanLeadingAccent, useAppState,
-   splitAddress, ChipRow, parseAgoHours */
+/* global React, AppShell, Button, Icon, Pill, DataTable, DropdownMenu, Drawer, Tabs, ReactRouterDOM, SCENARIOS,
+   HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
+   SCAN_COLUMNS, scanLeadingAccent, useAppState, splitAddress, ChipRow, parseAgoHours */
 
 type Verdict = 'all' | 'high' | 'medium' | 'low';
-type Type = 'all' | 'single' | 'batch';
+type Kind = 'single' | 'batch';
+type BatchStatus = 'all' | 'complete' | 'partial' | 'failed';
 type Recency = 'all' | 'today' | 'week' | 'older';
 type PlatformsBucket = 'all' | 'none' | 'any' | 'multi';
 
 function HistoryScreen() {
   const history = ReactRouterDOM.useHistory();
   const { history: rows } = useAppState();
+  const [kind, setKind] = React.useState<Kind>('single');
   const [verdict, setVerdict] = React.useState<Verdict>('all');
-  const [type, setType] = React.useState<Type>('all');
+  const [batchStatus, setBatchStatus] = React.useState<BatchStatus>('all');
   const [query, setQuery] = React.useState('');
   const [recency, setRecency] = React.useState<Recency>('all');
   const [platformsBucket, setPlatformsBucket] = React.useState<PlatformsBucket>('all');
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
+  // Platforms filter only makes sense on the single tab; it disappears
+  // from the drawer on batch, so don't count it toward the badge there.
+  // Verdict (single) / batch status (batch) also live in the drawer now.
   const advancedCount =
-    (type !== 'all' ? 1 : 0) +
     (recency !== 'all' ? 1 : 0) +
-    (platformsBucket !== 'all' ? 1 : 0);
+    (kind === 'single' && verdict !== 'all' ? 1 : 0) +
+    (kind === 'batch'  && batchStatus !== 'all' ? 1 : 0) +
+    (kind === 'single' && platformsBucket !== 'all' ? 1 : 0);
 
-  const filtered = rows.filter((r: any) => {
-    if (type !== 'all' && r.kind !== type) return false;
-    if (verdict !== 'all') {
-      // Batch entries don't have a verdict — exclude them from any verdict-
-      // specific filter to keep the meaning sharp.
-      if (r.kind !== 'single') return false;
-      if (r.scenario !== verdict) return false;
+  const singleRows = rows.filter((r: any) => r.kind !== 'batch');
+  const batchRows  = rows.filter((r: any) => r.kind === 'batch');
+
+  const filtered = (kind === 'single' ? singleRows : batchRows).filter((r: any) => {
+    if (kind === 'single' && verdict !== 'all' && r.scenario !== verdict) return false;
+    if (kind === 'batch' && batchStatus !== 'all') {
+      const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
+      if (status !== batchStatus) return false;
     }
     if (recency !== 'all') {
       const hrs = parseAgoHours(r.scannedAgo);
@@ -36,9 +43,7 @@ function HistoryScreen() {
       if (recency === 'week'  && (hrs <= 24 || hrs > 24 * 7)) return false;
       if (recency === 'older' && hrs <= 24 * 7) return false;
     }
-    if (platformsBucket !== 'all') {
-      // Platform count is a single-scan concept; batches don't carry it.
-      if (r.kind !== 'single') return false;
+    if (kind === 'single' && platformsBucket !== 'all') {
       const p: number = r.platforms ?? 0;
       if (platformsBucket === 'none'  && p !== 0) return false;
       if (platformsBucket === 'any'   && p < 1)  return false;
@@ -52,16 +57,24 @@ function HistoryScreen() {
   });
 
   function clearAdvanced() {
-    setType('all');
     setRecency('all');
     setPlatformsBucket('all');
+    setVerdict('all');
+    setBatchStatus('all');
   }
 
   const VERDICT_FILTERS: { id: Verdict; label: string; count: number }[] = [
-    { id: 'all',    label: 'All',              count: rows.length },
-    { id: 'high',   label: 'Rented',           count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'high').length },
-    { id: 'medium', label: 'Possibly Rented',  count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'medium').length },
-    { id: 'low',    label: 'Not Rented',       count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'low').length },
+    { id: 'all',    label: 'All',              count: singleRows.length },
+    { id: 'high',   label: 'Rented',           count: singleRows.filter((r: any) => r.scenario === 'high').length },
+    { id: 'medium', label: 'Possibly Rented',  count: singleRows.filter((r: any) => r.scenario === 'medium').length },
+    { id: 'low',    label: 'Not Rented',       count: singleRows.filter((r: any) => r.scenario === 'low').length },
+  ];
+
+  const STATUS_FILTERS: { id: BatchStatus; label: string; count: number }[] = [
+    { id: 'all',      label: 'All',             count: batchRows.length },
+    { id: 'complete', label: 'Successful',      count: batchRows.filter((r: any) => (r.status ?? 'complete') === 'complete').length },
+    { id: 'partial',  label: 'Partial Failed',  count: batchRows.filter((r: any) => r.status === 'partial').length },
+    { id: 'failed',   label: 'Failed',          count: batchRows.filter((r: any) => r.status === 'failed').length },
   ];
 
   function openRow(row: any) {
@@ -81,7 +94,7 @@ function HistoryScreen() {
   return (
     <AppShell>
       {/* Header */}
-      <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
+      <header className="flex items-end justify-between gap-6 mb-section-sub">
         <div>
           <h1
             className="font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0"
@@ -95,39 +108,18 @@ function HistoryScreen() {
         </div>
       </header>
 
-      {/* Filter row — verdict chips on the left, search + Filters drawer on the right. Type filter lives in the drawer. */}
+      {/* Filter row — Single/Batch tabs on the left, search + Filters
+          drawer on the right. All status filtering lives inside the drawer
+          to keep the table breathing room. */}
       <section className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {VERDICT_FILTERS.map((opt) => {
-              const active = verdict === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setVerdict(opt.id)}
-                  className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors ${
-                    active
-                      ? '!bg-brand-tint !border-brand/40'
-                      : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
-                  }`}
-                  style={{ color: active ? 'var(--brand-deep)' : 'var(--ink-2)' }}
-                >
-                  {opt.label}
-                  <span
-                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line"
-                    style={{
-                      background: active ? 'rgba(2,146,190,0.12)' : 'var(--surface-2)',
-                      color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
-                    }}
-                  >
-                    {opt.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <Tabs
+          value={kind}
+          onChange={(v: any) => setKind(v)}
+          items={[
+            { value: 'single', label: 'Single', count: singleRows.length },
+            { value: 'batch',  label: 'Batch',  count: batchRows.length },
+          ]}
+        />
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial sm:w-[260px]">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
@@ -177,22 +169,27 @@ function HistoryScreen() {
               Clear All
             </Button>
             <Button variant="primary" onClick={() => setDrawerOpen(false)}>
-              Done
+              Apply
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-6">
-          <ChipRow
-            label="Scan type"
-            value={type}
-            onChange={(v: string) => setType(v as Type)}
-            options={[
-              { value: 'all',    label: 'All Scans' },
-              { value: 'single', label: 'Single property' },
-              { value: 'batch',  label: 'Batch' },
-            ]}
-          />
+          {kind === 'single' ? (
+            <ChipRow
+              label="Verdict"
+              value={verdict}
+              onChange={(v: string) => setVerdict(v as Verdict)}
+              options={VERDICT_FILTERS.map((f) => ({ value: f.id, label: f.label }))}
+            />
+          ) : (
+            <ChipRow
+              label="Status"
+              value={batchStatus}
+              onChange={(v: string) => setBatchStatus(v as BatchStatus)}
+              options={STATUS_FILTERS.map((f) => ({ value: f.id, label: f.label }))}
+            />
+          )}
           <ChipRow
             label="When scanned"
             value={recency}
@@ -204,23 +201,25 @@ function HistoryScreen() {
               { value: 'older', label: 'Older' },
             ]}
           />
-          <ChipRow
-            label="Listings found"
-            value={platformsBucket}
-            onChange={(v: string) => setPlatformsBucket(v as PlatformsBucket)}
-            options={[
-              { value: 'all',   label: 'Any' },
-              { value: 'none',  label: 'No listings' },
-              { value: 'any',   label: '1+ platform' },
-              { value: 'multi', label: '2+ platforms' },
-            ]}
-          />
+          {kind === 'single' && (
+            <ChipRow
+              label="Listings found"
+              value={platformsBucket}
+              onChange={(v: string) => setPlatformsBucket(v as PlatformsBucket)}
+              options={[
+                { value: 'all',   label: 'Any' },
+                { value: 'none',  label: 'No listings' },
+                { value: 'any',   label: '1+ platform' },
+                { value: 'multi', label: '2+ platforms' },
+              ]}
+            />
+          )}
         </div>
       </Drawer>
 
       {/* Table */}
       <DataTable
-        columns={HISTORY_COLUMNS}
+        columns={kind === 'single' ? HISTORY_SINGLE_COLUMNS : HISTORY_BATCH_COLUMNS}
         rows={filtered}
         rowKey={(r: any) => r.id}
         onRowClick={openRow}
@@ -247,36 +246,15 @@ function HistoryScreen() {
 }
 
 // ---- column defs --------------------------------------------------------
-// Branches on row.kind so a Batch summary renders filename + N properties
-// in the address slot and skips the score/listings columns.
+// Rows are split by tab, so single and batch carry their own column sets —
+// no "Type" pill since the tab already conveys kind.
 
-const HISTORY_COLUMNS: any[] = [
-  {
-    key: 'type',
-    label: 'Type',
-    width: '88px',
-    cell: (r: any) => <Pill>{r.kind === 'batch' ? 'Batch' : 'Single'}</Pill>,
-  },
+const HISTORY_SINGLE_COLUMNS: any[] = [
   {
     key: 'target',
     label: 'Address',
     primary: true,
     cell: (r: any) => {
-      if (r.kind === 'batch') {
-        return (
-          <div className="min-w-0">
-            <div
-              className="font-sans font-semibold text-body-sm leading-tight truncate"
-              style={{ color: 'var(--navy)' }}
-            >
-              {r.filename}
-            </div>
-            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
-              {r.total} properties · {r.flagged} flagged
-            </div>
-          </div>
-        );
-      }
       const [street, locality] = splitAddress(r.address);
       return (
         <div className="min-w-0">
@@ -301,15 +279,6 @@ const HISTORY_COLUMNS: any[] = [
     width: '156px',
     hideBelow: 'sm' as const,
     cell: (r: any) => {
-      if (r.kind === 'batch') {
-        // Older seed entries pre-date the status field; treat them as clean
-        // completions so the column never reads "—" once a batch is known to
-        // be fine.
-        const batchStatus: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
-        if (batchStatus === 'failed') return <Pill variant="risk">Failed</Pill>;
-        if (batchStatus === 'partial') return <Pill variant="warn">Partial Failed</Pill>;
-        return <Pill variant="clean">Completed</Pill>;
-      }
       const variant =
         r.scenario === 'high'  ? 'verdict-high'
         : r.scenario === 'medium' ? 'verdict-med'
@@ -323,12 +292,9 @@ const HISTORY_COLUMNS: any[] = [
     width: '128px',
     hideBelow: 'sm' as const,
     cell: (r: any) => {
-      if (r.kind === 'batch') {
-        return <span className="font-mono text-caption text-ink-4">—</span>;
-      }
       const sc = SCENARIOS[r.scenario];
       return (
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-inline">
           <span
             className="font-mono tabular-nums font-semibold text-label w-[24px] text-right leading-none"
             style={{ color: 'var(--navy)' }}
@@ -353,14 +319,54 @@ const HISTORY_COLUMNS: any[] = [
     width: '84px',
     align: 'right' as const,
     hideBelow: 'md' as const,
-    cell: (r: any) =>
-      r.kind === 'batch' ? (
-        <span className="font-mono text-caption text-ink-4">—</span>
-      ) : (
-        <span className="font-mono tabular-nums text-caption text-ink-3">
-          {r.platforms} / 3
-        </span>
-      ),
+    cell: (r: any) => (
+      <span className="font-mono tabular-nums text-caption text-ink-3">
+        {r.platforms} / 3
+      </span>
+    ),
+  },
+  {
+    key: 'scanned',
+    label: 'Scanned',
+    width: '100px',
+    align: 'right' as const,
+    hideBelow: 'md' as const,
+    cell: (r: any) => (
+      <span className="font-mono tabular-nums text-caption text-ink-3">
+        {r.scannedAgo}
+      </span>
+    ),
+  },
+];
+
+const HISTORY_BATCH_COLUMNS: any[] = [
+  {
+    key: 'target',
+    label: 'File',
+    primary: true,
+    cell: (r: any) => (
+      <div className="min-w-0">
+        <div
+          className="font-sans font-semibold text-body-sm leading-tight truncate"
+          style={{ color: 'var(--navy)' }}
+        >
+          {r.filename}
+        </div>
+        <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+          {r.total} properties · {r.flagged} flagged
+        </div>
+      </div>
+    ),
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    width: '156px',
+    hideBelow: 'sm' as const,
+    cell: (r: any) => {
+      const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
+      return <Pill variant={BATCH_STATUS_VARIANT[status]}>{BATCH_STATUS_LABEL[status]}</Pill>;
+    },
   },
   {
     key: 'scanned',

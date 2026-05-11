@@ -8,15 +8,20 @@ interface CardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children
   padded?: boolean;
   /** Drop the shadow — useful when nesting cards. */
   flat?: boolean;
+  /** Let children escape the rounded clip — needed when the card hosts a
+   *  positioned popover/menu/tooltip whose float would otherwise be cut
+   *  off by `overflow-hidden`. */
+  allowOverflow?: boolean;
   as?: keyof JSX.IntrinsicElements;
   children?: React.ReactNode;
 }
 
-const CARD_BASE = 'bg-surface border border-line rounded-lg overflow-hidden';
+const CARD_BASE = 'bg-surface border border-line rounded-lg';
 
 function Card({
   padded = false,
   flat = false,
+  allowOverflow = false,
   as: Tag = 'div',
   children,
   className = '',
@@ -24,8 +29,9 @@ function Card({
 }: CardProps) {
   const cls = [
     CARD_BASE,
+    allowOverflow ? '' : 'overflow-hidden',
     flat ? '' : 'shadow-sm',
-    padded ? 'p-6' : '',
+    padded ? 'p-card' : '',
     className,
   ]
     .filter(Boolean)

@@ -19,9 +19,8 @@ interface CertificateSheetProps {
   kind?: 'single' | 'batch';
 }
 
-/** djb2 — tiny deterministic hash for a believable scan ID. Mirrors the
- *  helper in ReportCertificateBar.tsx; kept inline to avoid a new shared
- *  util file in a no-bundler project. */
+/** djb2 — tiny deterministic hash for a believable scan ID. Kept inline
+ *  to avoid a new shared util file in a no-bundler project. */
 function certShortHash(input: string): string {
   let h = 5381;
   for (let i = 0; i < input.length; i++) h = ((h << 5) + h) ^ input.charCodeAt(i);

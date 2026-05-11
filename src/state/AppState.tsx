@@ -60,6 +60,10 @@ interface SingleScheduleEntry {
   cadenceMonths: Cadence;
   nextRunLabel: string;
   createdAgo: string;
+  /** History entry ids for all prior runs of this schedule, newest first.
+   *  At minimum holds the originating scan that allowed the user to
+   *  automate this address. Empty arrays only occur for legacy seeds. */
+  runHistoryIds: string[];
 }
 
 interface BatchScheduleEntry {
@@ -70,6 +74,8 @@ interface BatchScheduleEntry {
   cadenceMonths: Cadence;
   nextRunLabel: string;
   createdAgo: string;
+  /** History entry ids for all prior runs of this schedule, newest first. */
+  runHistoryIds: string[];
 }
 
 type ScheduleEntry = SingleScheduleEntry | BatchScheduleEntry;
@@ -170,6 +176,7 @@ const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i)
 const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago'  },
   { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago' },
+  { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAgo: '52 min ago', rows: SEED_BATCH_FAILED_ROWS },
   { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAgo: '2 h ago', rows: SEED_BATCH_Q1_ROWS },
   { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAgo: '3 h ago'    },
   { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAgo: '4 h ago'    },
@@ -190,6 +197,14 @@ const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h16', kind: 'single', address: '44 Pine Cone Ln, Asheville, NC 28803',       scenario: 'medium', platforms: 1, scannedAgo: '6 d ago'   },
   { id: 'h17', kind: 'single', address: '987 Sunset Pkwy, Asheville, NC 28806',       scenario: 'low',    platforms: 0, scannedAgo: '1 w ago'   },
   { id: 'h18', kind: 'single', address: '50 Ridgeview Ct, Asheville, NC 28805',       scenario: 'high',   platforms: 3, scannedAgo: '1 w ago'   },
+  // ---- Prior automation runs ---------------------------------------------
+  // Synthetic history entries that act as previous executions of seeded
+  // schedules, so the schedule-detail page shows a real run history.
+  { id: 'hr01a', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAgo: '6 mo ago' },
+  { id: 'hr01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAgo: '1 y ago'  },
+  { id: 'hr02a', kind: 'batch',  filename: 'asheville-q4-2025.csv', total: 22, flagged: 4, warn: 5, clean: 13, failed: 0, status: 'complete', scannedAgo: '3 mo ago', rows: SEED_BATCH_Q1_ROWS.slice(0, 22) },
+  { id: 'hr03a', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 2, scannedAgo: '1 y ago' },
+  { id: 'hr04a', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'medium', platforms: 1, scannedAgo: '4 mo ago' },
 ];
 
 // Renders an absolute calendar date — readable label that doesn't decay over
@@ -201,10 +216,10 @@ function formatNextRun(cadenceMonths: number): string {
 }
 
 const SEED_SCHEDULES: ScheduleEntry[] = [
-  { id: 's01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadenceMonths: 6,  nextRunLabel: formatNextRun(6),  createdAgo: '8 min ago' },
-  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadenceMonths: 3,  nextRunLabel: formatNextRun(3),  createdAgo: '2 h ago' },
-  { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadenceMonths: 12, nextRunLabel: formatNextRun(12), createdAgo: '3 h ago' },
-  { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadenceMonths: 4,  nextRunLabel: formatNextRun(4),  createdAgo: 'Yesterday' },
+  { id: 's01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadenceMonths: 6,  nextRunLabel: formatNextRun(6),  createdAgo: '8 min ago', runHistoryIds: ['h01', 'hr01a', 'hr01b'] },
+  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadenceMonths: 3,  nextRunLabel: formatNextRun(3),  createdAgo: '2 h ago',   runHistoryIds: ['hb1', 'hr02a'] },
+  { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadenceMonths: 12, nextRunLabel: formatNextRun(12), createdAgo: '3 h ago',   runHistoryIds: ['h03', 'hr03a'] },
+  { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadenceMonths: 4,  nextRunLabel: formatNextRun(4),  createdAgo: 'Yesterday', runHistoryIds: ['h07', 'hr04a'] },
 ];
 
 // Batch sample addresses — kept identical to the previous BatchScreen mock
@@ -266,7 +281,7 @@ interface AppStateValue {
   clearBatch: () => void;
   dismissBatch: () => void;
   retryBatchRow: (id: number) => void;
-  addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel'> & { cadenceMonths: Cadence }) => void;
+  addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel' | 'runHistoryIds'> & { cadenceMonths: Cadence; runHistoryIds?: string[] }) => void;
   updateScheduleCadence: (id: string, cadenceMonths: Cadence) => void;
   cancelSchedule: (id: string) => void;
   findScheduleByTarget: (target: ScheduleTarget) => ScheduleEntry | null;
@@ -374,7 +389,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     (entry: any) => {
       const id = uid('s');
       const nextRunLabel = formatNextRun(entry.cadenceMonths);
-      setSchedules((s) => [{ ...entry, id, nextRunLabel, createdAgo: 'Just now' }, ...s]);
+      const runHistoryIds: string[] = entry.runHistoryIds ?? [];
+      setSchedules((s) => [{ ...entry, id, nextRunLabel, createdAgo: 'Just now', runHistoryIds }, ...s]);
     },
     []
   );

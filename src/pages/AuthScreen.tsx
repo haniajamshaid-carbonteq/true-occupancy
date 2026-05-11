@@ -71,7 +71,7 @@ function ImagePanelContent({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className={`relative h-full w-full flex flex-col text-white ${
-        compact ? 'p-6' : 'p-12'
+        compact ? 'p-card' : 'p-12'
       }`}
       style={{
         background: `url(${HERO_IMAGE_URL}) center/cover no-repeat`,
@@ -478,7 +478,7 @@ function AuthScreen({ mode }: AuthScreenProps) {
           <ImagePanelContent compact />
         </div>
         <div
-          className="rounded-xl shadow-md p-6 sm:p-8"
+          className="rounded-xl shadow-md p-card sm:p-8"
           style={{ background: 'var(--surface)' }}
         >
           {isSignIn ? (

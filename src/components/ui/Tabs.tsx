@@ -49,8 +49,8 @@ function Tabs<V extends string>({ items, value, onChange, rightSlot, className =
   }, [value, items.map((i) => `${i.value}:${i.count ?? ''}`).join('|')]);
 
   return (
-    <div className={`flex items-center justify-between gap-4 border-b border-line ${className}`}>
-      <div ref={tablistRef} role="tablist" className="relative flex items-center gap-1">
+    <div className={`flex items-center justify-between gap-4 ${className}`}>
+      <div ref={tablistRef} role="tablist" className="relative flex items-center gap-1 border-b border-line">
         {items.map((it) => {
           const active = it.value === value;
           return (
@@ -65,12 +65,12 @@ function Tabs<V extends string>({ items, value, onChange, rightSlot, className =
               aria-selected={active}
               onClick={() => onChange(it.value)}
               className={[
-                'group inline-flex items-center h-10 px-3.5 font-sans text-label font-medium transition-colors',
+                'group inline-flex items-center h-10 px-control-x font-sans text-label font-medium transition-colors',
                 active ? 'text-navy' : 'text-ink-3 hover:text-ink-2',
               ].join(' ')}
               style={active ? { color: 'var(--navy)' } : undefined}
             >
-              <span className="inline-flex items-center gap-2 h-full whitespace-nowrap">
+              <span className="inline-flex items-center gap-inline h-full whitespace-nowrap">
                 <span>{it.label}</span>
                 {typeof it.count === 'number' && (
                   <span
