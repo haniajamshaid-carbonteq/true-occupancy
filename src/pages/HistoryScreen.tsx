@@ -1,78 +1,61 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, DropdownMenu, ReactRouterDOM, SCENARIOS,
-   HOME_VERDICT_LABEL, VERDICT_VARIANT, SCAN_COLUMNS, scanLeadingAccent */
-// History — full table of past scans the investigator can search, filter,
-// and drill into. Reuses SCAN_COLUMNS from HomeScreen.tsx so the two
-// surfaces share one source of truth for table cell styling.
+   HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, SCAN_COLUMNS, scanLeadingAccent, useAppState,
+   splitAddress */
+// History — full table of past scans (single + batch) the investigator can
+// search, filter, and drill into. Now sources from AppState so completed
+// batches and newly automated single scans flow in live.
 
-interface HistoryRow {
-  id: string;
-  address: string;
-  scenario: 'low' | 'medium' | 'high';
-  platforms: number;
-  scannedAgo: string;
-}
-
-const HISTORY: HistoryRow[] = [
-  { id: 'h01', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago'  },
-  { id: 'h02', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago' },
-  { id: 'h03', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAgo: '1 h ago'    },
-  { id: 'h04', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAgo: '2 h ago'    },
-  { id: 'h05', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAgo: '3 h ago'    },
-  { id: 'h06', address: '301 Merrimon Ave, Asheville, NC 28804',      scenario: 'medium', platforms: 1, scannedAgo: '4 h ago'    },
-  { id: 'h07', address: '145 Westchester Dr, Asheville, NC 28803',    scenario: 'high',   platforms: 3, scannedAgo: 'Yesterday' },
-  { id: 'h08', address: '23 Tunnel Rd, Asheville, NC 28805',          scenario: 'low',    platforms: 0, scannedAgo: 'Yesterday' },
-  { id: 'h09', address: '215 Edgewood Rd, Asheville, NC 28804',       scenario: 'medium', platforms: 1, scannedAgo: 'Yesterday' },
-  { id: 'h10', address: '450 Patton Ave, Asheville, NC 28806',        scenario: 'high',   platforms: 2, scannedAgo: '2 d ago'   },
-  { id: 'h11', address: '12 Hillside St, Asheville, NC 28801',        scenario: 'low',    platforms: 0, scannedAgo: '2 d ago'   },
-  { id: 'h12', address: '156 Sand Hill Rd, Asheville, NC 28806',      scenario: 'high',   platforms: 3, scannedAgo: '3 d ago'   },
-  { id: 'h13', address: '89 Beverly Rd, Asheville, NC 28805',         scenario: 'medium', platforms: 1, scannedAgo: '3 d ago'   },
-  { id: 'h14', address: '720 Haywood Rd, Asheville, NC 28806',        scenario: 'low',    platforms: 0, scannedAgo: '4 d ago'   },
-  { id: 'h15', address: '301 Lakeshore Dr, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAgo: '5 d ago'   },
-  { id: 'h16', address: '44 Pine Cone Ln, Asheville, NC 28803',       scenario: 'medium', platforms: 1, scannedAgo: '6 d ago'   },
-  { id: 'h17', address: '987 Sunset Pkwy, Asheville, NC 28806',       scenario: 'low',    platforms: 0, scannedAgo: '1 w ago'   },
-  { id: 'h18', address: '50 Ridgeview Ct, Asheville, NC 28805',       scenario: 'high',   platforms: 3, scannedAgo: '1 w ago'   },
-];
-
-type Filter = 'all' | 'high' | 'medium' | 'low';
-
-const FILTER_OPTIONS: { id: Filter; label: string; count: (rows: HistoryRow[]) => number }[] = [
-  { id: 'all',    label: 'All',           count: (r) => r.length },
-  { id: 'high',   label: 'Rented',           count: (r) => r.filter((x) => x.scenario === 'high').length },
-  { id: 'medium', label: 'Possibly rented',  count: (r) => r.filter((x) => x.scenario === 'medium').length },
-  { id: 'low',    label: 'Not rented',       count: (r) => r.filter((x) => x.scenario === 'low').length },
-];
-
-function HistoryEyebrow({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
-      style={{ color: 'var(--ink-3)' }}
-    >
-      {children}
-    </div>
-  );
-}
+type Verdict = 'all' | 'high' | 'medium' | 'low';
+type Type = 'all' | 'single' | 'batch';
 
 function HistoryScreen() {
   const history = ReactRouterDOM.useHistory();
-  const [filter, setFilter] = React.useState<Filter>('all');
+  const { history: rows } = useAppState();
+  const [verdict, setVerdict] = React.useState<Verdict>('all');
+  const [type, setType] = React.useState<Type>('all');
   const [query, setQuery] = React.useState('');
 
-  const rows = HISTORY.filter((r) => {
-    if (filter !== 'all' && r.scenario !== filter) return false;
-    if (query && !r.address.toLowerCase().includes(query.toLowerCase())) return false;
+  const filtered = rows.filter((r: any) => {
+    if (type !== 'all' && r.kind !== type) return false;
+    if (verdict !== 'all') {
+      // Batch entries don't have a verdict — exclude them from any verdict-
+      // specific filter to keep the meaning sharp.
+      if (r.kind !== 'single') return false;
+      if (r.scenario !== verdict) return false;
+    }
+    if (query) {
+      const target = r.kind === 'batch' ? r.filename : r.address;
+      if (!target.toLowerCase().includes(query.toLowerCase())) return false;
+    }
     return true;
   });
 
-  function openResult(row: HistoryRow) {
+  const VERDICT_FILTERS: { id: Verdict; label: string; count: number }[] = [
+    { id: 'all',    label: 'All',              count: rows.length },
+    { id: 'high',   label: 'Rented',           count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'high').length },
+    { id: 'medium', label: 'Possibly rented',  count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'medium').length },
+    { id: 'low',    label: 'Not rented',       count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'low').length },
+  ];
+
+  const TYPE_FILTERS: { id: Type; label: string; count: number }[] = [
+    { id: 'all',    label: 'All',    count: rows.length },
+    { id: 'single', label: 'Single', count: rows.filter((r: any) => r.kind === 'single').length },
+    { id: 'batch',  label: 'Batch',  count: rows.filter((r: any) => r.kind === 'batch').length },
+  ];
+
+  function openRow(row: any) {
+    if (row.kind === 'batch') {
+      // Batch detail — for the prototype, the BatchScreen sample view fills
+      // this role; no per-batch route yet.
+      history.push('/batch');
+      return;
+    }
     sessionStorage.setItem('scanScenario', row.scenario);
     sessionStorage.setItem('scanAddress', row.address);
     const path =
-      row.scenario === 'low'
-        ? '/result/clean'
-        : row.scenario === 'medium'
-        ? '/result/medium'
-        : '/result/high';
+      row.scenario === 'low'  ? '/result/clean'
+      : row.scenario === 'medium' ? '/result/medium'
+      : '/result/high';
     history.push(path);
   }
 
@@ -91,7 +74,7 @@ function HistoryScreen() {
             className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
             style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
           >
-            Scan history.
+            Scan History.
           </h1>
           <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
             Every scan you've run — searchable, filterable, click any row to reopen the case.
@@ -99,7 +82,7 @@ function HistoryScreen() {
         </div>
         <div className="hidden md:flex items-center gap-2 shrink-0">
           <DropdownMenu
-            title="Download history"
+            title="Download History"
             trigger={(open: boolean) => (
               <Button
                 icon={<Icon name="pdf" size={14} />}
@@ -122,55 +105,77 @@ function HistoryScreen() {
               </Button>
             )}
             items={[
-              {
-                label: 'PDF report',
-                hint: 'Lender-ready summary with all scans',
-                icon: <Icon name="pdf" />,
-                onClick: () => window.print(),
-              },
-              {
-                label: 'CSV',
-                hint: 'Tabular data for spreadsheets',
-                icon: <Icon name="layers" />,
-                onClick: () => {},
-              },
+              { label: 'PDF report', hint: 'Lender-ready summary with all scans', icon: <Icon name="pdf" />, onClick: () => window.print() },
+              { label: 'CSV',        hint: 'Tabular data for spreadsheets',       icon: <Icon name="layers" />, onClick: () => {} },
             ]}
           />
         </div>
       </header>
 
-      {/* Filter + search bar */}
+      {/* Filter row — Type segment on the left, verdict chips on the right, search far right. */}
       <section className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {FILTER_OPTIONS.map((opt) => {
-            const active = filter === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setFilter(opt.id)}
-                className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors ${
-                  active
-                    ? '!bg-brand-tint !border-brand/40'
-                    : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
-                }`}
-                style={{ color: active ? 'var(--brand-deep)' : 'var(--ink-2)' }}
-              >
-                {opt.label}
-                <span
-                  className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
-                  style={{
-                    background: active ? 'rgba(2,146,190,0.12)' : 'var(--surface-2)',
-                    color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
-                  }}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            {TYPE_FILTERS.map((opt) => {
+              const active = type === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setType(opt.id)}
+                  className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors ${
+                    active
+                      ? '!bg-brand-tint !border-brand/40'
+                      : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
+                  }`}
+                  style={{ color: active ? 'var(--brand-deep)' : 'var(--ink-2)' }}
                 >
-                  {opt.count(HISTORY)}
-                </span>
-              </button>
-            );
-          })}
+                  {opt.label}
+                  <span
+                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
+                    style={{
+                      background: active ? 'rgba(2,146,190,0.12)' : 'var(--surface-2)',
+                      color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
+                    }}
+                  >
+                    {opt.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="hidden sm:block w-px h-5 bg-line" aria-hidden />
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {VERDICT_FILTERS.map((opt) => {
+              const active = verdict === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setVerdict(opt.id)}
+                  className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors ${
+                    active
+                      ? '!bg-brand-tint !border-brand/40'
+                      : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
+                  }`}
+                  style={{ color: active ? 'var(--brand-deep)' : 'var(--ink-2)' }}
+                >
+                  {opt.label}
+                  <span
+                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
+                    style={{
+                      background: active ? 'rgba(2,146,190,0.12)' : 'var(--surface-2)',
+                      color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
+                    }}
+                  >
+                    {opt.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div className="relative w-full sm:w-[280px]">
+        <div className="relative w-full sm:w-[260px]">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
             <Icon name="search" size={14} />
           </span>
@@ -178,19 +183,19 @@ function HistoryScreen() {
             type="search"
             value={query}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-            placeholder="Filter by address"
+            placeholder="Filter by address or file"
             className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4"
           />
         </div>
       </section>
 
-      {/* Table — same DataTable + columns as HomeScreen */}
+      {/* Table */}
       <DataTable
-        columns={SCAN_COLUMNS}
-        rows={rows}
-        rowKey={(r: HistoryRow) => r.id}
-        onRowClick={openResult}
-        leadingAccent={scanLeadingAccent}
+        columns={HISTORY_COLUMNS}
+        rows={filtered}
+        rowKey={(r: any) => r.id}
+        onRowClick={openRow}
+        pageSize={10}
         empty={
           <div className="px-5 py-12 text-center text-label text-ink-3">
             No scans match your filters.
@@ -200,11 +205,143 @@ function HistoryScreen() {
 
       {/* Footer caption */}
       <div className="mt-4 flex items-center justify-between text-caption text-ink-3">
-        <HistoryEyebrow>
-          Showing {rows.length} of {HISTORY.length} scans
-        </HistoryEyebrow>
+        <span
+          className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          {filtered.length} of {rows.length} {rows.length === 1 ? 'entry' : 'entries'}
+        </span>
         <span>Older scans archived after 90 days.</span>
       </div>
     </AppShell>
   );
 }
+
+// ---- column defs --------------------------------------------------------
+// Branches on row.kind so a Batch summary renders filename + N properties
+// in the address slot and skips the score/listings columns.
+
+const HISTORY_COLUMNS: any[] = [
+  {
+    key: 'type',
+    label: 'Type',
+    width: '88px',
+    cell: (r: any) => <Pill>{r.kind === 'batch' ? 'Batch' : 'Single'}</Pill>,
+  },
+  {
+    key: 'target',
+    label: 'Address',
+    primary: true,
+    cell: (r: any) => {
+      if (r.kind === 'batch') {
+        return (
+          <div className="min-w-0">
+            <div
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {r.filename}
+            </div>
+            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+              {r.total} properties · {r.flagged} flagged
+            </div>
+          </div>
+        );
+      }
+      const [street, locality] = splitAddress(r.address);
+      return (
+        <div className="min-w-0">
+          <div
+            className="font-sans font-semibold text-body-sm leading-tight truncate"
+            style={{ color: 'var(--navy)' }}
+          >
+            {street}
+          </div>
+          {locality && (
+            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+              {locality}
+            </div>
+          )}
+        </div>
+      );
+    },
+  },
+  {
+    key: 'verdict',
+    label: 'Verdict',
+    width: '156px',
+    hideBelow: 'sm' as const,
+    cell: (r: any) => {
+      if (r.kind === 'batch') {
+        return <span className="font-mono text-caption text-ink-4">—</span>;
+      }
+      const variant =
+        r.scenario === 'high'  ? 'verdict-high'
+        : r.scenario === 'medium' ? 'verdict-med'
+        : 'verdict-low';
+      return <Pill variant={variant as any}>{HOME_VERDICT_LABEL[r.scenario]}</Pill>;
+    },
+  },
+  {
+    key: 'score',
+    label: 'Score',
+    width: '128px',
+    hideBelow: 'sm' as const,
+    cell: (r: any) => {
+      if (r.kind === 'batch') {
+        return <span className="font-mono text-caption text-ink-4">—</span>;
+      }
+      const sc = SCENARIOS[r.scenario];
+      return (
+        <div className="flex items-center gap-2.5">
+          <span
+            className="font-mono tabular-nums font-semibold text-label w-[24px] text-right leading-none"
+            style={{ color: 'var(--navy)' }}
+          >
+            {sc.score}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="relative h-1 w-full rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+              <div
+                className="absolute inset-y-0 left-0 rounded-full"
+                style={{
+                  width: `${Math.min(100, Math.max(0, sc.score))}%`,
+                  background:
+                    VERDICT_VARIANT[r.scenario] === 'risk' ? 'var(--risk)'
+                    : VERDICT_VARIANT[r.scenario] === 'warn' ? 'var(--warn)' : 'var(--brand)',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    key: 'platforms',
+    label: 'Platforms',
+    width: '84px',
+    align: 'right' as const,
+    hideBelow: 'md' as const,
+    cell: (r: any) =>
+      r.kind === 'batch' ? (
+        <span className="font-mono text-caption text-ink-4">—</span>
+      ) : (
+        <span className="font-mono tabular-nums text-caption text-ink-3">
+          {r.platforms} / 3
+        </span>
+      ),
+  },
+  {
+    key: 'scanned',
+    label: 'Scanned',
+    width: '100px',
+    align: 'right' as const,
+    hideBelow: 'md' as const,
+    cell: (r: any) => (
+      <span className="font-mono tabular-nums text-caption text-ink-3">
+        {r.scannedAgo}
+      </span>
+    ),
+  },
+];

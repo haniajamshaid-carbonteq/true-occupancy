@@ -9,7 +9,7 @@ function PropertyOverview() {
   return (
     <section className="mt-8 sm:mt-12">
       <h2 className="font-sans font-semibold text-h3 sm:text-h2 tracking-[-0.005em] m-0 mb-3 sm:mb-3.5" style={{ color: 'var(--navy)' }}>
-        Property overview
+        Property Overview
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-[0.55fr_1.45fr] bg-surface border border-line rounded-lg shadow-sm overflow-hidden">
         {/* Map: always-visible on lg+, toggled on mobile */}

@@ -1,5 +1,5 @@
 /* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, MetricCard, DropdownMenu, ReactRouterDOM,
-   VERDICT_ACCENT, splitAddress */
+   VERDICT_ACCENT, splitAddress, AutomateModal, useAppState */
 // Batch processing — upload a CSV (or click "Try sample data") to scan
 // dozens of properties in one queue. Shows a partially-complete batch:
 // some scanned, some scanning, some queued.
@@ -39,11 +39,15 @@ const SAMPLE_BATCH: BatchRow[] = [
 ];
 
 function BatchScreen() {
-  const [loaded, setLoaded] = React.useState(false);
+  const { liveBatch, startSampleBatch } = useAppState();
 
   return (
     <AppShell>
-      {loaded ? <BatchResults rows={SAMPLE_BATCH} /> : <BatchUpload onSample={() => setLoaded(true)} />}
+      {liveBatch ? (
+        <BatchResults batch={liveBatch} />
+      ) : (
+        <BatchUpload onSample={startSampleBatch} />
+      )}
     </AppShell>
   );
 }
@@ -58,7 +62,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
           <Icon name="upload" size={24} />
         </div>
         <h2 className="font-sans font-semibold text-h2 sm:text-h2 tracking-[-0.005em] m-0 mb-2" style={{ color: 'var(--navy)' }}>
-          Scan many properties at once.
+          Scan Many Properties at Once.
         </h2>
         <p className="text-ink-3 text-body-sm leading-relaxed max-w-[48ch] m-0 mb-7">
           Drop a CSV with one address per row. We'll cross-check every entry against
@@ -96,7 +100,9 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
 
 // ---------- Loaded state: header + table ----------
 
-function BatchResults({ rows }: { rows: BatchRow[] }) {
+function BatchResults({ batch }: { batch: any }) {
+  const { addSchedule, clearBatch } = useAppState();
+  const rows: BatchRow[] = batch.rows;
   const total = rows.length;
   const done = rows.filter((r) => r.status === 'done').length;
   const running = rows.filter((r) => r.status === 'running').length;
@@ -104,6 +110,16 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
   const warn = rows.filter((r) => r.risk === 'warn').length;
   const clean = rows.filter((r) => r.risk === 'clean').length;
   const progress = Math.round((done / total) * 100);
+  const isComplete = batch.status === 'complete';
+
+  const [automateOpen, setAutomateOpen] = React.useState(false);
+  const [confirmation, setConfirmation] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!confirmation) return;
+    const t = window.setTimeout(() => setConfirmation(null), 3000);
+    return () => window.clearTimeout(t);
+  }, [confirmation]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -111,17 +127,29 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
       <Card>
         <div className="px-7 py-6">
           <div className="flex items-start justify-between gap-6 mb-5">
-            <div>
-              <div className="font-sans text-eyebrow uppercase tracking-widest text-ink-3 mb-1.5">
-                Batch · asheville-q2-2026.csv
+            <div className="min-w-0">
+              <div className="font-sans text-eyebrow uppercase tracking-widest text-ink-3 mb-1.5 flex items-center gap-2">
+                {isComplete ? (
+                  <Pill variant="clean" dot>Complete</Pill>
+                ) : (
+                  <Pill variant="brand" dot>Live</Pill>
+                )}
+                <span>Batch · {batch.filename}</span>
               </div>
               <h2 className="font-sans font-semibold text-h2 tracking-[-0.005em] m-0 leading-tight" style={{ color: 'var(--navy)' }}>
                 {total} properties
               </h2>
             </div>
             <div className="flex gap-2 shrink-0">
+              <Button
+                variant="default"
+                onClick={() => setAutomateOpen(true)}
+                icon={<Icon name="cal" size={14} />}
+              >
+                Automate
+              </Button>
               <DropdownMenu
-                title="Download report"
+                title="Download Report"
                 trigger={(open: boolean) => (
                   <Button
                     icon={<Icon name="pdf" />}
@@ -156,9 +184,15 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
                     icon: <Icon name="layers" />,
                     onClick: () => {},
                   },
+                  {
+                    label: 'ZIP archive',
+                    hint: 'PDF + CSV + per-listing screenshots',
+                    icon: <Icon name="layers" />,
+                    onClick: () => {},
+                  },
                 ]}
               />
-              <Button variant="primary" icon={<Icon name="upload" />}>
+              <Button variant="primary" icon={<Icon name="upload" />} onClick={clearBatch}>
                 New batch
               </Button>
             </div>
@@ -172,16 +206,16 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <div className="font-sans text-xs text-ink-3 shrink-0">
-              {done}/{total} scanned · {running > 0 ? `${running} in progress` : 'queued'}
+            <div className="font-sans text-xs text-ink-3 shrink-0 tabular-nums">
+              {done}/{total} scanned{!isComplete && running > 0 ? ` · ${running} in progress` : ''}{isComplete ? ' · added to History' : ''}
             </div>
           </div>
 
           {/* Status counts — same MetricCard primitive as Home KPIs */}
           <div className="grid grid-cols-3 gap-3">
-            <MetricCard size="sm" accent="risk"  label="Rented"          value={flagged} />
-            <MetricCard size="sm" accent="warn"  label="Possibly rented" value={warn} />
-            <MetricCard size="sm" accent="clean" label="Not rented"      value={clean} />
+            <MetricCard size="sm" accent="verdict-high" label="Rented"          value={flagged} />
+            <MetricCard size="sm" accent="verdict-med"  label="Possibly rented" value={warn} />
+            <MetricCard size="sm" accent="verdict-low"  label="Not rented"      value={clean} />
           </div>
         </div>
       </Card>
@@ -201,6 +235,39 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
         </div>
         <BatchTable rows={rows} />
       </div>
+
+      <AutomateModal
+        open={automateOpen}
+        onClose={() => setAutomateOpen(false)}
+        target={{ kind: 'batch', filename: batch.filename, total }}
+        onConfirm={({ cadenceMonths }: { cadenceMonths: 3 | 4 | 6 | 12 }) => {
+          addSchedule({
+            kind: 'batch',
+            filename: batch.filename,
+            total,
+            cadenceMonths,
+          });
+          setAutomateOpen(false);
+          setConfirmation(`Batch automation scheduled · every ${cadenceMonths} months`);
+        }}
+      />
+
+      {confirmation && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] px-4 py-2.5 rounded-md shadow-md font-sans text-label flex items-center gap-2"
+          style={{ background: 'var(--navy)', color: 'white' }}
+          role="status"
+        >
+          <span
+            className="w-5 h-5 rounded-full grid place-items-center shrink-0"
+            style={{ background: 'rgba(255,255,255,0.16)' }}
+            aria-hidden
+          >
+            <Icon name="check" size={12} />
+          </span>
+          {confirmation}
+        </div>
+      )}
     </div>
   );
 }
@@ -220,6 +287,7 @@ function BatchTable({ rows }: { rows: BatchRow[] }) {
       rows={rows}
       rowKey={(r: BatchRow) => String(r.id)}
       onRowClick={openIfDone}
+      pageSize={25}
       leadingAccent={(r: BatchRow) =>
         r.status === 'done' && r.risk ? VERDICT_ACCENT[r.risk] : undefined
       }
@@ -307,19 +375,11 @@ const BATCH_COLUMNS: any[] = [
     hideBelow: 'sm' as const,
     cell: (row: BatchRow) => {
       if (row.status === 'done' && row.risk) {
-        return (
-          <div
-            className="inline-flex items-center gap-2 font-sans text-label leading-none whitespace-nowrap"
-            style={{ color: 'var(--ink-2)' }}
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ background: VERDICT_ACCENT[row.risk] }}
-              aria-hidden
-            />
-            {VERDICT_LABEL[row.risk]}
-          </div>
-        );
+        const variant =
+          row.risk === 'risk'  ? 'verdict-high'
+          : row.risk === 'warn'  ? 'verdict-med'
+          : 'verdict-low';
+        return <Pill variant={variant as any}>{VERDICT_LABEL[row.risk]}</Pill>;
       }
       if (row.status === 'running') {
         return <Pill variant="brand" dot>Scanning</Pill>;

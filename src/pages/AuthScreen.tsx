@@ -134,7 +134,7 @@ function SignInForm({
       className="flex flex-col gap-5 w-full max-w-[380px] mx-auto"
     >
       <FormHeading
-        title="Sign in"
+        title="Sign In"
         sub="Continue your scan history and verifications."
         formMode="signin"
       />
@@ -250,7 +250,7 @@ function SignUpForm({
       className="flex flex-col gap-5 w-full max-w-[380px] mx-auto"
     >
       <FormHeading
-        title="Create account"
+        title="Create Account"
         sub="Start verifying property occupancy in minutes."
         formMode="signup"
       />
