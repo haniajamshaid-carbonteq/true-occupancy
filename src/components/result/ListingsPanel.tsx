@@ -858,6 +858,7 @@ function TableView({ listings, strongestId }: { listings: ListingFlat[]; stronge
       key: 'confidence',
       label: 'Confidence',
       width: '92px',
+      align: 'right' as const,
       hideBelow: 'sm' as const,
       cell: (r: ListingFlat) => (
         <span

@@ -126,7 +126,13 @@ function DataTable<T>({
                 c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : '',
                 c.hideBelow ? HIDE_CLS[c.hideBelow] : '',
               ].join(' ')}
-              style={c.align === 'right' ? { marginRight: '-0.16em' } : undefined}
+              style={
+                c.align === 'right'
+                  ? { marginRight: '-0.16em' }
+                  : c.align === 'center'
+                  ? { marginLeft: '-0.16em' }
+                  : undefined
+              }
             >
               {c.label}
             </div>

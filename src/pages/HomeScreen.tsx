@@ -305,14 +305,12 @@ const STATE_CONFIG: Record<
     iconWrap: string;
     iconName: 'layers' | 'check' | 'alert' | 'x';
     iconSize: number;
-    pillVariant: 'brand' | 'clean' | 'warn' | 'risk';
-    pillLabel: string;
   }
 > = {
-  live:      { iconWrap: 'bg-brand-soft text-brand',     iconName: 'layers', iconSize: 18, pillVariant: 'brand', pillLabel: 'In progress' },
-  complete:  { iconWrap: 'bg-clean-soft text-clean-ink', iconName: 'check',  iconSize: 20, pillVariant: 'clean', pillLabel: 'Complete' },
-  partial:   { iconWrap: 'bg-warn-soft text-warn-ink',   iconName: 'alert',  iconSize: 18, pillVariant: 'warn',  pillLabel: 'Completed with errors' },
-  allFailed: { iconWrap: 'bg-risk-soft text-risk-ink',   iconName: 'x',      iconSize: 18, pillVariant: 'risk',  pillLabel: 'Scan failed' },
+  live:      { iconWrap: 'bg-brand-soft text-brand',     iconName: 'layers', iconSize: 18 },
+  complete:  { iconWrap: 'bg-clean-soft text-clean-ink', iconName: 'check',  iconSize: 20 },
+  partial:   { iconWrap: 'bg-warn-soft text-warn-ink',   iconName: 'alert',  iconSize: 18 },
+  allFailed: { iconWrap: 'bg-risk-soft text-risk-ink',   iconName: 'x',      iconSize: 18 },
 };
 
 function LiveBatchStrip() {
@@ -382,21 +380,22 @@ function LiveBatchStrip() {
           </button>
         )}
 
-        <div className="px-5 sm:px-6 py-4 sm:py-5">
+        <div className={`px-5 sm:px-6 py-4 sm:py-5 ${isComplete ? 'pr-12 sm:pr-14' : ''}`}>
           <div className="flex items-center gap-4">
             <div className={`w-10 h-10 rounded-full grid place-items-center shrink-0 ${cfg.iconWrap}`} aria-hidden>
               <Icon name={cfg.iconName} size={cfg.iconSize} />
             </div>
 
-            <div
-              className="min-w-0 flex-1 font-sans font-semibold text-body sm:text-h4 leading-tight tracking-[-0.005em] truncate"
-              style={{ color: 'var(--navy)' }}
-              title={liveBatch.filename}
-            >
-              {liveBatch.filename}
+            <div className="min-w-0 flex-1">
+              <div
+                className="font-sans font-semibold text-body sm:text-h4 leading-tight tracking-[-0.005em] truncate"
+                style={{ color: 'var(--navy)' }}
+              >
+                {headline}
+              </div>
             </div>
 
-            <div className="shrink-0 pr-8 sm:pr-0">
+            <div className="shrink-0">
               <Button
                 variant={state === 'live' ? 'ghost' : 'primary'}
                 onClick={onAction}

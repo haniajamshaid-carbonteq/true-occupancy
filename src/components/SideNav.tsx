@@ -13,8 +13,8 @@ interface NavItem {
 }
 
 const PRIMARY: NavItem[] = [
-  { to: '/', label: 'New scan', icon: 'search', exact: true },
-  { to: '/batch', label: 'Batch', icon: 'layers' },
+  { to: '/', label: 'Dashboard', icon: 'trend-up', exact: true },
+  { to: '/batch', label: 'Batch upload', icon: 'layers' },
   { to: '/history', label: 'History', icon: 'history' },
   { to: '/scheduled', label: 'Scheduled', icon: 'cal' },
 ];
