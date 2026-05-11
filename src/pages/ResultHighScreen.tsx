@@ -1,14 +1,12 @@
-/* global React, AppShell, PageHeader, ScoreCard, ModeToggle, PropertyOverview, WhyCard, ListingsPanel */
-// Screen 05 — Result · red flag (high risk).
+/* global React, AppShell, ScanContextBar, ConfidenceHero, PropertyOverview, ListingsPanel */
+// Screen 05 — Result · "Rented · High confidence" (strong signal).
 
 function ResultHighScreen() {
-  const [mode, setMode] = React.useState<AudienceMode>('investigator');
   return (
     <AppShell>
-      <PageHeader showTitle={false} rightSlot={<ModeToggle value={mode} onChange={setMode} />} />
+      <ScanContextBar showDownloadPDF />
       <div className="mt-5 flex flex-col gap-5">
-        <ScoreCard scenario="high" mode={mode} />
-        <WhyCard scenario="high" />
+        <ConfidenceHero scenario="high" />
         <ListingsPanel scenario="high" />
         <PropertyOverview />
       </div>

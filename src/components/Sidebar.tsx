@@ -40,16 +40,24 @@ const NAV: { section: string; items: NavItem[] }[] = [
 function Sidebar() {
   return (
     <aside className="bg-surface-2 border-r border-line px-5 py-7 flex flex-col gap-7">
-      {/* Logo — matches spec: 40px Halcyon mark + product name with italic Occupancy */}
-      <div className="flex items-center gap-2.5 font-serif text-[22px]">
+      {/* Logo — Halcyon parent / TrueOccupancy product hierarchy per brand book §2 */}
+      <div className="flex items-center gap-2.5">
         <div className="w-10 h-10 shrink-0">
-          <img src="halcyon-mark-v2.png" alt="Halcyon" className="w-full h-full object-contain block" />
+          <img src="halcyon-mark-v2.png" alt="Halcyon Solutions" className="w-full h-full object-contain block" />
         </div>
-        <div className="leading-tight text-[18px]">
-          True <em className="italic text-brand">Occupancy</em>
-          <span className="block font-mono text-[9.5px] tracking-[0.12em] text-ink-3 uppercase mt-0.5">
-            by Halcyon
-          </span>
+        <div className="leading-tight">
+          <div
+            className="font-sans text-body font-bold tracking-[0.04em] uppercase"
+            style={{ color: 'var(--navy)' }}
+          >
+            Halcyon
+          </div>
+          <div
+            className="font-sans text-micro font-medium tracking-[0.01em] mt-0.5"
+            style={{ color: 'var(--brand-deep)' }}
+          >
+            TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
+          </div>
         </div>
       </div>
 
@@ -57,7 +65,7 @@ function Sidebar() {
       <nav className="flex flex-col gap-0.5">
         {NAV.map((group) => (
           <div key={group.section}>
-            <div className="font-mono text-[10.5px] uppercase tracking-wider text-ink-4 px-2.5 pt-3 pb-1.5">
+            <div className="font-mono text-eyebrow uppercase tracking-wider text-ink-4 px-2.5 pt-3 pb-1.5">
               {group.section}
             </div>
             {group.items.map((item) => (
@@ -65,13 +73,13 @@ function Sidebar() {
                 key={item.to}
                 to={item.to}
                 exact={item.exact}
-                className="flex items-center gap-2.5 px-2.5 py-2 rounded-sm text-ink-2 text-sm font-medium hover:bg-surface no-underline"
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-ink-2 text-sm font-medium hover:bg-hover-bg transition-colors no-underline"
                 activeClassName="bg-brand-tint text-brand"
               >
                 <Icon name={item.icon} size={16} className="opacity-80" />
                 <span>{item.label}</span>
                 {item.badge && (
-                  <span className="ml-auto font-mono text-[11px] text-ink-4">{item.badge}</span>
+                  <span className="ml-auto font-mono text-micro text-ink-4">{item.badge}</span>
                 )}
               </NavLink>
             ))}
@@ -83,8 +91,8 @@ function Sidebar() {
       <div className="mt-auto pt-4 border-t border-line flex items-center gap-2.5">
         <Avatar initials="JM" size={32} />
         <div className="leading-tight">
-          <div className="text-[13px] font-medium">J. Marlow</div>
-          <div className="text-[11.5px] text-ink-3">Code Compliance · Asheville</div>
+          <div className="text-label font-medium">J. Marlow</div>
+          <div className="text-micro text-ink-3">Code Compliance · Asheville</div>
         </div>
       </div>
     </aside>

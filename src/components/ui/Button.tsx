@@ -15,12 +15,20 @@ interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 const BTN_BASE =
-  'inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-[13px] font-medium font-sans border cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+  'inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-label font-medium font-sans border cursor-pointer transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed';
 
+// Primary CTA per docs/DESIGN.md §3.1 + §10:
+// - Rest:  Teal Green #0AB7A3 (primary brand color, gradient start) on white.
+// - Hover: Teal Dark  #015E7A (mirrors the brand-book hyperlink hover).
+// Solid fill, no gradient — gradient is reserved for marketing-collateral
+// hero bands (§6), not the product surface (§10).
 const BTN_VARIANTS: Record<ButtonVariant, string> = {
   primary: 'bg-brand text-white border-brand hover:bg-brand-deep hover:border-brand-deep',
-  default: 'bg-surface text-ink-2 border-line-strong hover:bg-surface-2',
-  ghost: 'bg-transparent text-ink-2 border-transparent hover:bg-surface-2',
+  default: 'bg-surface text-ink-2 border-line-strong hover:bg-hover-bg hover:border-line-strong',
+  // Ghost / link buttons across the app land on neutral grey on hover —
+  // the pale brand-tint they used to use looked washed-out against the
+  // surrounding cards. Text colour stays put; the bg shift is enough.
+  ghost: 'bg-transparent text-ink-2 border-transparent hover:bg-hover-bg',
 };
 
 function Button({

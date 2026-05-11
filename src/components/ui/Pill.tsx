@@ -15,14 +15,14 @@ interface PillProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'childre
 }
 
 const PILL_BASE =
-  "inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full font-sans text-[11px] font-medium uppercase tracking-[0.04em] border";
+  "inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full font-sans text-micro font-medium uppercase tracking-[0.04em] border";
 
 const PILL_VARIANTS: Record<PillVariant, string> = {
   default: 'bg-surface-2 text-ink-2 border-line',
   clean: 'bg-clean-soft text-clean-ink border-transparent',
   warn: 'bg-warn-soft text-warn-ink border-transparent',
   risk: 'bg-risk-soft text-risk-ink border-transparent',
-  brand: 'bg-brand-soft text-brand border-transparent',
+  brand: 'bg-brand-soft text-brand-deep border-transparent',
 };
 
 function Pill({ variant = 'default', dot, children, className = '', ...rest }: PillProps) {

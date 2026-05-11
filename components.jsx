@@ -20,8 +20,11 @@ function Sidebar({ open, onClose }) {
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-top">
           <div className="logo">
-            <div className="mark">TO</div>
-            <div>True <em>Occupancy</em></div>
+            <img className="mark" src="halcyon-mark.png" alt="Halcyon Solutions" />
+            <div className="logo-text">
+              <div className="logo-parent">Halcyon</div>
+              <div className="logo-product">TrueOccupancy<sup>™</sup></div>
+            </div>
           </div>
           <button
             className="sidebar-close"
@@ -100,7 +103,7 @@ function PageHead({ scanning, doneAt }) {
     <div>
       <div className="page-head">
         <div>
-          <h1 className="page-title">True Occupancy</h1>
+          <h1 className="page-title">Verify property occupancy and <em>flag short-term rental fraud.</em></h1>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div className="score-label" style={{ marginBottom: 4 }}>{scanning ? 'Scan started' : 'Scan completed'}</div>

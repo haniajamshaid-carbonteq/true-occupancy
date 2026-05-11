@@ -1,67 +1,196 @@
 /* True Occupancy — Design Tokens
- * Extracted from design-spec.html. Semantic naming preserved verbatim
- * so existing component CSS keeps working unchanged.
+ * Halcyon Brand 2026. Source of truth: docs/DESIGN.md.
+ * Semantic names preserved so existing component CSS keeps working;
+ * only the values change.
  */
 
 :root {
-  /* === Surfaces === */
-  --bg: #FFFFFF;          /* page background — pure white */
-  --surface: #FFFFFF;     /* card / panel background */
-  --surface-2: #F7F9FB;   /* tinted surface (sidebar, nested cards) — subtle COOL cast so it can't read as cream next to white */
+  /* === Surfaces ===
+   * Page background carries a barely-there cool/teal cast so cards on
+   * --surface (pure white) lift off it. Reads as white at first glance —
+   * gives the product surface depth without pulling color into the fold.
+   */
+  --bg: #F4F6F8;              /* page background — neutral cool off-white, lifts white cards */
+  --surface: #FFFFFF;         /* cards lift off the bg */
+  --surface-2: #F2F2F2;       /* alt-row gray, also subtle nested-card fill */
 
-  /* === Lines — neutral grays, no warm tan === */
-  --line: #ECECEC;        /* default border / divider */
-  --line-strong: #D9D9D9; /* emphasized border (buttons, frames) */
+  /* === Lines === */
+  --line: #E5E7EB;
+  --line-strong: #CBD5E1;
 
-  /* === Ink (text) — descending contrast === */
-  --ink: #1C1B17;         /* primary body text, headings */
-  --ink-2: #45433C;       /* secondary text, body copy */
-  --ink-3: #76736A;       /* tertiary / muted */
-  --ink-4: #A19D91;       /* placeholder / disabled */
+  /* === Hover surface ===
+   * Slightly lighter than --line so hover states read as a calm
+   * background wash rather than the same value as the borders around
+   * them. Used by buttons, nav rows, ghost CTAs, table rows. */
+  --hover-bg: #E8EBF0;
 
-  /* === Brand (teal) === */
-  --brand: #0F8FB8;
-  --brand-2: #14B5A6;     /* accent / gradient pair */
-  --brand-soft: #E0F4F4;  /* tinted background for brand pills */
-  --brand-tint: #ECF8F8;  /* lightest brand wash (active nav) */
-  --brand-deep: #0A6E92;  /* hover / pressed brand */
+  /* === Ink (text) === */
+  --ink:   #1C1C1E;           /* body ink (brand book) */
+  --ink-2: #142D55;           /* deep navy — headlines on white */
+  --ink-3: #475569;           /* muted */
+  --ink-4: #94A3B8;           /* placeholder / disabled */
 
-  /* === Status: clean (positive / safe) === */
-  --clean: #5B8A6A;
-  --clean-soft: #E8F0E5;
-  --clean-ink: #2C4A36;
+  /* === Brand (Halcyon teal) === */
+  --brand:       #0AB7A3;     /* gradient start, primary brand */
+  --brand-2:     #0498C6;     /* gradient end */
+  --brand-soft:  #E6F8F5;     /* tinted brand-pill background */
+  --brand-tint:  #F2FBFA;     /* lightest brand wash (active nav) */
+  --brand-deep:  #015E7A;     /* hover / pressed; also link hover */
+  --brand-link:  #0292BE;     /* hyperlink color */
+  --brand-mid:   #02AF9B;     /* section accents, icon fills */
+  --brand-footer:#079FAD;     /* footer bar, hr rules */
 
-  /* === Status: warn (caution) === */
-  --warn: #C68A3C;
-  --warn-soft: #FBF0DB;
+  /* === Authority / quote (navy + blues) === */
+  --navy:        #142D55;
+  --navy-quote:  #3E6BA4;
+  --navy-mid:    #1E4380;
+  --navy-link:   #3374DD;
+
+  /* === Status: clean (Solution framing) — reuse brand teal === */
+  --clean: #0AB7A3;
+  --clean-soft: #E6F8F5;
+  --clean-ink: #015E7A;
+
+  /* === Status: warn (Problem framing — Halcyon amber accent) === */
+  --warn: #EDA436;
+  --warn-soft: #FDF1DC;
   --warn-ink: #6B4914;
+  --warn-deep: #C3872D;
 
   /* === Status: risk (danger / negative) === */
   --risk: #C0533C;
   --risk-soft: #FBE3DB;
   --risk-ink: #6F2917;
 
+  /* === State semantics (success / warning / error) ===
+   * The third colour layer in the design system. Distinct from:
+   *   1. Brand   (--brand)               — identity-only; buttons, links, focus.
+   *   2. Verdict (--clean/--warn/--risk) — categorical, neutral-toned per
+   *      the project's neutral-tone rule for rental verdicts.
+   *   3. State   (these tokens)          — true semantic colours for genuine
+   *      state UI: KPI deltas, validation errors, success toasts, warnings.
+   *
+   * --success is also what the KPI "up" delta uses; --error is the "down"
+   * delta. --warning is brighter than --warn so small dot indicators read
+   * as "yellow caution" rather than the deeper amber of the verdict.
+   */
+  --success:        #16A34A;
+  --success-soft:   #DCFCE7;
+  --success-ink:    #14532D;
+  --warning:        #F59E0B;
+  --warning-soft:   #FEF3C7;
+  --warning-ink:    #78350F;
+  --error:          #DC2626;
+  --error-soft:     #FEE2E2;
+  --error-ink:      #7F1D1D;
+
+  /* Back-compat aliases — older code referenced --stat-up / --stat-down.
+   * Keep them resolving to the new semantic tokens so any straggler
+   * usage continues to render. Remove once nothing references them. */
+  --stat-up:        var(--success);
+  --stat-up-soft:   var(--success-soft);
+  --stat-up-ink:    var(--success-ink);
+  --stat-down:      var(--error);
+  --stat-down-soft: var(--error-soft);
+  --stat-down-ink:  var(--error-ink);
+
+  /* === Type ramp ===
+   * Modular scale that consolidates 28 ad-hoc font sizes seen across the
+   * codebase into 11 named slots. Use semantic names in code rather than
+   * raw px so refactors land in one place. Half-pixel sizes (11.5, 12.5,
+   * 13.5, etc.) are intentionally NOT included — they were drift, not
+   * design.
+   *
+   *   display  hero numeral (one per page max)
+   *   h1       page title
+   *   h2       compact metric value, large heading
+   *   h3       section heading, card title
+   *   h4       subsection heading
+   *   body     body lead
+   *   body-sm  default body, table row
+   *   label    UI label, dense body, button text
+   *   caption  hint, secondary text
+   *   micro    mono uppercase, kbd, badge
+   *   eyebrow  tracked uppercase eyebrow (smallest)
+   */
+  --text-display: 64px;   /* 4    rem */
+  --text-h1:      40px;   /* 2.5  rem */
+  --text-h2:      28px;   /* 1.75 rem */
+  --text-h3:      22px;   /* 1.375 rem */
+  --text-h4:      18px;   /* 1.125 rem */
+  --text-body:    16px;   /* 1    rem */
+  --text-body-sm: 14px;   /* 0.875 rem */
+  --text-label:   13px;   /* 0.8125 rem */
+  --text-caption: 12px;   /* 0.75 rem */
+  --text-micro:   11px;   /* 0.6875 rem */
+  --text-eyebrow: 10px;   /* 0.625 rem */
+
   /* === Platform brand colors === */
   --airbnb: #FF5A5F;
   --vrbo: #245ABE;
   --fb: #1877F2;
 
-  /* === Radii === */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 18px;
-  --r-xl: 28px;
+  /* === Radii — modern-fintech crisp.
+   * Tightened from 8/12/18/28 to 6/8/10/14 so cards and tables read as
+   * product chrome, not consumer-app marshmallows.
+   */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --r-xl: 14px;
 
-  /* === Shadows — bumped slightly so cards still float on the new white bg === */
-  --shadow-sm: 0 1px 3px rgba(28, 27, 23, .055), 0 1px 1px rgba(28, 27, 23, .035);
-  --shadow-md: 0 4px 16px -4px rgba(28, 27, 23, .09), 0 2px 5px rgba(28, 27, 23, .05);
-  --shadow-lg: 0 24px 48px -16px rgba(28, 27, 23, .14), 0 8px 16px -8px rgba(28, 27, 23, .07);
+  /* === Shadows — tinted with navy so cards still feel grounded === */
+  --shadow-sm: 0 1px 3px rgba(20, 45, 85, .055), 0 1px 1px rgba(20, 45, 85, .035);
+  --shadow-md: 0 4px 16px -4px rgba(20, 45, 85, .09), 0 2px 5px rgba(20, 45, 85, .05);
+  --shadow-lg: 0 24px 48px -16px rgba(20, 45, 85, .14), 0 8px 16px -8px rgba(20, 45, 85, .07);
 
   /* === Type families ===
-   * Defaults below match the live UI. Override via
-   * body[data-type-pairing="..."] selectors in typography.css.
+   * Default: Halcyon — Century Gothic with licensed-geometric fallbacks.
+   * Web-licensed cut of Century Gothic is an open question (DESIGN.md §4.4);
+   * fallback stack preserves the geometric brand intent.
+   * Override via body[data-type-pairing="..."] selectors in typography.css.
    */
+  --sans:  "Century Gothic", "CenturyGothic", "Jost", "URW Geometric",
+           "Futura PT", "Avenir Next", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --mono:  "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* === Brand gradient (always horizontal) === */
+  --brand-gradient: linear-gradient(90deg, #0AB7A3 0%, #0498C6 100%);
+
+  /* === Soft rainbow (confidence hero spectrum) ===
+   * Low-saturation pastels — coral → peach → butter → mint → sky → soft green.
+   * Used by ConfidenceHero waffle / sparkbars and any future spectrum chart.
+   */
+  --rb-1: #F4A6A0;
+  --rb-2: #F4C28A;
+  --rb-3: #F4DD7A;
+  --rb-4: #A8E0C2;
+  --rb-5: #9CC9F0;
+  --rb-6: #B3E5C5;
+  --rb-gradient: linear-gradient(
+    90deg,
+    var(--rb-1) 0%,
+    var(--rb-2) 20%,
+    var(--rb-3) 40%,
+    var(--rb-4) 60%,
+    var(--rb-5) 80%,
+    var(--rb-6) 100%
+  );
+
+  /* Green/blue subset of the soft rainbow — used for factor-impact bars in
+   * the Why-this-score breakdown. Limited to the cool, calmer end of the
+   * spectrum so positive *and* negative impacts share one harmonious palette
+   * (the +/- sign in the value carries direction).
+   *
+   * Stops are roughly 30% more saturated than the base --rb-* tokens — the
+   * pastel waffle-dot stops disappeared against bg-surface-2 at bar widths,
+   * so the bar gets its own punchier set while staying in the same family.
+   */
+  --rb-gb-gradient: linear-gradient(
+    90deg,
+    #6BCFA8 0%,
+    #5DC0A4 50%,
+    #5DAFE0 100%
+  );
 }

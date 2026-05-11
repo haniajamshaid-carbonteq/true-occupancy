@@ -7,7 +7,8 @@ type IconName =
   | 'check' | 'x' | 'alert' | 'info' | 'chevron'
   | 'pin' | 'bed' | 'bath' | 'square' | 'shield' | 'cal' | 'price' | 'star'
   | 'spark' | 'replay' | 'share' | 'trend-up' | 'trend-down' | 'external'
-  | 'arrow-right' | 'upload' | 'layers';
+  | 'arrow-right' | 'upload' | 'layers'
+  | 'mail' | 'lock' | 'eye' | 'eye-off' | 'google' | 'user';
 
 interface IconProps extends Omit<React.SVGAttributes<SVGSVGElement>, 'children'> {
   name: IconName;
@@ -56,6 +57,20 @@ function Icon({ name, size = 16, className = '', ...rest }: IconProps) {
     case 'arrow-right':return <svg {...common}><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>;
     case 'upload':     return <svg {...common}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>;
     case 'layers':     return <svg {...common}><path d="m12 2 10 5-10 5L2 7l10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>;
+    case 'mail':       return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>;
+    case 'lock':       return <svg {...common}><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>;
+    case 'eye':        return <svg {...common}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>;
+    case 'eye-off':    return <svg {...common}><path d="M3 3l18 18"/><path d="M10.6 10.6a3 3 0 0 0 4 4"/><path d="M9.7 5.2A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.7 4.7"/><path d="M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 4-.8"/></svg>;
+    case 'user':       return <svg {...common}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>;
+    // Google "G" — official multicolor mark, fill-based (overrides currentColor stroke)
+    case 'google':     return (
+      <svg {...common} fill="currentColor" stroke="none" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.5 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.22-4.74 3.22-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.99.66-2.25 1.05-3.72 1.05-2.86 0-5.28-1.93-6.15-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
+        <path fill="#FBBC05" d="M5.85 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.35-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.78.42 3.46 1.18 4.94l3.67-2.84z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.07.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.67 2.84C6.72 7.31 9.14 5.38 12 5.38z"/>
+      </svg>
+    );
     default:           return null;
   }
 }

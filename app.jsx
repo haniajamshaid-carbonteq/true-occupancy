@@ -77,7 +77,9 @@ function App() {
     <div className={`app ${sidebarOpen ? 'sidebar-open' : ''}`}>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="main">
-        <Topbar scenario={scenario} setScenario={setScenario} onReplay={replay} scanning={scanning} onMenuOpen={() => setSidebarOpen(true)} />
+        <div className="topbar-band">
+          <Topbar scenario={scenario} setScenario={setScenario} onReplay={replay} scanning={scanning} onMenuOpen={() => setSidebarOpen(true)} />
+        </div>
         <PageHead scanning={scanning} doneAt={doneAt} />
 
         <div className="res-2col">

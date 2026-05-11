@@ -36,17 +36,17 @@ function PropertyMap() {
           <path d="M 560 0 L 555 480" />
         </g>
         {/* Selection box */}
-        <rect x="58" y="186" width="324" height="186" fill="rgba(15,143,184,.08)" stroke="#0F8FB8" strokeWidth="1.5" />
+        <rect x="58" y="186" width="324" height="186" fill="rgba(10,183,163,.08)" stroke="#0AB7A3" strokeWidth="1.5" />
         {/* Water */}
         <ellipse cx="540" cy="170" rx="34" ry="22" fill="#CFE0EE" />
         {/* Street labels */}
-        <g fill="#76736A" fontFamily="Geist, sans-serif" fontSize="11">
+        <g fill="#475569" fontFamily="var(--sans), sans-serif" fontSize="11">
           <text x="20" y="335" transform="rotate(-2 20 335)">Silver Creek Drive</text>
           <text x="240" y="245">Kynette Drive</text>
           <text x="280" y="402">Signet Drive</text>
           <text x="160" y="50" transform="rotate(-2 160 50)">Westpark</text>
         </g>
-        <g fill="#A19D91" fontFamily="Geist, sans-serif" fontSize="9">
+        <g fill="#94A3B8" fontFamily="var(--sans), sans-serif" fontSize="9">
           <text x="180" y="220">202</text><text x="180" y="265">204</text>
           <text x="245" y="220">208</text><text x="245" y="265">210</text>
           <text x="305" y="220">212</text><text x="305" y="265">214</text>
@@ -59,8 +59,8 @@ function PropertyMap() {
         <svg viewBox="0 0 24 32" width="36" height="48">
           <defs>
             <linearGradient id="pinGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#1B7BD6" />
-              <stop offset="1" stopColor="#14B5A6" />
+              <stop offset="0" stopColor="#0498C6" />
+              <stop offset="1" stopColor="#0AB7A3" />
             </linearGradient>
           </defs>
           <path d="M 12 0 C 5 0 0 5 0 12 C 0 22 12 32 12 32 C 12 32 24 22 24 12 C 24 5 19 0 12 0 Z" fill="url(#pinGrad)" />
@@ -77,17 +77,17 @@ function PropertyMap() {
       {/* Info popup */}
       <div className="absolute left-[24%] top-[30%] bg-white border border-black/10 rounded p-2 pr-3 sm:p-3 sm:pr-4 shadow-md min-w-[150px] sm:min-w-[200px] max-w-[60%]">
         <div className="absolute top-1 right-2 sm:top-1.5 sm:right-2.5 text-neutral-400 text-xs sm:text-sm cursor-pointer leading-none">×</div>
-        <div className="font-semibold text-[12px] sm:text-sm text-ink mb-0.5 sm:mb-1">Searched Property</div>
-        <div className="text-[11px] sm:text-[13px] text-ink-2">{PROPERTY.short}</div>
-        <div className="text-[11px] sm:text-[13px] text-ink-2 mb-1.5 sm:mb-2">{PROPERTY.city}</div>
-        <div className="text-[11px] sm:text-[13px] text-ink-2">
+        <div className="font-semibold text-caption sm:text-sm text-ink mb-0.5 sm:mb-1">Searched Property</div>
+        <div className="text-micro sm:text-label text-ink-2">{PROPERTY.short}</div>
+        <div className="text-micro sm:text-label text-ink-2 mb-1.5 sm:mb-2">{PROPERTY.city}</div>
+        <div className="text-micro sm:text-label text-ink-2">
           {PROPERTY.bedrooms} beds · {PROPERTY.bathrooms} baths
         </div>
         <div className="absolute -bottom-[7px] left-6 sm:left-8 w-3 h-3 bg-white border-r border-b border-black/10 rotate-45" />
       </div>
 
       {/* Attribution */}
-      <div className="absolute bottom-0 right-0 bg-white/85 text-[10px] text-neutral-600 px-1.5 py-0.5 font-sans">
+      <div className="absolute bottom-0 right-0 bg-white/85 text-eyebrow text-neutral-600 px-1.5 py-0.5 font-sans">
         Leaflet | © OpenStreetMap contributors
       </div>
     </div>

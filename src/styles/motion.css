@@ -1,0 +1,100 @@
+/* True Occupancy — Motion
+ *
+ * Shared keyframes + utility classes for the app's micro-interactions.
+ * Loaded after tokens.css and typography.css so durations / easings can
+ * reference custom properties if needed.
+ *
+ * Philosophy: motion is reserved for moments that *mean* something —
+ * the result reveal, a new attention call, a route transition. Hover
+ * polish lives in component CSS (Button etc.). Animations should feel
+ * calm by default for the compliance audience.
+ */
+
+:root {
+  --motion-fast: 200ms;
+  --motion-mid: 360ms;
+  --motion-slow: 600ms;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --ease-spring: cubic-bezier(.34, 1.2, .64, 1);
+}
+
+/* === Route transitions ==============================================
+ * Opacity-only — translateY would create a containing block for any
+ * `position: fixed` descendants (like the SideNav rail), breaking
+ * sticky-pinning to the viewport. The fade alone reads smooth enough
+ * without the 8px lift.
+ */
+@keyframes route-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.route-fade-in {
+  animation: route-fade-in var(--motion-fast) var(--ease-out) both;
+}
+
+/* === Waffle dot sequential fill ===================================== */
+@keyframes waffle-pop {
+  from { opacity: 0; transform: scale(0.55); }
+  to   { opacity: var(--final-opacity, 1); transform: scale(1); }
+}
+.waffle-dot-anim {
+  animation: waffle-pop 280ms var(--ease-out) both;
+  animation-delay: var(--waffle-delay, 0ms);
+}
+
+/* === Strongest-match ribbon drop ==================================== */
+@keyframes ribbon-drop {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ribbon-drop {
+  animation: ribbon-drop 380ms var(--ease-spring) 240ms both;
+}
+
+/* === Diff-matrix mismatch attention pulse =========================== */
+/* One-shot: fires once after mount via .pulse-once toggle. */
+@keyframes mismatch-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+  50%      { box-shadow: inset 0 0 0 999px var(--warn-soft); }
+}
+.pulse-mismatch-warn {
+  animation: mismatch-pulse 700ms ease-in-out 900ms both;
+}
+@keyframes mismatch-pulse-fail {
+  0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+  50%      { box-shadow: inset 0 0 0 999px var(--risk-soft); }
+}
+.pulse-mismatch-fail {
+  animation: mismatch-pulse-fail 700ms ease-in-out 900ms both;
+}
+
+/* === Card / row entrance stagger ===================================== */
+@keyframes card-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-rise {
+  animation: card-rise 380ms var(--ease-out) both;
+  animation-delay: var(--rise-delay, 0ms);
+}
+
+/* === Triangle-marker breathe (factor bars) ========================== */
+/* Very subtle 1.5px vertical bob — calm enough for a compliance tool. */
+@keyframes marker-breathe {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(-1.5px); }
+}
+.marker-breathe {
+  animation: marker-breathe 2400ms ease-in-out infinite;
+}
+
+/* === Accordion content slide ======================================== */
+/* The wrapper uses inline max-height for measurement; this class just
+ * carries the transition. */
+.accordion-content {
+  overflow: hidden;
+  transition:
+    max-height 280ms var(--ease-out),
+    opacity 200ms var(--ease-out);
+}

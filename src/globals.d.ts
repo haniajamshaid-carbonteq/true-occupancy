@@ -84,31 +84,39 @@ declare function Pill(props?: any): any;
 declare function Card(props?: any): any;
 declare function RiskBadge(props?: any): any;
 declare function SearchBar(props?: any): any;
+declare function CommandSearch(props?: any): any;
+declare function CommandPalette(props?: any): any;
+declare function openCommandPalette(): void;
 declare function Avatar(props?: any): any;
 declare function Tag(props?: any): any;
+declare function Keycap(props?: any): any;
+declare function DataTable(props?: any): any;
+declare function MetricCard(props?: any): any;
+declare function DropdownMenu(props?: any): any;
 declare function Icon(props?: any): any;
 
 // === Compositions ===
 declare function AppShell(props?: any): any;
 declare function Sidebar(props?: any): any;
 declare function PageHeader(props?: any): any;
+declare function ScanContextBar(props?: any): any;
 declare function ScanCard(props?: any): any;
 declare function ScoreCard(props?: any): any;
-declare function ModeToggle(props?: any): any;
 declare function WhyCard(props?: any): any;
 
-// Cross-file type aliases (declared in scenarios.tsx / ModeToggle.tsx,
-// shared via the script-context type scope).
+// Cross-file type aliases (declared in scenarios.tsx, shared via the
+// script-context type scope).
 type ScenarioKey = 'low' | 'medium' | 'high';
-type AudienceMode = 'investigator' | 'resident';
 declare function PropertyOverview(props?: any): any;
 declare function PropertyMap(props?: any): any;
 declare function PropertySpecs(props?: any): any;
 declare function ListingsPanel(props?: any): any;
+declare function ReportCertificateBar(props?: any): any;
 
 // === Pages ===
 declare function ComponentsPage(props?: any): any;
 declare function HomeScreen(props?: any): any;
+declare function HistoryScreen(props?: any): any;
 declare function BatchScreen(props?: any): any;
 declare function ScanStartScreen(props?: any): any;
 declare function ScanMidScreen(props?: any): any;

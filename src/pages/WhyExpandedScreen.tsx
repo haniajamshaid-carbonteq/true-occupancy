@@ -1,16 +1,18 @@
-/* global React, AppShell, PageHeader, ScoreCard, ModeToggle, WhyCard */
+/* global React, AppShell, ScanContextBar, ConfidenceHero */
 // Screen 06 — Why this score · expanded.
-// Score card + the explainability card open by default, no other content,
-// so the contributing factors are the focus.
+// ConfidenceHero with the breakdown accordion open by default, no other
+// content — contributing factors are the focus.
 
 function WhyExpandedScreen() {
-  const [mode, setMode] = React.useState<AudienceMode>('investigator');
   return (
     <AppShell>
-      <PageHeader rightSlot={<ModeToggle value={mode} onChange={setMode} />} />
+      <ScanContextBar
+        eyebrow="Score breakdown"
+        backTo="/result/high"
+        backLabel="Back to result"
+      />
       <div className="mt-5 flex flex-col gap-5">
-        <ScoreCard scenario="high" mode={mode} />
-        <WhyCard scenario="high" defaultOpen />
+        <ConfidenceHero scenario="high" defaultOpen />
       </div>
     </AppShell>
   );

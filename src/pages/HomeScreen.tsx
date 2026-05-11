@@ -1,12 +1,15 @@
-/* global React, AppShell, Button, Icon, SearchBar, ReactRouterDOM */
-// Home — single-purpose tool. User types a property address, we route them
-// through the scan animation and into the matching result.
+/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, Pill, DataTable, MetricCard, ReactRouterDOM, SCENARIOS */
+// Home — product-first dashboard. The user lands directly on the working
+// scanner with real evidence visible (KPI strip, recent scans, flagged for
+// review, methodology note). Marketing-landing surfaces (photo hero,
+// "How it works" cards, mission quote, sample-result section, four-column
+// gradient footer) live in the prior commit history if needed for /about.
 //
 // Scenario routing is keyed off the ZIP for the demo:
-//   28804 -> clean      (low risk)
-//   28805 -> medium     (questionable)
-//   28806 -> high       (red flag)
-//   anything else -> clean (safe default)
+//   28804 -> low      (Not rented · High confidence)
+//   28805 -> medium   (Possibly rented · Medium confidence)
+//   28806 -> high     (Rented · High confidence)
+//   anything else -> low (safe default)
 
 const { useHistory } = ReactRouterDOM;
 
@@ -16,559 +19,397 @@ const ZIP_TO_SCENARIO: Record<string, 'low' | 'medium' | 'high'> = {
   '28806': 'high',
 };
 
-const STEPS = [
-  {
-    numeral: '01',
-    icon: 'search' as const,
-    title: 'Enter an address',
-    body: 'Paste any U.S. street address, parcel ID, or geocoded coordinates.',
-  },
-  {
-    numeral: '02',
-    icon: 'layers' as const,
-    title: 'We sweep the platforms',
-    body: 'Cross-check Airbnb, Vrbo, and Facebook Marketplace within a 1 mile radius — in seconds.',
-  },
-  {
-    numeral: '03',
-    icon: 'shield' as const,
-    title: 'Read the verdict',
-    body: 'Get a 0–100 confidence score with every contributing signal, ready to share or export.',
-  },
-];
-
-const STEP_VISUALS: Record<string, { src: string; objectPosition?: string }> = {
-  '01': { src: 'uploads/step-01.jpg' },
-  '02': { src: 'uploads/step-02.jpg' },
-  '03': { src: 'uploads/step-03.jpg' },
-};
-
-// Cycles through three risk states (clean → questionable → red flag) with a
-// count-up animation per cycle, so the client can watch the score behave.
-const DEMO_CYCLE: {
-  score: number;
-  label: string;
-  tint: string;
-  ring: string;
-  text: string;
-  platforms: { airbnb: string; vrbo: string; fb: string };
-}[] = [
-  {
-    score: 12, label: 'Clean', tint: 'bg-clean-soft', ring: 'ring-clean/30', text: 'text-clean-ink',
-    platforms: { airbnb: 'No matches', vrbo: 'No matches', fb: 'No matches' },
-  },
-  {
-    score: 54, label: 'Questionable', tint: 'bg-warn-soft', ring: 'ring-warn/30', text: 'text-warn-ink',
-    platforms: { airbnb: '1 partial match', vrbo: 'No matches', fb: '1 unrelated' },
-  },
-  {
-    score: 87, label: 'Red flag', tint: 'bg-risk-soft', ring: 'ring-risk/30', text: 'text-risk-ink',
-    platforms: { airbnb: '2 strong matches', vrbo: '1 strong match', fb: '1 partial match' },
-  },
-];
-
-const COUNT_MS = 1200;
-const HOLD_MS = 1600;
-
-// Phase clock shared by both demo cards so they stay in sync.
-function useDemoPhase() {
-  const [phase, setPhase] = React.useState(0);
-  React.useEffect(() => {
-    const t = window.setTimeout(
-      () => setPhase((p) => (p + 1) % DEMO_CYCLE.length),
-      COUNT_MS + HOLD_MS
-    );
-    return () => clearTimeout(t);
-  }, [phase]);
-  return phase;
-}
-
-function AnimatedScoreCard({ phase }: { phase: number }) {
-  const [display, setDisplay] = React.useState(0);
-  const target = DEMO_CYCLE[phase];
-
-  // Count-up animation toward the current target.
-  React.useEffect(() => {
-    let start: number | null = null;
-    let raf = 0;
-    const from = display;
-
-    function tick(t: number) {
-      if (start === null) start = t;
-      const k = Math.min(1, (t - start) / COUNT_MS);
-      const eased = 1 - Math.pow(1 - k, 3);
-      setDisplay(Math.round(from + (target.score - from) * eased));
-      if (k < 1) raf = requestAnimationFrame(tick);
-    }
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
-
-  // Score arc: maps 0–100 to a 270° arc (3/4 circle).
-  const radius = 78;
-  const circumference = 2 * Math.PI * radius;
-  const arcLen = circumference * 0.75;
-  const dash = arcLen * (display / 100);
-
-  return (
-    <div
-      className={`rounded-xl sm:rounded-2xl border border-line bg-surface p-3.5 sm:p-4 shadow-lg transition-colors duration-500 ${target.tint}`}
-    >
-      <div className="flex items-center justify-between mb-2 sm:mb-1 gap-2">
-        <div className="font-sans text-[8.5px] sm:text-[9.5px] uppercase tracking-[0.16em] sm:tracking-[0.18em] text-ink-3">
-          Confidence
-        </div>
-        <div
-          className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-surface border border-line font-sans text-[9.5px] uppercase tracking-wider ${target.text}`}
-        >
-          {target.label}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-        <div className="flex items-baseline">
-          <div className="font-sans font-light text-ink text-[34px] sm:text-[56px] leading-none tracking-[-0.04em] tabular-nums">
-            {display}
-          </div>
-          <div className="font-sans text-ink-3 text-[11px] sm:text-[15px] ml-0.5 sm:ml-1">/100</div>
-        </div>
-
-        <svg viewBox="0 0 200 200" className="w-[52px] h-[52px] sm:w-[88px] sm:h-[88px] -rotate-[135deg]" aria-hidden>
-          <circle
-            cx="100"
-            cy="100"
-            r={radius}
-            fill="none"
-            stroke="var(--line)"
-            strokeWidth="14"
-            strokeLinecap="round"
-            strokeDasharray={`${arcLen} ${circumference}`}
-          />
-          <circle
-            cx="100"
-            cy="100"
-            r={radius}
-            fill="none"
-            stroke="var(--ink)"
-            strokeWidth="14"
-            strokeLinecap="round"
-            strokeDasharray={`${dash} ${circumference}`}
-            style={{ transition: 'stroke-dasharray 80ms linear' }}
-          />
-        </svg>
-      </div>
-    </div>
-  );
-}
-
-function AnimatedPlatformsCard({ phase }: { phase: number }) {
-  const target = DEMO_CYCLE[phase];
-  const rows: { name: string; dot: string; key: 'airbnb' | 'vrbo' | 'fb' }[] = [
-    { name: 'Airbnb',   dot: 'bg-airbnb', key: 'airbnb' },
-    { name: 'Vrbo',     dot: 'bg-vrbo',   key: 'vrbo' },
-    { name: 'Facebook', dot: 'bg-fb',     key: 'fb' },
-  ];
-
-  return (
-    <div className="rounded-xl sm:rounded-2xl border border-line bg-surface p-3.5 sm:p-4 shadow-lg">
-      <div className="flex items-center justify-between mb-2.5 sm:mb-3 gap-2">
-        <div className="font-sans text-[8px] sm:text-[9.5px] uppercase tracking-[0.16em] sm:tracking-[0.18em] text-ink-3">
-          Platforms scanned
-        </div>
-        <div className="font-sans text-[8.5px] sm:text-[10px] text-ink-3 tabular-nums">3 / 3</div>
-      </div>
-
-      {rows.map((p) => (
-        <div
-          key={p.name}
-          className="flex items-center gap-1.5 sm:gap-2.5 py-1 sm:py-1.5 border-b last:border-b-0 border-line"
-        >
-          <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${p.dot}`} />
-          <span className="text-[10.5px] sm:text-[12.5px] text-ink font-medium leading-none">
-            {p.name}
-          </span>
-          <span
-            key={`${phase}-${p.key}`}
-            className="ml-auto text-[9.5px] sm:text-[11.5px] text-ink-3 transition-opacity duration-500 animate-[fadeIn_0.4s_ease-out] truncate max-w-[55%]"
-            style={{ animation: 'platformFade 0.45s ease-out' }}
-          >
-            {target.platforms[p.key]}
-          </span>
-        </div>
-      ))}
-
-      <style>{`
-        @keyframes platformFade {
-          from { opacity: 0; transform: translateY(2px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-// Fade + lift on scroll-into-view. Uses IntersectionObserver, runs once.
-function Reveal({
-  children,
-  className = '',
-  delay = 0,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  delay?: number;
-}) {
-  const ref = React.useRef<HTMLDivElement | null>(null);
-  const [shown, setShown] = React.useState(false);
-
-  React.useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            setShown(true);
-            io.disconnect();
-          }
-        });
-      },
-      { threshold: 0.05, rootMargin: '0px 0px 20% 0px' }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      className={className}
-      style={{
-        opacity: shown ? 1 : 0,
-        transform: shown ? 'translateY(0)' : 'translateY(20px)',
-        transition: `opacity 1100ms cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms, transform 1100ms cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`,
-        willChange: 'opacity, transform',
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 function pickScenario(input: string): 'low' | 'medium' | 'high' {
   const zip = (input.match(/\b(\d{5})(?:-\d{4})?\b/) || [])[1];
   if (zip && ZIP_TO_SCENARIO[zip]) return ZIP_TO_SCENARIO[zip];
   return 'low';
 }
 
+// --- demo data (believable, not aspirational) -----------------------------
+
+const KPIS: { label: string; value: string; delta?: { dir: 'up' | 'down'; pct: string }; hint: string }[] = [
+  { label: 'Scanned today',     value: '34',  delta: { dir: 'up',   pct: '+12%' }, hint: 'vs. yesterday' },
+  { label: 'Flagged this week', value: '11',  delta: { dir: 'up',   pct: '+3' },   hint: 'vs. last week' },
+  { label: 'Verified clean',    value: '187', delta: { dir: 'up',   pct: '+22' },  hint: 'past 30 days' },
+  { label: 'Avg confidence',    value: '92',  delta: { dir: 'down', pct: '-1pt' }, hint: 'vs. 30 d avg' },
+];
+
+interface RecentScan {
+  id: string;
+  address: string;
+  scenario: 'low' | 'medium' | 'high';
+  platforms: number;
+  scannedAgo: string;
+}
+
+const RECENT_SCANS: RecentScan[] = [
+  { id: 'r1', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago'  },
+  { id: 'r2', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago' },
+  { id: 'r3', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAgo: '1 h ago'    },
+  { id: 'r4', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAgo: '2 h ago'    },
+  { id: 'r5', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAgo: '3 h ago'    },
+  { id: 'r6', address: '301 Merrimon Ave, Asheville, NC 28804',      scenario: 'medium', platforms: 1, scannedAgo: '4 h ago'    },
+];
+
+const FLAGGED_FOR_REVIEW = RECENT_SCANS.filter((r) => r.scenario === 'high').slice(0, 3);
+
+const VERDICT_VARIANT: Record<'low' | 'medium' | 'high', 'clean' | 'warn' | 'risk'> = {
+  low: 'clean',
+  medium: 'warn',
+  high: 'risk',
+};
+
+// Descriptive verdicts only — same finding can be positive or negative
+// for the lender depending on what they're verifying. Color (via
+// VERDICT_VARIANT) still differentiates, but the language stays neutral.
+const HOME_VERDICT_LABEL: Record<'low' | 'medium' | 'high', string> = {
+  low: 'Not rented',
+  medium: 'Possibly rented',
+  high: 'Rented',
+};
+
+const SAMPLE_CHIPS: { zip: string; label: string }[] = [
+  { zip: '28804', label: 'Not rented' },
+  { zip: '28805', label: 'Possibly rented' },
+  { zip: '28806', label: 'Rented' },
+];
+
+// --- subcomponents --------------------------------------------------------
+
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
+      style={{ color: 'var(--ink-3)' }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// KPI tiles route through the shared MetricCard primitive so any other
+// metric-style card in the product (Batch summary, Property specs, etc.)
+// stays in lockstep on padding, type ramp, and footer rhythm. The leading
+// "Scanned today" tile is promoted to primary — it's the headline number
+// every investigator opens the dashboard for.
+function KpiTile({
+  kpi,
+  primary,
+  index,
+}: {
+  kpi: typeof KPIS[number];
+  primary?: boolean;
+  index: number;
+}) {
+  return (
+    <div
+      className="card-rise"
+      style={{ ['--rise-delay' as any]: `${index * 60}ms` }}
+    >
+      <MetricCard
+        primary={primary}
+        label={kpi.label}
+        value={kpi.value}
+        hint={kpi.hint}
+        delta={kpi.delta ? { dir: kpi.delta.dir, value: kpi.delta.pct } : undefined}
+      />
+    </div>
+  );
+}
+
+// Mini horizontal score bar — fills brand or risk depending on band.
+function ScoreBar({ score, risk }: { score: number; risk: 'clean' | 'warn' | 'risk' }) {
+  const fill =
+    risk === 'risk' ? 'var(--risk)' : risk === 'warn' ? 'var(--warn)' : 'var(--brand)';
+  return (
+    <div className="relative h-1 w-full rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+      <div
+        className="absolute inset-y-0 left-0 rounded-full"
+        style={{ width: `${Math.min(100, Math.max(0, score))}%`, background: fill }}
+      />
+    </div>
+  );
+}
+
+// --- Scan table columns ---------------------------------------------------
+// Shared between HomeScreen ("Recent scans") and HistoryScreen ("Scan
+// history") so both surfaces stay in lockstep. Each column is a thin
+// presentation function over a RecentScan row — one source of truth for
+// cell typography, alignment, and hide-on-small-viewport behaviour.
+
+const VERDICT_ACCENT: Record<'low' | 'medium' | 'high', string> = {
+  low: 'var(--clean)',
+  medium: 'var(--warn)',
+  high: 'var(--risk)',
+};
+
+// Address strings look like "1428 Maplewood Drive, Asheville, NC 28804".
+// First segment is the street, the rest is the locality — split so the
+// street can carry the visual weight and the locality sits below in muted
+// ink (Stripe / Linear list-row pattern).
+function splitAddress(addr: string): [string, string] {
+  const idx = addr.indexOf(', ');
+  if (idx < 0) return [addr, ''];
+  return [addr.slice(0, idx), addr.slice(idx + 2)];
+}
+
+function buildScanColumns<T extends { address: string; scenario: 'low' | 'medium' | 'high'; platforms: number; scannedAgo: string }>(): any[] {
+  return [
+    {
+      key: 'address',
+      label: 'Address',
+      primary: true,
+      cell: (row: T) => {
+        const [street, locality] = splitAddress(row.address);
+        return (
+          <div className="min-w-0">
+            <div
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {street}
+            </div>
+            {locality && (
+              <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+                {locality}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'verdict',
+      label: 'Verdict',
+      width: '140px',
+      hideBelow: 'sm' as const,
+      cell: (row: T) => (
+        <div
+          className="inline-flex items-center gap-2 font-sans text-label leading-none whitespace-nowrap"
+          style={{ color: 'var(--ink-2)' }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ background: VERDICT_ACCENT[row.scenario] }}
+            aria-hidden
+          />
+          {HOME_VERDICT_LABEL[row.scenario]}
+        </div>
+      ),
+    },
+    {
+      key: 'score',
+      label: 'Score',
+      width: '128px',
+      hideBelow: 'sm' as const,
+      cell: (row: T) => {
+        const sc = SCENARIOS[row.scenario];
+        return (
+          <div className="flex items-center gap-2.5">
+            <span
+              className="font-mono tabular-nums font-semibold text-label w-[24px] text-right leading-none"
+              style={{ color: 'var(--navy)' }}
+            >
+              {sc.score}
+            </span>
+            <div className="flex-1 min-w-0">
+              <ScoreBar score={sc.score} risk={VERDICT_VARIANT[row.scenario]} />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'platforms',
+      label: 'Platforms',
+      width: '84px',
+      align: 'right' as const,
+      hideBelow: 'md' as const,
+      cell: (row: T) => (
+        <span className="font-mono tabular-nums text-caption text-ink-3">
+          {row.platforms} / 3
+        </span>
+      ),
+    },
+    {
+      key: 'scanned',
+      label: 'Scanned',
+      width: '100px',
+      align: 'right' as const,
+      hideBelow: 'md' as const,
+      cell: (row: T) => (
+        <span className="font-mono tabular-nums text-caption text-ink-3">
+          {row.scannedAgo}
+        </span>
+      ),
+    },
+  ];
+}
+
+const SCAN_COLUMNS = buildScanColumns<RecentScan>();
+const scanLeadingAccent = (row: { scenario: 'low' | 'medium' | 'high' }) =>
+  VERDICT_ACCENT[row.scenario];
+
+function FlaggedRow({ row, onOpen }: { row: RecentScan; onOpen: (row: RecentScan) => void }) {
+  const sc = SCENARIOS[row.scenario];
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(row)}
+      className="w-full flex items-center gap-3 px-4 py-3 border-t border-line first:border-t-0 hover:bg-hover-bg transition-colors text-left"
+    >
+      <span
+        className="w-10 h-10 rounded-md grid place-items-center font-semibold text-label tabular-nums shrink-0"
+        style={{ background: 'var(--risk-soft)', color: 'var(--risk-ink)' }}
+      >
+        {sc.score}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          className="block text-label font-semibold truncate"
+          style={{ color: 'var(--navy)' }}
+        >
+          {row.address}
+        </span>
+        <span className="block text-caption text-ink-3 truncate">
+          {row.platforms} platforms · {row.scannedAgo}
+        </span>
+      </span>
+      <svg
+        viewBox="0 0 16 16"
+        className="w-4 h-4 text-ink-4 shrink-0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="m6 4 4 4-4 4" />
+      </svg>
+    </button>
+  );
+}
+
+// --- the page -------------------------------------------------------------
+
 function HomeScreen() {
   const history = useHistory();
   const [address, setAddress] = React.useState('');
-  const demoPhase = useDemoPhase();
 
-  function startScan() {
-    const scenario = pickScenario(address);
+  function startScan(addr?: string) {
+    const value = addr ?? address;
+    const scenario = pickScenario(value);
     sessionStorage.setItem('scanScenario', scenario);
     sessionStorage.setItem(
       'scanAddress',
-      address || '1428 Maplewood Drive, Asheville, NC 28804'
+      value || '1428 Maplewood Drive, Asheville, NC 28804'
     );
     history.push('/scan/start');
   }
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') startScan();
+  function openResult(row: RecentScan) {
+    sessionStorage.setItem('scanScenario', row.scenario);
+    sessionStorage.setItem('scanAddress', row.address);
+    const path =
+      row.scenario === 'low'
+        ? '/result/clean'
+        : row.scenario === 'medium'
+        ? '/result/medium'
+        : '/result/high';
+    history.push(path);
   }
 
   return (
-    <AppShell contained={false}>
-      {/* Image hero — full-bleed within a small page margin, like the reference */}
-      <section className="relative rounded-[20px] sm:rounded-[28px] overflow-hidden mb-12 mx-3 sm:mx-4 md:mx-6">
-        <img
-          src="uploads/hero.jpg"
-          alt=""
-          className="block w-full h-[460px] sm:h-[540px] lg:h-[640px] object-cover"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = 'none';
-          }}
-        />
-        {/* Center-weighted gradient for text legibility */}
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(15,18,22,0.55) 0%, rgba(15,18,22,0.25) 60%, rgba(15,18,22,0) 100%)',
-          }}
-        />
-
-        {/* Centered hero copy + inline search, vertically + horizontally centered */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 sm:px-6">
+    <AppShell>
+      {/* Page header — eyebrow + H1 + sync status */}
+      <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
+        <div>
           <h1
-            className="font-sans font-light text-white leading-[1.02] tracking-[-0.025em] m-0 mb-4 drop-shadow-[0_2px_24px_rgba(0,0,0,0.35)]"
-            style={{ fontSize: 'clamp(32px, 10vw, 88px)' }}
+            className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
+            style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
           >
-            True Occupancy
+            Verify property occupancy.
           </h1>
-          <p className="text-white/85 text-[13px] sm:text-[17px] leading-relaxed m-0 mb-6 sm:mb-7 max-w-[52ch]">
-            Check whether a property is being rented short-term on Airbnb, Vrbo,
-            or Facebook Marketplace — all from a single address.
+          <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
+            One address — every public listing within a mile, every signal scored.
           </p>
-
-          <div className="w-[min(820px,100%)]">
-            <SearchBar
-              value={address}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setAddress(e.target.value)
-              }
-              onKeyDown={onKeyDown}
-              placeholder="Enter a property address"
-              containerClassName="rounded-2xl shadow-2xl ring-1 ring-white/40 bg-surface/95 backdrop-blur transition-shadow focus-within:shadow-2xl focus-within:ring-2 focus-within:ring-brand/40 pl-3 sm:pl-4 pr-2 py-2 flex-wrap sm:flex-nowrap"
-              trailing={
-                <Button
-                  variant="primary"
-                  onClick={startScan}
-                  className="h-10 rounded-full sm:rounded-lg w-10 sm:w-auto !p-0 sm:!px-5 !flex items-center justify-center gap-1.5"
-                >
-                  <Icon name="search" size={14} />
-                  <span className="hidden sm:inline">Run scan</span>
-                </Button>
-              }
-            />
-          </div>
-
-          {/* Demo "Try" chips — sit directly under the search, on the image */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-[12px]">
-            <span className="font-sans uppercase tracking-wider text-white/60 mr-1">Try</span>
-            {[
-              { zip: '28804', label: 'Clean' },
-              { zip: '28805', label: 'Questionable' },
-              { zip: '28806', label: 'Red flag' },
-            ].map((d) => (
-              <button
-                key={d.zip}
-                type="button"
-                onClick={() =>
-                  setAddress(`1428 Maplewood Drive, Asheville, NC ${d.zip}`)
-                }
-                className="px-2.5 py-1 rounded-full border border-white/30 bg-white/10 backdrop-blur hover:bg-white/20 hover:border-white/50 text-white/90 text-[12px] transition"
-              >
-                {d.zip} · {d.label}
-              </button>
-            ))}
-          </div>
         </div>
+      </header>
+
+      {/* Scanner — primary affordance, hero of the platform */}
+      <section className="mb-10 sm:mb-12">
+        <CommandSearch
+          mode="inline"
+          value={address}
+          onChange={setAddress}
+          onRun={(v: string) => startScan(v)}
+          sampleChips={SAMPLE_CHIPS.map((c) => ({
+            label: `${c.zip} · ${c.label}`,
+            value: `1428 Maplewood Drive, Asheville, NC ${c.zip}`,
+          }))}
+        />
       </section>
 
-      {/* How it works — header always visible, only the cards fade in */}
-      <div className="px-4 md:px-6 lg:px-32 xl:px-44">
-        {/* Header — always rendered so the heading peeks above the fold,
-            telling the user there's more below */}
-        <Reveal>
-          {/* Header row — heading on the left, pill top-right. Both share the
-              same horizontal extent as the cards row below, so the pill's
-              right edge aligns with card 3's right edge (minus mr-8 nudge). */}
-          <div className="flex flex-col-reverse md:flex-row md:items-start md:justify-between gap-4 md:gap-12 mb-10">
-            <div className="max-w-[760px]">
-              <h2
-                className="font-sans font-light leading-[1.05] tracking-[-0.025em] text-ink m-0 mb-5"
-                style={{ fontSize: 'clamp(32px, 7vw, 64px)' }}
-              >
-                From address to verdict in seconds
-              </h2>
-              <p className="text-[14px] text-ink-3 leading-relaxed m-0 max-w-[52ch]">
-                One scan cross-references every public short-term-rental listing
-                within a one-mile radius and returns a confidence score with the
-                signals that drove it.
-              </p>
-            </div>
-            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-line bg-surface text-[12px] text-ink-2 w-fit shrink-0 self-start">
-              /How it works
-            </div>
-          </div>
-
-          {/* Cards row — same horizontal extent as header row above. */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-          {STEPS.map((s) => (
-            <article
-              key={s.numeral}
-              className="bg-surface border border-line rounded-2xl p-6 transition-all hover:border-brand/40 hover:shadow-md"
-            >
-              {/* Top row: left image + right-aligned numeral */}
-              <div className="flex items-start justify-between mb-6">
-                <div className="rounded-xl overflow-hidden w-[55%] aspect-[16/10] bg-surface-2">
-                  <img
-                    src={STEP_VISUALS[s.numeral].src}
-                    alt=""
-                    className="w-full h-full object-cover block"
-                    style={{
-                      objectPosition: STEP_VISUALS[s.numeral].objectPosition || 'center',
-                    }}
-                  />
-                </div>
-                <div className="font-serif text-[36px] leading-none text-ink-3">
-                  {s.numeral}
-                </div>
-              </div>
-
-              {/* Body spans the full bottom of the card */}
-              <p className="text-[15px] text-ink leading-[1.5] m-0">
-                {s.body}
-              </p>
-            </article>
+      {/* KPI cards — separate inline cards, equal-width grid */}
+      <section className="mb-10 sm:mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {KPIS.map((kpi, i) => (
+            <KpiTile key={kpi.label} kpi={kpi} primary={i === 0} index={i} />
           ))}
-          </div>
-        </Reveal>
-      </div>
-
-
-      {/* Quote / mission section */}
-      <Reveal>
-      <section className="mt-16 sm:mt-28 mb-16 sm:mb-24 px-4 sm:px-6">
-        <div className="max-w-[860px] mx-auto text-center">
-          <p className="font-sans font-light text-ink text-[22px] sm:text-[34px] md:text-[40px] leading-[1.25] tracking-[-0.01em] m-0">
-            <span className="text-ink-3 mr-1">&ldquo;</span>
-            True Occupancy is committed to giving code-compliance teams an
-            honest, evidence-backed read on every short-term rental in their
-            jurisdiction.
-            <span className="text-ink-3 ml-1">&rdquo;</span>
-          </p>
         </div>
       </section>
-      </Reveal>
 
-      {/* Sample result — asymmetric two-column with overlapping score card */}
-      <section className="px-4 sm:px-6 mt-24 sm:mt-48 mb-20 sm:mb-32">
-        <div className="max-w-[1080px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-y-12 lg:gap-x-6 items-center">
-          {/* LEFT — text column (5/12). Always visible so it acts as the
-              landing cue that there's more below the fold. */}
-          <Reveal className="lg:col-span-5 lg:pl-2 lg:pr-6 max-w-[560px]">
-            <div className="inline-flex items-center px-3.5 py-1.5 rounded-full border border-line bg-surface text-[12px] text-ink-2 mb-7">
-              /Sample result
-            </div>
-
+      {/* Recent scans table */}
+      <section className="mb-10 sm:mb-12">
+        <div className="flex items-end justify-between mb-3 gap-4">
+          <div>
             <h2
-              className="font-sans font-light leading-[1.05] tracking-[-0.03em] text-ink m-0 mb-6"
-              style={{ fontSize: 'clamp(30px, 6.5vw, 56px)' }}
+              className="font-sans font-semibold text-h3 sm:text-h3 tracking-[-0.005em] m-0"
+              style={{ color: 'var(--navy)' }}
             >
-              See what a scan returns
+              Recent scans
             </h2>
+          </div>
+          <Button
+            variant="ghost"
+            iconRight={
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="m6 4 4 4-4 4" />
+              </svg>
+            }
+          >
+            View all
+          </Button>
+        </div>
 
-            <p className="text-[15.5px] text-ink-2 leading-[1.55] m-0 max-w-[48ch]">
-              A live preview of an actual result for a questionable property —
-              the confidence score, contributing factors, and matched listings
-              across every platform we cover.
-            </p>
-          </Reveal>
-
-          {/* RIGHT — smaller image with score card overlapping top-left (7/12) */}
-          <Reveal className="lg:col-span-7 relative lg:pt-10" delay={120}>
-            {/* Property image — wider, shorter aspect */}
-            <div className="relative rounded-[20px] sm:rounded-[28px] overflow-hidden aspect-[5/4] sm:aspect-[16/9] lg:aspect-[3/2] shadow-md">
-              <img
-                src="uploads/property-sample.jpg"
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-              <div
-                aria-hidden
-                className="absolute inset-0"
-                style={{
-                  background:
-                    'linear-gradient(180deg, rgba(15,18,22,0.35) 0%, rgba(15,18,22,0) 55%)',
-                }}
-              />
-            </div>
-
-            {/* Confidence card — overlaps top-left, smaller, slight tilt */}
-            <div className="absolute left-[-8px] top-[-12px] sm:left-[-20px] sm:top-[-20px] lg:left-[-48px] lg:top-[-20px] w-[150px] sm:w-[220px] lg:w-[260px] z-10 -rotate-[3deg] origin-top-left">
-              <AnimatedScoreCard phase={demoPhase} />
-            </div>
-
-            {/* Platform-coverage card — overlaps bottom-right of the image, slight tilt the other way */}
-            <div className="absolute right-[-8px] bottom-[-12px] sm:right-[-20px] sm:bottom-[-20px] lg:right-[-32px] lg:bottom-[-28px] w-[150px] sm:w-[210px] lg:w-[240px] z-10 rotate-[3deg] origin-bottom-right">
-              <AnimatedPlatformsCard phase={demoPhase} />
-            </div>
-          </Reveal>
+        <div
+          className="card-rise"
+          style={{ ['--rise-delay' as any]: '320ms' }}
+        >
+          <DataTable
+            columns={SCAN_COLUMNS}
+            rows={RECENT_SCANS}
+            rowKey={(r: RecentScan) => r.id}
+            onRowClick={openResult}
+            leadingAccent={scanLeadingAccent}
+          />
         </div>
       </section>
 
-      {/* Footer */}
-      <Reveal>
-      <footer className="border-t border-line bg-surface-2">
-        <div className="max-w-[1320px] mx-auto px-5 sm:px-8 py-10 sm:py-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-8 sm:gap-10">
-          {/* Brand */}
+      {/* Utility footer — single hairline strip */}
+      <footer className="mt-12 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 border-t border-line">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 py-5 text-caption text-ink-3">
           <div>
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8">
-                <img
-                  src="halcyon-mark-v2.png"
-                  alt="Halcyon"
-                  className="w-full h-full object-contain block"
-                />
-              </div>
-              <div className="font-sans font-light text-[18px] leading-none tracking-[-0.02em] text-ink">
-                True Occupancy
-              </div>
-            </div>
-            <p className="text-[13px] text-ink-3 leading-relaxed m-0 max-w-[36ch]">
-              Evidence-backed occupancy scans for code-compliance teams.
-              Built by Halcyon.
-            </p>
+            © 2026 Halcyon Solutions · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup> · Decide with certainty.
           </div>
-
-          {/* Product */}
-          <div>
-            <div className="font-sans text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
-              Product
-            </div>
-            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
-              <li><a href="#" className="no-underline hover:text-brand">New scan</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Batch scan</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Flagged listings</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Pricing</a></li>
-            </ul>
-          </div>
-
-          {/* Resources */}
-          <div>
-            <div className="font-sans text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
-              Resources
-            </div>
-            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
-              <li><a href="#" className="no-underline hover:text-brand">How it works</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Methodology</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Sample report</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">API</a></li>
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <div className="font-sans text-[10.5px] uppercase tracking-[0.12em] text-ink-4 mb-3">
-              Contact
-            </div>
-            <ul className="m-0 p-0 list-none space-y-2 text-[13px] text-ink-2">
-              <li><a href="mailto:hello@halcyon.dev" className="no-underline hover:text-brand">hello@halcyon.dev</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Request a demo</a></li>
-              <li><a href="#" className="no-underline hover:text-brand">Support</a></li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="border-t border-line">
-          <div className="max-w-[1320px] mx-auto px-5 sm:px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-3 text-[12px] text-ink-3">
-            <div>© 2026 Halcyon · True Occupancy</div>
-            <div className="flex items-center gap-5">
-              <a href="#" className="no-underline hover:text-ink-2">Privacy</a>
-              <a href="#" className="no-underline hover:text-ink-2">Terms</a>
-              <a href="#" className="no-underline hover:text-ink-2">Status</a>
-            </div>
+          <div className="flex items-center gap-5">
+            <a href="#" className="no-underline hover:text-brand-deep">Privacy</a>
+            <a href="#" className="no-underline hover:text-brand-deep">Terms</a>
+            <a href="#" className="no-underline hover:text-brand-deep">Status</a>
           </div>
         </div>
       </footer>
-      </Reveal>
     </AppShell>
   );
 }
