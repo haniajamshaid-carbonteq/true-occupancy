@@ -77,7 +77,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
         <div className="w-14 h-14 rounded-full bg-brand-soft text-brand grid place-items-center mb-5">
           <Icon name="upload" size={24} />
         </div>
-        <h2 className="font-sans font-semibold text-h2 sm:text-h2 tracking-[-0.005em] m-0 mb-2" style={{ color: 'var(--navy)' }}>
+        <h2 className="font-sans font-semibold text-h3 sm:text-h3 tracking-[-0.005em] m-0 mb-2" style={{ color: 'var(--navy)' }}>
           Scan many properties at once.
         </h2>
         <p className="text-ink-3 text-body-sm leading-relaxed max-w-[68ch] m-0 mb-7">
