@@ -1,5 +1,5 @@
-/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, MetricCard, DropdownMenu, Drawer, ChipRow, ReactRouterDOM,
-   VERDICT_ACCENT, splitAddress, AutomationControl, useAppState */
+/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, DropdownMenu, Drawer, ChipRow, ReactRouterDOM,
+   VERDICT_ACCENT, splitAddress, AutomationControl, VerdictTiles, useAppState */
 // Batch processing — upload a CSV (or click "Try sample data") to scan
 // dozens of properties in one queue. Shows a partially-complete batch:
 // some scanned, some scanning, some queued.
@@ -161,16 +161,15 @@ function BatchResults({ batch }: { batch: any }) {
         <div className="px-7 py-6">
           <div className="flex items-start justify-between gap-6 mb-5">
             <div className="min-w-0">
-              <div className="font-sans text-eyebrow uppercase tracking-widest text-ink-3 mb-1.5 flex items-center gap-2">
+              <div className="mb-1.5">
                 {isComplete ? (
-                  <Pill variant="clean" dot>Complete</Pill>
+                  <Pill variant="clean">Complete</Pill>
                 ) : (
-                  <Pill variant="brand" dot>Live</Pill>
+                  <Pill variant="warn">In progress</Pill>
                 )}
-                <span>Batch · {batch.filename}</span>
               </div>
               <h2 className="font-sans font-semibold text-h2 tracking-[-0.005em] m-0 leading-tight" style={{ color: 'var(--navy)' }}>
-                {total} properties
+                {total} Properties
               </h2>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -247,12 +246,15 @@ function BatchResults({ batch }: { batch: any }) {
             </div>
           </div>
 
-          {/* Status counts — same MetricCard primitive as Home KPIs */}
-          <div className="grid grid-cols-3 gap-3">
-            <MetricCard size="sm" accent="verdict-high" label="Rented"          value={flagged} onClick={() => toggleVerdict('risk')}  selected={verdictFilter === 'risk'} />
-            <MetricCard size="sm" accent="verdict-med"  label="Possibly rented" value={warn}    onClick={() => toggleVerdict('warn')}  selected={verdictFilter === 'warn'} />
-            <MetricCard size="sm" accent="verdict-low"  label="Not rented"      value={clean}   onClick={() => toggleVerdict('clean')} selected={verdictFilter === 'clean'} />
-          </div>
+          {/* Status counts — shared component used wherever verdict tallies appear */}
+          <VerdictTiles
+            flagged={flagged}
+            warn={warn}
+            clean={clean}
+            onSelect={toggleVerdict}
+            selected={verdictFilter === 'all' ? null : verdictFilter}
+          />
+
         </div>
       </Card>
 
@@ -293,7 +295,7 @@ function BatchResults({ batch }: { batch: any }) {
               <span className="hidden sm:inline">Filters</span>
               {advancedCount > 0 && (
                 <span
-                  className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
+                  className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line"
                   style={{ background: 'rgba(2,146,190,0.12)', color: 'var(--brand-deep)' }}
                 >
                   {advancedCount}
@@ -326,10 +328,10 @@ function BatchResults({ batch }: { batch: any }) {
             value={statusFilter}
             onChange={(v: string) => setStatusFilter(v as StatusFilter)}
             options={[
-              { value: 'all',     label: 'Any',      count: rows.length },
-              { value: 'done',    label: 'Scanned',  count: done },
-              { value: 'running', label: 'Scanning', count: running },
-              { value: 'queued',  label: 'Queued',   count: rows.length - done - running },
+              { value: 'all',     label: 'Any' },
+              { value: 'done',    label: 'Scanned' },
+              { value: 'running', label: 'Scanning' },
+              { value: 'queued',  label: 'Queued' },
             ]}
           />
           <ChipRow
@@ -338,9 +340,9 @@ function BatchResults({ batch }: { batch: any }) {
             onChange={(v: string) => setVerdictFilter(v as VerdictFilter)}
             options={[
               { value: 'all',   label: 'Any' },
-              { value: 'risk',  label: 'Rented',          count: flagged },
-              { value: 'warn',  label: 'Possibly rented', count: warn },
-              { value: 'clean', label: 'Not rented',      count: clean },
+              { value: 'risk',  label: 'Rented' },
+              { value: 'warn',  label: 'Possibly rented' },
+              { value: 'clean', label: 'Not rented' },
             ]}
           />
           <ChipRow
