@@ -360,13 +360,8 @@ const HISTORY_COLUMNS: any[] = [
           <div className="flex-1 min-w-0">
             <div className="relative h-1 w-full rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
               <div
-                className="absolute inset-y-0 left-0 rounded-full"
-                style={{
-                  width: `${Math.min(100, Math.max(0, sc.score))}%`,
-                  background:
-                    VERDICT_VARIANT[r.scenario] === 'risk' ? 'var(--risk)'
-                    : VERDICT_VARIANT[r.scenario] === 'warn' ? 'var(--warn)' : 'var(--brand)',
-                }}
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-brand to-brand-2"
+                style={{ width: `${Math.min(100, Math.max(0, sc.score))}%` }}
               />
             </div>
           </div>

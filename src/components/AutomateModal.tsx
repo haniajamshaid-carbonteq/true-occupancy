@@ -1,8 +1,9 @@
 /* global React, Modal, Button, Icon */
-// AutomateModal — shared dialog used from result-screen headers and from the
-// batch view. Takes the target (single address + scenario, or batch
-// filename + total), shows 3/4/6/12 month radio cards, calls
-// onConfirm({ cadenceMonths }) on submit.
+// AutomateModal — shared dialog for creating OR editing an automation.
+// Create mode: shows the cadence radio cards, calls onConfirm({ cadenceMonths }).
+// Edit mode: preselects initialCadence, primary CTA is disabled until the user
+// picks a different cadence; an optional "Cancel automation" destructive button
+// renders on the left of the footer.
 
 type Cadence = 3 | 4 | 6 | 12;
 
@@ -21,6 +22,14 @@ interface AutomateModalProps {
   onClose: () => void;
   target: AutomateTarget | null;
   onConfirm: (payload: { cadenceMonths: Cadence }) => void;
+  /** 'create' (default) opens with cadence=6. 'edit' preselects initialCadence
+   *  and disables the primary CTA until cadence changes. */
+  mode?: 'create' | 'edit';
+  /** Used in edit mode to seed the radio selection. */
+  initialCadence?: Cadence;
+  /** Edit mode only — renders a destructive "Cancel automation" button on the
+   *  left of the footer when provided. */
+  onCancelAutomation?: () => void;
 }
 
 const OPTIONS: { value: Cadence; label: string; hint: string }[] = [
@@ -30,30 +39,53 @@ const OPTIONS: { value: Cadence; label: string; hint: string }[] = [
   { value: 12, label: '12 months', hint: 'Annual recheck' },
 ];
 
-function AutomateModal({ open, onClose, target, onConfirm }: AutomateModalProps) {
-  const [cadence, setCadence] = React.useState<Cadence>(6);
+function AutomateModal({
+  open,
+  onClose,
+  target,
+  onConfirm,
+  mode = 'create',
+  initialCadence,
+  onCancelAutomation,
+}: AutomateModalProps) {
+  const seedCadence: Cadence = mode === 'edit' && initialCadence ? initialCadence : 6;
+  const [cadence, setCadence] = React.useState<Cadence>(seedCadence);
 
-  // Reset selection each time the modal reopens so the default cadence
-  // (6 months) is consistent.
+  // Reset selection each time the modal reopens so it reflects the latest
+  // initialCadence (edit) or the default of 6 (create).
   React.useEffect(() => {
-    if (open) setCadence(6);
-  }, [open]);
+    if (open) setCadence(seedCadence);
+  }, [open, seedCadence]);
+
+  const isEdit = mode === 'edit';
+  const primaryDisabled = isEdit && cadence === initialCadence;
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       width={520}
-      title="Automate This Scan"
+      title={isEdit ? 'Update automation' : 'Automate this scan'}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          {isEdit && onCancelAutomation && (
+            <button
+              type="button"
+              onClick={onCancelAutomation}
+              className="mr-auto inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-transparent border border-transparent font-sans text-label font-medium text-error-ink hover:bg-error-soft transition-colors cursor-pointer"
+            >
+              <Icon name="x" size={14} />
+              Cancel automation
+            </button>
+          )}
+          <Button variant="ghost" onClick={onClose}>Close</Button>
           <Button
             variant="primary"
             onClick={() => onConfirm({ cadenceMonths: cadence })}
             icon={<Icon name="cal" size={14} />}
+            disabled={primaryDisabled}
           >
-            Automate
+            {isEdit ? 'Update cadence' : 'Automate'}
           </Button>
         </>
       }
@@ -70,8 +102,9 @@ function AutomateModal({ open, onClose, target, onConfirm }: AutomateModalProps)
       )}
 
       <p className="text-body-sm text-ink-2 leading-relaxed m-0 mb-4">
-        We'll re-scan {target?.kind === 'batch' ? 'every property in this batch' : 'this address'} on
-        the cadence you choose and surface new matches in your queue.
+        {isEdit
+          ? `We'll re-scan ${target?.kind === 'batch' ? 'every property in this batch' : 'this address'} on the new cadence going forward.`
+          : `We'll re-scan ${target?.kind === 'batch' ? 'every property in this batch' : 'this address'} on the cadence you choose and surface new matches in your queue.`}
       </p>
 
       <div role="radiogroup" aria-label="Cadence" className="grid grid-cols-1 sm:grid-cols-2 gap-2">

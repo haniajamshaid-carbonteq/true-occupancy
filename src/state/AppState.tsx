@@ -206,6 +206,12 @@ const SAMPLE_BATCH_OUTCOMES: Record<number, { score: number; risk: Risk; listing
 
 // ---- context -----------------------------------------------------------
 
+interface ScheduleTarget {
+  kind: 'single' | 'batch';
+  address?: string;
+  filename?: string;
+}
+
 interface AppStateValue {
   liveBatch: LiveBatch | null;
   schedules: ScheduleEntry[];
@@ -214,6 +220,9 @@ interface AppStateValue {
   clearBatch: () => void;
   dismissBatch: () => void;
   addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel'> & { cadenceMonths: Cadence }) => void;
+  updateScheduleCadence: (id: string, cadenceMonths: Cadence) => void;
+  cancelSchedule: (id: string) => void;
+  findScheduleByTarget: (target: ScheduleTarget) => ScheduleEntry | null;
 }
 
 const AppStateContext = React.createContext<AppStateValue | null>(null);
@@ -299,6 +308,37 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const updateScheduleCadence = React.useCallback((id: string, cadenceMonths: Cadence) => {
+    setSchedules((s) =>
+      s.map((entry) =>
+        entry.id === id
+          ? { ...entry, cadenceMonths, nextRunLabel: `In ${cadenceMonths} months` }
+          : entry
+      )
+    );
+  }, []);
+
+  const cancelSchedule = React.useCallback((id: string) => {
+    setSchedules((s) => s.filter((entry) => entry.id !== id));
+  }, []);
+
+  const findScheduleByTarget = React.useCallback(
+    (target: ScheduleTarget): ScheduleEntry | null => {
+      const match = schedules.find((entry) => {
+        if (entry.kind !== target.kind) return false;
+        if (entry.kind === 'single' && target.kind === 'single') {
+          return entry.address === target.address;
+        }
+        if (entry.kind === 'batch' && target.kind === 'batch') {
+          return entry.filename === target.filename;
+        }
+        return false;
+      });
+      return match ?? null;
+    },
+    [schedules]
+  );
+
   const value: AppStateValue = {
     liveBatch,
     schedules,
@@ -307,6 +347,9 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     clearBatch,
     dismissBatch,
     addSchedule,
+    updateScheduleCadence,
+    cancelSchedule,
+    findScheduleByTarget,
   };
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

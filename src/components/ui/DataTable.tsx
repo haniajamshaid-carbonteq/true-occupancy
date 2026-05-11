@@ -21,8 +21,8 @@ interface ColumnDef<T> {
   mobileCell?: (row: T, index: number) => React.ReactNode;
   /** CSS grid track value (e.g. '1fr', '120px', '92px'). Default '1fr'. */
   width?: string;
-  /** 'right' for numeric columns; default 'left'. */
-  align?: 'left' | 'right';
+  /** 'right' for numeric columns, 'center' for score/metric columns; default 'left'. */
+  align?: 'left' | 'center' | 'right';
   /** Hide on viewports below this breakpoint. md = the table↔card switch. */
   hideBelow?: 'sm' | 'md' | 'lg';
   /** Becomes the card title on mobile. Exactly one column should set this. */
@@ -123,7 +123,7 @@ function DataTable<T>({
               key={c.key}
               className={[
                 'font-sans text-eyebrow font-semibold uppercase tracking-[0.16em] text-ink-3 leading-none',
-                c.align === 'right' ? 'text-right' : '',
+                c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : '',
                 c.hideBelow ? HIDE_CLS[c.hideBelow] : '',
               ].join(' ')}
             >
@@ -190,7 +190,7 @@ function DataTable<T>({
                 key={c.key}
                 className={[
                   'min-w-0',
-                  c.align === 'right' ? 'text-right' : '',
+                  c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : '',
                   c.hideBelow ? HIDE_CLS[c.hideBelow] : '',
                 ].join(' ')}
               >
