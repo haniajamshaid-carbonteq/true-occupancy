@@ -129,7 +129,7 @@ const SCENARIOS: Record<ScenarioKey, Scenario> = {
   high: {
     score: 87,
     risk: 'risk',
-    riskLabel: 'Rented · High confidence',
+    riskLabel: 'Rented · High Confidence',
     summary: 'Active listings on Airbnb, Vrbo, and Facebook Marketplace geocode to this parcel and report the same bedroom layout. No STR permit is on file for this address.',
     headline: '4 matched listings across 3 platforms',
     listings: {
@@ -207,7 +207,7 @@ const SCENARIOS: Record<ScenarioKey, Scenario> = {
   medium: {
     score: 54,
     risk: 'warn',
-    riskLabel: 'Possibly rented · Medium confidence',
+    riskLabel: 'Possibly Rented · Medium Confidence',
     summary: 'One Airbnb listing within 0.4 mi shares the neighborhood and a keyword. Layout and exact address don\'t fully match — additional review may resolve.',
     headline: '1 partial match on Airbnb',
     listings: {
@@ -254,7 +254,7 @@ const SCENARIOS: Record<ScenarioKey, Scenario> = {
   low: {
     score: 12,
     risk: 'clean',
-    riskLabel: 'Not rented · High confidence',
+    riskLabel: 'Not Rented · High Confidence',
     summary: 'No active short-term rental listings reference this property across any monitored platform.',
     headline: 'No active listings detected',
     listings: { airbnb: [], vrbo: [], fb: [] },

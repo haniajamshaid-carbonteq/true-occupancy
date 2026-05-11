@@ -32,10 +32,21 @@ function Tabs<V extends string>({ items, value, onChange, rightSlot, className =
     const container = tablistRef.current;
     const el = tabRefs.current.get(value);
     if (!container || !el) return;
-    const cRect = container.getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
-    setIndicator({ left: rect.left - cRect.left, width: rect.width });
-  }, [value, items.map((i) => i.value).join('|')]);
+    const measure = () => {
+      const cRect = container.getBoundingClientRect();
+      const rect = el.getBoundingClientRect();
+      setIndicator({ left: rect.left - cRect.left, width: rect.width });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    ro.observe(container);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [value, items.map((i) => `${i.value}:${i.count ?? ''}`).join('|')]);
 
   return (
     <div className={`flex items-center justify-between gap-4 border-b border-line ${className}`}>

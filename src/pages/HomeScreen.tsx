@@ -630,7 +630,7 @@ const DASHBOARD_SCHEDULE_COLUMNS: any[] = [
   },
   {
     key: 'target',
-    label: 'Target',
+    label: 'Address',
     primary: true,
     cell: (r: any) => {
       if (r.kind === 'batch') {

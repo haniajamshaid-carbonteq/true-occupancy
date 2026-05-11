@@ -167,7 +167,7 @@ function PopoverItem({
       onClick={() => onActivate(item)}
       className={[
         'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md',
-        'text-left font-sans text-label leading-none',
+        'text-left font-sans text-label leading-tight',
         'transition-colors',
         item.disabled
           ? 'opacity-40 cursor-not-allowed'
