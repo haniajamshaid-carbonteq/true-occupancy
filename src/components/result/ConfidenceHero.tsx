@@ -313,7 +313,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
 
   return (
     <Card className="px-6 py-5">
-      {/* Hero row — verdict + caption left, waffle right */}
+      {/* Hero row — verdict stacked above its supporting text on the left, waffle on the right */}
       <div className="flex items-center justify-between gap-8">
         <div className="min-w-0">
           <div
@@ -322,7 +322,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
           >
             {VERDICT_TEXT[scenario]}
           </div>
-          <div className="mt-2.5 font-sans text-label text-ink-3 tabular-nums">
+          <div className="mt-3 font-sans text-label text-ink-3 tabular-nums">
             <span className="font-semibold text-ink-2">{animatedScore}%</span> confidence
           </div>
           <div className="mt-3 max-w-[44ch]">

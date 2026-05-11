@@ -242,7 +242,7 @@ function BatchResults({ batch }: { batch: any }) {
               />
             </div>
             <div className="font-sans text-xs text-ink-3 shrink-0 tabular-nums">
-              {done}/{total} scanned{!isComplete && running > 0 ? ` · ${running} in progress` : ''}{isComplete ? ' · added to History' : ''}
+              {done}/{total} scanned{!isComplete && running > 0 ? ` · ${running} in progress` : ''}
             </div>
           </div>
 

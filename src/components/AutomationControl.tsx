@@ -182,14 +182,22 @@ function AutomationControl({ target }: AutomationControlProps) {
           </>
         }
       >
-        <p className="text-body-sm text-ink-2 leading-relaxed m-0">
-          This automation won't run again. You can re-create it any time from
-          the same{' '}
-          <span className="font-medium text-ink">
-            {target.kind === 'batch' ? 'batch' : 'scan'}
-          </span>{' '}
-          page.
-        </p>
+        <div className="flex items-start gap-3">
+          <span
+            className="shrink-0 w-9 h-9 rounded-full grid place-items-center bg-error-soft text-error-ink [&>svg]:w-[18px] [&>svg]:h-[18px]"
+            aria-hidden
+          >
+            <Icon name="alert" size={18} />
+          </span>
+          <p className="text-body-sm text-ink-2 leading-relaxed m-0">
+            This automation won't run again. You can re-create it any time from
+            the same{' '}
+            <span className="font-medium text-ink">
+              {target.kind === 'batch' ? 'batch' : 'scan'}
+            </span>{' '}
+            page.
+          </p>
+        </div>
       </Modal>
 
       <Toast message={toast} />
