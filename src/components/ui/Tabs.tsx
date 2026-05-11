@@ -44,14 +44,14 @@ function Tabs<V extends string>({ items, value, onChange, rightSlot, className =
             >
               <span
                 className={[
-                  'inline-flex items-center gap-2 h-full border-b-2 -mb-px',
+                  'inline-flex items-center gap-2 h-full border-b-2 -mb-px whitespace-nowrap',
                   active ? 'border-brand' : 'border-transparent',
                 ].join(' ')}
               >
-                {it.label}
+                <span>{it.label}</span>
                 {typeof it.count === 'number' && (
                   <span
-                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line"
+                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
                     style={{
                       background: active ? 'var(--brand-tint)' : 'var(--surface-2)',
                       color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
