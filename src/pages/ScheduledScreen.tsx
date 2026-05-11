@@ -1,25 +1,32 @@
-/* global React, AppShell, Button, Icon, Pill, DataTable, Modal, useAppState,
+/* global React, AppShell, Button, Icon, Pill, DataTable, Modal, Drawer, ChipRow, useAppState,
    HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress */
-// Scheduled — every automation the user has set up. Filter by Type
-// (Single vs Batch), search by address or filename, click a row to open
-// a details modal.
 
 type Filter = 'all' | 'single' | 'batch';
+type CadenceFilter = 'all' | '3' | '4' | '6' | '12';
 
 function ScheduledScreen() {
   const { schedules } = useAppState();
   const [filter, setFilter] = React.useState<Filter>('all');
   const [query, setQuery] = React.useState('');
+  const [cadence, setCadence] = React.useState<CadenceFilter>('all');
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [open, setOpen] = React.useState<any | null>(null);
+
+  const advancedCount = cadence !== 'all' ? 1 : 0;
 
   const rows = schedules.filter((s: any) => {
     if (filter !== 'all' && s.kind !== filter) return false;
+    if (cadence !== 'all' && String(s.cadenceMonths) !== cadence) return false;
     if (query) {
       const target = s.kind === 'batch' ? s.filename : s.address;
       if (!target.toLowerCase().includes(query.toLowerCase())) return false;
     }
     return true;
   });
+
+  function clearAdvanced() {
+    setCadence('all');
+  }
 
   const FILTER_OPTS: { id: Filter; label: string; count: number }[] = [
     { id: 'all',    label: 'All',    count: schedules.length },
@@ -124,7 +131,7 @@ function ScheduledScreen() {
             className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
             style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
           >
-            Scheduled Scans.
+            Scheduled
           </h1>
           <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2">
             Automations re-run on your chosen cadence. Click any row to view details or cancel.
@@ -163,19 +170,74 @@ function ScheduledScreen() {
             );
           })}
         </div>
-        <div className="relative w-full sm:w-[280px]">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
-            <Icon name="search" size={14} />
-          </span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-            placeholder="Filter by target"
-            className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial sm:w-[260px]">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
+              <Icon name="search" size={14} />
+            </span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+              placeholder="Filter by target"
+              className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open filters"
+            className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors shrink-0 ${
+              advancedCount > 0
+                ? '!bg-brand-tint !border-brand/40'
+                : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
+            }`}
+            style={{ color: advancedCount > 0 ? 'var(--brand-deep)' : 'var(--ink-2)' }}
+          >
+            <Icon name="sliders" size={14} />
+            <span className="hidden sm:inline">Filters</span>
+            {advancedCount > 0 && (
+              <span
+                className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
+                style={{ background: 'rgba(2,146,190,0.12)', color: 'var(--brand-deep)' }}
+              >
+                {advancedCount}
+              </span>
+            )}
+          </button>
         </div>
       </section>
+
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Filters"
+        footer={
+          <>
+            <Button variant="ghost" onClick={clearAdvanced} disabled={advancedCount === 0}>
+              Clear all
+            </Button>
+            <Button variant="primary" onClick={() => setDrawerOpen(false)}>
+              Done
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-6">
+          <ChipRow
+            label="Cadence"
+            value={cadence}
+            onChange={(v: string) => setCadence(v as CadenceFilter)}
+            options={[
+              { value: 'all', label: 'Any cadence' },
+              { value: '3',   label: 'Every 3 months' },
+              { value: '4',   label: 'Every 4 months' },
+              { value: '6',   label: 'Every 6 months' },
+              { value: '12',  label: 'Every 12 months' },
+            ]}
+          />
+        </div>
+      </Drawer>
 
       <DataTable
         columns={COLUMNS}

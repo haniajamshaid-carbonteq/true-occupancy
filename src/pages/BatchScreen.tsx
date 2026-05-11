@@ -101,6 +101,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
 // ---------- Loaded state: header + table ----------
 
 function BatchResults({ batch }: { batch: any }) {
+  const routerHistory = ReactRouterDOM.useHistory();
   const { addSchedule, clearBatch } = useAppState();
   const rows: BatchRow[] = batch.rows;
   const total = rows.length;
@@ -192,7 +193,14 @@ function BatchResults({ batch }: { batch: any }) {
                   },
                 ]}
               />
-              <Button variant="primary" icon={<Icon name="upload" />} onClick={clearBatch}>
+              <Button
+                variant="primary"
+                icon={<Icon name="upload" />}
+                onClick={() => {
+                  clearBatch();
+                  routerHistory.push('/batch');
+                }}
+              >
                 New batch
               </Button>
             </div>

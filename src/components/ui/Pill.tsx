@@ -25,7 +25,7 @@ const PILL_BASE =
   "inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full font-sans text-micro font-medium uppercase tracking-[0.04em] border";
 
 const PILL_VARIANTS: Record<PillVariant, string> = {
-  default: 'bg-surface-2 text-ink-2 border-line',
+  default: 'bg-pill-neutral text-ink-2 border-line',
   clean: 'bg-clean-soft text-clean-ink border-transparent',
   warn: 'bg-warn-soft text-warn-ink border-transparent',
   risk: 'bg-risk-soft text-risk-ink border-transparent',

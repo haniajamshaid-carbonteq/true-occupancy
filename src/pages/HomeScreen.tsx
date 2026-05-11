@@ -427,7 +427,7 @@ function ActivityTabs() {
 
   function openHistoryRow(row: any) {
     if (row.kind === 'batch') {
-      history.push('/batch');
+      history.push(`/batch/${row.id}`);
       return;
     }
     sessionStorage.setItem('scanScenario', row.scenario);

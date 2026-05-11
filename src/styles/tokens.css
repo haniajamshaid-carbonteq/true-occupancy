@@ -13,6 +13,7 @@
   --bg: #F4F6F8;              /* page background — neutral cool off-white, lifts white cards */
   --surface: #FFFFFF;         /* cards lift off the bg */
   --surface-2: #F2F2F2;       /* alt-row gray, also subtle nested-card fill */
+  --pill-neutral-bg: #F6F7F8; /* neutral Pill default — a touch lighter than --surface-2 */
 
   /* === Lines === */
   --line: #E5E7EB;

@@ -18,6 +18,7 @@ module.exports = {
           DEFAULT: 'var(--surface)',
           2: 'var(--surface-2)',
         },
+        'pill-neutral': 'var(--pill-neutral-bg)',
         line: {
           DEFAULT: 'var(--line)',
           strong: 'var(--line-strong)',
