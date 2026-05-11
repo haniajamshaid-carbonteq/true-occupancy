@@ -24,12 +24,6 @@ function PageHeader({ showSearch = true, showTitle = true, rightSlot }: PageHead
         >
           {showTitle && (
             <div className="hidden sm:block">
-              <div
-                className="font-sans text-micro font-semibold tracking-[0.14em] uppercase mb-1.5"
-                style={{ color: 'var(--brand-deep)' }}
-              >
-                Halcyon · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
-              </div>
               <h1
                 className="font-sans font-semibold leading-[1.1] tracking-[-0.008em] m-0"
                 style={{ fontSize: 'clamp(24px, 4.4vw, 32px)', color: 'var(--navy)' }}

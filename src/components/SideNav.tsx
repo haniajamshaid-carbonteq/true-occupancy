@@ -17,7 +17,6 @@ const PRIMARY: NavItem[] = [
   { to: '/batch', label: 'Batch', icon: 'layers' },
   { to: '/history', label: 'History', icon: 'history' },
   { to: '/scheduled', label: 'Scheduled', icon: 'cal' },
-  { to: '/result/high', label: 'Flagged', icon: 'flag', badge: '9' },
 ];
 
 const NAV_WIDTH = 248;

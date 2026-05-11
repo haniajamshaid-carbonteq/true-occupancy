@@ -89,7 +89,6 @@ function ScheduledScreen() {
       key: 'next',
       label: 'Next run',
       width: '120px',
-      align: 'right' as const,
       hideBelow: 'md' as const,
       cell: (r: any) => (
         <span className="font-mono tabular-nums text-caption text-ink-3">
@@ -101,7 +100,6 @@ function ScheduledScreen() {
       key: 'created',
       label: 'Created',
       width: '100px',
-      align: 'right' as const,
       hideBelow: 'md' as const,
       cell: (r: any) => (
         <span className="font-mono tabular-nums text-caption text-ink-3">
@@ -116,12 +114,6 @@ function ScheduledScreen() {
       {/* Header */}
       <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
         <div>
-          <div
-            className="font-sans text-micro font-semibold tracking-[0.14em] uppercase mb-1.5"
-            style={{ color: 'var(--brand-deep)' }}
-          >
-            Halcyon · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
-          </div>
           <h1
             className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
             style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
@@ -164,7 +156,7 @@ function ScheduledScreen() {
             <span className="hidden sm:inline">Filters</span>
             {advancedCount > 0 && (
               <span
-                className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
+                className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line"
                 style={{ background: 'rgba(2,146,190,0.12)', color: 'var(--brand-deep)' }}
               >
                 {advancedCount}
