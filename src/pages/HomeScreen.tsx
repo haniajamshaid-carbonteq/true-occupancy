@@ -294,120 +294,174 @@ function FlaggedRow({ row, onOpen }: { row: RecentScan; onOpen: (row: RecentScan
 // exists in AppState. Compact, full-width strip carrying filename, live
 // progress, status counts, and quick actions (Open + Automate).
 
+type StripState = 'live' | 'complete' | 'partial' | 'allFailed';
+
+// Visual config keyed by terminal state — keeps the render logic below
+// declarative so adding a new state is a one-row addition rather than a
+// fresh branch through the JSX.
+const STATE_CONFIG: Record<
+  StripState,
+  {
+    iconWrap: string;
+    iconName: 'layers' | 'check' | 'alert' | 'x';
+    iconSize: number;
+    pillVariant: 'brand' | 'clean' | 'warn' | 'risk';
+    pillLabel: string;
+  }
+> = {
+  live:      { iconWrap: 'bg-brand-soft text-brand',     iconName: 'layers', iconSize: 18, pillVariant: 'brand', pillLabel: 'In progress' },
+  complete:  { iconWrap: 'bg-clean-soft text-clean-ink', iconName: 'check',  iconSize: 20, pillVariant: 'clean', pillLabel: 'Complete' },
+  partial:   { iconWrap: 'bg-warn-soft text-warn-ink',   iconName: 'alert',  iconSize: 18, pillVariant: 'warn',  pillLabel: 'Completed with errors' },
+  allFailed: { iconWrap: 'bg-risk-soft text-risk-ink',   iconName: 'x',      iconSize: 18, pillVariant: 'risk',  pillLabel: 'Scan failed' },
+};
+
+function VerdictDot({ tone, count, label }: { tone: 'high' | 'med' | 'low' | 'risk'; count: number; label: string }) {
+  const bg =
+    tone === 'high' ? 'var(--verdict-high)'
+    : tone === 'med' ? 'var(--verdict-med)'
+    : tone === 'low' ? 'var(--verdict-low)'
+    : 'var(--risk)';
+  return (
+    <span className="inline-flex items-center gap-1.5 text-caption text-ink-3">
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: bg }} aria-hidden />
+      <span className="text-ink-2 font-semibold tabular-nums">{count}</span> {label}
+    </span>
+  );
+}
+
 function LiveBatchStrip() {
   const history = useHistory();
   const { liveBatch, dismissBatch } = useAppState();
   if (!liveBatch || liveBatch.dismissed) return null;
 
-  const total = liveBatch.rows.length;
-  const done = liveBatch.rows.filter((r: any) => r.status === 'done').length;
-  const running = liveBatch.rows.filter((r: any) => r.status === 'running').length;
-  const pct = Math.round((done / total) * 100);
-  const flagged = liveBatch.rows.filter((r: any) => r.risk === 'risk').length;
-  const warn = liveBatch.rows.filter((r: any) => r.risk === 'warn').length;
-  const clean = liveBatch.rows.filter((r: any) => r.risk === 'clean').length;
-  const isComplete = liveBatch.status === 'complete';
+  const rows = liveBatch.rows;
+  const total = rows.length;
+  const done    = rows.filter((r: any) => r.status === 'done').length;
+  const failed  = rows.filter((r: any) => r.status === 'failed').length;
+  const running = rows.filter((r: any) => r.status === 'running').length;
+  const settled = done + failed;
+  const pct = Math.round((settled / total) * 100);
+  const flagged = rows.filter((r: any) => r.risk === 'risk').length;
+  const warn    = rows.filter((r: any) => r.risk === 'warn').length;
+  const clean   = rows.filter((r: any) => r.risk === 'clean').length;
+
+  const isRunning = liveBatch.status === 'running';
+  const state: StripState =
+    isRunning ? 'live'
+    : failed === total ? 'allFailed'
+    : failed > 0       ? 'partial'
+    : 'complete';
+
+  const cfg = STATE_CONFIG[state];
+  const isComplete = !isRunning;
+
+  // Caption sits next to the status pill — purposefully secondary so the
+  // filename can be the dominant element of the strip.
+  const caption =
+    state === 'live'      ? `${settled} of ${total} scanned`
+    : state === 'complete' ? `${done} scanned`
+    : state === 'partial' ? `${done} scanned · ${failed} failed`
+    : `0 of ${total} scanned`;
+
+  function onAction() {
+    if (state === 'allFailed') {
+      // Send the user back to the upload screen to retry with a fresh CSV.
+      dismissBatch();
+      history.push('/batch');
+      return;
+    }
+    if (isComplete) {
+      dismissBatch();
+      history.push('/history');
+      return;
+    }
+    history.push('/batch');
+  }
+  const actionLabel =
+    state === 'allFailed' ? 'Retry batch'
+    : state === 'live'    ? 'Open batch'
+    : 'View in History';
 
   return (
     <section className="mb-10 sm:mb-12">
       <Card padded={false} className="card-rise relative">
-        {/* Dismiss X — top-right corner. Only renders on completed state
-            so users don't accidentally dismiss a still-running batch. */}
         {isComplete && (
           <button
             type="button"
             onClick={dismissBatch}
-            aria-label="Dismiss completed batch"
+            aria-label="Dismiss batch"
             className="absolute top-3 right-3 w-8 h-8 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors"
           >
             <Icon name="x" size={14} />
           </button>
         )}
+
         <div className="px-5 sm:px-6 py-4 sm:py-5">
-          <div className="flex items-center gap-4">
-            <div
-              className={`w-10 h-10 rounded-full grid place-items-center shrink-0 ${
-                isComplete ? 'bg-clean-soft text-clean-ink' : 'bg-brand-soft text-brand'
-              }`}
-              aria-hidden
-            >
-              <Icon name={isComplete ? 'check' : 'layers'} size={isComplete ? 20 : 18} />
+          <div className="flex items-start gap-4">
+            <div className={`w-10 h-10 rounded-full grid place-items-center shrink-0 mt-0.5 ${cfg.iconWrap}`} aria-hidden>
+              <Icon name={cfg.iconName} size={cfg.iconSize} />
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <Pill variant={isComplete ? 'clean' : 'brand'} dot>
-                  {isComplete ? 'Complete' : 'Live'}
-                </Pill>
-                {!isComplete && (
-                  <span className="font-sans text-caption text-ink-3 tabular-nums">
-                    {done}/{total} · {pct}%
-                  </span>
-                )}
-                {isComplete && (
-                  <span className="font-sans text-caption text-ink-3 tabular-nums">
-                    {total} scanned · added to History
-                  </span>
-                )}
-              </div>
               <div
                 className="font-sans font-semibold text-body sm:text-h4 leading-tight tracking-[-0.005em] truncate"
                 style={{ color: 'var(--navy)' }}
+                title={liveBatch.filename}
               >
                 {liveBatch.filename}
               </div>
-              <div className="mt-1.5 flex items-center flex-wrap gap-x-4 gap-y-1 text-caption text-ink-3">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-high)' }} aria-hidden />
-                  <span className="text-ink-2 font-semibold tabular-nums">{flagged}</span> rented
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-med)' }} aria-hidden />
-                  <span className="text-ink-2 font-semibold tabular-nums">{warn}</span> possibly
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-low)' }} aria-hidden />
-                  <span className="text-ink-2 font-semibold tabular-nums">{clean}</span> not rented
-                </span>
-                {!isComplete && running > 0 && (
-                  <span className="inline-flex items-center gap-1.5 text-ink-3">
-                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--brand)' }} aria-hidden />
-                    <span className="text-ink-2 font-semibold tabular-nums">{running}</span> scanning
-                  </span>
-                )}
+              <div className="mt-1.5 flex items-center flex-wrap gap-x-2 gap-y-1">
+                <Pill variant={cfg.pillVariant} dot>{cfg.pillLabel}</Pill>
+                <span className="font-sans text-caption text-ink-3 tabular-nums">{caption}</span>
               </div>
             </div>
 
             <div className="shrink-0 pr-8 sm:pr-0">
               <Button
-                variant={isComplete ? 'primary' : 'ghost'}
-                onClick={() => {
-                  if (isComplete) {
-                    dismissBatch();
-                    history.push('/history');
-                  } else {
-                    history.push('/batch');
-                  }
-                }}
+                variant={state === 'live' ? 'ghost' : 'primary'}
+                onClick={onAction}
                 iconRight={
-                  <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="m6 4 4 4-4 4" />
-                  </svg>
+                  state === 'allFailed' ? (
+                    <Icon name="replay" size={14} />
+                  ) : (
+                    <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="m6 4 4 4-4 4" />
+                    </svg>
+                  )
                 }
               >
-                {isComplete ? 'View in History' : 'Open batch'}
+                {actionLabel}
               </Button>
             </div>
           </div>
 
-          {/* Progress bar — only while running, since 100% is conveyed by the
-              Complete pill + "added to History" caption. */}
-          {!isComplete && (
-            <div className="mt-3.5 h-1 bg-line rounded-full overflow-hidden">
+          {state === 'live' && (
+            <div className="mt-4 h-1 bg-line rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
                 style={{ width: `${pct}%` }}
               />
+            </div>
+          )}
+
+          {state === 'allFailed' ? (
+            <div className="mt-4 px-3.5 py-3 rounded-md text-caption bg-risk-soft text-risk-ink leading-relaxed">
+              None of the {total} addresses could be scanned. Check the CSV for formatting issues and try again.
+            </div>
+          ) : (
+            <div className="mt-4 flex items-center flex-wrap gap-x-5 gap-y-1.5">
+              <VerdictDot tone="high" count={flagged} label="rented" />
+              <VerdictDot tone="med"  count={warn}    label="possibly" />
+              <VerdictDot tone="low"  count={clean}   label="not rented" />
+              {state === 'live' && running > 0 && (
+                <span className="inline-flex items-center gap-1.5 text-caption text-ink-3">
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--brand)' }} aria-hidden />
+                  <span className="text-ink-2 font-semibold tabular-nums">{running}</span> scanning
+                </span>
+              )}
+              {state === 'partial' && (
+                <VerdictDot tone="risk" count={failed} label="failed" />
+              )}
             </div>
           )}
         </div>
@@ -670,7 +724,7 @@ function HomeScreen() {
             className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
             style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
           >
-            Verify Property Occupancy.
+            Dashboard
           </h1>
           <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
             One address — every public listing within a mile, every signal scored.

@@ -71,10 +71,12 @@ type ScheduleEntry = SingleScheduleEntry | BatchScheduleEntry;
 interface LiveBatchRow {
   id: number;
   address: string;
-  status: 'done' | 'running' | 'queued';
+  status: 'done' | 'running' | 'queued' | 'failed';
   score?: number;
   risk?: Risk;
   listings?: number;
+  /** Short reason populated when status === 'failed' (e.g. "Geocoder timeout"). */
+  errorReason?: string;
 }
 
 interface LiveBatch {
@@ -195,21 +197,25 @@ const SAMPLE_BATCH_ROWS: LiveBatchRow[] = [
 // Resolution table for the sim — when a row finishes we assign a score and
 // risk band. Mirrors the prior hardcoded SAMPLE_BATCH per-row outcomes so
 // the demo end-state stays the same.
-const SAMPLE_BATCH_OUTCOMES: Record<number, { score: number; risk: Risk; listings: number }> = {
-  1:  { score: 87, risk: 'risk',  listings: 4 },
-  2:  { score: 12, risk: 'clean', listings: 0 },
-  3:  { score: 54, risk: 'warn',  listings: 1 },
-  4:  { score: 76, risk: 'risk',  listings: 3 },
-  5:  { score: 8,  risk: 'clean', listings: 0 },
-  6:  { score: 91, risk: 'risk',  listings: 5 },
-  7:  { score: 42, risk: 'warn',  listings: 1 },
-  8:  { score: 18, risk: 'clean', listings: 0 },
-  9:  { score: 64, risk: 'warn',  listings: 2 },
-  10: { score: 71, risk: 'risk',  listings: 2 },
-  11: { score: 9,  risk: 'clean', listings: 0 },
-  12: { score: 33, risk: 'warn',  listings: 1 },
-  13: { score: 22, risk: 'clean', listings: 0 },
-  14: { score: 6,  risk: 'clean', listings: 0 },
+type SampleOutcome =
+  | { kind: 'done'; score: number; risk: Risk; listings: number }
+  | { kind: 'failed'; reason: string };
+
+const SAMPLE_BATCH_OUTCOMES: Record<number, SampleOutcome> = {
+  1:  { kind: 'done', score: 87, risk: 'risk',  listings: 4 },
+  2:  { kind: 'done', score: 12, risk: 'clean', listings: 0 },
+  3:  { kind: 'done', score: 54, risk: 'warn',  listings: 1 },
+  4:  { kind: 'done', score: 76, risk: 'risk',  listings: 3 },
+  5:  { kind: 'failed', reason: 'Address not found in county records' },
+  6:  { kind: 'done', score: 91, risk: 'risk',  listings: 5 },
+  7:  { kind: 'done', score: 42, risk: 'warn',  listings: 1 },
+  8:  { kind: 'done', score: 18, risk: 'clean', listings: 0 },
+  9:  { kind: 'done', score: 64, risk: 'warn',  listings: 2 },
+  10: { kind: 'done', score: 71, risk: 'risk',  listings: 2 },
+  11: { kind: 'failed', reason: 'Geocoder timeout — retry later' },
+  12: { kind: 'done', score: 33, risk: 'warn',  listings: 1 },
+  13: { kind: 'done', score: 22, risk: 'clean', listings: 0 },
+  14: { kind: 'done', score: 6,  risk: 'clean', listings: 0 },
 };
 
 // ---- context -----------------------------------------------------------
@@ -256,14 +262,18 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         const rows = prev.rows.slice();
         const runningIdx = rows.findIndex((r) => r.status === 'running');
         if (runningIdx >= 0) {
-          const o = SAMPLE_BATCH_OUTCOMES[rows[runningIdx].id] ?? { score: 50, risk: 'warn' as Risk, listings: 1 };
-          rows[runningIdx] = { ...rows[runningIdx], status: 'done', ...o };
+          const o: SampleOutcome =
+            SAMPLE_BATCH_OUTCOMES[rows[runningIdx].id] ??
+            { kind: 'done', score: 50, risk: 'warn', listings: 1 };
+          rows[runningIdx] = o.kind === 'failed'
+            ? { ...rows[runningIdx], status: 'failed', errorReason: o.reason }
+            : { ...rows[runningIdx], status: 'done', score: o.score, risk: o.risk, listings: o.listings };
         }
         const queuedIdx = rows.findIndex((r) => r.status === 'queued');
         if (queuedIdx >= 0) {
           rows[queuedIdx] = { ...rows[queuedIdx], status: 'running' };
         }
-        const stillWorking = rows.some((r) => r.status !== 'done');
+        const stillWorking = rows.some((r) => r.status === 'running' || r.status === 'queued');
         if (!stillWorking) {
           // batch just finished — push a summary entry, mark complete
           const flagged = rows.filter((r) => r.risk === 'risk').length;
