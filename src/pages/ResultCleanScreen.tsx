@@ -5,7 +5,7 @@ function ResultCleanScreen() {
   return (
     <AppShell>
       <ScanContextBar showDownloadPDF showAutomate automateScenario="low" />
-      <div className="mt-5 flex flex-col gap-5">
+      <div className="mt-stack flex flex-col gap-stack">
         <ConfidenceHero scenario="low" />
         <ListingsPanel scenario="low" />
         <PropertyOverview />

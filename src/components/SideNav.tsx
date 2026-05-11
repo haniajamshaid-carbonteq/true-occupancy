@@ -123,20 +123,14 @@ function SideNav() {
           the bottom of the flex column always sits at the viewport edge,
           never pushed below the fold by a long route's content. */}
       <aside
-        className="hidden md:flex fixed inset-y-0 left-0 flex-col bg-surface border-r border-line z-30"
-        style={{ width: NAV_WIDTH, height: '100vh' }}
+        className="hidden md:flex fixed flex-col bg-surface border border-line rounded-2xl z-30 overflow-hidden"
+        style={{ width: NAV_WIDTH, top: 16, bottom: 16, left: 16 }}
       >
         <div className="px-5 pt-6 pb-5 border-b border-line">
           <BrandLockup />
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-1">
-          <div
-            className="font-sans text-eyebrow uppercase tracking-[0.16em] font-bold px-3 mb-1.5"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            Workspace
-          </div>
           {PRIMARY.map((item) => (
             <NavLinkRow key={item.to + item.label} item={item} />
           ))}
@@ -145,7 +139,7 @@ function SideNav() {
         <div className="px-3 py-3 border-t border-line">
           <button
             type="button"
-            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-hover-bg transition-colors text-left"
+            className="w-full flex items-center gap-inline-loose px-2 py-2 rounded-md hover:bg-hover-bg transition-colors text-left"
           >
             <span
               className="w-9 h-9 rounded-full grid place-items-center text-white text-caption font-semibold tabular-nums shrink-0"
@@ -241,12 +235,6 @@ function SideNav() {
             </div>
 
             <nav className="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-1">
-              <div
-                className="font-sans text-eyebrow uppercase tracking-[0.16em] font-bold px-3 mb-1.5"
-                style={{ color: 'var(--ink-3)' }}
-              >
-                Workspace
-              </div>
               {PRIMARY.map((item) => (
                 <NavLinkRow
                   key={item.to + item.label}

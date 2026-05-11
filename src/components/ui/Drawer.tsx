@@ -88,7 +88,7 @@ function Drawer({ open, onClose, title, footer, children, width = 380, labelId }
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between gap-4 px-5 pt-5 pb-4 border-b border-line shrink-0">
+          <div className="flex items-center justify-between gap-4 px-surface-x py-surface-y-h border-b border-line shrink-0">
             <h2
               id={titleId}
               className="font-sans font-semibold text-h4 leading-tight tracking-[-0.005em] m-0"
@@ -108,11 +108,11 @@ function Drawer({ open, onClose, title, footer, children, width = 380, labelId }
         )}
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto px-surface-x py-surface-y-b">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-between gap-2 px-5 py-3.5 border-t border-line bg-surface-2/40 shrink-0">
+          <div className="flex items-center justify-between gap-2 px-surface-x py-surface-y-f border-t border-line bg-surface-2/40 shrink-0">
             {footer}
           </div>
         )}

@@ -115,7 +115,6 @@ declare function PropertyOverview(props?: any): any;
 declare function PropertyMap(props?: any): any;
 declare function PropertySpecs(props?: any): any;
 declare function ListingsPanel(props?: any): any;
-declare function ReportCertificateBar(props?: any): any;
 
 // === Pages ===
 declare function ComponentsPage(props?: any): any;

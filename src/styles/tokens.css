@@ -219,4 +219,56 @@
     #5DC0A4 50%,
     #5DAFE0 100%
   );
+
+  /* === Spacing — primitives ===
+   * 4 px base. These are the ONLY stops allowed. Half-pixel and odd
+   * intermediate values (p-3.5, py-7, pb-3.5, gap-2.5) were drift and
+   * are deliberately not represented. Refactor toward these.
+   */
+  --space-0:   0;
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs:  6px;
+  --space-sm:  8px;
+  --space-md:  12px;
+  --space-lg:  16px;
+  --space-xl:  20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-4xl: 48px;
+  --space-5xl: 64px;
+
+  /* === Spacing — semantics ===
+   * Use these in components instead of primitives where intent matters.
+   * Larger values separate unrelated things; smaller values group
+   * related things (law of proximity).
+   */
+  --pad-inline-tight:     var(--space-xs);   /* chip / pill icon+text gap */
+  --pad-inline:           var(--space-sm);   /* button / default inline gap */
+  --pad-inline-loose:     var(--space-md);   /* nav row icon+text gap */
+
+  --pad-control-x:        var(--space-md);   /* button / input horizontal */
+  --pad-control-y:        var(--space-sm);   /* button / input vertical */
+
+  --pad-cell-x:           var(--space-md);   /* table cell horizontal */
+  --pad-cell-y:           var(--space-md);   /* table cell vertical */
+
+  --pad-card:             var(--space-2xl);  /* card / panel / modal body — 24 */
+  --pad-card-tight:       var(--space-xl);   /* dense cards (metric tiles) — 20 */
+  --pad-card-loose:       28px;              /* roomy detail-page cards — 28
+                                              * (off-scale half-step; intentional —
+                                              * matches BatchResults summary block) */
+
+  --pad-surface-x:        var(--space-2xl);  /* modal & drawer body x */
+  --pad-surface-y-header: var(--space-xl);   /* modal & drawer header y */
+  --pad-surface-y-body:   var(--space-2xl);  /* modal & drawer body y */
+  --pad-surface-y-footer: var(--space-lg);   /* modal & drawer footer y */
+
+  --gap-stack-tight:      var(--space-sm);   /* heading -> content; label -> field */
+  --gap-stack-md:         var(--space-md);   /* sub-heading -> table — 12 */
+  --gap-stack:            var(--space-lg);   /* grouped sibling items */
+  --gap-section-tight:    var(--space-xl);   /* tight sub-sections (Card -> KPIs -> Table) — 20 */
+
+  --gap-section-sub:      var(--space-3xl);  /* between sub-sections — 32 */
+  --gap-section:          var(--space-4xl);  /* between major sections — 48 */
 }

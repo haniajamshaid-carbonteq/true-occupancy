@@ -55,7 +55,10 @@ function ScanContextBar({
     <div className="flex items-center gap-3 sm:gap-4 mb-1">
       <button
         type="button"
-        onClick={() => history.push(backTo)}
+        onClick={() => {
+          if (history.length > 1) history.goBack();
+          else history.push(backTo);
+        }}
         className="group inline-flex items-center gap-1 h-9 px-2.5 -ml-2.5 rounded-md bg-transparent border-0 text-label text-ink-2 hover:bg-hover-bg transition-colors shrink-0 cursor-pointer"
         aria-label={backLabel}
       >

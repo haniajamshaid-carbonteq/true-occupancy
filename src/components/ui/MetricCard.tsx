@@ -184,7 +184,7 @@ function MetricCard({
   return (
     <Tag
       {...tagProps}
-      className={`border rounded-lg p-5 flex flex-col ${surface} ${interactiveClasses} ${className}`}
+      className={`border rounded-lg p-card-tight flex flex-col ${surface} ${interactiveClasses} ${className}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div

@@ -6,16 +6,25 @@
 //   ghost:   transparent bg + border
 
 type ButtonVariant = 'primary' | 'default' | 'ghost';
+type ButtonSize = 'sm' | 'md';
 
 interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   variant?: ButtonVariant;
+  size?: ButtonSize;
   icon?: React.ReactNode;
   iconRight?: React.ReactNode;
   children?: React.ReactNode;
 }
 
 const BTN_BASE =
-  'inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-label font-medium font-sans border cursor-pointer transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed';
+  'inline-flex items-center gap-inline rounded-lg font-medium font-sans border cursor-pointer transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed';
+
+// md is the spec default (h-9 / 36px, 13/500). sm is a tighter variant for
+// inline CTAs inside cards or strips where the standard size feels heavy.
+const BTN_SIZES: Record<ButtonSize, string> = {
+  md: 'h-9 px-control-x text-label',
+  sm: 'h-8 px-3 text-caption',
+};
 
 // Primary CTA per docs/DESIGN.md §3.1 + §10:
 // - Rest:  Teal Green #0AB7A3 (primary brand color, gradient start) on white.
@@ -33,6 +42,7 @@ const BTN_VARIANTS: Record<ButtonVariant, string> = {
 
 function Button({
   variant = 'default',
+  size = 'md',
   icon,
   iconRight,
   children,
@@ -43,7 +53,7 @@ function Button({
     <button
       type="button"
       {...rest}
-      className={`${BTN_BASE} ${BTN_VARIANTS[variant]} ${className}`.trim()}
+      className={`${BTN_BASE} ${BTN_SIZES[size]} ${BTN_VARIANTS[variant]} ${className}`.trim()}
     >
       {icon && (
         <span className="inline-flex shrink-0 [&>svg]:w-3.5 [&>svg]:h-3.5">{icon}</span>

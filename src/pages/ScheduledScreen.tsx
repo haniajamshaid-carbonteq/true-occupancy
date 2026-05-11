@@ -1,16 +1,16 @@
-/* global React, AppShell, Button, Icon, Pill, DataTable, Modal, Drawer, ChipRow, useAppState,
+/* global React, AppShell, Button, Icon, Pill, DataTable, Drawer, ChipRow, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress */
 
 type Filter = 'all' | 'single' | 'batch';
 type CadenceFilter = 'all' | '3' | '4' | '6' | '12';
 
 function ScheduledScreen() {
+  const routerHistory = ReactRouterDOM.useHistory();
   const { schedules } = useAppState();
   const [filter, setFilter] = React.useState<Filter>('all');
   const [query, setQuery] = React.useState('');
   const [cadence, setCadence] = React.useState<CadenceFilter>('all');
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [open, setOpen] = React.useState<any | null>(null);
 
   const advancedCount = (filter !== 'all' ? 1 : 0) + (cadence !== 'all' ? 1 : 0);
 
@@ -112,7 +112,7 @@ function ScheduledScreen() {
   return (
     <AppShell>
       {/* Header */}
-      <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
+      <header className="flex items-end justify-between gap-6 mb-section-sub">
         <div>
           <h1
             className="font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0"
@@ -121,7 +121,7 @@ function ScheduledScreen() {
             Scheduled
           </h1>
           <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2">
-            Automations re-run on your chosen cadence. Click any row to view details or cancel.
+            Automations re-run on your chosen cadence. Click any row to view its run history.
           </p>
         </div>
       </header>
@@ -211,7 +211,7 @@ function ScheduledScreen() {
         columns={COLUMNS}
         rows={rows}
         rowKey={(r: any) => r.id}
-        onRowClick={(r: any) => setOpen(r)}
+        onRowClick={(r: any) => routerHistory.push(`/scheduled/${r.id}`)}
         pageSize={10}
         empty={
           <div className="px-5 py-12 text-center text-label text-ink-3">
@@ -219,61 +219,6 @@ function ScheduledScreen() {
           </div>
         }
       />
-
-      <ScheduleDetailsModal entry={open} onClose={() => setOpen(null)} />
     </AppShell>
-  );
-}
-
-function ScheduleDetailsModal({ entry, onClose }: { entry: any | null; onClose: () => void }) {
-  const { cancelSchedule } = useAppState();
-  if (!entry) {
-    return <Modal open={false} onClose={onClose} />;
-  }
-  const isBatch = entry.kind === 'batch';
-  return (
-    <Modal
-      open={!!entry}
-      onClose={onClose}
-      title={isBatch ? 'Batch Automation' : 'Single-Property Automation'}
-      width={520}
-      footer={
-        <>
-          <button
-            type="button"
-            onClick={() => {
-              cancelSchedule(entry.id);
-              onClose();
-            }}
-            className="mr-auto inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-transparent border border-transparent font-sans text-label font-medium text-error-ink hover:bg-error-soft transition-colors cursor-pointer"
-          >
-            <Icon name="x" size={14} />
-            Cancel Automation
-          </button>
-          <Button variant="ghost" onClick={onClose}>Close</Button>
-        </>
-      }
-    >
-      <dl className="grid grid-cols-[120px_1fr] gap-y-3 gap-x-4 text-body-sm">
-        <dt className="text-ink-3 font-medium">Target</dt>
-        <dd className="text-ink-2">{isBatch ? entry.filename : entry.address}</dd>
-
-        {isBatch && (
-          <>
-            <dt className="text-ink-3 font-medium">Properties</dt>
-            <dd className="text-ink-2 tabular-nums">{entry.total}</dd>
-          </>
-        )}
-
-        <dt className="text-ink-3 font-medium">Cadence</dt>
-        <dd className="text-ink-2">Every {entry.cadenceMonths} months</dd>
-
-        <dt className="text-ink-3 font-medium">Next run</dt>
-        <dd className="text-ink-2">{entry.nextRunLabel}</dd>
-
-        <dt className="text-ink-3 font-medium">Created</dt>
-        <dd className="text-ink-2">{entry.createdAgo}</dd>
-      </dl>
-    </Modal>
   );
 }

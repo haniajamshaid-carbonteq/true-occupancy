@@ -1,7 +1,7 @@
 /* global React, ReactRouterDOM, HomeScreen, ScanStartScreen, ScanMidScreen,
    ResultCleanScreen, ResultMediumScreen, ResultHighScreen,
    WhyExpandedScreen, ComponentsPage, BatchScreen, BatchDetailScreen, HistoryScreen,
-   ScheduledScreen, AppStateProvider,
+   ScheduledScreen, ScheduleDetailScreen, AppStateProvider,
    SignInScreen, SignUpScreen, CommandPalette */
 // Top-level router. Each route = one screen.
 // HashRouter so the static server doesn't need URL-rewriting config.
@@ -41,6 +41,7 @@ const ROUTES = [
   { path: '/batch/:id',      component: BatchDetailScreen },
   { path: '/batch',          component: BatchScreen, exact: true },
   { path: '/history',        component: HistoryScreen },
+  { path: '/scheduled/:id',  component: ScheduleDetailScreen },
   { path: '/scheduled',      component: ScheduledScreen },
   { path: '/scan/start',     component: ScanStartScreen },
   { path: '/scan/mid',       component: ScanMidScreen },

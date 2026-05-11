@@ -10,9 +10,8 @@ interface NavItem {
   exact?: boolean;
 }
 
-const NAV: { section: string; items: NavItem[] }[] = [
+const NAV: { section?: string; items: NavItem[] }[] = [
   {
-    section: 'Workspace',
     items: [
       { to: '/', label: 'New Scan', icon: 'search', exact: true },
       { to: '/batch', label: 'Batch Scan', icon: 'layers' },
@@ -62,17 +61,19 @@ function Sidebar() {
 
       {/* Nav */}
       <nav className="flex flex-col gap-0.5">
-        {NAV.map((group) => (
-          <div key={group.section}>
-            <div className="font-mono text-eyebrow uppercase tracking-wider text-ink-4 px-2.5 pt-3 pb-1.5">
-              {group.section}
-            </div>
+        {NAV.map((group, i) => (
+          <div key={group.section ?? `group-${i}`}>
+            {group.section && (
+              <div className="font-mono text-eyebrow uppercase tracking-wider text-ink-4 px-2.5 pt-3 pb-1.5">
+                {group.section}
+              </div>
+            )}
             {group.items.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 exact={item.exact}
-                className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-ink-2 text-sm font-medium hover:bg-hover-bg transition-colors no-underline"
+                className="flex items-center gap-inline-loose px-2.5 py-2 rounded-md text-ink-2 text-sm font-medium hover:bg-hover-bg transition-colors no-underline"
                 activeClassName="bg-brand-tint text-brand"
               >
                 <Icon name={item.icon} size={16} className="opacity-80" />

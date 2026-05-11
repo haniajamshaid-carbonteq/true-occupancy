@@ -120,7 +120,7 @@ function AutomationControl({ target }: AutomationControlProps) {
           <button
             type="button"
             aria-label={`Automated every ${cadenceMonths} months — open menu`}
-            className="shrink-0 inline-flex items-center gap-2 h-9 px-3.5 rounded-lg border bg-surface text-ink-2 border-line-strong hover:bg-hover-bg transition-colors cursor-pointer font-sans text-label font-medium"
+            className="shrink-0 inline-flex items-center gap-inline h-9 px-control-x rounded-lg border bg-surface text-ink-2 border-line-strong hover:bg-hover-bg transition-colors cursor-pointer font-sans text-label font-medium"
           >
             <span className="inline-flex shrink-0 text-brand [&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
               <Icon name="cal" size={14} />
@@ -174,7 +174,7 @@ function AutomationControl({ target }: AutomationControlProps) {
             <button
               type="button"
               onClick={handleCancel}
-              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-error-soft bg-error-soft text-error-ink hover:bg-error/10 transition-colors cursor-pointer font-sans text-label font-medium"
+              className="inline-flex items-center gap-inline-tight h-9 px-control-x rounded-lg border border-error-soft bg-error-soft text-error-ink hover:bg-error/10 transition-colors cursor-pointer font-sans text-label font-medium"
             >
               <Icon name="x" size={14} />
               Cancel Automation

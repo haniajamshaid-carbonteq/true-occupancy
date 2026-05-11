@@ -198,7 +198,7 @@ function WhyThisScore({
       >
         <div className="flex items-baseline gap-3">
           <h3
-            className="font-sans font-medium text-ink m-0"
+            className="font-sans font-semibold text-ink m-0"
             style={{ fontSize: 'var(--text-h4)' }}
           >
             Why This Score

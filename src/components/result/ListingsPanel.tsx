@@ -179,7 +179,7 @@ function DiffCellInline({ cell }: { cell: DiffCell }) {
 
 function DiffLegend() {
   return (
-    <div className="flex items-center flex-wrap gap-x-5 gap-y-2 text-micro text-ink-3 mb-3">
+    <div className="flex items-center flex-wrap gap-x-stack gap-y-stack-tight text-micro text-ink-3 mb-3">
       <span className="inline-flex items-center gap-1.5">
         <span className="font-bold" style={{ color: 'var(--clean)' }} aria-hidden>✓</span> Match
       </span>

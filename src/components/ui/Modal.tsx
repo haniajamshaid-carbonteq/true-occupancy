@@ -94,7 +94,7 @@ function Modal({ open, onClose, title, footer, children, width = 480, labelId }:
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between gap-4 px-6 pt-5 pb-4 border-b border-line">
+          <div className="flex items-center justify-between gap-4 px-surface-x py-surface-y-h border-b border-line">
             <h2
               id={titleId}
               className="font-sans font-semibold text-h4 leading-tight tracking-[-0.005em] m-0"
@@ -114,11 +114,11 @@ function Modal({ open, onClose, title, footer, children, width = 480, labelId }:
         )}
 
         {/* Body */}
-        <div className="px-6 py-6">{children}</div>
+        <div className="px-surface-x py-surface-y-b">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line bg-surface-2/40">
+          <div className="flex items-center justify-end gap-2 px-surface-x py-surface-y-f border-t border-line bg-surface-2/40">
             {footer}
           </div>
         )}
