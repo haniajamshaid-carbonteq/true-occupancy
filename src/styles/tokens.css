@@ -62,6 +62,31 @@
   --risk-soft: #FBE3DB;
   --risk-ink: #6F2917;
 
+  /* === Verdict tones (neutral, non-semantic) ===
+   * The product's verdict labels (Rented / Possibly rented / Not rented)
+   * are descriptive — a "Rented" finding can be positive or negative for
+   * the lender depending on what they're verifying. So we deliberately
+   * avoid the green/amber/red status ramp here and use three calm,
+   * categorical hues that read as "different categories" rather than
+   * "good/warning/bad". Each tone has DEFAULT (solid), -soft (tinted
+   * background) and -ink (text-on-soft) following the rest of the system.
+   *
+   *   --verdict-high  — purple   (Rented)
+   *   --verdict-med   — yellow   (Possibly rented)
+   *   --verdict-low   — blue     (Not rented)
+   */
+  --verdict-high:      #A855F7;
+  --verdict-high-soft: #F3E8FF;
+  --verdict-high-ink:  #6B21A8;
+
+  --verdict-med:       #EAB308;
+  --verdict-med-soft:  #FEF9C3;
+  --verdict-med-ink:   #854D0E;
+
+  --verdict-low:       #3B82F6;
+  --verdict-low-soft:  #DBEAFE;
+  --verdict-low-ink:   #1E3A8A;
+
   /* === State semantics (success / warning / error) ===
    * The third colour layer in the design system. Distinct from:
    *   1. Brand   (--brand)               — identity-only; buttons, links, focus.

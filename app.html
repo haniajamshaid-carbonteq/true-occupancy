@@ -43,6 +43,12 @@
       'hover:bg-warning-soft', 'hover:text-warning-ink',
       'hover:bg-error-soft',   'hover:text-error-ink',
       'active:bg-success-soft', 'active:bg-warning-soft', 'active:bg-error-soft',
+      // Verdict tones (purple / yellow / blue) — neutral categorical fills
+      // for "Rented / Possibly rented / Not rented" pills + the matching
+      // header dot on BatchScreen MetricCards.
+      'bg-verdict-high',      'bg-verdict-high-soft',     'text-verdict-high',     'text-verdict-high-ink',
+      'bg-verdict-med',       'bg-verdict-med-soft',      'text-verdict-med',      'text-verdict-med-ink',
+      'bg-verdict-low',       'bg-verdict-low-soft',      'text-verdict-low',      'text-verdict-low-ink',
       // Type ramp — safelist all 11 size utilities so they're available
       // even before any code in the bundle uses them.
       'text-display', 'text-h1', 'text-h2', 'text-h3', 'text-h4',
@@ -60,6 +66,11 @@
           clean:   { DEFAULT: 'var(--clean)', soft: 'var(--clean-soft)', ink: 'var(--clean-ink)' },
           warn:    { DEFAULT: 'var(--warn)',  soft: 'var(--warn-soft)',  ink: 'var(--warn-ink)' },
           risk:    { DEFAULT: 'var(--risk)',  soft: 'var(--risk-soft)',  ink: 'var(--risk-ink)' },
+          verdict: {
+            high: { DEFAULT: 'var(--verdict-high)', soft: 'var(--verdict-high-soft)', ink: 'var(--verdict-high-ink)' },
+            med:  { DEFAULT: 'var(--verdict-med)',  soft: 'var(--verdict-med-soft)',  ink: 'var(--verdict-med-ink)' },
+            low:  { DEFAULT: 'var(--verdict-low)',  soft: 'var(--verdict-low-soft)',  ink: 'var(--verdict-low-ink)' },
+          },
           success: { DEFAULT: 'var(--success)', soft: 'var(--success-soft)', ink: 'var(--success-ink)' },
           warning: { DEFAULT: 'var(--warning)', soft: 'var(--warning-soft)', ink: 'var(--warning-ink)' },
           error:   { DEFAULT: 'var(--error)',   soft: 'var(--error-soft)',   ink: 'var(--error-ink)' },
@@ -126,10 +137,13 @@
     // 1. Domain
     'src/data/scenarios.tsx',
     // 2. Primitives
+    'src/state/AppState.tsx',
     'src/components/ui/Icons.tsx',
     'src/components/ui/Button.tsx',
     'src/components/ui/Pill.tsx',
     'src/components/ui/Card.tsx',
+    'src/components/ui/Modal.tsx',
+    'src/components/ui/Tabs.tsx',
     'src/components/ui/Input.tsx',
     'src/components/ui/Checkbox.tsx',
     'src/components/ui/RiskBadge.tsx',
@@ -147,6 +161,7 @@
     'src/components/AppShell.tsx',
     'src/components/PageHeader.tsx',
     'src/components/ScanContextBar.tsx',
+    'src/components/AutomateModal.tsx',
     // 4. Scan
     'src/components/scan/ScanCard.tsx',
     'src/components/scan/ScanStage.tsx',
@@ -161,6 +176,7 @@
     'src/pages/Components.tsx',
     'src/pages/HomeScreen.tsx',
     'src/pages/HistoryScreen.tsx',
+    'src/pages/ScheduledScreen.tsx',
     'src/pages/BatchScreen.tsx',
     'src/pages/ScanStartScreen.tsx',
     'src/pages/ScanMidScreen.tsx',

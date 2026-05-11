@@ -5,7 +5,14 @@
 //   clean / warn / risk: {status}-soft bg + {status}-ink text, transparent border
 //   brand: brand-soft bg + brand text, transparent border
 
-type PillVariant = 'default' | 'clean' | 'warn' | 'risk' | 'brand';
+type PillVariant =
+  | 'default'
+  | 'clean' | 'warn' | 'risk'
+  | 'brand'
+  // Neutral categorical fills for the rental-verdict triplet. Distinct
+  // from the clean/warn/risk status ramp so "Rented" doesn't read as bad
+  // and "Not rented" doesn't read as good — purple / yellow / blue.
+  | 'verdict-high' | 'verdict-med' | 'verdict-low';
 
 interface PillProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'children'> {
   variant?: PillVariant;
@@ -23,6 +30,9 @@ const PILL_VARIANTS: Record<PillVariant, string> = {
   warn: 'bg-warn-soft text-warn-ink border-transparent',
   risk: 'bg-risk-soft text-risk-ink border-transparent',
   brand: 'bg-brand-soft text-brand-deep border-transparent',
+  'verdict-high': 'bg-verdict-high-soft text-verdict-high-ink border-transparent',
+  'verdict-med':  'bg-verdict-med-soft text-verdict-med-ink border-transparent',
+  'verdict-low':  'bg-verdict-low-soft text-verdict-low-ink border-transparent',
 };
 
 function Pill({ variant = 'default', dot, children, className = '', ...rest }: PillProps) {

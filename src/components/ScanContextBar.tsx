@@ -1,4 +1,4 @@
-/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY */
+/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomateModal, useAppState */
 // ScanContextBar — replaces the persistent search trigger on detail
 // pages (result + why-expanded). Shows a back button plus the address
 // currently being viewed, so the user knows what scan they're looking at
@@ -20,6 +20,12 @@ interface ScanContextBarProps {
   backLabel?: string;
   /** Show the Download-PDF CTA in the top-right (result screens only). */
   showDownloadPDF?: boolean;
+  /** Show the Automate CTA next to Download PDF. Pass the row's scenario
+   *  so the schedule entry carries the verdict band. */
+  showAutomate?: boolean;
+  /** Scenario for the Automate target (defaults to whatever sessionStorage
+   *  has at scan time, else 'high' to keep the demo populated). */
+  automateScenario?: 'low' | 'medium' | 'high';
 }
 
 function ScanContextBar({
@@ -28,12 +34,30 @@ function ScanContextBar({
   backTo = '/',
   backLabel = 'Back',
   showDownloadPDF = false,
+  showAutomate = false,
+  automateScenario,
 }: ScanContextBarProps) {
   const history = ReactRouterDOM.useHistory();
   const resolvedAddress =
     address ||
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
     PROPERTY.address;
+
+  // Automate flow — opens the shared cadence modal, then dispatches into
+  // AppState (visible on dashboard Schedule tab + /scheduled page).
+  const [automateOpen, setAutomateOpen] = React.useState(false);
+  const [confirmation, setConfirmation] = React.useState<string | null>(null);
+  const { addSchedule } = useAppState();
+  const scenarioForTarget =
+    automateScenario ||
+    ((typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanScenario')) as any) ||
+    'high';
+
+  React.useEffect(() => {
+    if (!confirmation) return;
+    const t = window.setTimeout(() => setConfirmation(null), 3000);
+    return () => window.clearTimeout(t);
+  }, [confirmation]);
 
   return (
     <div className="flex items-center gap-3 sm:gap-4 mb-1">
@@ -83,6 +107,17 @@ function ScanContextBar({
         <Keycap>K</Keycap>
       </button>
 
+      {showAutomate && (
+        <Button
+          variant="default"
+          onClick={() => setAutomateOpen(true)}
+          icon={<Icon name="cal" size={14} />}
+          className="shrink-0"
+        >
+          Automate
+        </Button>
+      )}
+
       {showDownloadPDF && (
         <Button
           variant="primary"
@@ -92,6 +127,41 @@ function ScanContextBar({
         >
           Download PDF
         </Button>
+      )}
+
+      {showAutomate && (
+        <AutomateModal
+          open={automateOpen}
+          onClose={() => setAutomateOpen(false)}
+          target={{ kind: 'single', address: resolvedAddress, scenario: scenarioForTarget }}
+          onConfirm={({ cadenceMonths }: { cadenceMonths: 3 | 4 | 6 | 12 }) => {
+            addSchedule({
+              kind: 'single',
+              address: resolvedAddress,
+              scenario: scenarioForTarget,
+              cadenceMonths,
+            });
+            setAutomateOpen(false);
+            setConfirmation(`Automation scheduled · every ${cadenceMonths} months`);
+          }}
+        />
+      )}
+
+      {confirmation && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] px-4 py-2.5 rounded-md shadow-md font-sans text-label flex items-center gap-2"
+          style={{ background: 'var(--navy)', color: 'white' }}
+          role="status"
+        >
+          <span
+            className="w-5 h-5 rounded-full grid place-items-center shrink-0"
+            style={{ background: 'rgba(255,255,255,0.16)' }}
+            aria-hidden
+          >
+            <Icon name="check" size={12} />
+          </span>
+          {confirmation}
+        </div>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 /* global React, ReactRouterDOM, HomeScreen, ScanStartScreen, ScanMidScreen,
    ResultCleanScreen, ResultMediumScreen, ResultHighScreen,
    WhyExpandedScreen, ComponentsPage, BatchScreen, HistoryScreen,
+   ScheduledScreen, AppStateProvider,
    SignInScreen, SignUpScreen, CommandPalette */
 // Top-level router. Each route = one screen.
 // HashRouter so the static server doesn't need URL-rewriting config.
@@ -29,6 +30,7 @@ function RouteCrossfade({ children }: { children: React.ReactNode }) {
 const ROUTES = [
   { path: '/batch',          component: BatchScreen },
   { path: '/history',        component: HistoryScreen },
+  { path: '/scheduled',      component: ScheduledScreen },
   { path: '/scan/start',     component: ScanStartScreen },
   { path: '/scan/mid',       component: ScanMidScreen },
   { path: '/result/clean',   component: ResultCleanScreen },
@@ -43,19 +45,21 @@ const ROUTES = [
 
 function App() {
   return (
-    <HashRouter>
-      <CommandPalette />
-      <RouteCrossfade>
-        <Switch>
-          {ROUTES.map((r) => (
-            <Route key={r.path} path={r.path} component={r.component} />
-          ))}
-          <Route path="/" exact component={HomeScreen} />
-          <Route>
-            <Redirect to="/" />
-          </Route>
-        </Switch>
-      </RouteCrossfade>
-    </HashRouter>
+    <AppStateProvider>
+      <HashRouter>
+        <CommandPalette />
+        <RouteCrossfade>
+          <Switch>
+            {ROUTES.map((r) => (
+              <Route key={r.path} path={r.path} component={r.component} />
+            ))}
+            <Route path="/" exact component={HomeScreen} />
+            <Route>
+              <Redirect to="/" />
+            </Route>
+          </Switch>
+        </RouteCrossfade>
+      </HashRouter>
+    </AppStateProvider>
   );
 }

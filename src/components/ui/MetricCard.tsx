@@ -19,6 +19,11 @@ interface MetricDelta {
   value: string;
 }
 
+type MetricAccent =
+  // Neutral verdict triplet — paints the small header dot in the matching
+  // categorical hue without colouring the value/footer.
+  | 'verdict-high' | 'verdict-med' | 'verdict-low';
+
 interface MetricCardProps {
   label: string;
   value: React.ReactNode;
@@ -31,9 +36,18 @@ interface MetricCardProps {
   /** Promote the card visually — paints the surface with the brand teal,
    *  flips text to white. Use for the headline KPI in a row of metrics. */
   primary?: boolean;
+  /** Optional categorical accent — renders a small dot to the left of the
+   *  eyebrow label in the verdict tone. */
+  accent?: MetricAccent;
   /** Optional override className for the outer card. */
   className?: string;
 }
+
+const ACCENT_VAR: Record<MetricAccent, string> = {
+  'verdict-high': 'var(--verdict-high)',
+  'verdict-med':  'var(--verdict-med)',
+  'verdict-low':  'var(--verdict-low)',
+};
 
 function MetricCard({
   label,
@@ -42,6 +56,7 @@ function MetricCard({
   delta,
   size = 'md',
   primary = false,
+  accent,
   className = '',
 }: MetricCardProps) {
   const hasFooter = !!(delta || hint);
@@ -72,9 +87,16 @@ function MetricCard({
       className={`border rounded-lg p-5 flex flex-col ${surface} ${className}`}
     >
       <div
-        className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
+        className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase inline-flex items-center gap-1.5"
         style={{ color: labelColor }}
       >
+        {accent && (
+          <span
+            className="w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ background: ACCENT_VAR[accent] }}
+            aria-hidden
+          />
+        )}
         {label}
       </div>
 

@@ -1,4 +1,4 @@
-/* global React, SCENARIOS, PROPERTY */
+/* global React, SCENARIOS, PROPERTY, Tabs, Pill, DataTable */
 // ListingsPanel — diff-matrix evidence view.
 //
 // Reframes the matched listings as a comparison table: the property's
@@ -722,17 +722,28 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
   const strongestId =
     listings.length > 0 ? listings[0].url : null;
   const rows = buildRows(listings);
+  const [view, setView] = React.useState<'comparison' | 'table'>('comparison');
 
   return (
     <div>
-      {/* Section heading */}
-      <div className="flex items-baseline justify-between gap-3 mt-7 sm:mt-9 mb-4">
+      {/* Section heading + view tabs */}
+      <div className="mt-7 sm:mt-9 mb-4">
         <h2
-          className="font-sans font-semibold text-h3 sm:text-h2 tracking-[-0.005em] m-0"
+          className="font-sans font-semibold text-h3 sm:text-h2 tracking-[-0.005em] m-0 mb-3"
           style={{ color: 'var(--navy)' }}
         >
-          Property listings
+          Property Listings
         </h2>
+        {listings.length > 0 && (
+          <Tabs
+            value={view}
+            onChange={(v: any) => setView(v)}
+            items={[
+              { value: 'comparison', label: 'Comparison', count: listings.length },
+              { value: 'table',      label: 'Table',      count: listings.length },
+            ]}
+          />
+        )}
       </div>
 
       {/* Empty state — low scenario, zero matches */}
@@ -750,7 +761,7 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
             fingerprint, host signals, or layout.
           </div>
         </div>
-      ) : (
+      ) : view === 'comparison' ? (
         <>
           <DiffLegend />
           {/* Desktop: full diff matrix */}
@@ -770,7 +781,144 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
             />
           </div>
         </>
+      ) : (
+        <TableView listings={listings} strongestId={strongestId} />
       )}
+    </div>
+  );
+}
+
+// --- Table view ----------------------------------------------------------
+// Lighter-weight alternative to the diff matrix. Renders each listing as a
+// row in the shared DataTable primitive so the spacing and hover rhythm
+// match the History / Batch / Schedule tables across the rest of the
+// product. The strongest match wears a brand-tint "Strongest" chip so it
+// still pops without dominating the table.
+
+const PLATFORM_PILL_LABEL: Record<'airbnb' | 'vrbo' | 'fb', string> = {
+  airbnb: 'Airbnb',
+  vrbo:   'Vrbo',
+  fb:     'Facebook',
+};
+
+const MATCH_TIER_VARIANT: Record<'high' | 'med' | 'low', any> = {
+  high: 'verdict-high',
+  med:  'verdict-med',
+  low:  'verdict-low',
+};
+
+function TableView({ listings, strongestId }: { listings: ListingFlat[]; strongestId: string | null }) {
+  const COLUMNS: any[] = [
+    {
+      key: 'platform',
+      label: 'Platform',
+      width: '108px',
+      cell: (r: ListingFlat) => <Pill>{PLATFORM_PILL_LABEL[r.platformId]}</Pill>,
+    },
+    {
+      key: 'title',
+      label: 'Listing',
+      primary: true,
+      cell: (r: ListingFlat) => (
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <div
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {r.title}
+            </div>
+            {r.url === strongestId && (
+              <span
+                className="font-sans text-eyebrow font-bold tracking-[0.12em] uppercase px-1.5 py-0.5 rounded shrink-0"
+                style={{ background: 'var(--brand-tint)', color: 'var(--brand-deep)' }}
+              >
+                Strongest
+              </span>
+            )}
+          </div>
+          <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+            @{r.host.handle}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'match',
+      label: 'Match',
+      width: '152px',
+      hideBelow: 'sm' as const,
+      cell: (r: ListingFlat) => (
+        <Pill variant={MATCH_TIER_VARIANT[r.match]}>{MATCH_LABEL[r.match]}</Pill>
+      ),
+    },
+    {
+      key: 'confidence',
+      label: 'Confidence',
+      width: '92px',
+      align: 'right' as const,
+      hideBelow: 'sm' as const,
+      cell: (r: ListingFlat) => (
+        <span
+          className="font-mono tabular-nums font-semibold text-label leading-none"
+          style={{ color: 'var(--navy)' }}
+        >
+          {r.confidencePct}%
+        </span>
+      ),
+    },
+    {
+      key: 'layout',
+      label: 'Layout',
+      width: '124px',
+      hideBelow: 'md' as const,
+      cell: (r: ListingFlat) => (
+        <span className="font-mono tabular-nums text-caption text-ink-3 whitespace-nowrap">
+          {r.beds ?? '—'} bd · {r.baths ?? '—'} ba{r.sqft ? ` · ${r.sqft.toLocaleString()} sf` : ''}
+        </span>
+      ),
+    },
+    {
+      key: 'firstSeen',
+      label: 'First seen',
+      width: '108px',
+      align: 'right' as const,
+      hideBelow: 'lg' as const,
+      cell: (r: ListingFlat) => (
+        <span className="font-mono tabular-nums text-caption text-ink-3">{r.firstSeen}</span>
+      ),
+    },
+    {
+      key: 'open',
+      label: '',
+      width: '72px',
+      align: 'right' as const,
+      hideBelow: 'sm' as const,
+      cell: (r: ListingFlat) => (
+        <a
+          href={r.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e: any) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 font-sans text-caption font-medium text-brand-deep hover:underline"
+          aria-label={`Open ${r.title} on ${PLATFORM_PILL_LABEL[r.platformId]}`}
+        >
+          Open
+          <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M9 3h4v4M13 3 7 9M11 8v4H4V5h4" />
+          </svg>
+        </a>
+      ),
+    },
+  ];
+
+  return (
+    <div className="mt-4">
+      <DataTable
+        columns={COLUMNS}
+        rows={listings}
+        rowKey={(r: ListingFlat) => r.url}
+      />
     </div>
   );
 }

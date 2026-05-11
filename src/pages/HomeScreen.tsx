@@ -1,4 +1,4 @@
-/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, Pill, DataTable, MetricCard, ReactRouterDOM, SCENARIOS */
+/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState */
 // Home — product-first dashboard. The user lands directly on the working
 // scanner with real evidence visible (KPI strip, recent scans, flagged for
 // review, methodology note). Marketing-landing surfaces (photo hero,
@@ -291,6 +291,346 @@ function FlaggedRow({ row, onOpen }: { row: RecentScan; onOpen: (row: RecentScan
   );
 }
 
+// --- Live batch strip -----------------------------------------------------
+// Sits between metric cards and the activity tabs when an in-flight batch
+// exists in AppState. Compact, full-width strip carrying filename, live
+// progress, status counts, and quick actions (Open + Automate).
+
+function LiveBatchStrip() {
+  const history = useHistory();
+  const { liveBatch, dismissBatch } = useAppState();
+  if (!liveBatch || liveBatch.dismissed) return null;
+
+  const total = liveBatch.rows.length;
+  const done = liveBatch.rows.filter((r: any) => r.status === 'done').length;
+  const running = liveBatch.rows.filter((r: any) => r.status === 'running').length;
+  const pct = Math.round((done / total) * 100);
+  const flagged = liveBatch.rows.filter((r: any) => r.risk === 'risk').length;
+  const warn = liveBatch.rows.filter((r: any) => r.risk === 'warn').length;
+  const clean = liveBatch.rows.filter((r: any) => r.risk === 'clean').length;
+  const isComplete = liveBatch.status === 'complete';
+
+  return (
+    <section className="mb-10 sm:mb-12">
+      <Card padded={false} className="card-rise relative">
+        {/* Dismiss X — top-right corner. Only renders on completed state
+            so users don't accidentally dismiss a still-running batch. */}
+        {isComplete && (
+          <button
+            type="button"
+            onClick={dismissBatch}
+            aria-label="Dismiss completed batch"
+            className="absolute top-3 right-3 w-8 h-8 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors"
+          >
+            <Icon name="x" size={14} />
+          </button>
+        )}
+        <div className="px-5 sm:px-6 py-5">
+          <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
+            <div
+              className={`w-11 h-11 rounded-full grid place-items-center shrink-0 ${
+                isComplete ? 'bg-clean-soft text-clean-ink' : 'bg-brand-soft text-brand'
+              }`}
+              aria-hidden
+            >
+              <Icon name={isComplete ? 'check' : 'layers'} size={isComplete ? 22 : 20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                {isComplete ? (
+                  <Pill variant="clean" dot>Complete</Pill>
+                ) : (
+                  <Pill variant="brand" dot>Live</Pill>
+                )}
+                <div className="font-sans text-eyebrow uppercase tracking-[0.16em] font-semibold text-ink-3 truncate">
+                  {isComplete ? 'Batch complete · added to History' : 'Batch in progress'}
+                </div>
+              </div>
+              <div
+                className="font-sans font-semibold text-body sm:text-h4 leading-tight tracking-[-0.005em] truncate"
+                style={{ color: 'var(--navy)' }}
+              >
+                {liveBatch.filename}
+              </div>
+              <div className="font-sans text-caption text-ink-3 mt-1 tabular-nums">
+                {isComplete ? (
+                  <>
+                    <span className="text-ink-2 font-semibold">{total}</span> of {total} scanned · 100%
+                  </>
+                ) : (
+                  <>
+                    <span className="text-ink-2 font-semibold">{done}</span> of {total} scanned · {running} in progress · {pct}%
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 pr-8 sm:pr-0">
+              <Button
+                variant={isComplete ? 'primary' : 'ghost'}
+                onClick={() => {
+                  if (isComplete) {
+                    dismissBatch();
+                    history.push('/history');
+                  } else {
+                    history.push('/batch');
+                  }
+                }}
+                iconRight={
+                  <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="m6 4 4 4-4 4" />
+                  </svg>
+                }
+              >
+                {isComplete ? 'View in History' : 'Open batch'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="mt-4 h-1.5 bg-line rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
+              style={{ width: `${isComplete ? 100 : pct}%` }}
+            />
+          </div>
+
+          {/* Inline tallies */}
+          <div className="mt-3 flex items-center flex-wrap gap-x-5 gap-y-1 text-caption text-ink-3">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-high)' }} aria-hidden />
+              <span className="text-ink-2 font-semibold tabular-nums">{flagged}</span> rented
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-med)' }} aria-hidden />
+              <span className="text-ink-2 font-semibold tabular-nums">{warn}</span> possibly
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-low)' }} aria-hidden />
+              <span className="text-ink-2 font-semibold tabular-nums">{clean}</span> not rented
+            </span>
+          </div>
+        </div>
+      </Card>
+    </section>
+  );
+}
+
+// --- Activity tabs (History | Schedule) -----------------------------------
+
+function ActivityTabs() {
+  const history = useHistory();
+  const { history: histRows, schedules } = useAppState();
+  const [tab, setTab] = React.useState<'history' | 'schedule'>('history');
+
+  const histPreview = histRows.slice(0, 6);
+  const schedulePreview = schedules.slice(0, 6);
+
+  function openHistoryRow(row: any) {
+    if (row.kind === 'batch') {
+      history.push('/batch');
+      return;
+    }
+    sessionStorage.setItem('scanScenario', row.scenario);
+    sessionStorage.setItem('scanAddress', row.address);
+    const path =
+      row.scenario === 'low'  ? '/result/clean'
+      : row.scenario === 'medium' ? '/result/medium'
+      : '/result/high';
+    history.push(path);
+  }
+
+  function openScheduleRow() {
+    history.push('/scheduled');
+  }
+
+  return (
+    <section className="mb-10 sm:mb-12">
+      <Tabs
+        value={tab}
+        onChange={(v: any) => setTab(v)}
+        items={[
+          { value: 'history',  label: 'History',  count: histRows.length },
+          { value: 'schedule', label: 'Scheduled', count: schedules.length },
+        ]}
+        rightSlot={
+          <Button
+            variant="ghost"
+            onClick={() => history.push(tab === 'history' ? '/history' : '/scheduled')}
+            iconRight={
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="m6 4 4 4-4 4" />
+              </svg>
+            }
+          >
+            View all
+          </Button>
+        }
+      />
+
+      <div className="mt-4 card-rise" style={{ ['--rise-delay' as any]: '120ms' }}>
+        {tab === 'history' ? (
+          <DataTable
+            columns={DASHBOARD_HISTORY_COLUMNS}
+            rows={histPreview}
+            rowKey={(r: any) => r.id}
+            onRowClick={openHistoryRow}
+          />
+        ) : (
+          <DataTable
+            columns={DASHBOARD_SCHEDULE_COLUMNS}
+            rows={schedulePreview}
+            rowKey={(r: any) => r.id}
+            onRowClick={openScheduleRow}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+// Dashboard previews use compact columns — Type + Target + Verdict/Cadence
+// + relative-time. Full detail (score bar, platforms) lives on the History
+// page; the dashboard is at-a-glance.
+
+const DASHBOARD_HISTORY_COLUMNS: any[] = [
+  {
+    key: 'type',
+    label: 'Type',
+    width: '88px',
+    cell: (r: any) => <Pill>{r.kind === 'batch' ? 'Batch' : 'Single'}</Pill>,
+  },
+  {
+    key: 'target',
+    label: 'Address',
+    primary: true,
+    cell: (r: any) => {
+      if (r.kind === 'batch') {
+        return (
+          <div className="min-w-0">
+            <div
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {r.filename}
+            </div>
+            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+              {r.total} properties · {r.flagged} flagged
+            </div>
+          </div>
+        );
+      }
+      const [street, locality] = splitAddress(r.address);
+      return (
+        <div className="min-w-0">
+          <div
+            className="font-sans font-semibold text-body-sm leading-tight truncate"
+            style={{ color: 'var(--navy)' }}
+          >
+            {street}
+          </div>
+          {locality && (
+            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+              {locality}
+            </div>
+          )}
+        </div>
+      );
+    },
+  },
+  {
+    key: 'verdict',
+    label: 'Verdict',
+    width: '156px',
+    hideBelow: 'sm' as const,
+    cell: (r: any) => {
+      if (r.kind === 'batch') return <span className="font-mono text-caption text-ink-4">—</span>;
+      const variant =
+        r.scenario === 'high'  ? 'verdict-high'
+        : r.scenario === 'medium' ? 'verdict-med'
+        : 'verdict-low';
+      return <Pill variant={variant as any}>{HOME_VERDICT_LABEL[r.scenario]}</Pill>;
+    },
+  },
+  {
+    key: 'scanned',
+    label: 'Scanned',
+    width: '100px',
+    align: 'right' as const,
+    hideBelow: 'md' as const,
+    cell: (r: any) => (
+      <span className="font-mono tabular-nums text-caption text-ink-3">{r.scannedAgo}</span>
+    ),
+  },
+];
+
+const DASHBOARD_SCHEDULE_COLUMNS: any[] = [
+  {
+    key: 'type',
+    label: 'Type',
+    width: '88px',
+    cell: (r: any) => <Pill>{r.kind === 'batch' ? 'Batch' : 'Single'}</Pill>,
+  },
+  {
+    key: 'target',
+    label: 'Target',
+    primary: true,
+    cell: (r: any) => {
+      if (r.kind === 'batch') {
+        return (
+          <div className="min-w-0">
+            <div
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {r.filename}
+            </div>
+            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+              {r.total} properties
+            </div>
+          </div>
+        );
+      }
+      const [street, locality] = splitAddress(r.address);
+      return (
+        <div className="min-w-0">
+          <div
+            className="font-sans font-semibold text-body-sm leading-tight truncate"
+            style={{ color: 'var(--navy)' }}
+          >
+            {street}
+          </div>
+          {locality && (
+            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+              {locality}
+            </div>
+          )}
+        </div>
+      );
+    },
+  },
+  {
+    key: 'cadence',
+    label: 'Cadence',
+    width: '140px',
+    hideBelow: 'sm' as const,
+    cell: (r: any) => (
+      <span className="font-sans text-label text-ink-2 whitespace-nowrap">
+        Every {r.cadenceMonths} months
+      </span>
+    ),
+  },
+  {
+    key: 'next',
+    label: 'Next run',
+    width: '100px',
+    align: 'right' as const,
+    hideBelow: 'md' as const,
+    cell: (r: any) => (
+      <span className="font-mono tabular-nums text-caption text-ink-3">{r.nextRunLabel}</span>
+    ),
+  },
+];
+
 // --- the page -------------------------------------------------------------
 
 function HomeScreen() {
@@ -329,7 +669,7 @@ function HomeScreen() {
             className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
             style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
           >
-            Verify property occupancy.
+            Verify Property Occupancy.
           </h1>
           <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
             One address — every public listing within a mile, every signal scored.
@@ -360,42 +700,14 @@ function HomeScreen() {
         </div>
       </section>
 
-      {/* Recent scans table */}
-      <section className="mb-10 sm:mb-12">
-        <div className="flex items-end justify-between mb-3 gap-4">
-          <div>
-            <h2
-              className="font-sans font-semibold text-h3 sm:text-h3 tracking-[-0.005em] m-0"
-              style={{ color: 'var(--navy)' }}
-            >
-              Recent scans
-            </h2>
-          </div>
-          <Button
-            variant="ghost"
-            iconRight={
-              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="m6 4 4 4-4 4" />
-              </svg>
-            }
-          >
-            View all
-          </Button>
-        </div>
+      {/* Live batch strip — only when a batch is running. Inserted between
+          metric cards and the activity tabs so it sits where running work
+          would naturally surface. */}
+      <LiveBatchStrip />
 
-        <div
-          className="card-rise"
-          style={{ ['--rise-delay' as any]: '320ms' }}
-        >
-          <DataTable
-            columns={SCAN_COLUMNS}
-            rows={RECENT_SCANS}
-            rowKey={(r: RecentScan) => r.id}
-            onRowClick={openResult}
-            leadingAccent={scanLeadingAccent}
-          />
-        </div>
-      </section>
+      {/* Activity — History + Schedule tabs, each capped to 6 rows.
+          "View all" links to the matching full-page surface. */}
+      <ActivityTabs />
 
       {/* Utility footer — single hairline strip */}
       <footer className="mt-12 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 border-t border-line">
