@@ -12,7 +12,7 @@ function ScheduledScreen() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [open, setOpen] = React.useState<any | null>(null);
 
-  const advancedCount = cadence !== 'all' ? 1 : 0;
+  const advancedCount = (filter !== 'all' ? 1 : 0) + (cadence !== 'all' ? 1 : 0);
 
   const rows = schedules.filter((s: any) => {
     if (filter !== 'all' && s.kind !== filter) return false;
@@ -25,14 +25,9 @@ function ScheduledScreen() {
   });
 
   function clearAdvanced() {
+    setFilter('all');
     setCadence('all');
   }
-
-  const FILTER_OPTS: { id: Filter; label: string; count: number }[] = [
-    { id: 'all',    label: 'All',    count: schedules.length },
-    { id: 'single', label: 'Single', count: schedules.filter((s: any) => s.kind === 'single').length },
-    { id: 'batch',  label: 'Batch',  count: schedules.filter((s: any) => s.kind === 'batch').length },
-  ];
 
   const COLUMNS: any[] = [
     {
@@ -139,37 +134,8 @@ function ScheduledScreen() {
         </div>
       </header>
 
-      {/* Filter + search bar */}
-      <section className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {FILTER_OPTS.map((opt) => {
-            const active = filter === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setFilter(opt.id)}
-                className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors ${
-                  active
-                    ? '!bg-brand-tint !border-brand/40'
-                    : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
-                }`}
-                style={{ color: active ? 'var(--brand-deep)' : 'var(--ink-2)' }}
-              >
-                {opt.label}
-                <span
-                  className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
-                  style={{
-                    background: active ? 'rgba(2,146,190,0.12)' : 'var(--surface-2)',
-                    color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
-                  }}
-                >
-                  {opt.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Filter + search bar — Type filter lives in the drawer to keep this row uncluttered. */}
+      <section className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial sm:w-[260px]">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
@@ -224,6 +190,16 @@ function ScheduledScreen() {
         }
       >
         <div className="flex flex-col gap-6">
+          <ChipRow
+            label="Type"
+            value={filter}
+            onChange={(v: string) => setFilter(v as Filter)}
+            options={[
+              { value: 'all',    label: 'All' },
+              { value: 'single', label: 'Single property' },
+              { value: 'batch',  label: 'Batch' },
+            ]}
+          />
           <ChipRow
             label="Cadence"
             value={cadence}
