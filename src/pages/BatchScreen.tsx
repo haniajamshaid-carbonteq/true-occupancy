@@ -43,6 +43,21 @@ function BatchScreen() {
 
   return (
     <AppShell>
+      {/* Page header — consistent across empty + loaded states */}
+      <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
+        <div>
+          <h1
+            className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
+            style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
+          >
+            Batch upload
+          </h1>
+          <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-[64ch]">
+            Upload a CSV of addresses to scan against Airbnb, Vrbo, and Facebook Marketplace.
+          </p>
+        </div>
+      </header>
+
       {liveBatch ? (
         <BatchResults batch={liveBatch} />
       ) : (
@@ -62,12 +77,10 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
           <Icon name="upload" size={24} />
         </div>
         <h2 className="font-sans font-semibold text-h2 sm:text-h2 tracking-[-0.005em] m-0 mb-2" style={{ color: 'var(--navy)' }}>
-          Scan Many Properties at Once.
+          Scan many properties at once.
         </h2>
-        <p className="text-ink-3 text-body-sm leading-relaxed max-w-[48ch] m-0 mb-7">
-          Drop a CSV with one address per row. We'll cross-check every entry against
-          Airbnb, Vrbo, and Facebook Marketplace, then surface the matches in one
-          reviewable queue.
+        <p className="text-ink-3 text-body-sm leading-relaxed max-w-[68ch] m-0 mb-7">
+          Drop a CSV with one address per row. We&rsquo;ll cross-check every entry against Airbnb, Vrbo, and Facebook Marketplace, then surface the matches in one reviewable queue.
         </p>
 
         {/* Drop-zone with hover affordance */}
@@ -444,20 +457,34 @@ const BATCH_COLUMNS: any[] = [
   {
     key: 'score',
     label: 'Score',
-    width: '60px',
-    align: 'center' as const,
+    width: '128px',
     hideBelow: 'sm' as const,
-    cell: (row: BatchRow) =>
-      row.status === 'done' ? (
-        <span
-          className="font-mono tabular-nums font-semibold text-body-sm leading-none"
-          style={{ color: 'var(--navy)' }}
-        >
-          {row.score}
-        </span>
-      ) : (
-        <span className="text-ink-4">—</span>
-      ),
+    cell: (row: BatchRow) => {
+      if (row.status !== 'done') {
+        return <span className="text-ink-4">—</span>;
+      }
+      return (
+        <div className="flex items-center gap-2.5">
+          <span
+            className="font-mono tabular-nums font-semibold text-label w-[24px] text-right leading-none"
+            style={{ color: 'var(--navy)' }}
+          >
+            {row.score}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div
+              className="relative h-1 w-full rounded-full overflow-hidden"
+              style={{ background: 'var(--surface-2)' }}
+            >
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-brand to-brand-2"
+                style={{ width: `${Math.min(100, Math.max(0, row.score ?? 0))}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    },
   },
   {
     key: 'verdict',

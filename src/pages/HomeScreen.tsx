@@ -315,20 +315,6 @@ const STATE_CONFIG: Record<
   allFailed: { iconWrap: 'bg-risk-soft text-risk-ink',   iconName: 'x',      iconSize: 18, pillVariant: 'risk',  pillLabel: 'Scan failed' },
 };
 
-function VerdictDot({ tone, count, label }: { tone: 'high' | 'med' | 'low' | 'risk'; count: number; label: string }) {
-  const bg =
-    tone === 'high' ? 'var(--verdict-high)'
-    : tone === 'med' ? 'var(--verdict-med)'
-    : tone === 'low' ? 'var(--verdict-low)'
-    : 'var(--risk)';
-  return (
-    <span className="inline-flex items-center gap-1.5 text-caption text-ink-3">
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: bg }} aria-hidden />
-      <span className="text-ink-2 font-semibold tabular-nums">{count}</span> {label}
-    </span>
-  );
-}
-
 function LiveBatchStrip() {
   const history = useHistory();
   const { liveBatch, dismissBatch } = useAppState();
@@ -338,12 +324,8 @@ function LiveBatchStrip() {
   const total = rows.length;
   const done    = rows.filter((r: any) => r.status === 'done').length;
   const failed  = rows.filter((r: any) => r.status === 'failed').length;
-  const running = rows.filter((r: any) => r.status === 'running').length;
   const settled = done + failed;
   const pct = Math.round((settled / total) * 100);
-  const flagged = rows.filter((r: any) => r.risk === 'risk').length;
-  const warn    = rows.filter((r: any) => r.risk === 'warn').length;
-  const clean   = rows.filter((r: any) => r.risk === 'clean').length;
 
   const isRunning = liveBatch.status === 'running';
   const state: StripState =
@@ -355,13 +337,17 @@ function LiveBatchStrip() {
   const cfg = STATE_CONFIG[state];
   const isComplete = !isRunning;
 
-  // Caption sits next to the status pill — purposefully secondary so the
-  // filename can be the dominant element of the strip.
   const caption =
     state === 'live'      ? `${settled} of ${total} scanned`
     : state === 'complete' ? `${done} scanned`
     : state === 'partial' ? `${done} scanned · ${failed} failed`
     : `0 of ${total} scanned`;
+
+  const headline =
+    state === 'live'      ? 'Batch is being scanned'
+    : state === 'complete' ? 'Batch scan complete'
+    : state === 'partial' ? 'Batch scanned with errors'
+    : 'Batch scan failed';
 
   function onAction() {
     if (state === 'allFailed') {
@@ -390,30 +376,24 @@ function LiveBatchStrip() {
             type="button"
             onClick={dismissBatch}
             aria-label="Dismiss batch"
-            className="absolute top-3 right-3 w-8 h-8 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors"
+            className="absolute top-2.5 right-2.5 z-10 w-8 h-8 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors"
           >
             <Icon name="x" size={14} />
           </button>
         )}
 
         <div className="px-5 sm:px-6 py-4 sm:py-5">
-          <div className="flex items-start gap-4">
-            <div className={`w-10 h-10 rounded-full grid place-items-center shrink-0 mt-0.5 ${cfg.iconWrap}`} aria-hidden>
+          <div className="flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-full grid place-items-center shrink-0 ${cfg.iconWrap}`} aria-hidden>
               <Icon name={cfg.iconName} size={cfg.iconSize} />
             </div>
 
-            <div className="min-w-0 flex-1">
-              <div
-                className="font-sans font-semibold text-body sm:text-h4 leading-tight tracking-[-0.005em] truncate"
-                style={{ color: 'var(--navy)' }}
-                title={liveBatch.filename}
-              >
-                {liveBatch.filename}
-              </div>
-              <div className="mt-1.5 flex items-center flex-wrap gap-x-2 gap-y-1">
-                <Pill variant={cfg.pillVariant} dot>{cfg.pillLabel}</Pill>
-                <span className="font-sans text-caption text-ink-3 tabular-nums">{caption}</span>
-              </div>
+            <div
+              className="min-w-0 flex-1 font-sans font-semibold text-body sm:text-h4 leading-tight tracking-[-0.005em] truncate"
+              style={{ color: 'var(--navy)' }}
+              title={liveBatch.filename}
+            >
+              {liveBatch.filename}
             </div>
 
             <div className="shrink-0 pr-8 sm:pr-0">
@@ -444,26 +424,19 @@ function LiveBatchStrip() {
             </div>
           )}
 
-          {state === 'allFailed' ? (
+          {state === 'allFailed' && (
             <div className="mt-4 px-3.5 py-3 rounded-md text-caption bg-risk-soft text-risk-ink leading-relaxed">
               None of the {total} addresses could be scanned. Check the CSV for formatting issues and try again.
             </div>
-          ) : (
-            <div className="mt-4 flex items-center flex-wrap gap-x-5 gap-y-1.5">
-              <VerdictDot tone="high" count={flagged} label="rented" />
-              <VerdictDot tone="med"  count={warn}    label="possibly" />
-              <VerdictDot tone="low"  count={clean}   label="not rented" />
-              {state === 'live' && running > 0 && (
-                <span className="inline-flex items-center gap-1.5 text-caption text-ink-3">
-                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--brand)' }} aria-hidden />
-                  <span className="text-ink-2 font-semibold tabular-nums">{running}</span> scanning
-                </span>
-              )}
-              {state === 'partial' && (
-                <VerdictDot tone="risk" count={failed} label="failed" />
-              )}
-            </div>
           )}
+
+          {/* Status sits at the bottom — pill + count caption form the
+              status footer. Verdict counts have moved off this strip;
+              they live on the batch detail screen where there's room. */}
+          <div className="mt-4 flex items-center flex-wrap gap-x-2 gap-y-1">
+            <Pill variant={cfg.pillVariant} dot>{cfg.pillLabel}</Pill>
+            <span className="font-sans text-caption text-ink-3 tabular-nums">{caption}</span>
+          </div>
         </div>
       </Card>
     </section>
