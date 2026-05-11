@@ -301,31 +301,29 @@ function useCountUp(target: number, duration = 800): number {
   return value;
 }
 
+const VERDICT_TEXT: Record<ScenarioKey, string> = {
+  high:   'Rented',
+  medium: 'Likely rented',
+  low:    'Not rented',
+};
+
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
   const animatedScore = useCountUp(sc.score, 800);
 
   return (
     <Card className="px-6 py-5">
-      {/* Hero row — score + caption left, waffle right */}
+      {/* Hero row — verdict + caption left, waffle right */}
       <div className="flex items-center justify-between gap-8">
         <div className="min-w-0">
           <div
-            className="font-sans uppercase text-ink-3 mb-1.5"
-            style={{ fontSize: "var(--text-eyebrow)", letterSpacing: '0.22em' }}
+            className="font-sans font-semibold leading-[0.95] tracking-[-0.025em]"
+            style={{ fontSize: "var(--text-display)", color: 'var(--navy)' }}
           >
-            Confidence
+            {VERDICT_TEXT[scenario]}
           </div>
-          <div className="flex items-baseline gap-1.5">
-            <div
-              className="font-sans font-semibold text-ink leading-none tabular-nums"
-              style={{ fontSize: "var(--text-display)", letterSpacing: '-0.04em' }}
-            >
-              {animatedScore}
-            </div>
-            <div className="font-sans text-ink-4 text-h3 tabular-nums">
-              %
-            </div>
+          <div className="mt-2.5 font-sans text-label text-ink-3 tabular-nums">
+            <span className="font-semibold text-ink-2">{animatedScore}%</span> confidence
           </div>
           <div className="mt-3 max-w-[44ch]">
             <div className="font-sans text-body font-medium text-ink-2 leading-snug">

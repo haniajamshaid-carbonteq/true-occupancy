@@ -39,11 +39,6 @@ function AutomateModal({ open, onClose, target, onConfirm }: AutomateModalProps)
     if (open) setCadence(6);
   }, [open]);
 
-  const targetLabel =
-    target?.kind === 'batch'
-      ? `${target.filename} · ${target.total} properties`
-      : target?.address ?? '';
-
   return (
     <Modal
       open={open}
@@ -63,13 +58,13 @@ function AutomateModal({ open, onClose, target, onConfirm }: AutomateModalProps)
         </>
       }
     >
-      {target && (
+      {target?.kind === 'single' && target.address && (
         <div className="mb-5 px-4 py-3 rounded-md border border-line bg-surface-2/50">
           <div className="font-sans text-eyebrow uppercase tracking-[0.16em] font-semibold text-ink-3 mb-1">
-            {target.kind === 'batch' ? 'Batch target' : 'Address'}
+            Address
           </div>
           <div className="font-sans font-semibold text-body-sm" style={{ color: 'var(--navy)' }}>
-            {targetLabel}
+            {target.address}
           </div>
         </div>
       )}

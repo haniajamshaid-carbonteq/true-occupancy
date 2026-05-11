@@ -1,4 +1,4 @@
-/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, MetricCard, DropdownMenu, ReactRouterDOM,
+/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, MetricCard, DropdownMenu, Drawer, ChipRow, ReactRouterDOM,
    VERDICT_ACCENT, splitAddress, AutomateModal, useAppState */
 // Batch processing — upload a CSV (or click "Try sample data") to scan
 // dozens of properties in one queue. Shows a partially-complete batch:
@@ -116,6 +116,44 @@ function BatchResults({ batch }: { batch: any }) {
   const [automateOpen, setAutomateOpen] = React.useState(false);
   const [confirmation, setConfirmation] = React.useState<string | null>(null);
 
+  type StatusFilter = 'all' | 'done' | 'running' | 'queued';
+  type VerdictFilter = 'all' | 'risk' | 'warn' | 'clean';
+  type ScoreBand = 'all' | 'low' | 'med' | 'high';
+  const [query, setQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('all');
+  const [verdictFilter, setVerdictFilter] = React.useState<VerdictFilter>('all');
+  const [scoreBand, setScoreBand] = React.useState<ScoreBand>('all');
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  const advancedCount =
+    (statusFilter  !== 'all' ? 1 : 0) +
+    (verdictFilter !== 'all' ? 1 : 0) +
+    (scoreBand     !== 'all' ? 1 : 0);
+
+  const filteredRows = rows.filter((r) => {
+    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+    if (verdictFilter !== 'all') {
+      if (r.status !== 'done' || r.risk !== verdictFilter) return false;
+    }
+    if (scoreBand !== 'all') {
+      const s = r.score ?? -1;
+      if (s < 0) return false;
+      if (scoreBand === 'low'  && s > 33) return false;
+      if (scoreBand === 'med'  && (s < 34 || s > 66)) return false;
+      if (scoreBand === 'high' && s < 67) return false;
+    }
+    if (query) {
+      if (!r.address.toLowerCase().includes(query.toLowerCase())) return false;
+    }
+    return true;
+  });
+
+  function clearAdvanced() {
+    setStatusFilter('all');
+    setVerdictFilter('all');
+    setScoreBand('all');
+  }
+
   React.useEffect(() => {
     if (!confirmation) return;
     const t = window.setTimeout(() => setConfirmation(null), 3000);
@@ -230,19 +268,104 @@ function BatchResults({ batch }: { batch: any }) {
 
       {/* Properties — same DataTable primitive as Home + History */}
       <div>
-        <div className="flex items-end justify-between mb-3 gap-4">
+        <div className="flex items-end justify-between mb-3 gap-4 flex-wrap">
           <h3
             className="font-sans font-semibold text-h4 sm:text-h3 tracking-[-0.005em] m-0"
             style={{ color: 'var(--navy)' }}
           >
             Properties
           </h3>
-          <span className="font-sans text-micro text-ink-3">
-            Click any completed row to open the case
-          </span>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial sm:w-[260px]">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
+                <Icon name="search" size={14} />
+              </span>
+              <input
+                type="search"
+                value={query}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+                placeholder="Filter by address"
+                className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open filters"
+              className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors shrink-0 ${
+                advancedCount > 0
+                  ? '!bg-brand-tint !border-brand/40'
+                  : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
+              }`}
+              style={{ color: advancedCount > 0 ? 'var(--brand-deep)' : 'var(--ink-2)' }}
+            >
+              <Icon name="sliders" size={14} />
+              <span className="hidden sm:inline">Filters</span>
+              {advancedCount > 0 && (
+                <span
+                  className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
+                  style={{ background: 'rgba(2,146,190,0.12)', color: 'var(--brand-deep)' }}
+                >
+                  {advancedCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
-        <BatchTable rows={rows} />
+        <BatchTable rows={filteredRows} />
       </div>
+
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Filters"
+        footer={
+          <>
+            <Button variant="ghost" onClick={clearAdvanced} disabled={advancedCount === 0}>
+              Clear all
+            </Button>
+            <Button variant="primary" onClick={() => setDrawerOpen(false)}>
+              Done
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-6">
+          <ChipRow
+            label="Status"
+            value={statusFilter}
+            onChange={(v: string) => setStatusFilter(v as StatusFilter)}
+            options={[
+              { value: 'all',     label: 'Any',      count: rows.length },
+              { value: 'done',    label: 'Scanned',  count: done },
+              { value: 'running', label: 'Scanning', count: running },
+              { value: 'queued',  label: 'Queued',   count: rows.length - done - running },
+            ]}
+          />
+          <ChipRow
+            label="Verdict"
+            value={verdictFilter}
+            onChange={(v: string) => setVerdictFilter(v as VerdictFilter)}
+            options={[
+              { value: 'all',   label: 'Any' },
+              { value: 'risk',  label: 'Rented',          count: flagged },
+              { value: 'warn',  label: 'Possibly rented', count: warn },
+              { value: 'clean', label: 'Not rented',      count: clean },
+            ]}
+          />
+          <ChipRow
+            label="Score band"
+            value={scoreBand}
+            onChange={(v: string) => setScoreBand(v as ScoreBand)}
+            options={[
+              { value: 'all',  label: 'Any' },
+              { value: 'low',  label: '0–33' },
+              { value: 'med',  label: '34–66' },
+              { value: 'high', label: '67–100' },
+            ]}
+          />
+        </div>
+      </Drawer>
 
       <AutomateModal
         open={automateOpen}
