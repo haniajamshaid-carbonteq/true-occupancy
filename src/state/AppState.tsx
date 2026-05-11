@@ -37,6 +37,9 @@ interface BatchHistoryEntry {
   warn: number;
   clean: number;
   scannedAgo: string;
+  /** Snapshot of the per-address scan rows so the batch-detail page can
+   *  render the full table without keeping the LiveBatch around in state. */
+  rows: LiveBatchRow[];
 }
 
 type HistoryEntry = SingleHistoryEntry | BatchHistoryEntry;
@@ -89,10 +92,53 @@ interface LiveBatch {
 // Mirrors the previous in-page mocks. Older entries trail off so the
 // dashboard "6 most recent" cap shows the freshest activity.
 
+// Curated row snapshots for the two seeded batch entries so the batch-
+// detail page has something to render before the user has run a batch.
+const SEED_BATCH_Q1_ROWS: LiveBatchRow[] = [
+  { id: 1,  address: '1428 Maplewood Drive, Asheville, NC 28804', status: 'done', score: 87, risk: 'risk',  listings: 4 },
+  { id: 2,  address: '502 N Liberty St, Asheville, NC 28801',     status: 'done', score: 12, risk: 'clean', listings: 0 },
+  { id: 3,  address: '800 Hilliard Ave, Asheville, NC 28801',     status: 'done', score: 54, risk: 'warn',  listings: 1 },
+  { id: 4,  address: '145 Westchester Dr, Asheville, NC 28803',   status: 'done', score: 76, risk: 'risk',  listings: 3 },
+  { id: 5,  address: '23 Tunnel Rd, Asheville, NC 28805',         status: 'done', score: 8,  risk: 'clean', listings: 0 },
+  { id: 6,  address: '67 Charlotte Hwy, Asheville, NC 28803',     status: 'done', score: 91, risk: 'risk',  listings: 5 },
+  { id: 7,  address: '215 Edgewood Rd, Asheville, NC 28804',      status: 'done', score: 42, risk: 'warn',  listings: 1 },
+  { id: 8,  address: '88 Cumberland Ave, Asheville, NC 28801',    status: 'done', score: 18, risk: 'clean', listings: 0 },
+  { id: 9,  address: '301 Merrimon Ave, Asheville, NC 28804',     status: 'done', score: 64, risk: 'warn',  listings: 2 },
+  { id: 10, address: '450 Patton Ave, Asheville, NC 28806',       status: 'done', score: 71, risk: 'risk',  listings: 2 },
+  { id: 11, address: '12 Hillside St, Asheville, NC 28801',       status: 'done', score: 9,  risk: 'clean', listings: 0 },
+  { id: 12, address: '156 Sand Hill Rd, Asheville, NC 28806',     status: 'done', score: 33, risk: 'warn',  listings: 1 },
+  { id: 13, address: '89 Beverly Rd, Asheville, NC 28805',        status: 'done', score: 22, risk: 'clean', listings: 0 },
+  { id: 14, address: '720 Haywood Rd, Asheville, NC 28806',       status: 'done', score: 6,  risk: 'clean', listings: 0 },
+  { id: 15, address: '301 Lakeshore Dr, Asheville, NC 28804',     status: 'done', score: 82, risk: 'risk',  listings: 3 },
+  { id: 16, address: '44 Pine Cone Ln, Asheville, NC 28803',      status: 'done', score: 51, risk: 'warn',  listings: 1 },
+  { id: 17, address: '987 Sunset Pkwy, Asheville, NC 28806',      status: 'done', score: 11, risk: 'clean', listings: 0 },
+  { id: 18, address: '50 Ridgeview Ct, Asheville, NC 28805',      status: 'done', score: 88, risk: 'risk',  listings: 4 },
+  { id: 19, address: '912 College St, Asheville, NC 28801',       status: 'done', score: 47, risk: 'warn',  listings: 1 },
+  { id: 20, address: '24 Beaver Lake Rd, Asheville, NC 28804',    status: 'done', score: 14, risk: 'clean', listings: 0 },
+  { id: 21, address: '671 Brevard Rd, Asheville, NC 28806',       status: 'done', score: 19, risk: 'clean', listings: 0 },
+  { id: 22, address: '108 Furman Ave, Asheville, NC 28801',       status: 'done', score: 7,  risk: 'clean', listings: 0 },
+  { id: 23, address: '215 Reed St, Asheville, NC 28803',          status: 'done', score: 27, risk: 'clean', listings: 0 },
+  { id: 24, address: '88 Westwood Pl, Asheville, NC 28806',       status: 'done', score: 16, risk: 'clean', listings: 0 },
+];
+
+const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i) => {
+  // Spread to match flagged 9 / warn 8 / clean 25.
+  const risk: Risk = i < 9 ? 'risk' : i < 17 ? 'warn' : 'clean';
+  const score = risk === 'risk' ? 70 + (i % 25) : risk === 'warn' ? 40 + (i % 20) : 5 + (i % 25);
+  return {
+    id: i + 1,
+    address: `${100 + i * 7} Lender Way, Asheville, NC ${28800 + (i % 7)}`,
+    status: 'done' as const,
+    score,
+    risk,
+    listings: risk === 'risk' ? 2 + (i % 4) : risk === 'warn' ? 1 : 0,
+  };
+});
+
 const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago'  },
   { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago' },
-  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 5, clean: 13, scannedAgo: '2 h ago' },
+  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, scannedAgo: '2 h ago', rows: SEED_BATCH_Q1_ROWS },
   { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAgo: '3 h ago'    },
   { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAgo: '4 h ago'    },
   { id: 'h05', kind: 'single', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAgo: '5 h ago'    },
@@ -100,7 +146,7 @@ const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h07', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',    scenario: 'high',   platforms: 3, scannedAgo: 'Yesterday' },
   { id: 'h08', kind: 'single', address: '23 Tunnel Rd, Asheville, NC 28805',          scenario: 'low',    platforms: 0, scannedAgo: 'Yesterday' },
   { id: 'h09', kind: 'single', address: '215 Edgewood Rd, Asheville, NC 28804',       scenario: 'medium', platforms: 1, scannedAgo: 'Yesterday' },
-  { id: 'hb2', kind: 'batch',  filename: 'lender-portfolio-jan.csv', total: 42, flagged: 9, warn: 8, clean: 25, scannedAgo: '2 d ago' },
+  { id: 'hb2', kind: 'batch',  filename: 'lender-portfolio-jan.csv', total: 42, flagged: 9, warn: 8, clean: 25, scannedAgo: '2 d ago', rows: SEED_BATCH_LENDER_ROWS },
   { id: 'h10', kind: 'single', address: '450 Patton Ave, Asheville, NC 28806',        scenario: 'high',   platforms: 2, scannedAgo: '2 d ago'   },
   { id: 'h11', kind: 'single', address: '12 Hillside St, Asheville, NC 28801',        scenario: 'low',    platforms: 0, scannedAgo: '2 d ago'   },
   { id: 'h12', kind: 'single', address: '156 Sand Hill Rd, Asheville, NC 28806',      scenario: 'high',   platforms: 3, scannedAgo: '3 d ago'   },
@@ -216,6 +262,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
               warn,
               clean,
               scannedAgo: 'Just now',
+              rows: rows.slice(),
             },
             ...h,
           ]);

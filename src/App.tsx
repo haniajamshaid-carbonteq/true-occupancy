@@ -1,6 +1,6 @@
 /* global React, ReactRouterDOM, HomeScreen, ScanStartScreen, ScanMidScreen,
    ResultCleanScreen, ResultMediumScreen, ResultHighScreen,
-   WhyExpandedScreen, ComponentsPage, BatchScreen, HistoryScreen,
+   WhyExpandedScreen, ComponentsPage, BatchScreen, BatchDetailScreen, HistoryScreen,
    ScheduledScreen, AppStateProvider,
    SignInScreen, SignUpScreen, CommandPalette */
 // Top-level router. Each route = one screen.
@@ -28,7 +28,8 @@ function RouteCrossfade({ children }: { children: React.ReactNode }) {
 // Specific routes first; "/" is matched with `exact` so it doesn't swallow
 // nested paths. Order matters with v5's Switch.
 const ROUTES = [
-  { path: '/batch',          component: BatchScreen },
+  { path: '/batch/:id',      component: BatchDetailScreen },
+  { path: '/batch',          component: BatchScreen, exact: true },
   { path: '/history',        component: HistoryScreen },
   { path: '/scheduled',      component: ScheduledScreen },
   { path: '/scan/start',     component: ScanStartScreen },

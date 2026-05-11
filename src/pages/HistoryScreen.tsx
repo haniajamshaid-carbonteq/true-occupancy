@@ -1,12 +1,11 @@
-/* global React, AppShell, Button, Icon, Pill, DataTable, DropdownMenu, ReactRouterDOM, SCENARIOS,
+/* global React, AppShell, Button, Icon, Pill, DataTable, DropdownMenu, Drawer, ReactRouterDOM, SCENARIOS,
    HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, SCAN_COLUMNS, scanLeadingAccent, useAppState,
-   splitAddress */
-// History — full table of past scans (single + batch) the investigator can
-// search, filter, and drill into. Now sources from AppState so completed
-// batches and newly automated single scans flow in live.
+   splitAddress, ChipRow, parseAgoHours */
 
 type Verdict = 'all' | 'high' | 'medium' | 'low';
 type Type = 'all' | 'single' | 'batch';
+type Recency = 'all' | 'today' | 'week' | 'older';
+type PlatformsBucket = 'all' | 'none' | 'any' | 'multi';
 
 function HistoryScreen() {
   const history = ReactRouterDOM.useHistory();
@@ -14,6 +13,11 @@ function HistoryScreen() {
   const [verdict, setVerdict] = React.useState<Verdict>('all');
   const [type, setType] = React.useState<Type>('all');
   const [query, setQuery] = React.useState('');
+  const [recency, setRecency] = React.useState<Recency>('all');
+  const [platformsBucket, setPlatformsBucket] = React.useState<PlatformsBucket>('all');
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  const advancedCount = (recency !== 'all' ? 1 : 0) + (platformsBucket !== 'all' ? 1 : 0);
 
   const filtered = rows.filter((r: any) => {
     if (type !== 'all' && r.kind !== type) return false;
@@ -23,12 +27,31 @@ function HistoryScreen() {
       if (r.kind !== 'single') return false;
       if (r.scenario !== verdict) return false;
     }
+    if (recency !== 'all') {
+      const hrs = parseAgoHours(r.scannedAgo);
+      if (recency === 'today' && hrs > 24) return false;
+      if (recency === 'week'  && (hrs <= 24 || hrs > 24 * 7)) return false;
+      if (recency === 'older' && hrs <= 24 * 7) return false;
+    }
+    if (platformsBucket !== 'all') {
+      // Platform count is a single-scan concept; batches don't carry it.
+      if (r.kind !== 'single') return false;
+      const p: number = r.platforms ?? 0;
+      if (platformsBucket === 'none'  && p !== 0) return false;
+      if (platformsBucket === 'any'   && p < 1)  return false;
+      if (platformsBucket === 'multi' && p < 2)  return false;
+    }
     if (query) {
       const target = r.kind === 'batch' ? r.filename : r.address;
       if (!target.toLowerCase().includes(query.toLowerCase())) return false;
     }
     return true;
   });
+
+  function clearAdvanced() {
+    setRecency('all');
+    setPlatformsBucket('all');
+  }
 
   const VERDICT_FILTERS: { id: Verdict; label: string; count: number }[] = [
     { id: 'all',    label: 'All',              count: rows.length },
@@ -45,9 +68,7 @@ function HistoryScreen() {
 
   function openRow(row: any) {
     if (row.kind === 'batch') {
-      // Batch detail — for the prototype, the BatchScreen sample view fills
-      // this role; no per-batch route yet.
-      history.push('/batch');
+      history.push(`/batch/${row.id}`);
       return;
     }
     sessionStorage.setItem('scanScenario', row.scenario);
@@ -74,41 +95,11 @@ function HistoryScreen() {
             className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
             style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
           >
-            Scan History.
+            History
           </h1>
           <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
             Every scan you've run — searchable, filterable, click any row to reopen the case.
           </p>
-        </div>
-        <div className="hidden md:flex items-center gap-2 shrink-0">
-          <DropdownMenu
-            title="Download History"
-            trigger={(open: boolean) => (
-              <Button
-                icon={<Icon name="pdf" size={14} />}
-                iconRight={
-                  <svg
-                    viewBox="0 0 12 12"
-                    className={`w-2.5 h-2.5 transition-transform ${open ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="m3 5 3 3 3-3" />
-                  </svg>
-                }
-              >
-                Download
-              </Button>
-            )}
-            items={[
-              { label: 'PDF report', hint: 'Lender-ready summary with all scans', icon: <Icon name="pdf" />, onClick: () => window.print() },
-              { label: 'CSV',        hint: 'Tabular data for spreadsheets',       icon: <Icon name="layers" />, onClick: () => {} },
-            ]}
-          />
         </div>
       </header>
 
@@ -175,19 +166,85 @@ function HistoryScreen() {
             })}
           </div>
         </div>
-        <div className="relative w-full sm:w-[260px]">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
-            <Icon name="search" size={14} />
-          </span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-            placeholder="Filter by address or file"
-            className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial sm:w-[260px]">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
+              <Icon name="search" size={14} />
+            </span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+              placeholder="Filter by address or file"
+              className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open filters"
+            className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors shrink-0 ${
+              advancedCount > 0
+                ? '!bg-brand-tint !border-brand/40'
+                : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
+            }`}
+            style={{ color: advancedCount > 0 ? 'var(--brand-deep)' : 'var(--ink-2)' }}
+          >
+            <Icon name="sliders" size={14} />
+            <span className="hidden sm:inline">Filters</span>
+            {advancedCount > 0 && (
+              <span
+                className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
+                style={{ background: 'rgba(2,146,190,0.12)', color: 'var(--brand-deep)' }}
+              >
+                {advancedCount}
+              </span>
+            )}
+          </button>
         </div>
       </section>
+
+      {/* Advanced filter drawer */}
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Filters"
+        footer={
+          <>
+            <Button variant="ghost" onClick={clearAdvanced} disabled={advancedCount === 0}>
+              Clear all
+            </Button>
+            <Button variant="primary" onClick={() => setDrawerOpen(false)}>
+              Done
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-6">
+          <ChipRow
+            label="When scanned"
+            value={recency}
+            onChange={(v: string) => setRecency(v as Recency)}
+            options={[
+              { value: 'all',   label: 'Any time' },
+              { value: 'today', label: 'Today' },
+              { value: 'week',  label: 'This week' },
+              { value: 'older', label: 'Older' },
+            ]}
+          />
+          <ChipRow
+            label="Listings found"
+            value={platformsBucket}
+            onChange={(v: string) => setPlatformsBucket(v as PlatformsBucket)}
+            options={[
+              { value: 'all',   label: 'Any' },
+              { value: 'none',  label: 'No listings' },
+              { value: 'any',   label: '1+ platform' },
+              { value: 'multi', label: '2+ platforms' },
+            ]}
+          />
+        </div>
+      </Drawer>
 
       {/* Table */}
       <DataTable
