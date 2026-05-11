@@ -59,7 +59,7 @@ function ScanStage({ steps, progress }: ScanStageProps) {
       {/* Header */}
       <div className="text-center mb-12 relative">
         <div
-          className="font-sans font-semibold text-h2 sm:text-h1 leading-[1.08] tracking-[-0.005em] max-w-[28ch] mx-auto mb-4"
+          className="font-sans font-semibold text-h3 sm:text-h2 leading-[1.08] tracking-[-0.005em] max-w-[28ch] mx-auto mb-4"
           style={{ color: 'var(--navy)' }}
         >
           {address}

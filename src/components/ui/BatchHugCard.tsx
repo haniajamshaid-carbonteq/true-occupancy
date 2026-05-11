@@ -136,7 +136,7 @@ function BatchHugCard({
         {state === 'completed' && (
           <div className="mt-2.5 flex gap-2.5">
             <Button variant="primary" iconRight={ThumbIcon.arrowRight} onClick={onPrimary}>
-              View results
+              View Results
             </Button>
           </div>
         )}
@@ -144,10 +144,10 @@ function BatchHugCard({
         {state === 'completed-errors' && (
           <div className="mt-2.5 flex gap-2.5">
             <Button variant="primary" iconRight={ThumbIcon.arrowRight} onClick={onPrimary}>
-              View results
+              View Results
             </Button>
             <Button variant="default" onClick={onSecondary}>
-              Retry failed
+              Retry Failed
             </Button>
           </div>
         )}
@@ -155,10 +155,10 @@ function BatchHugCard({
         {state === 'error' && (
           <div className="mt-2.5 flex gap-2.5">
             <Button variant="primary" icon={ThumbIcon.retry} onClick={onPrimary}>
-              Retry batch
+              Retry Batch
             </Button>
             <Button variant="default" onClick={onSecondary}>
-              View partial results
+              View Partial Results
             </Button>
           </div>
         )}

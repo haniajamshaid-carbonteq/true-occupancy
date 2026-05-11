@@ -182,7 +182,7 @@ function AutomationControl({ target }: AutomationControlProps) {
           </>
         }
       >
-        <div className="flex items-start gap-3">
+        <div className="flex flex-col items-center text-center gap-3">
           <span
             className="shrink-0 w-9 h-9 rounded-full grid place-items-center bg-error-soft text-error-ink [&>svg]:w-[18px] [&>svg]:h-[18px]"
             aria-hidden

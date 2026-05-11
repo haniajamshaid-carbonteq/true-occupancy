@@ -116,6 +116,64 @@
   animation: verdict-pulse 320ms var(--ease-spring) both;
 }
 
+/* === Sparkline line-draw =========================================== */
+/* Stroke draws in left-to-right; fill area fades in once the line lands. */
+@keyframes sparkline-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes sparkline-fill-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.sparkline-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sparkline-draw 900ms var(--ease-out) 80ms both;
+}
+.sparkline-area {
+  opacity: 0;
+  animation: sparkline-fill-in 360ms var(--ease-out) 760ms both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sparkline-line, .sparkline-area { animation: none; opacity: 1; stroke-dashoffset: 0; }
+}
+
+/* === Batch status text ============================================= */
+@keyframes status-text-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.status-text-in {
+  display: inline-block;
+  animation: status-text-in 320ms var(--ease-out) both;
+}
+
+@keyframes status-text-shimmer {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+.status-text-pulse {
+  display: inline-block;
+  animation: status-text-shimmer 1600ms ease-in-out infinite;
+}
+
+.status-dots {
+  display: inline-block;
+  margin-left: 2px;
+}
+.status-dots > span {
+  display: inline-block;
+  animation: status-dot-bounce 1200ms ease-in-out infinite;
+}
+.status-dots > span:nth-child(2) { animation-delay: 160ms; }
+.status-dots > span:nth-child(3) { animation-delay: 320ms; }
+
+@keyframes status-dot-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30%           { transform: translateY(-3px); opacity: 1; }
+}
+
 /* === Accordion content slide ======================================== */
 /* The wrapper uses inline max-height for measurement; this class just
  * carries the transition. */

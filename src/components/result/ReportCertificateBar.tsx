@@ -41,7 +41,7 @@ function ReportCertificateBar({ scanId, kind = 'single' }: ReportCertificateBarP
     <div
       className="flex items-center gap-4 bg-surface border border-line rounded-[14px] px-5 py-3.5 shadow-sm"
       role="region"
-      aria-label="Verifiable report"
+      aria-label="Verifiable Report"
     >
       <span
         className="grid place-items-center w-9 h-9 rounded-full shrink-0"
@@ -59,11 +59,11 @@ function ReportCertificateBar({ scanId, kind = 'single' }: ReportCertificateBarP
             className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
             style={{ color: 'var(--brand-deep)' }}
           >
-            Verifiable report
+            Verifiable Report
           </span>
           <span className="text-micro text-ink-4">·</span>
           <span className="text-micro text-ink-3 uppercase tracking-[0.12em]">
-            {kind === 'batch' ? 'Batch scan' : 'Single scan'}
+            {kind === 'batch' ? 'Batch Scan' : 'Single Scan'}
           </span>
         </div>
         <div className="mt-0.5 flex items-center gap-3 flex-wrap">

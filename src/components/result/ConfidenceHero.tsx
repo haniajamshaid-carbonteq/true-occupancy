@@ -138,7 +138,7 @@ function FactorRow({
           className="font-sans font-semibold tabular-nums shrink-0 leading-none"
           style={{
             fontSize: "var(--text-body)",
-            color: positive ? 'var(--success-ink)' : 'var(--ink)',
+            color: 'var(--ink)',
             letterSpacing: '-0.02em',
           }}
         >
@@ -197,12 +197,12 @@ function WhyThisScore({
         className="w-full flex items-center justify-between gap-3 bg-transparent border-0 cursor-pointer text-left p-0"
       >
         <div className="flex items-baseline gap-3">
-          <div
-            className="font-sans uppercase text-ink-3"
-            style={{ fontSize: "var(--text-eyebrow)", letterSpacing: '0.22em' }}
+          <h3
+            className="font-sans font-medium text-ink m-0"
+            style={{ fontSize: 'var(--text-h4)' }}
           >
-            Why this score
-          </div>
+            Why This Score
+          </h3>
           <div className="font-sans text-micro text-ink-4 tabular-nums">
             {rows.length} signals · net {net >= 0 ? '+' : ''}
             {Math.abs(net)}%
@@ -302,8 +302,8 @@ function useCountUp(target: number, duration = 800): number {
 
 const VERDICT_TEXT: Record<ScenarioKey, string> = {
   high:   'Rented',
-  medium: 'Likely rented',
-  low:    'Not rented',
+  medium: 'Likely Rented',
+  low:    'Not Rented',
 };
 
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
@@ -317,7 +317,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
         <div className="min-w-0">
           <div
             className="font-sans font-semibold leading-[0.95] tracking-[-0.025em]"
-            style={{ fontSize: "var(--text-display)", color: 'var(--navy)' }}
+            style={{ fontSize: "var(--text-h1)", color: 'var(--navy)' }}
           >
             {VERDICT_TEXT[scenario]}
           </div>

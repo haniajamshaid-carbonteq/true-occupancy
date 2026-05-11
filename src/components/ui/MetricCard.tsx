@@ -81,8 +81,17 @@ function Sparkline({
       className="w-full h-7 mt-3 block"
       aria-hidden
     >
-      <path d={area} fill={fill} />
-      <path d={line} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path className="sparkline-area" d={area} fill={fill} />
+      <path
+        className="sparkline-line"
+        d={line}
+        fill="none"
+        stroke={stroke}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pathLength={1}
+      />
     </svg>
   );
 }
