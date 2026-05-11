@@ -901,11 +901,24 @@ function TableView({ listings, strongestId }: { listings: ListingFlat[]; stronge
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e: any) => e.stopPropagation()}
-          className="inline-flex items-center gap-1 font-sans text-caption font-medium text-brand-deep hover:underline"
+          className="group inline-flex items-center gap-1 h-7 px-2 -mr-2 rounded-md text-caption font-semibold no-underline transition-colors hover:bg-hover-bg"
+          style={{ color: 'var(--brand-deep)' }}
           aria-label={`Open ${r.title} on ${PLATFORM_PILL_LABEL[r.platformId]}`}
         >
           Open
-          <Icon name="external" size={12} />
+          <svg
+            viewBox="0 0 16 16"
+            className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M5 11 11 5" />
+            <path d="M6 5h5v5" />
+          </svg>
         </a>
       ),
     },
