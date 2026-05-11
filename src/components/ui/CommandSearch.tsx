@@ -189,7 +189,7 @@ function CommandSearch({
             onClick={() => onRun(value)}
             icon={<Icon name="search" size={14} />}
           >
-            Run scan
+            Run Scan
           </Button>
         </div>
       </div>

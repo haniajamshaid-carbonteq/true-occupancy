@@ -8,6 +8,16 @@
 
 const { HashRouter, Switch, Route, Redirect, useLocation } = ReactRouterDOM;
 
+// Gate every non-auth route behind a sessionStorage "signed-in" flag so
+// reloads land on /signin first. AuthScreen sets the flag on submit.
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const isAuth = location.pathname === '/signin' || location.pathname === '/signup';
+  const signedIn = typeof window !== 'undefined' && window.sessionStorage.getItem('to-signedIn') === '1';
+  if (!isAuth && !signedIn) return <Redirect to="/signin" />;
+  return <>{children}</>;
+}
+
 // Crossfades the routed screen on every navigation. Keyed by pathname so a
 // new wrapper mounts on each route change → the .route-fade-in keyframe
 // fires (200ms fade + 8px lift). Auth routes opt out — they have their
@@ -49,17 +59,19 @@ function App() {
     <AppStateProvider>
       <HashRouter>
         <CommandPalette />
-        <RouteCrossfade>
-          <Switch>
-            {ROUTES.map((r) => (
-              <Route key={r.path} path={r.path} component={r.component} />
-            ))}
-            <Route path="/" exact component={HomeScreen} />
-            <Route>
-              <Redirect to="/" />
-            </Route>
-          </Switch>
-        </RouteCrossfade>
+        <AuthGate>
+          <RouteCrossfade>
+            <Switch>
+              {ROUTES.map((r) => (
+                <Route key={r.path} path={r.path} component={r.component} />
+              ))}
+              <Route path="/" exact component={HomeScreen} />
+              <Route>
+                <Redirect to="/" />
+              </Route>
+            </Switch>
+          </RouteCrossfade>
+        </AuthGate>
       </HashRouter>
     </AppStateProvider>
   );

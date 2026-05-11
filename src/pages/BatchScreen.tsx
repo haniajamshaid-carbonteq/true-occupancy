@@ -78,7 +78,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
           <Icon name="upload" size={24} />
         </div>
         <h2 className="font-sans font-semibold text-h3 sm:text-h3 tracking-[-0.005em] m-0 mb-2" style={{ color: 'var(--navy)' }}>
-          Scan many properties at once.
+          Scan Many Properties at Once.
         </h2>
         <p className="text-ink-3 text-body-sm leading-relaxed max-w-[68ch] m-0 mb-7">
           Drop a CSV with one address per row. We&rsquo;ll cross-check every entry against Airbnb, Vrbo, and Facebook Marketplace, then surface the matches in one reviewable queue.
@@ -105,7 +105,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
         </label>
 
         <Button variant="ghost" onClick={onSample} icon={<Icon name="layers" />}>
-          Or try a sample batch
+          Or Try a Sample Batch
         </Button>
       </div>
     </Card>
@@ -127,7 +127,13 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const progress = Math.round((done / total) * 100);
   const isComplete = batch.status === 'complete';
 
-  const onRetry = readOnly ? undefined : retryBatchRow;
+  const failedRows = rows.filter((r) => r.status === 'failed');
+  const failedCount = failedRows.length;
+  const onRetryAllFailed = readOnly
+    ? undefined
+    : () => {
+        failedRows.forEach((r) => retryBatchRow(r.id));
+      };
 
   type StatusFilter = 'all' | 'done' | 'running' | 'queued' | 'failed';
   type VerdictFilter = 'all' | 'risk' | 'warn' | 'clean';
@@ -177,15 +183,17 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         <div className="px-7 py-6">
           <div className="flex items-start justify-between gap-6 mb-5">
             <div className="min-w-0">
-              <div className="mb-1.5">
+              <h2 className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 leading-tight" style={{ color: 'var(--navy)' }}>
                 {isComplete ? (
-                  <Pill variant="clean">Complete</Pill>
+                  <span className="status-text-in">{total} properties scanned</span>
                 ) : (
-                  <Pill variant="warn">In Progress</Pill>
+                  <span className="status-text-pulse">
+                    Scanning {done} of {total}
+                    <span className="status-dots" aria-hidden="true">
+                      <span>.</span><span>.</span><span>.</span>
+                    </span>
+                  </span>
                 )}
-              </div>
-              <h2 className="font-sans font-semibold text-h2 tracking-[-0.005em] m-0 leading-tight" style={{ color: 'var(--navy)' }}>
-                {total} Properties
               </h2>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -244,7 +252,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
                   routerHistory.push('/batch');
                 }}
               >
-                New batch
+                New Batch
               </Button>
             </div>
           </div>
@@ -284,6 +292,21 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             Properties
           </h3>
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            {onRetryAllFailed && failedCount > 0 && (
+              <button
+                type="button"
+                onClick={onRetryAllFailed}
+                aria-label={`Retry ${failedCount} failed ${failedCount === 1 ? 'scan' : 'scans'}`}
+                title={`Retry ${failedCount} failed ${failedCount === 1 ? 'scan' : 'scans'}`}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border text-caption font-medium transition-colors shrink-0 bg-risk-soft text-risk-ink border-transparent hover:opacity-90"
+              >
+                <Icon name="replay" size={14} />
+                <span className="hidden sm:inline">Retry Failed</span>
+                <span className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded bg-white/60">
+                  {failedCount}
+                </span>
+              </button>
+            )}
             <div className="relative flex-1 sm:flex-initial sm:w-[260px]">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
                 <Icon name="search" size={14} />
@@ -320,7 +343,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             </button>
           </div>
         </div>
-        <BatchTable rows={filteredRows} onRetry={onRetry} />
+        <BatchTable rows={filteredRows} />
       </div>
 
       <Drawer
@@ -330,7 +353,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         footer={
           <>
             <Button variant="ghost" onClick={clearAdvanced} disabled={advancedCount === 0}>
-              Clear all
+              Clear All
             </Button>
             <Button variant="primary" onClick={() => setDrawerOpen(false)}>
               Done
@@ -358,8 +381,8 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             options={[
               { value: 'all',   label: 'Any' },
               { value: 'risk',  label: 'Rented' },
-              { value: 'warn',  label: 'Possibly rented' },
-              { value: 'clean', label: 'Not rented' },
+              { value: 'warn',  label: 'Possibly Rented' },
+              { value: 'clean', label: 'Not Rented' },
             ]}
           />
           <ChipRow
@@ -380,7 +403,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   );
 }
 
-function BatchTable({ rows, onRetry }: { rows: BatchRow[]; onRetry?: (id: number) => void }) {
+function BatchTable({ rows }: { rows: BatchRow[] }) {
   const history = ReactRouterDOM.useHistory();
 
   function openIfDone(row: BatchRow) {
@@ -389,7 +412,7 @@ function BatchTable({ rows, onRetry }: { rows: BatchRow[]; onRetry?: (id: number
     }
   }
 
-  const columns = React.useMemo(() => buildBatchColumns(onRetry), [onRetry]);
+  const columns = React.useMemo(() => buildBatchColumns(), []);
 
   return (
     <DataTable
@@ -413,8 +436,8 @@ function BatchTable({ rows, onRetry }: { rows: BatchRow[]; onRetry?: (id: number
 
 const VERDICT_LABEL: Record<Risk, string> = {
   risk: 'Rented',
-  warn: 'Possibly rented',
-  clean: 'Not rented',
+  warn: 'Possibly Rented',
+  clean: 'Not Rented',
 };
 
 // Map a row's risk band to the matching detail-screen route, so the demo
@@ -428,7 +451,7 @@ const ROUTE_FOR_RISK: Record<Risk, string> = {
 // Column definitions for the BatchTable. Mirrors the SCAN_COLUMNS shape
 // from HomeScreen so both data tables share rhythm, hover treatment, and
 // the table↔card switch via the global DataTable primitive.
-function buildBatchColumns(onRetry?: (id: number) => void): any[] {
+function buildBatchColumns(): any[] {
   const cols: any[] = [
   {
     key: 'index',
@@ -515,7 +538,7 @@ function buildBatchColumns(onRetry?: (id: number) => void): any[] {
       }
       if (row.status === 'failed') {
         return (
-          <Pill variant="verdict-high" title={row.errorReason}>
+          <Pill variant="risk" title={row.errorReason}>
             Failed
           </Pill>
         );
@@ -539,32 +562,5 @@ function buildBatchColumns(onRetry?: (id: number) => void): any[] {
       ),
   },
 ];
-  if (onRetry) {
-    cols.push({
-      key: 'actions',
-      label: '',
-      width: '56px',
-      align: 'right' as const,
-      cell: (row: BatchRow) => {
-        if (row.status !== 'done' && row.status !== 'failed') {
-          return <span className="text-ink-4">—</span>;
-        }
-        return (
-          <button
-            type="button"
-            aria-label="Retry scan"
-            title={row.status === 'failed' ? `Retry — ${row.errorReason ?? 'failed'}` : 'Retry scan'}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              onRetry(row.id);
-            }}
-            className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-line bg-surface text-ink-2 hover:bg-brand-soft hover:border-brand hover:text-brand transition-colors"
-          >
-            <Icon name="replay" size={14} />
-          </button>
-        );
-      },
-    });
-  }
   return cols;
 }

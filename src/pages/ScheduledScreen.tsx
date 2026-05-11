@@ -173,7 +173,7 @@ function ScheduledScreen() {
         footer={
           <>
             <Button variant="ghost" onClick={clearAdvanced} disabled={advancedCount === 0}>
-              Clear all
+              Clear All
             </Button>
             <Button variant="primary" onClick={() => setDrawerOpen(false)}>
               Done
@@ -197,7 +197,7 @@ function ScheduledScreen() {
             value={cadence}
             onChange={(v: string) => setCadence(v as CadenceFilter)}
             options={[
-              { value: 'all', label: 'Any cadence' },
+              { value: 'all', label: 'Any Cadence' },
               { value: '3',   label: 'Every 3 months' },
               { value: '4',   label: 'Every 4 months' },
               { value: '6',   label: 'Every 6 months' },
@@ -235,7 +235,7 @@ function ScheduleDetailsModal({ entry, onClose }: { entry: any | null; onClose: 
     <Modal
       open={!!entry}
       onClose={onClose}
-      title={isBatch ? 'Batch automation' : 'Single-property automation'}
+      title={isBatch ? 'Batch Automation' : 'Single-Property Automation'}
       width={520}
       footer={
         <>
@@ -248,7 +248,7 @@ function ScheduleDetailsModal({ entry, onClose }: { entry: any | null; onClose: 
             className="mr-auto inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-transparent border border-transparent font-sans text-label font-medium text-error-ink hover:bg-error-soft transition-colors cursor-pointer"
           >
             <Icon name="x" size={14} />
-            Cancel automation
+            Cancel Automation
           </button>
           <Button variant="ghost" onClick={onClose}>Close</Button>
         </>

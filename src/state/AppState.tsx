@@ -36,6 +36,12 @@ interface BatchHistoryEntry {
   flagged: number;
   warn: number;
   clean: number;
+  /** Number of rows that errored during the scan. */
+  failed: number;
+  /** Aggregate outcome: complete = no failures, partial = some failures,
+   *  failed = every row errored. Drives the History status pill and the
+   *  banner CTA copy. */
+  status: 'complete' | 'partial' | 'failed';
   scannedAgo: string;
   /** Snapshot of the per-address scan rows so the batch-detail page can
    *  render the full table without keeping the LiveBatch around in state. */
@@ -88,6 +94,9 @@ interface LiveBatch {
   /** Set true once the user acknowledges the completed-batch notice on
    *  the dashboard. The strip hides; /batch still shows the results. */
   dismissed?: boolean;
+  /** ID of the history entry emitted on completion. Lets the banner CTA
+   *  deep-link straight to /batch/{id}. */
+  historyId?: string;
 }
 
 // ---- seed data ----------------------------------------------------------
@@ -123,6 +132,27 @@ const SEED_BATCH_Q1_ROWS: LiveBatchRow[] = [
   { id: 24, address: '88 Westwood Pl, Asheville, NC 28806',       status: 'done', score: 16, risk: 'clean', listings: 0 },
 ];
 
+// Smaller batch with a handful of failed rows — demonstrates the "partial"
+// completion state in History.
+const SEED_BATCH_PARTIAL_ROWS: LiveBatchRow[] = [
+  { id: 1, address: '88 Cumberland Ave, Asheville, NC 28801',   status: 'done',   score: 18, risk: 'clean', listings: 0 },
+  { id: 2, address: '301 Merrimon Ave, Asheville, NC 28804',    status: 'failed', errorReason: 'Geocoder timeout — retry later' },
+  { id: 3, address: '145 Westchester Dr, Asheville, NC 28803',  status: 'done',   score: 76, risk: 'risk',  listings: 3 },
+  { id: 4, address: '23 Tunnel Rd, Asheville, NC 28805',        status: 'done',   score: 8,  risk: 'clean', listings: 0 },
+  { id: 5, address: '67 Charlotte Hwy, Asheville, NC 28803',    status: 'failed', errorReason: 'Address not found in county records' },
+  { id: 6, address: '215 Edgewood Rd, Asheville, NC 28804',     status: 'done',   score: 42, risk: 'warn',  listings: 1 },
+  { id: 7, address: '12 Hillside St, Asheville, NC 28801',      status: 'done',   score: 9,  risk: 'clean', listings: 0 },
+  { id: 8, address: '450 Patton Ave, Asheville, NC 28806',      status: 'done',   score: 71, risk: 'risk',  listings: 2 },
+];
+
+// Every row errored — demonstrates the "failed" completion state in History.
+const SEED_BATCH_FAILED_ROWS: LiveBatchRow[] = [
+  { id: 1, address: '988 Riverside Dr, Asheville, NC 28801', status: 'failed', errorReason: 'Geocoder timeout — retry later' },
+  { id: 2, address: '12 Birch Hollow Ln, Asheville, NC 28804', status: 'failed', errorReason: 'Geocoder timeout — retry later' },
+  { id: 3, address: '77 Aston Park Ct, Asheville, NC 28805',  status: 'failed', errorReason: 'Geocoder timeout — retry later' },
+  { id: 4, address: '301 Sweeten Creek Rd, Asheville, NC 28803', status: 'failed', errorReason: 'Geocoder timeout — retry later' },
+];
+
 const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i) => {
   // Spread to match flagged 9 / warn 8 / clean 25.
   const risk: Risk = i < 9 ? 'risk' : i < 17 ? 'warn' : 'clean';
@@ -140,7 +170,7 @@ const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i)
 const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago'  },
   { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago' },
-  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, scannedAgo: '2 h ago', rows: SEED_BATCH_Q1_ROWS },
+  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAgo: '2 h ago', rows: SEED_BATCH_Q1_ROWS },
   { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAgo: '3 h ago'    },
   { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAgo: '4 h ago'    },
   { id: 'h05', kind: 'single', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAgo: '5 h ago'    },
@@ -148,7 +178,9 @@ const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h07', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',    scenario: 'high',   platforms: 3, scannedAgo: 'Yesterday' },
   { id: 'h08', kind: 'single', address: '23 Tunnel Rd, Asheville, NC 28805',          scenario: 'low',    platforms: 0, scannedAgo: 'Yesterday' },
   { id: 'h09', kind: 'single', address: '215 Edgewood Rd, Asheville, NC 28804',       scenario: 'medium', platforms: 1, scannedAgo: 'Yesterday' },
-  { id: 'hb2', kind: 'batch',  filename: 'lender-portfolio-jan.csv', total: 42, flagged: 9, warn: 8, clean: 25, scannedAgo: '2 d ago', rows: SEED_BATCH_LENDER_ROWS },
+  { id: 'hb2', kind: 'batch',  filename: 'lender-portfolio-jan.csv', total: 42, flagged: 9, warn: 8, clean: 25, failed: 0, status: 'complete', scannedAgo: '2 d ago', rows: SEED_BATCH_LENDER_ROWS },
+  { id: 'hb3', kind: 'batch',  filename: 'permit-sweep-dec.csv',     total: 8,  flagged: 2, warn: 1, clean: 3, failed: 2, status: 'partial', scannedAgo: '3 d ago', rows: SEED_BATCH_PARTIAL_ROWS },
+  { id: 'hb4', kind: 'batch',  filename: 'short-sweep-nov.csv',      total: 4,  flagged: 0, warn: 0, clean: 0, failed: 4, status: 'failed',  scannedAgo: '5 d ago', rows: SEED_BATCH_FAILED_ROWS },
   { id: 'h10', kind: 'single', address: '450 Patton Ave, Asheville, NC 28806',        scenario: 'high',   platforms: 2, scannedAgo: '2 d ago'   },
   { id: 'h11', kind: 'single', address: '12 Hillside St, Asheville, NC 28801',        scenario: 'low',    platforms: 0, scannedAgo: '2 d ago'   },
   { id: 'h12', kind: 'single', address: '156 Sand Hill Rd, Asheville, NC 28806',      scenario: 'high',   platforms: 3, scannedAgo: '3 d ago'   },
@@ -280,21 +312,29 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
           const flagged = rows.filter((r) => r.risk === 'risk').length;
           const warn = rows.filter((r) => r.risk === 'warn').length;
           const clean = rows.filter((r) => r.risk === 'clean').length;
+          const failedCount = rows.filter((r) => r.status === 'failed').length;
+          const batchStatus: 'complete' | 'partial' | 'failed' =
+            failedCount === 0 ? 'complete'
+            : failedCount === rows.length ? 'failed'
+            : 'partial';
+          const historyId = uid('hb');
           setHistory((h) => [
             {
-              id: uid('hb'),
+              id: historyId,
               kind: 'batch',
               filename: prev.filename,
               total: rows.length,
               flagged,
               warn,
               clean,
+              failed: failedCount,
+              status: batchStatus,
               scannedAgo: 'Just now',
               rows: rows.slice(),
             },
             ...h,
           ]);
-          return { ...prev, rows, status: 'complete' };
+          return { ...prev, rows, status: 'complete', historyId };
         }
         return { ...prev, rows };
       });

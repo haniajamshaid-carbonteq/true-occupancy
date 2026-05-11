@@ -35,7 +35,7 @@ function SpecApp() {
 
       <SpecSection
         num="01"
-        title="Home & navigation"
+        title="Home & Navigation"
         desc="Entry points, scan history, and batch operations."
       >
         <Screen label="01.1" title="Home" initialPath="/">
@@ -54,17 +54,17 @@ function SpecApp() {
         title="Scanning"
         desc="In-flight scan states — start, mid, and the moment of reveal."
       >
-        <Screen label="02.1" title="Scan · start" initialPath="/scan/start">
+        <Screen label="02.1" title="Scan · Start" initialPath="/scan/start">
           <ScanStartScreen />
         </Screen>
-        <Screen label="02.2" title="Scan · mid" initialPath="/scan/mid">
+        <Screen label="02.2" title="Scan · Mid" initialPath="/scan/mid">
           <ScanMidScreen />
         </Screen>
       </SpecSection>
 
       <SpecSection
         num="03"
-        title="Results — three confidence states"
+        title="Results — Three Confidence States"
         desc="Same address, three findings. Neutral verdict copy by design."
       >
         <Screen
@@ -92,7 +92,7 @@ function SpecApp() {
 
       <SpecSection
         num="03b"
-        title="PDF Certificate — the downloadable report"
+        title="PDF Certificate — The Downloadable Report"
         desc="Halcyon-branded, single-page certificate. One template, all scans. Replaces the historical lender form. See docs/pdf-certificate-spec.md."
       >
         <Screen
@@ -132,12 +132,12 @@ function SpecApp() {
 
       <SpecSection
         num="04"
-        title="Why this score"
+        title="Why This Score"
         desc="Expanded factor breakdown for investigators."
       >
         <Screen
           label="04.1"
-          title="Why · expanded"
+          title="Why · Expanded"
           initialPath="/why-expanded"
         >
           <WhyExpandedScreen />
@@ -146,7 +146,7 @@ function SpecApp() {
 
       <SpecSection
         num="05"
-        title="Components reference"
+        title="Components Reference"
         desc="Every primitive used across the product, in one canvas."
       >
         <Screen label="05.1" title="Components" initialPath="/components">

@@ -81,7 +81,7 @@ function CertificateBody({
   // the score is a supporting confidence figure. Same Halcyon palette across
   // all scenarios; the verdict copy carries the differentiation.
   const verdictHeadline =
-    scenario === 'high' ? 'Rented' : scenario === 'medium' ? 'Likely rented' : 'Not rented';
+    scenario === 'high' ? 'Rented' : scenario === 'medium' ? 'Likely Rented' : 'Not Rented';
 
   return (
     <article className="certificate-sheet">
@@ -96,7 +96,7 @@ function CertificateBody({
         <div className="cert-head-right">
           <div className="cert-id" aria-label="Scan ID">{scanId}</div>
           <div className="cert-stamp">{timestamp}</div>
-          <div className="cert-kind">{kind === 'batch' ? 'Batch scan' : 'Single-property scan'}</div>
+          <div className="cert-kind">{kind === 'batch' ? 'Batch Scan' : 'Single-Property Scan'}</div>
         </div>
       </header>
 
@@ -126,7 +126,7 @@ function CertificateBody({
 
       <section className="cert-listings">
         <div className="cert-section-title">
-          Discoverable properties
+          Discoverable Properties
           <span className="cert-section-count">
             {listings.length === 0 ? 'None detected' : `${listings.length} listing${listings.length === 1 ? '' : 's'}`}
           </span>

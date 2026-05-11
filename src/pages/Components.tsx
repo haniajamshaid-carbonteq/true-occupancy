@@ -115,13 +115,13 @@ interface RampRow {
 
 const TYPE_RAMP: RampRow[] = [
   { token: 'text-display', px: 64, use: 'Hero numeral',                sample: '87%' },
-  { token: 'text-h1',      px: 40, use: 'Page title',                  sample: 'Verify property occupancy.' },
+  { token: 'text-h1',      px: 40, use: 'Page title',                  sample: 'Verify Property Occupancy.' },
   { token: 'text-h2',      px: 28, use: 'Compact metric, large heading', sample: '14 properties' },
-  { token: 'text-h3',      px: 22, use: 'Section heading, card title', sample: 'Recent scans' },
-  { token: 'text-h4',      px: 18, use: 'Subsection heading',          sample: 'Why this score' },
+  { token: 'text-h3',      px: 22, use: 'Section heading, card title', sample: 'Recent Scans' },
+  { token: 'text-h4',      px: 18, use: 'Subsection heading',          sample: 'Why This Score' },
   { token: 'text-body',    px: 16, use: 'Body lead',                   sample: 'One address — every public listing within a mile.' },
   { token: 'text-body-sm', px: 14, use: 'Default body, table row',     sample: '1428 Maplewood Drive, Asheville, NC 28804' },
-  { token: 'text-label',   px: 13, use: 'UI label, dense body, button',sample: 'Run scan · Download · Back' },
+  { token: 'text-label',   px: 13, use: 'UI label, dense body, button',sample: 'Run Scan · Download · Back' },
   { token: 'text-caption', px: 12, use: 'Caption, hint, secondary',    sample: 'Last verified 2 h ago' },
   { token: 'text-micro',   px: 11, use: 'Mono uppercase, kbd, badge',  sample: 'TO-7C57EEEB · ⌘K · Rented' },
   { token: 'text-eyebrow', px: 10, use: 'Tracked uppercase eyebrow',   sample: 'CONFIDENCE' },
@@ -183,8 +183,8 @@ function ComponentsPage() {
         <Section num="01" title="Button" desc="36px tall, 8px radius, 13/500 sans. Three variants share padding and shape; only color and border change.">
           <Stage>
             <Row label="Primary">
-              <Button variant="primary">Run scan</Button>
-              <Button variant="primary" icon={Glyph.search}>Run scan</Button>
+              <Button variant="primary">Run Scan</Button>
+              <Button variant="primary" icon={Glyph.search}>Run Scan</Button>
               <Button variant="primary" iconRight={Glyph.arrowRight}>Continue</Button>
               <Button variant="primary" disabled>Disabled</Button>
             </Row>
@@ -263,13 +263,13 @@ function ComponentsPage() {
         <Section num="04" title="RiskBadge" desc="Verdict pill with a 22×22 circular glyph. Background is the soft tone; glyph fills with the solid status color.">
           <Stage>
             <Row label="Clean">
-              <RiskBadge level="clean" glyph={Glyph.check}>Not rented · High confidence</RiskBadge>
+              <RiskBadge level="clean" glyph={Glyph.check}>Not Rented · High Confidence</RiskBadge>
             </Row>
             <Row label="Warn">
-              <RiskBadge level="warn" glyph={Glyph.alert}>Possibly rented · Medium confidence</RiskBadge>
+              <RiskBadge level="warn" glyph={Glyph.alert}>Possibly Rented · Medium Confidence</RiskBadge>
             </Row>
             <Row label="Risk">
-              <RiskBadge level="risk" glyph={Glyph.x}>Rented · High confidence</RiskBadge>
+              <RiskBadge level="risk" glyph={Glyph.x}>Rented · High Confidence</RiskBadge>
             </Row>
           </Stage>
         </Section>
@@ -285,8 +285,8 @@ function ComponentsPage() {
                 onChange={setQuery}
                 onRun={() => {}}
                 sampleChips={[
-                  { label: '28804 · Not rented', value: '1428 Maplewood Drive, Asheville, NC 28804' },
-                  { label: '28805 · Possibly rented', value: '1428 Maplewood Drive, Asheville, NC 28805' },
+                  { label: '28804 · Not Rented', value: '1428 Maplewood Drive, Asheville, NC 28804' },
+                  { label: '28805 · Possibly Rented', value: '1428 Maplewood Drive, Asheville, NC 28805' },
                   { label: '28806 · Rented', value: '1428 Maplewood Drive, Asheville, NC 28806' },
                 ]}
               />

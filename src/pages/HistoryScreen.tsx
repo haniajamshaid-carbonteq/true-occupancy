@@ -60,8 +60,8 @@ function HistoryScreen() {
   const VERDICT_FILTERS: { id: Verdict; label: string; count: number }[] = [
     { id: 'all',    label: 'All',              count: rows.length },
     { id: 'high',   label: 'Rented',           count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'high').length },
-    { id: 'medium', label: 'Possibly rented',  count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'medium').length },
-    { id: 'low',    label: 'Not rented',       count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'low').length },
+    { id: 'medium', label: 'Possibly Rented',  count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'medium').length },
+    { id: 'low',    label: 'Not Rented',       count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'low').length },
   ];
 
   function openRow(row: any) {
@@ -174,7 +174,7 @@ function HistoryScreen() {
         footer={
           <>
             <Button variant="ghost" onClick={clearAdvanced} disabled={advancedCount === 0}>
-              Clear all
+              Clear All
             </Button>
             <Button variant="primary" onClick={() => setDrawerOpen(false)}>
               Done
@@ -188,7 +188,7 @@ function HistoryScreen() {
             value={type}
             onChange={(v: string) => setType(v as Type)}
             options={[
-              { value: 'all',    label: 'All scans' },
+              { value: 'all',    label: 'All Scans' },
               { value: 'single', label: 'Single property' },
               { value: 'batch',  label: 'Batch' },
             ]}
@@ -302,7 +302,13 @@ const HISTORY_COLUMNS: any[] = [
     hideBelow: 'sm' as const,
     cell: (r: any) => {
       if (r.kind === 'batch') {
-        return <span className="font-mono text-caption text-ink-4">—</span>;
+        // Older seed entries pre-date the status field; treat them as clean
+        // completions so the column never reads "—" once a batch is known to
+        // be fine.
+        const batchStatus: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
+        if (batchStatus === 'failed') return <Pill variant="risk">Failed</Pill>;
+        if (batchStatus === 'partial') return <Pill variant="warn">Partial Failed</Pill>;
+        return <Pill variant="clean">Completed</Pill>;
       }
       const variant =
         r.scenario === 'high'  ? 'verdict-high'

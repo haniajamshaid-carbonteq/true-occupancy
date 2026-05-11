@@ -206,7 +206,7 @@ function SignInForm({
         className="w-full justify-center h-11"
         icon={<Icon name="google" size={16} />}
       >
-        Sign in with Google
+        Sign In with Google
       </Button>
 
       <div
@@ -220,7 +220,7 @@ function SignInForm({
           className="font-semibold bg-transparent border-0 cursor-pointer p-0"
           style={{ color: 'var(--brand-deep)' }}
         >
-          Create an account
+          Create an Account
         </button>
       </div>
     </form>
@@ -318,7 +318,7 @@ function SignUpForm({
         className="w-full justify-center h-11"
         icon={<Icon name="google" size={16} />}
       >
-        Sign up with Google
+        Sign Up with Google
       </Button>
 
       <div
@@ -332,7 +332,7 @@ function SignUpForm({
           className="font-semibold bg-transparent border-0 cursor-pointer p-0"
           style={{ color: 'var(--brand-deep)' }}
         >
-          Sign in
+          Sign In
         </button>
       </div>
     </form>
@@ -350,6 +350,7 @@ function AuthScreen({ mode }: AuthScreenProps) {
   }
 
   function landOnHome() {
+    try { window.sessionStorage.setItem('to-signedIn', '1'); } catch {}
     history.push('/');
   }
 

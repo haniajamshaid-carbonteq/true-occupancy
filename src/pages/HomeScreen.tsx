@@ -35,10 +35,10 @@ const KPIS: {
   icon: string;
   spark: number[];
 }[] = [
-  { label: 'Scanned today',     value: '34',  delta: { dir: 'up',   pct: '+12%' }, hint: 'vs. yesterday',  icon: 'search',     spark: [18, 22, 19, 25, 21, 28, 24, 30, 27, 32, 30, 34] },
-  { label: 'Flagged this week', value: '11',  delta: { dir: 'up',   pct: '+3' },   hint: 'vs. last week',  icon: 'flag',       spark: [4, 5, 3, 6, 5, 7, 6, 8, 7, 9, 10, 11] },
-  { label: 'Verified clean',    value: '187', delta: { dir: 'up',   pct: '+22' },  hint: 'past 30 days',   icon: 'shield',     spark: [140, 148, 152, 158, 161, 165, 168, 172, 176, 178, 183, 187] },
-  { label: 'Avg confidence',    value: '92',  delta: { dir: 'down', pct: '-1pt' }, hint: 'vs. 30 d avg',   icon: 'trend-down', spark: [95, 94, 96, 95, 93, 94, 93, 92, 93, 92, 91, 92] },
+  { label: 'Scanned Today',     value: '34',  delta: { dir: 'up',   pct: '+12%' }, hint: 'vs. yesterday',  icon: 'search',     spark: [18, 22, 19, 25, 21, 28, 24, 30, 27, 32, 30, 34] },
+  { label: 'Flagged This Week', value: '11',  delta: { dir: 'up',   pct: '+3' },   hint: 'vs. last week',  icon: 'flag',       spark: [4, 5, 3, 6, 5, 7, 6, 8, 7, 9, 10, 11] },
+  { label: 'Verified Clean',    value: '187', delta: { dir: 'up',   pct: '+22' },  hint: 'past 30 days',   icon: 'shield',     spark: [140, 148, 152, 158, 161, 165, 168, 172, 176, 178, 183, 187] },
+  { label: 'Avg Confidence',    value: '92',  delta: { dir: 'down', pct: '-1pt' }, hint: 'vs. 30 d avg',   icon: 'trend-down', spark: [95, 94, 96, 95, 93, 94, 93, 92, 93, 92, 91, 92] },
 ];
 
 interface RecentScan {
@@ -70,14 +70,14 @@ const VERDICT_VARIANT: Record<'low' | 'medium' | 'high', 'clean' | 'warn' | 'ris
 // for the lender depending on what they're verifying. Color (via
 // VERDICT_VARIANT) still differentiates, but the language stays neutral.
 const HOME_VERDICT_LABEL: Record<'low' | 'medium' | 'high', string> = {
-  low: 'Not rented',
-  medium: 'Possibly rented',
+  low: 'Not Rented',
+  medium: 'Possibly Rented',
   high: 'Rented',
 };
 
 const SAMPLE_CHIPS: { zip: string; label: string }[] = [
-  { zip: '28804', label: 'Not rented' },
-  { zip: '28805', label: 'Possibly rented' },
+  { zip: '28804', label: 'Not Rented' },
+  { zip: '28805', label: 'Possibly Rented' },
   { zip: '28806', label: 'Rented' },
 ];
 
@@ -377,16 +377,21 @@ function LiveBatchStrip() {
     : state === 'partial' ? `${liveBatch.filename}  ·  ${done} / ${total} scanned  ·  ${failed} failed`
     : `${liveBatch.filename}  ·  stopped at row ${settled} of ${total}`;
 
+  // Once a batch lands in history it has a stable id — deep-link to that
+  // detail page so the banner CTAs feel like a continuation, not a jump back
+  // to the dashboard's recent-scans list. Mid-run we don't have a history
+  // entry yet, so fall back to the live /batch route.
+  const detailPath = liveBatch.historyId ? `/batch/${liveBatch.historyId}` : '/batch';
   function goResults() {
     dismissBatch();
-    history.push('/history');
+    history.push(detailPath);
   }
   function retry() {
     dismissBatch();
-    history.push('/batch');
+    history.push(detailPath);
   }
   function openBatch() {
-    history.push('/batch');
+    history.push(detailPath);
   }
 
   const chevron = (
@@ -439,21 +444,21 @@ function LiveBatchStrip() {
 
           {state === 'complete' && (
             <div className="flex gap-2.5 mt-2.5">
-              <Button variant="primary" onClick={goResults} iconRight={chevron}>View results</Button>
+              <Button variant="primary" onClick={goResults} iconRight={chevron}>View Results</Button>
             </div>
           )}
 
           {state === 'partial' && (
             <div className="flex gap-2.5 mt-2.5">
-              <Button variant="primary" onClick={goResults} iconRight={chevron}>View results</Button>
-              <Button variant="ghost" onClick={retry}>Retry failed</Button>
+              <Button variant="primary" onClick={goResults} iconRight={chevron}>View Results</Button>
+              <Button variant="ghost" onClick={retry}>Retry Failed</Button>
             </div>
           )}
 
           {state === 'allFailed' && (
             <div className="flex gap-2.5 mt-2.5">
-              <Button variant="primary" onClick={retry} icon={replay}>Retry batch</Button>
-              <Button variant="ghost" onClick={openBatch}>View partial results</Button>
+              <Button variant="primary" onClick={retry} icon={replay}>Retry Batch</Button>
+              <Button variant="ghost" onClick={openBatch}>View Partial Results</Button>
             </div>
           )}
         </div>
@@ -520,7 +525,7 @@ function ActivityTabs() {
               </svg>
             }
           >
-            View all
+            View All
           </Button>
         }
       />
