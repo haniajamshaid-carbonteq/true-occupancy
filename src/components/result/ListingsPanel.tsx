@@ -819,29 +819,31 @@ function TableView({ listings, strongestId }: { listings: ListingFlat[]; stronge
       key: 'title',
       label: 'Listing',
       primary: true,
-      cell: (r: ListingFlat) => (
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
+      cell: (r: ListingFlat) => {
+        const isStrongest = r.url === strongestId;
+        return (
+          <div className="min-w-0">
             <div
-              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              className="font-sans font-semibold text-body-sm leading-tight truncate flex items-center gap-1.5"
               style={{ color: 'var(--navy)' }}
             >
-              {r.title}
+              {isStrongest && (
+                <span
+                  className="shrink-0 text-brand [&>svg]:w-3.5 [&>svg]:h-3.5"
+                  aria-label="Strongest match"
+                  title="Strongest match"
+                >
+                  <Icon name="star" size={14} />
+                </span>
+              )}
+              <span className="truncate">{r.title}</span>
             </div>
-            {r.url === strongestId && (
-              <span
-                className="font-sans text-eyebrow font-bold tracking-[0.12em] uppercase px-1.5 py-0.5 rounded shrink-0"
-                style={{ background: 'var(--brand-tint)', color: 'var(--brand-deep)' }}
-              >
-                Strongest
-              </span>
-            )}
+            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+              @{r.host.handle}
+            </div>
           </div>
-          <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
-            @{r.host.handle}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'match',
@@ -856,7 +858,6 @@ function TableView({ listings, strongestId }: { listings: ListingFlat[]; stronge
       key: 'confidence',
       label: 'Confidence',
       width: '92px',
-      align: 'right' as const,
       hideBelow: 'sm' as const,
       cell: (r: ListingFlat) => (
         <span
@@ -870,7 +871,7 @@ function TableView({ listings, strongestId }: { listings: ListingFlat[]; stronge
     {
       key: 'layout',
       label: 'Layout',
-      width: '124px',
+      width: '180px',
       hideBelow: 'md' as const,
       cell: (r: ListingFlat) => (
         <span className="font-mono tabular-nums text-caption text-ink-3 whitespace-nowrap">
@@ -881,7 +882,7 @@ function TableView({ listings, strongestId }: { listings: ListingFlat[]; stronge
     {
       key: 'firstSeen',
       label: 'First seen',
-      width: '108px',
+      width: '116px',
       align: 'right' as const,
       hideBelow: 'lg' as const,
       cell: (r: ListingFlat) => (
@@ -904,9 +905,7 @@ function TableView({ listings, strongestId }: { listings: ListingFlat[]; stronge
           aria-label={`Open ${r.title} on ${PLATFORM_PILL_LABEL[r.platformId]}`}
         >
           Open
-          <svg viewBox="0 0 16 16" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M9 3h4v4M13 3 7 9M11 8v4H4V5h4" />
-          </svg>
+          <Icon name="external" size={12} />
         </a>
       ),
     },
