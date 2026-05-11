@@ -16,7 +16,7 @@
 <script>
   (function () {
     var v = Date.now();
-    ['src/styles/tokens.css', 'src/styles/typography.css', 'src/styles/motion.css'].forEach(function (href) {
+    ['src/styles/tokens.css', 'src/styles/typography.css', 'src/styles/motion.css', 'src/styles/print.css'].forEach(function (href) {
       var link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = href + '?v=' + v;
@@ -159,6 +159,7 @@
     'src/components/ui/DataTable.tsx',
     'src/components/ui/MetricCard.tsx',
     'src/components/ui/DropdownMenu.tsx',
+    'src/components/ui/BatchHugCard.tsx',
     // 3. Structural
     'src/components/SideNav.tsx',
     'src/components/AppShell.tsx',
@@ -177,6 +178,7 @@
     'src/components/result/PropertyOverview.tsx',
     'src/components/result/ListingsPanel.tsx',
     'src/components/result/ReportCertificateBar.tsx',
+    'src/components/result/CertificateSheet.tsx',
     // 6. Pages
     'src/pages/Components.tsx',
     'src/pages/HomeScreen.tsx',

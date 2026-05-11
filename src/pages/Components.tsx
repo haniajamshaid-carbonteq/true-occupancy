@@ -1,4 +1,4 @@
-/* global React, Button, Pill, Card, RiskBadge, SearchBar, CommandSearch, Avatar, Tag, openCommandPalette */
+/* global React, Button, Pill, Card, RiskBadge, SearchBar, CommandSearch, Avatar, Tag, BatchHugCard, openCommandPalette */
 // Visual QA showcase. Renders every variant of every primitive so a
 // designer / engineer can scan the whole UI library on one page.
 
@@ -346,6 +346,50 @@ function ComponentsPage() {
               <Tag icon={Glyph.bed}>3 bed · 2 bath</Tag>
               <Tag icon={Glyph.pin}>1428 Maplewood Dr</Tag>
               <Tag icon={Glyph.check}>Verified parcel</Tag>
+            </Row>
+          </Stage>
+        </Section>
+
+        {/* === BatchHugCard === */}
+        <Section
+          num="08"
+          title="Batch hug card"
+          desc="Compact horizontal batch-status surface. Hug-width (inline-flex), thumbnail + title + meta + optional progress/actions, dismiss X top-right. Four states: scanning · completed · completed-with-errors · error."
+        >
+          <Stage>
+            <Row label="Scanning">
+              <BatchHugCard
+                state="scanning"
+                filename="properties-asheville.csv"
+                scanned={12}
+                total={14}
+              />
+            </Row>
+            <Row label="Completed">
+              <BatchHugCard
+                state="completed"
+                filename="properties-asheville.csv"
+                scanned={14}
+                total={14}
+              />
+            </Row>
+            <Row label="Completed with errors">
+              <BatchHugCard
+                state="completed-errors"
+                filename="properties-asheville.csv"
+                scanned={12}
+                total={14}
+                failed={2}
+              />
+            </Row>
+            <Row label="Error">
+              <BatchHugCard
+                state="error"
+                filename="properties-asheville.csv"
+                scanned={7}
+                total={14}
+                stoppedAt={8}
+              />
             </Row>
           </Stage>
         </Section>
