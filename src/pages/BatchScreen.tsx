@@ -1,4 +1,5 @@
-/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, ReactRouterDOM, ReportCertificateBar */
+/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, MetricCard, DropdownMenu, ReactRouterDOM,
+   VERDICT_ACCENT, splitAddress */
 // Batch processing — upload a CSV (or click "Try sample data") to scan
 // dozens of properties in one queue. Shows a partially-complete batch:
 // some scanned, some scanning, some queued.
@@ -56,10 +57,10 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
         <div className="w-14 h-14 rounded-full bg-brand-soft text-brand grid place-items-center mb-5">
           <Icon name="upload" size={24} />
         </div>
-        <h2 className="font-sans font-bold text-[28px] sm:text-[34px] tracking-[-0.005em] m-0 mb-2" style={{ color: 'var(--navy)' }}>
+        <h2 className="font-sans font-semibold text-h2 sm:text-h2 tracking-[-0.005em] m-0 mb-2" style={{ color: 'var(--navy)' }}>
           Scan many properties at once.
         </h2>
-        <p className="text-ink-3 text-[14.5px] leading-relaxed max-w-[48ch] m-0 mb-7">
+        <p className="text-ink-3 text-body-sm leading-relaxed max-w-[48ch] m-0 mb-7">
           Drop a CSV with one address per row. We'll cross-check every entry against
           Airbnb, Vrbo, and Facebook Marketplace, then surface the matches in one
           reviewable queue.
@@ -73,7 +74,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
           <div className="font-medium text-ink-2 mb-1">
             Drop a CSV here, or <span className="text-brand">browse</span>
           </div>
-          <div className="font-sans text-[11px] uppercase tracking-widest text-ink-4">
+          <div className="font-sans text-micro uppercase tracking-widest text-ink-4">
             Required column: address · Up to 500 rows
           </div>
           <input
@@ -106,22 +107,57 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <ReportCertificateBar kind="batch" />
-
       {/* Summary card */}
       <Card>
         <div className="px-7 py-6">
           <div className="flex items-start justify-between gap-6 mb-5">
             <div>
-              <div className="font-sans text-[10.5px] uppercase tracking-widest text-ink-3 mb-1.5">
+              <div className="font-sans text-eyebrow uppercase tracking-widest text-ink-3 mb-1.5">
                 Batch · asheville-q2-2026.csv
               </div>
-              <h2 className="font-sans font-bold text-[32px] tracking-[-0.005em] m-0 leading-tight" style={{ color: 'var(--navy)' }}>
+              <h2 className="font-sans font-semibold text-h2 tracking-[-0.005em] m-0 leading-tight" style={{ color: 'var(--navy)' }}>
                 {total} properties
               </h2>
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button icon={<Icon name="pdf" />}>Export CSV</Button>
+              <DropdownMenu
+                title="Download report"
+                trigger={(open: boolean) => (
+                  <Button
+                    icon={<Icon name="pdf" />}
+                    iconRight={
+                      <svg
+                        viewBox="0 0 12 12"
+                        className={`w-2.5 h-2.5 transition-transform ${open ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden
+                      >
+                        <path d="m3 5 3 3 3-3" />
+                      </svg>
+                    }
+                  >
+                    Download
+                  </Button>
+                )}
+                items={[
+                  {
+                    label: 'PDF report',
+                    hint: 'Lender-ready certificate with live evidence links',
+                    icon: <Icon name="pdf" />,
+                    onClick: () => window.print(),
+                  },
+                  {
+                    label: 'CSV',
+                    hint: 'Tabular data for spreadsheets',
+                    icon: <Icon name="layers" />,
+                    onClick: () => {},
+                  },
+                ]}
+              />
               <Button variant="primary" icon={<Icon name="upload" />}>
                 New batch
               </Button>
@@ -141,72 +177,57 @@ function BatchResults({ rows }: { rows: BatchRow[] }) {
             </div>
           </div>
 
-          {/* Status counts — KPI strip, hairline-divided to match Home */}
-          <div className="bg-surface border border-line rounded-lg grid grid-cols-3 divide-y-0 divide-line overflow-hidden">
-            <SummaryStat tone="risk"  count={flagged} label="Rented" isLast={false} />
-            <SummaryStat tone="warn"  count={warn}    label="Possibly rented" isLast={false} />
-            <SummaryStat tone="clean" count={clean}   label="Not rented" isLast={true} />
+          {/* Status counts — same MetricCard primitive as Home KPIs */}
+          <div className="grid grid-cols-3 gap-3">
+            <MetricCard size="sm" accent="risk"  label="Rented"          value={flagged} />
+            <MetricCard size="sm" accent="warn"  label="Possibly rented" value={warn} />
+            <MetricCard size="sm" accent="clean" label="Not rented"      value={clean} />
           </div>
         </div>
       </Card>
 
-      {/* Properties table */}
-      <Card>
-        <div className="px-7 py-5 border-b border-line flex items-center justify-between">
-          <h3 className="font-sans font-medium text-[18px] m-0">Properties</h3>
-          <span className="font-sans text-[11.5px] text-ink-3">click any row to view detail</span>
+      {/* Properties — same DataTable primitive as Home + History */}
+      <div>
+        <div className="flex items-end justify-between mb-3 gap-4">
+          <h3
+            className="font-sans font-semibold text-h4 sm:text-h3 tracking-[-0.005em] m-0"
+            style={{ color: 'var(--navy)' }}
+          >
+            Properties
+          </h3>
+          <span className="font-sans text-micro text-ink-3">
+            Click any completed row to open the case
+          </span>
         </div>
-
-        {/* Table header */}
-        <div className="grid grid-cols-[40px_1fr_80px_140px_100px_36px] gap-4 px-7 py-3 bg-surface-2 border-b border-line font-sans text-[10.5px] uppercase tracking-widest text-ink-3">
-          <div>#</div>
-          <div>Address</div>
-          <div className="text-right">Score</div>
-          <div>Verdict</div>
-          <div className="text-right">Listings</div>
-          <div />
-        </div>
-
-        {/* Rows */}
-        {rows.map((row, i) => (
-          <BatchRowItem key={row.id} index={i + 1} row={row} />
-        ))}
-      </Card>
+        <BatchTable rows={rows} />
+      </div>
     </div>
+  );
+}
+
+function BatchTable({ rows }: { rows: BatchRow[] }) {
+  const history = ReactRouterDOM.useHistory();
+
+  function openIfDone(row: BatchRow) {
+    if (row.status === 'done' && row.risk) {
+      history.push(ROUTE_FOR_RISK[row.risk]);
+    }
+  }
+
+  return (
+    <DataTable
+      columns={BATCH_COLUMNS}
+      rows={rows}
+      rowKey={(r: BatchRow) => String(r.id)}
+      onRowClick={openIfDone}
+      leadingAccent={(r: BatchRow) =>
+        r.status === 'done' && r.risk ? VERDICT_ACCENT[r.risk] : undefined
+      }
+    />
   );
 }
 
 // ---------- Sub-components ----------
-
-const SUMMARY_DOT: Record<Risk, string> = {
-  risk:  'bg-risk',
-  warn:  'bg-warn',
-  clean: 'bg-clean',
-};
-
-// KPI-tile pattern: mono uppercase label, big tabular-nums numeral, status
-// dot. Mirrors the Home KPI strip so the two surfaces feel like one product.
-function SummaryStat({ tone, count, label, isLast }: { tone: Risk; count: number; label: string; isLast: boolean }) {
-  return (
-    <div className={`px-5 py-4 sm:px-6 sm:py-5 ${isLast ? '' : 'sm:border-r sm:border-line'}`}>
-      <div className="flex items-center gap-2">
-        <span className={`w-1.5 h-1.5 rounded-full ${SUMMARY_DOT[tone]}`} aria-hidden />
-        <div
-          className="font-sans text-[10.5px] font-semibold tracking-[0.16em] uppercase"
-          style={{ color: 'var(--ink-3)' }}
-        >
-          {label}
-        </div>
-      </div>
-      <div
-        className="font-sans font-semibold text-[34px] sm:text-[36px] leading-none tracking-[-0.012em] tabular-nums mt-2.5"
-        style={{ color: 'var(--navy)' }}
-      >
-        {count}
-      </div>
-    </div>
-  );
-}
 
 const VERDICT_LABEL: Record<Risk, string> = {
   risk: 'Rented',
@@ -222,44 +243,103 @@ const ROUTE_FOR_RISK: Record<Risk, string> = {
   clean: '/result/clean',
 };
 
-function BatchRowItem({ index, row }: { index: number; row: BatchRow }) {
-  const history = ReactRouterDOM.useHistory();
-  const isDone = row.status === 'done';
-  const isRunning = row.status === 'running';
-  const isQueued = row.status === 'queued';
-
-  const onClick = () => {
-    if (isDone && row.risk) history.push(ROUTE_FOR_RISK[row.risk]);
-  };
-
-  const rowCls = `grid grid-cols-[40px_1fr_80px_140px_100px_36px] gap-4 px-7 py-3.5 border-b border-line items-center ${
-    isQueued ? 'opacity-50' : ''
-  } ${isDone ? 'cursor-pointer hover:bg-surface-2 transition-colors' : ''}`;
-
-  return (
-    <div className={rowCls} onClick={onClick}>
-      <div className="font-sans text-[11.5px] text-ink-4">{String(index).padStart(2, '0')}</div>
-      <div className="text-[13.5px] font-medium text-ink truncate">{row.address}</div>
-      <div className="text-right font-sans font-medium text-[18px] leading-none">
-        {isDone ? row.score : <span className="text-ink-4">—</span>}
-      </div>
-      <div>
-        {isDone && row.risk && (
-          <Pill
-            variant={row.risk === 'risk' ? 'risk' : row.risk === 'warn' ? 'warn' : 'clean'}
+// Column definitions for the BatchTable. Mirrors the SCAN_COLUMNS shape
+// from HomeScreen so both data tables share rhythm, hover treatment, and
+// the table↔card switch via the global DataTable primitive.
+const BATCH_COLUMNS: any[] = [
+  {
+    key: 'index',
+    label: '#',
+    width: '36px',
+    hideOnMobile: true,
+    cell: (_row: BatchRow, i: number) => (
+      <span className="font-mono text-micro text-ink-4 tabular-nums">
+        {String(i + 1).padStart(2, '0')}
+      </span>
+    ),
+  },
+  {
+    key: 'address',
+    label: 'Address',
+    primary: true,
+    cell: (row: BatchRow) => {
+      const [street, locality] = splitAddress(row.address);
+      const dim = row.status === 'queued';
+      return (
+        <div className={`min-w-0 ${dim ? 'opacity-60' : ''}`}>
+          <div
+            className="font-sans font-semibold text-body-sm leading-tight truncate"
+            style={{ color: 'var(--navy)' }}
           >
+            {street}
+          </div>
+          {locality && (
+            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+              {locality}
+            </div>
+          )}
+        </div>
+      );
+    },
+  },
+  {
+    key: 'score',
+    label: 'Score',
+    width: '60px',
+    align: 'right' as const,
+    hideBelow: 'sm' as const,
+    cell: (row: BatchRow) =>
+      row.status === 'done' ? (
+        <span
+          className="font-mono tabular-nums font-semibold text-body-sm leading-none"
+          style={{ color: 'var(--navy)' }}
+        >
+          {row.score}
+        </span>
+      ) : (
+        <span className="text-ink-4">—</span>
+      ),
+  },
+  {
+    key: 'verdict',
+    label: 'Verdict',
+    width: '150px',
+    hideBelow: 'sm' as const,
+    cell: (row: BatchRow) => {
+      if (row.status === 'done' && row.risk) {
+        return (
+          <div
+            className="inline-flex items-center gap-2 font-sans text-label leading-none whitespace-nowrap"
+            style={{ color: 'var(--ink-2)' }}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ background: VERDICT_ACCENT[row.risk] }}
+              aria-hidden
+            />
             {VERDICT_LABEL[row.risk]}
-          </Pill>
-        )}
-        {isRunning && <Pill variant="brand" dot>Scanning</Pill>}
-        {isQueued && <Pill>Queued</Pill>}
-      </div>
-      <div className="text-right text-[13px] text-ink-2">
-        {isDone ? `${row.listings} found` : <span className="text-ink-4">—</span>}
-      </div>
-      <div className="text-ink-3 grid place-items-center">
-        {isDone && <Icon name="arrow-right" size={14} />}
-      </div>
-    </div>
-  );
-}
+          </div>
+        );
+      }
+      if (row.status === 'running') {
+        return <Pill variant="brand" dot>Scanning</Pill>;
+      }
+      return <Pill>Queued</Pill>;
+    },
+  },
+  {
+    key: 'listings',
+    label: 'Listings',
+    width: '88px',
+    align: 'right' as const,
+    hideBelow: 'md' as const,
+    cell: (row: BatchRow) =>
+      row.status === 'done' ? (
+        <span className="font-mono tabular-nums text-caption text-ink-3">
+          {row.listings} found
+        </span>
+      ) : (
+        <span className="text-ink-4">—</span>
+      ),
+  },
+];

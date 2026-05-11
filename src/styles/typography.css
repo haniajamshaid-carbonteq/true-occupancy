@@ -22,8 +22,7 @@ body[data-type-pairing="halcyon"] {
            "Futura PT", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
   --sans:  "Century Gothic", "CenturyGothic", "Jost", "URW Geometric",
            "Futura PT", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
-  --mono:  "Century Gothic", "CenturyGothic", "Jost", "URW Geometric",
-           "Futura PT", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+  --mono:  "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 body[data-type-pairing="institutional"] {

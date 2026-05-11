@@ -37,8 +37,8 @@ function NavLinkRow({
       exact={item.exact}
       onClick={onNavigate}
       className={`flex items-center gap-3 rounded-md no-underline transition-colors ${
-        isMobile ? 'h-12 px-3 text-[15px]' : 'h-10 px-3 text-[13.5px]'
-      } font-medium hover:bg-brand-tint`}
+        isMobile ? 'h-12 px-3 text-body' : 'h-10 px-3 text-label'
+      } font-medium hover:bg-line`}
       activeClassName="!bg-brand-tint !text-brand-deep"
       style={{ color: 'var(--navy)' }}
     >
@@ -46,7 +46,7 @@ function NavLinkRow({
       <span className="truncate">{item.label}</span>
       {item.badge && (
         <span
-          className="ml-auto font-sans text-[10.5px] font-bold px-1.5 py-0.5 rounded-full"
+          className="ml-auto font-sans text-eyebrow font-bold px-1.5 py-0.5 rounded-full"
           style={{ background: 'var(--warn-soft)', color: 'var(--warn-ink)' }}
         >
           {item.badge}
@@ -79,13 +79,13 @@ function BrandLockup({
       </div>
       <div className="leading-tight">
         <div
-          className="font-sans text-[15px] font-bold tracking-[0.04em] uppercase"
+          className="font-sans text-body font-bold tracking-[0.04em] uppercase"
           style={{ color: 'var(--navy)' }}
         >
           Halcyon
         </div>
         <div
-          className="font-sans text-[11.5px] font-medium tracking-[0.01em]"
+          className="font-sans text-micro font-medium tracking-[0.01em]"
           style={{ color: 'var(--brand-deep)' }}
         >
           TrueOccupancy<sup className="text-[0.6em] align-top ml-px">™</sup>
@@ -130,7 +130,7 @@ function SideNav() {
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-1">
           <div
-            className="font-sans text-[10px] uppercase tracking-[0.16em] font-bold px-3 mb-1.5"
+            className="font-sans text-eyebrow uppercase tracking-[0.16em] font-bold px-3 mb-1.5"
             style={{ color: 'var(--ink-3)' }}
           >
             Workspace
@@ -143,22 +143,22 @@ function SideNav() {
         <div className="px-3 py-3 border-t border-line">
           <button
             type="button"
-            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-brand-tint transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-line transition-colors text-left"
           >
             <span
-              className="w-9 h-9 rounded-full grid place-items-center text-white text-[12px] font-semibold tabular-nums shrink-0"
+              className="w-9 h-9 rounded-full grid place-items-center text-white text-caption font-semibold tabular-nums shrink-0"
               style={{ background: 'var(--navy)' }}
             >
               JM
             </span>
             <span className="leading-tight min-w-0 flex-1">
               <span
-                className="block text-[13px] font-semibold truncate"
+                className="block text-label font-semibold truncate"
                 style={{ color: 'var(--navy)' }}
               >
                 J. Marlow
               </span>
-              <span className="block text-[11.5px] text-ink-3 truncate">
+              <span className="block text-micro text-ink-3 truncate">
                 Code Compliance · Asheville
               </span>
             </span>
@@ -187,7 +187,7 @@ function SideNav() {
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
-            className="w-11 h-11 -mr-2 grid place-items-center rounded-md hover:bg-brand-tint"
+            className="w-11 h-11 -mr-2 grid place-items-center rounded-md hover:bg-line transition-colors"
             style={{ color: 'var(--navy)' }}
           >
             <span className="relative w-5 h-4 block" aria-hidden>
@@ -240,7 +240,7 @@ function SideNav() {
 
             <nav className="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-1">
               <div
-                className="font-sans text-[10px] uppercase tracking-[0.16em] font-bold px-3 mb-1.5"
+                className="font-sans text-eyebrow uppercase tracking-[0.16em] font-bold px-3 mb-1.5"
                 style={{ color: 'var(--ink-3)' }}
               >
                 Workspace

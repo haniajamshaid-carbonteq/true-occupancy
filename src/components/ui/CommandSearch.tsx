@@ -1,4 +1,4 @@
-/* global React, Button, Icon */
+/* global React, Button, Icon, Keycap */
 // CommandSearch — the hero search surface (Linear/Raycast-flavored).
 //
 // Two modes share the same input, focus-ring, and Run scan action so the
@@ -92,18 +92,8 @@ function useTypewriterPlaceholder(
   return text || ' '; // keep a non-empty placeholder so the input height is stable
 }
 
-// --- keycap ---------------------------------------------------------------
-
-function Keycap({ children }: { children: React.ReactNode }) {
-  return (
-    <kbd
-      className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1 rounded-[5px] border border-line bg-surface-2 text-[11px] font-mono text-ink-2 leading-none"
-      style={{ boxShadow: '0 1px 0 rgba(20,45,85,0.08)' }}
-    >
-      {children}
-    </kbd>
-  );
-}
+// Keycap is now a shared primitive (src/components/ui/Keycap.tsx) — loaded
+// before this file in the bootstrap order.
 
 // --- main component -------------------------------------------------------
 
@@ -129,10 +119,14 @@ function CommandSearch({
     }
   }, [autoFocus]);
 
-  const placeholder = useTypewriterPlaceholder(
+  const animated = useTypewriterPlaceholder(
     placeholders,
     focused || value.length > 0
   );
+  // When focused with an empty input the typewriter pauses; show a static
+  // hint so the field never appears blank.
+  const placeholder =
+    focused && value.length === 0 ? placeholders[0] || '' : animated;
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') {
@@ -206,35 +200,27 @@ function CommandSearch({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             aria-label="Search address, URL, parcel ID, or coordinates"
-            className="flex-1 min-w-0 border-0 outline-none bg-transparent font-sans text-[18px] leading-none text-ink placeholder:text-ink-4 tabular-nums"
+            className="flex-1 min-w-0 border-0 outline-none bg-transparent font-sans text-h4 leading-none text-ink placeholder:text-ink-4 tabular-nums"
             spellCheck={false}
             autoComplete="off"
           />
-          {mode === 'inline' ? (
-            <Button
-              variant="primary"
-              onClick={() => onRun(value)}
-              icon={<Icon name="search" size={14} />}
-            >
-              Run scan
-            </Button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onRun(value)}
-              className="inline-flex items-center gap-2 h-9 pl-3 pr-2 rounded-[10px] bg-ink-2 text-white text-[13px] font-medium hover:opacity-95 transition-opacity"
-            >
-              Run
-              <Keycap>⏎</Keycap>
-            </button>
-          )}
+          {/* Same primary action in both modes — the home-screen search
+              and the ⌘K overlay should feel identical, not like two
+              different products bolted together. */}
+          <Button
+            variant="primary"
+            onClick={() => onRun(value)}
+            icon={<Icon name="search" size={14} />}
+          >
+            Run scan
+          </Button>
         </div>
       </div>
 
       {/* Meta row */}
       {mode === 'inline' && sampleChips && sampleChips.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] text-ink-3 uppercase tracking-[0.14em] font-semibold mr-1">
+          <span className="text-micro text-ink-3 uppercase tracking-[0.14em] font-semibold mr-1">
             Try
           </span>
           {sampleChips.map((c) => (
@@ -242,33 +228,20 @@ function CommandSearch({
               key={c.label}
               type="button"
               onClick={() => onChange(c.value)}
-              className="px-2.5 py-1 rounded-full border border-line text-[12px] text-ink-2 hover:border-brand/40 hover:text-brand-deep hover:bg-brand-tint/40 transition-colors"
+              className="px-2.5 py-1 rounded-full border border-line text-caption text-ink-2 hover:border-line-strong hover:bg-line transition-colors"
             >
               {c.label}
             </button>
           ))}
-          <span className="ml-auto text-[12px] text-ink-3 hidden sm:inline-flex items-center gap-1.5">
+          <span className="ml-auto text-caption text-ink-3 hidden sm:inline-flex items-center gap-1.5">
             <Keycap>⌘</Keycap>
             <Keycap>K</Keycap>
             <span className="text-ink-4">to open anywhere</span>
           </span>
         </div>
       )}
-      {mode === 'overlay' && (
-        <div className="mt-3 flex items-center gap-3 text-[12px] text-ink-3">
-          <span className="inline-flex items-center gap-1.5">
-            <Keycap>⏎</Keycap>
-            <span>Run scan</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Keycap>⎋</Keycap>
-            <span>Close</span>
-          </span>
-          <span className="ml-auto text-ink-4">
-            Address · URL · Parcel ID · Coords
-          </span>
-        </div>
-      )}
+      {/* Overlay mode is intentionally blank below the input — the user
+          arrived here via ⌘K and doesn't need that shortcut hinted again. */}
     </div>
   );
 }

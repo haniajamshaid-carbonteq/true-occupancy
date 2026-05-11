@@ -15,7 +15,7 @@ interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 const BTN_BASE =
-  'inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-[13px] font-medium font-sans border cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+  'inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-label font-medium font-sans border cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
 // Primary CTA per docs/DESIGN.md §3.1 + §10:
 // - Rest:  Teal Green #0AB7A3 (primary brand color, gradient start) on white.
@@ -24,8 +24,11 @@ const BTN_BASE =
 // hero bands (§6), not the product surface (§10).
 const BTN_VARIANTS: Record<ButtonVariant, string> = {
   primary: 'bg-brand text-white border-brand hover:bg-brand-deep hover:border-brand-deep',
-  default: 'bg-surface text-ink-2 border-line-strong hover:bg-brand-tint hover:border-brand/40 hover:text-brand-deep',
-  ghost: 'bg-transparent text-ink-2 border-transparent hover:bg-brand-tint hover:text-brand-deep',
+  default: 'bg-surface text-ink-2 border-line-strong hover:bg-line hover:border-line-strong',
+  // Ghost / link buttons across the app land on neutral grey on hover —
+  // the pale brand-tint they used to use looked washed-out against the
+  // surrounding cards. Text colour stays put; the bg shift is enough.
+  ghost: 'bg-transparent text-ink-2 border-transparent hover:bg-line',
 };
 
 function Button({

@@ -1,6 +1,7 @@
 /* global React, ReactRouterDOM, HomeScreen, ScanStartScreen, ScanMidScreen,
    ResultCleanScreen, ResultMediumScreen, ResultHighScreen,
-   WhyExpandedScreen, ComponentsPage, BatchScreen, HistoryScreen, CommandPalette */
+   WhyExpandedScreen, ComponentsPage, BatchScreen, HistoryScreen,
+   SignInScreen, SignUpScreen, CommandPalette */
 // Top-level router. Each route = one screen.
 // HashRouter so the static server doesn't need URL-rewriting config.
 
@@ -18,6 +19,8 @@ const ROUTES = [
   { path: '/result/high',    component: ResultHighScreen },
   { path: '/why-expanded',   component: WhyExpandedScreen },
   { path: '/components',     component: ComponentsPage },
+  { path: '/signin',         component: SignInScreen },
+  { path: '/signup',         component: SignUpScreen },
 ];
 
 function App() {

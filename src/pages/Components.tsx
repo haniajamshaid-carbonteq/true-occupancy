@@ -75,7 +75,7 @@ function Section({ num, title, desc, children }: {
   return (
     <section className="mb-20">
       <div className="flex items-baseline gap-4 mb-6 pb-4 border-b border-line">
-        <span className="font-mono text-[13px] text-ink-4">{num}</span>
+        <span className="font-mono text-label text-ink-4">{num}</span>
         <h2 className="font-sans text-3xl font-bold tracking-[-0.005em] m-0" style={{ color: 'var(--navy)' }}>{title}</h2>
         {desc && <span className="ml-auto text-sm text-ink-3 max-w-[42ch] leading-snug">{desc}</span>}
       </div>
@@ -87,7 +87,7 @@ function Section({ num, title, desc, children }: {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[140px_1fr] gap-6 items-center py-4 border-t border-dashed border-line first:border-t-0">
-      <div className="font-mono text-[11px] uppercase tracking-wider text-ink-4">{label}</div>
+      <div className="font-mono text-micro uppercase tracking-wider text-ink-4">{label}</div>
       <div className="flex flex-wrap items-center gap-3">{children}</div>
     </div>
   );
@@ -97,6 +97,59 @@ function Stage({ children }: { children: React.ReactNode }) {
   return (
     <div className="bg-surface border border-line rounded-md p-6">
       {children}
+    </div>
+  );
+}
+
+// --- Type ramp preview -------------------------------------------------
+// Shows every type token at its true rendered size, with the px value and
+// utility class beside it, plus a one-word usage hint. Lets a designer
+// confirm the ramp in seconds without reaching for tokens.css.
+
+interface RampRow {
+  token: string;
+  px: number;
+  use: string;
+  sample: string;
+}
+
+const TYPE_RAMP: RampRow[] = [
+  { token: 'text-display', px: 64, use: 'Hero numeral',                sample: '87%' },
+  { token: 'text-h1',      px: 40, use: 'Page title',                  sample: 'Verify property occupancy.' },
+  { token: 'text-h2',      px: 28, use: 'Compact metric, large heading', sample: '14 properties' },
+  { token: 'text-h3',      px: 22, use: 'Section heading, card title', sample: 'Recent scans' },
+  { token: 'text-h4',      px: 18, use: 'Subsection heading',          sample: 'Why this score' },
+  { token: 'text-body',    px: 16, use: 'Body lead',                   sample: 'One address — every public listing within a mile.' },
+  { token: 'text-body-sm', px: 14, use: 'Default body, table row',     sample: '1428 Maplewood Drive, Asheville, NC 28804' },
+  { token: 'text-label',   px: 13, use: 'UI label, dense body, button',sample: 'Run scan · Download · Back' },
+  { token: 'text-caption', px: 12, use: 'Caption, hint, secondary',    sample: 'Last verified 2 h ago' },
+  { token: 'text-micro',   px: 11, use: 'Mono uppercase, kbd, badge',  sample: 'TO-7C57EEEB · ⌘K · Rented' },
+  { token: 'text-eyebrow', px: 10, use: 'Tracked uppercase eyebrow',   sample: 'CONFIDENCE' },
+];
+
+function TypeRampPreview() {
+  return (
+    <div className="divide-y divide-line">
+      {TYPE_RAMP.map((r) => (
+        <div
+          key={r.token}
+          className="grid grid-cols-[140px_64px_1fr_180px] gap-6 items-baseline py-4 first:pt-0 last:pb-0"
+        >
+          <div className="font-mono text-micro uppercase tracking-wider text-ink-3">
+            {r.token}
+          </div>
+          <div className="font-mono text-micro tabular-nums text-ink-4 text-right">
+            {r.px}px
+          </div>
+          <div
+            className={`${r.token} text-ink leading-tight`}
+            style={{ color: 'var(--navy)' }}
+          >
+            {r.sample}
+          </div>
+          <div className="text-caption text-ink-3 leading-snug">{r.use}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -113,12 +166,19 @@ function ComponentsPage() {
         <h1 className="font-sans text-5xl font-bold leading-[1.05] tracking-[-0.005em] m-0 mb-4" style={{ color: 'var(--navy)' }}>
           Components <span style={{ color: 'var(--brand-deep)' }}>showcase.</span>
         </h1>
-        <p className="text-[17px] text-ink-2 leading-relaxed m-0 max-w-[60ch]">
+        <p className="text-h4 text-ink-2 leading-relaxed m-0 max-w-[60ch]">
           Every primitive in <code className="font-mono text-sm bg-surface-2 px-1.5 py-0.5 rounded border border-line">src/components/ui/</code>, with every variant. Use this page to visually QA against the spec in <code className="font-mono text-sm bg-surface-2 px-1.5 py-0.5 rounded border border-line">design-spec.html</code>.
         </p>
       </header>
 
       <div className="px-20 pb-32 max-w-[1100px]">
+        {/* === Type ramp === */}
+        <Section num="00" title="Type ramp" desc="11 named slots. Use these tokens (text-display, text-h1 … text-eyebrow) instead of raw text-[Npx]. Each token bundles a paired line-height appropriate to that role.">
+          <Stage>
+            <TypeRampPreview />
+          </Stage>
+        </Section>
+
         {/* === Button === */}
         <Section num="01" title="Button" desc="36px tall, 8px radius, 13/500 sans. Three variants share padding and shape; only color and border change.">
           <Stage>
@@ -173,26 +233,26 @@ function ComponentsPage() {
         <Section num="03" title="Card" desc="Surface + line + 18px radius + shadow-sm. Edge-to-edge by default; opt into padding via the prop.">
           <div className="grid grid-cols-3 gap-5">
             <Card padded>
-              <div className="font-mono text-[11px] uppercase tracking-wider text-ink-3 mb-2">Default</div>
+              <div className="font-mono text-micro uppercase tracking-wider text-ink-3 mb-2">Default</div>
               <div className="font-sans text-2xl font-bold" style={{ color: 'var(--navy)' }}>Padded card</div>
-              <p className="text-[13.5px] text-ink-3 leading-relaxed mt-2 mb-0">
+              <p className="text-label text-ink-3 leading-relaxed mt-2 mb-0">
                 Use <code className="font-mono text-xs">padded</code> to get inset content.
               </p>
             </Card>
             <Card>
               <div className="h-20 bg-gradient-to-b from-brand-soft to-surface" />
               <div className="p-5">
-                <div className="font-mono text-[11px] uppercase tracking-wider text-ink-3 mb-2">Edge-to-edge</div>
+                <div className="font-mono text-micro uppercase tracking-wider text-ink-3 mb-2">Edge-to-edge</div>
                 <div className="font-sans text-2xl font-bold" style={{ color: 'var(--navy)' }}>Bleed surface</div>
-                <p className="text-[13.5px] text-ink-3 leading-relaxed mt-2 mb-0">
+                <p className="text-label text-ink-3 leading-relaxed mt-2 mb-0">
                   No padding so the gradient header reaches the border.
                 </p>
               </div>
             </Card>
             <Card flat padded>
-              <div className="font-mono text-[11px] uppercase tracking-wider text-ink-3 mb-2">Flat</div>
+              <div className="font-mono text-micro uppercase tracking-wider text-ink-3 mb-2">Flat</div>
               <div className="font-sans text-2xl font-bold" style={{ color: 'var(--navy)' }}>Nested</div>
-              <p className="text-[13.5px] text-ink-3 leading-relaxed mt-2 mb-0">
+              <p className="text-label text-ink-3 leading-relaxed mt-2 mb-0">
                 Drops the shadow when nested inside another card.
               </p>
             </Card>
@@ -218,7 +278,7 @@ function ComponentsPage() {
         <Section num="05" title="CommandSearch" desc="The hero search of the platform. 64px input, animated gradient focus ring, brand-tinted glow on focus, typewriter placeholder cycling through example queries. Inline mode hosts the Run scan button + try-chips; overlay mode is the body of the global ⌘K palette.">
           <div className="space-y-8">
             <div>
-              <div className="text-[11px] text-ink-3 uppercase tracking-[0.14em] font-semibold mb-2">Inline (HomeScreen hero)</div>
+              <div className="text-micro text-ink-3 uppercase tracking-[0.14em] font-semibold mb-2">Inline (HomeScreen hero)</div>
               <CommandSearch
                 mode="inline"
                 value={query}
@@ -232,7 +292,7 @@ function ComponentsPage() {
               />
             </div>
             <div>
-              <div className="text-[11px] text-ink-3 uppercase tracking-[0.14em] font-semibold mb-2">Overlay (⌘K palette body)</div>
+              <div className="text-micro text-ink-3 uppercase tracking-[0.14em] font-semibold mb-2">Overlay (⌘K palette body)</div>
               <div className="rounded-[18px] p-6" style={{ background: 'rgba(20, 45, 85, 0.06)' }}>
                 <CommandSearch
                   mode="overlay"

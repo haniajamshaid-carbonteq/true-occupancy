@@ -56,6 +56,69 @@
   --risk-soft: #FBE3DB;
   --risk-ink: #6F2917;
 
+  /* === State semantics (success / warning / error) ===
+   * The third colour layer in the design system. Distinct from:
+   *   1. Brand   (--brand)               — identity-only; buttons, links, focus.
+   *   2. Verdict (--clean/--warn/--risk) — categorical, neutral-toned per
+   *      the project's neutral-tone rule for rental verdicts.
+   *   3. State   (these tokens)          — true semantic colours for genuine
+   *      state UI: KPI deltas, validation errors, success toasts, warnings.
+   *
+   * --success is also what the KPI "up" delta uses; --error is the "down"
+   * delta. --warning is brighter than --warn so small dot indicators read
+   * as "yellow caution" rather than the deeper amber of the verdict.
+   */
+  --success:        #16A34A;
+  --success-soft:   #DCFCE7;
+  --success-ink:    #14532D;
+  --warning:        #F59E0B;
+  --warning-soft:   #FEF3C7;
+  --warning-ink:    #78350F;
+  --error:          #DC2626;
+  --error-soft:     #FEE2E2;
+  --error-ink:      #7F1D1D;
+
+  /* Back-compat aliases — older code referenced --stat-up / --stat-down.
+   * Keep them resolving to the new semantic tokens so any straggler
+   * usage continues to render. Remove once nothing references them. */
+  --stat-up:        var(--success);
+  --stat-up-soft:   var(--success-soft);
+  --stat-up-ink:    var(--success-ink);
+  --stat-down:      var(--error);
+  --stat-down-soft: var(--error-soft);
+  --stat-down-ink:  var(--error-ink);
+
+  /* === Type ramp ===
+   * Modular scale that consolidates 28 ad-hoc font sizes seen across the
+   * codebase into 11 named slots. Use semantic names in code rather than
+   * raw px so refactors land in one place. Half-pixel sizes (11.5, 12.5,
+   * 13.5, etc.) are intentionally NOT included — they were drift, not
+   * design.
+   *
+   *   display  hero numeral (one per page max)
+   *   h1       page title
+   *   h2       compact metric value, large heading
+   *   h3       section heading, card title
+   *   h4       subsection heading
+   *   body     body lead
+   *   body-sm  default body, table row
+   *   label    UI label, dense body, button text
+   *   caption  hint, secondary text
+   *   micro    mono uppercase, kbd, badge
+   *   eyebrow  tracked uppercase eyebrow (smallest)
+   */
+  --text-display: 64px;   /* 4    rem */
+  --text-h1:      40px;   /* 2.5  rem */
+  --text-h2:      28px;   /* 1.75 rem */
+  --text-h3:      22px;   /* 1.375 rem */
+  --text-h4:      18px;   /* 1.125 rem */
+  --text-body:    16px;   /* 1    rem */
+  --text-body-sm: 14px;   /* 0.875 rem */
+  --text-label:   13px;   /* 0.8125 rem */
+  --text-caption: 12px;   /* 0.75 rem */
+  --text-micro:   11px;   /* 0.6875 rem */
+  --text-eyebrow: 10px;   /* 0.625 rem */
+
   /* === Platform brand colors === */
   --airbnb: #FF5A5F;
   --vrbo: #245ABE;
@@ -88,4 +151,40 @@
 
   /* === Brand gradient (always horizontal) === */
   --brand-gradient: linear-gradient(90deg, #0AB7A3 0%, #0498C6 100%);
+
+  /* === Soft rainbow (confidence hero spectrum) ===
+   * Low-saturation pastels — coral → peach → butter → mint → sky → soft green.
+   * Used by ConfidenceHero waffle / sparkbars and any future spectrum chart.
+   */
+  --rb-1: #F4A6A0;
+  --rb-2: #F4C28A;
+  --rb-3: #F4DD7A;
+  --rb-4: #A8E0C2;
+  --rb-5: #9CC9F0;
+  --rb-6: #B3E5C5;
+  --rb-gradient: linear-gradient(
+    90deg,
+    var(--rb-1) 0%,
+    var(--rb-2) 20%,
+    var(--rb-3) 40%,
+    var(--rb-4) 60%,
+    var(--rb-5) 80%,
+    var(--rb-6) 100%
+  );
+
+  /* Green/blue subset of the soft rainbow — used for factor-impact bars in
+   * the Why-this-score breakdown. Limited to the cool, calmer end of the
+   * spectrum so positive *and* negative impacts share one harmonious palette
+   * (the +/- sign in the value carries direction).
+   *
+   * Stops are roughly 30% more saturated than the base --rb-* tokens — the
+   * pastel waffle-dot stops disappeared against bg-surface-2 at bar widths,
+   * so the bar gets its own punchier set while staying in the same family.
+   */
+  --rb-gb-gradient: linear-gradient(
+    90deg,
+    #6BCFA8 0%,
+    #5DC0A4 50%,
+    #5DAFE0 100%
+  );
 }

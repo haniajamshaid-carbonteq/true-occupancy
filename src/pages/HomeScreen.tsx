@@ -1,4 +1,4 @@
-/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, Pill, ReactRouterDOM, SCENARIOS */
+/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, Pill, DataTable, MetricCard, ReactRouterDOM, SCENARIOS */
 // Home — product-first dashboard. The user lands directly on the working
 // scanner with real evidence visible (KPI strip, recent scans, flagged for
 // review, methodology note). Marketing-landing surfaces (photo hero,
@@ -79,7 +79,7 @@ const SAMPLE_CHIPS: { zip: string; label: string }[] = [
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="font-sans text-[10.5px] font-semibold tracking-[0.16em] uppercase"
+      className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
       style={{ color: 'var(--ink-3)' }}
     >
       {children}
@@ -87,37 +87,20 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
-function KpiTile({ kpi, isLast }: { kpi: typeof KPIS[number]; isLast: boolean }) {
-  const up = kpi.delta?.dir === 'up';
+// KPI tiles route through the shared MetricCard primitive so any other
+// metric-style card in the product (Batch summary, Property specs, etc.)
+// stays in lockstep on padding, type ramp, and footer rhythm. The leading
+// "Scanned today" tile is promoted to primary — it's the headline number
+// every investigator opens the dashboard for.
+function KpiTile({ kpi, primary }: { kpi: typeof KPIS[number]; primary?: boolean }) {
   return (
-    <div className={`px-5 py-4 sm:px-6 sm:py-5 ${isLast ? '' : 'sm:border-r sm:border-line'}`}>
-      <Eyebrow>{kpi.label}</Eyebrow>
-      <div
-        className="font-sans font-semibold text-[34px] sm:text-[36px] leading-none tracking-[-0.012em] tabular-nums mt-2.5 mb-2"
-        style={{ color: 'var(--navy)' }}
-      >
-        {kpi.value}
-      </div>
-      <div className="flex items-center gap-2 text-[12.5px]">
-        {kpi.delta && (
-          <span
-            className="inline-flex items-center gap-1 font-semibold tabular-nums"
-            style={{ color: up ? 'var(--brand-deep)' : 'var(--risk-ink)' }}
-          >
-            <svg
-              viewBox="0 0 12 12"
-              className="w-2.5 h-2.5"
-              fill="currentColor"
-              aria-hidden
-            >
-              {up ? <path d="M6 2 11 9H1z" /> : <path d="M6 10 1 3h10z" />}
-            </svg>
-            {kpi.delta.pct}
-          </span>
-        )}
-        <span className="text-ink-3 truncate">{kpi.hint}</span>
-      </div>
-    </div>
+    <MetricCard
+      primary={primary}
+      label={kpi.label}
+      value={kpi.value}
+      hint={kpi.hint}
+      delta={kpi.delta ? { dir: kpi.delta.dir, value: kpi.delta.pct } : undefined}
+    />
   );
 }
 
@@ -135,64 +118,124 @@ function ScoreBar({ score, risk }: { score: number; risk: 'clean' | 'warn' | 'ri
   );
 }
 
-const SCAN_TABLE_COLS = 'grid-cols-[16px_1fr_140px_120px_92px_104px_20px]';
+// --- Scan table columns ---------------------------------------------------
+// Shared between HomeScreen ("Recent scans") and HistoryScreen ("Scan
+// history") so both surfaces stay in lockstep. Each column is a thin
+// presentation function over a RecentScan row — one source of truth for
+// cell typography, alignment, and hide-on-small-viewport behaviour.
 
-function ScanRow({ row, onOpen }: { row: RecentScan; onOpen: (row: RecentScan) => void }) {
-  const sc = SCENARIOS[row.scenario];
-  const riskBand = VERDICT_VARIANT[row.scenario];
-  const dotColor =
-    riskBand === 'risk' ? 'var(--risk)' : riskBand === 'warn' ? 'var(--warn)' : 'var(--brand)';
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(row)}
-      className={`group w-full grid ${SCAN_TABLE_COLS} gap-4 px-5 py-3 text-left border-t border-line first:border-t-0 hover:bg-brand-tint/40 transition-colors items-center`}
-    >
-      <span
-        className="w-1.5 h-1.5 rounded-full justify-self-center"
-        style={{ background: dotColor }}
-        aria-hidden
-      />
-      <div className="min-w-0">
-        <div
-          className="text-[13.5px] font-semibold truncate"
-          style={{ color: 'var(--navy)' }}
-        >
-          {row.address}
-        </div>
-      </div>
-      <div className="hidden sm:flex">
-        <Pill variant={riskBand}>{HOME_VERDICT_LABEL[row.scenario]}</Pill>
-      </div>
-      <div className="hidden sm:flex items-center gap-2.5">
-        <span className="tabular-nums font-semibold text-[13.5px] w-[26px] text-right" style={{ color: 'var(--navy)' }}>
-          {sc.score}
-        </span>
-        <div className="flex-1 min-w-0">
-          <ScoreBar score={sc.score} risk={riskBand} />
-        </div>
-      </div>
-      <div className="hidden md:block text-right tabular-nums text-[12.5px] text-ink-3 font-mono">
-        {row.platforms} / 3
-      </div>
-      <div className="hidden md:block text-right text-[12px] text-ink-3 font-mono tabular-nums">
-        {row.scannedAgo}
-      </div>
-      <svg
-        viewBox="0 0 16 16"
-        className="w-3.5 h-3.5 text-ink-4 justify-self-end transition-transform group-hover:translate-x-0.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.8}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d="m6 4 4 4-4 4" />
-      </svg>
-    </button>
-  );
+const VERDICT_ACCENT: Record<'low' | 'medium' | 'high', string> = {
+  low: 'var(--clean)',
+  medium: 'var(--warn)',
+  high: 'var(--risk)',
+};
+
+// Address strings look like "1428 Maplewood Drive, Asheville, NC 28804".
+// First segment is the street, the rest is the locality — split so the
+// street can carry the visual weight and the locality sits below in muted
+// ink (Stripe / Linear list-row pattern).
+function splitAddress(addr: string): [string, string] {
+  const idx = addr.indexOf(', ');
+  if (idx < 0) return [addr, ''];
+  return [addr.slice(0, idx), addr.slice(idx + 2)];
 }
+
+function buildScanColumns<T extends { address: string; scenario: 'low' | 'medium' | 'high'; platforms: number; scannedAgo: string }>(): any[] {
+  return [
+    {
+      key: 'address',
+      label: 'Address',
+      primary: true,
+      cell: (row: T) => {
+        const [street, locality] = splitAddress(row.address);
+        return (
+          <div className="min-w-0">
+            <div
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {street}
+            </div>
+            {locality && (
+              <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+                {locality}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'verdict',
+      label: 'Verdict',
+      width: '140px',
+      hideBelow: 'sm' as const,
+      cell: (row: T) => (
+        <div
+          className="inline-flex items-center gap-2 font-sans text-label leading-none whitespace-nowrap"
+          style={{ color: 'var(--ink-2)' }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ background: VERDICT_ACCENT[row.scenario] }}
+            aria-hidden
+          />
+          {HOME_VERDICT_LABEL[row.scenario]}
+        </div>
+      ),
+    },
+    {
+      key: 'score',
+      label: 'Score',
+      width: '128px',
+      hideBelow: 'sm' as const,
+      cell: (row: T) => {
+        const sc = SCENARIOS[row.scenario];
+        return (
+          <div className="flex items-center gap-2.5">
+            <span
+              className="font-mono tabular-nums font-semibold text-label w-[24px] text-right leading-none"
+              style={{ color: 'var(--navy)' }}
+            >
+              {sc.score}
+            </span>
+            <div className="flex-1 min-w-0">
+              <ScoreBar score={sc.score} risk={VERDICT_VARIANT[row.scenario]} />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'platforms',
+      label: 'Platforms',
+      width: '84px',
+      align: 'right' as const,
+      hideBelow: 'md' as const,
+      cell: (row: T) => (
+        <span className="font-mono tabular-nums text-caption text-ink-3">
+          {row.platforms} / 3
+        </span>
+      ),
+    },
+    {
+      key: 'scanned',
+      label: 'Scanned',
+      width: '100px',
+      align: 'right' as const,
+      hideBelow: 'md' as const,
+      cell: (row: T) => (
+        <span className="font-mono tabular-nums text-caption text-ink-3">
+          {row.scannedAgo}
+        </span>
+      ),
+    },
+  ];
+}
+
+const SCAN_COLUMNS = buildScanColumns<RecentScan>();
+const scanLeadingAccent = (row: { scenario: 'low' | 'medium' | 'high' }) =>
+  VERDICT_ACCENT[row.scenario];
 
 function FlaggedRow({ row, onOpen }: { row: RecentScan; onOpen: (row: RecentScan) => void }) {
   const sc = SCENARIOS[row.scenario];
@@ -200,22 +243,22 @@ function FlaggedRow({ row, onOpen }: { row: RecentScan; onOpen: (row: RecentScan
     <button
       type="button"
       onClick={() => onOpen(row)}
-      className="w-full flex items-center gap-3 px-4 py-3 border-t border-line first:border-t-0 hover:bg-brand-tint/40 transition-colors text-left"
+      className="w-full flex items-center gap-3 px-4 py-3 border-t border-line first:border-t-0 hover:bg-line transition-colors text-left"
     >
       <span
-        className="w-10 h-10 rounded-md grid place-items-center font-semibold text-[13px] tabular-nums shrink-0"
+        className="w-10 h-10 rounded-md grid place-items-center font-semibold text-label tabular-nums shrink-0"
         style={{ background: 'var(--risk-soft)', color: 'var(--risk-ink)' }}
       >
         {sc.score}
       </span>
       <span className="min-w-0 flex-1">
         <span
-          className="block text-[13.5px] font-semibold truncate"
+          className="block text-label font-semibold truncate"
           style={{ color: 'var(--navy)' }}
         >
           {row.address}
         </span>
-        <span className="block text-[12px] text-ink-3 truncate">
+        <span className="block text-caption text-ink-3 truncate">
           {row.platforms} platforms · {row.scannedAgo}
         </span>
       </span>
@@ -269,19 +312,13 @@ function HomeScreen() {
       {/* Page header — eyebrow + H1 + sync status */}
       <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
         <div>
-          <div
-            className="font-sans text-[11px] font-semibold tracking-[0.14em] uppercase mb-1.5"
-            style={{ color: 'var(--brand-deep)' }}
-          >
-            Halcyon · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
-          </div>
           <h1
             className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
             style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
           >
             Verify property occupancy.
           </h1>
-          <p className="text-[14.5px] text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
+          <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
             One address — every public listing within a mile, every signal scored.
           </p>
         </div>
@@ -289,12 +326,6 @@ function HomeScreen() {
 
       {/* Scanner — primary affordance, hero of the platform */}
       <section className="mb-10 sm:mb-12">
-        <div className="flex items-center justify-between mb-3">
-          <Eyebrow>New scan</Eyebrow>
-          <span className="text-[12px] text-ink-3 hidden sm:block">
-            Press <kbd className="px-1.5 py-0.5 rounded border border-line bg-surface-2 text-[11px] font-mono">Enter</kbd> to run
-          </span>
-        </div>
         <CommandSearch
           mode="inline"
           value={address}
@@ -307,11 +338,11 @@ function HomeScreen() {
         />
       </section>
 
-      {/* KPI strip */}
+      {/* KPI cards — separate inline cards, equal-width grid */}
       <section className="mb-10 sm:mb-12">
-        <div className="bg-surface border border-line rounded-lg grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 divide-line">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {KPIS.map((kpi, i) => (
-            <KpiTile key={kpi.label} kpi={kpi} isLast={i === KPIS.length - 1} />
+            <KpiTile key={kpi.label} kpi={kpi} primary={i === 0} />
           ))}
         </div>
       </section>
@@ -320,9 +351,8 @@ function HomeScreen() {
       <section className="mb-10 sm:mb-12">
         <div className="flex items-end justify-between mb-3 gap-4">
           <div>
-            <Eyebrow>Activity</Eyebrow>
             <h2
-              className="font-sans font-semibold text-[20px] sm:text-[22px] tracking-[-0.005em] m-0 mt-1"
+              className="font-sans font-semibold text-h3 sm:text-h3 tracking-[-0.005em] m-0"
               style={{ color: 'var(--navy)' }}
             >
               Recent scans
@@ -340,76 +370,18 @@ function HomeScreen() {
           </Button>
         </div>
 
-        <div className="bg-surface border border-line rounded-lg overflow-hidden">
-          <div className={`grid ${SCAN_TABLE_COLS} gap-4 px-5 py-2.5 bg-surface-2 border-b border-line`}>
-            <div />
-            <div className="font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-3">Address</div>
-            <div className="hidden sm:block font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-3">Verdict</div>
-            <div className="hidden sm:block font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-3">Score</div>
-            <div className="hidden md:block text-right font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-3">Platforms</div>
-            <div className="hidden md:block text-right font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-3">Scanned</div>
-            <div />
-          </div>
-          {RECENT_SCANS.map((row) => (
-            <ScanRow key={row.id} row={row} onOpen={openResult} />
-          ))}
-        </div>
-      </section>
-
-      {/* Two-card row: Flagged + Methodology */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10 sm:mb-12">
-        <div className="bg-surface border border-line rounded-lg overflow-hidden">
-          <div className="px-5 py-4 border-b border-line flex items-center justify-between">
-            <div>
-              <Eyebrow>Needs attention</Eyebrow>
-              <h3
-                className="font-sans font-semibold text-[16px] tracking-[-0.005em] m-0 mt-1"
-                style={{ color: 'var(--navy)' }}
-              >
-                Flagged for review
-              </h3>
-            </div>
-            <Pill variant="risk" dot>
-              {FLAGGED_FOR_REVIEW.length} open
-            </Pill>
-          </div>
-          {FLAGGED_FOR_REVIEW.map((row) => (
-            <FlaggedRow key={row.id} row={row} onOpen={openResult} />
-          ))}
-        </div>
-
-        <div className="bg-surface border border-line rounded-lg p-5 sm:p-6 flex flex-col">
-          <Eyebrow>Methodology</Eyebrow>
-          <h3
-            className="font-sans font-semibold text-[16px] tracking-[-0.005em] m-0 mt-1 mb-3"
-            style={{ color: 'var(--navy)' }}
-          >
-            How we score a property.
-          </h3>
-          <p className="text-[14px] text-ink-2 leading-relaxed m-0">
-            Each scan combines listing fingerprints (photos, room counts, host
-            handles) across Airbnb, Vrbo, and Facebook Marketplace with parcel
-            and occupancy records. Every result surfaces the contributing
-            signals so you can verify the verdict before acting on it.
-          </p>
-          <div className="mt-auto pt-5">
-            <a
-              href="#"
-              className="inline-flex items-center gap-1.5 text-[13px] font-semibold no-underline group"
-              style={{ color: 'var(--brand-deep)' }}
-            >
-              Read the full methodology
-              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="m6 4 4 4-4 4" />
-              </svg>
-            </a>
-          </div>
-        </div>
+        <DataTable
+          columns={SCAN_COLUMNS}
+          rows={RECENT_SCANS}
+          rowKey={(r: RecentScan) => r.id}
+          onRowClick={openResult}
+          leadingAccent={scanLeadingAccent}
+        />
       </section>
 
       {/* Utility footer — single hairline strip */}
       <footer className="mt-12 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 border-t border-line">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 py-5 text-[12.5px] text-ink-3">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 py-5 text-caption text-ink-3">
           <div>
             © 2026 Halcyon Solutions · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup> · Decide with certainty.
           </div>

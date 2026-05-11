@@ -8,7 +8,7 @@ function PropertyOverview() {
 
   return (
     <section className="mt-8 sm:mt-12">
-      <h2 className="font-sans font-bold text-[20px] sm:text-[28px] tracking-[-0.005em] m-0 mb-3 sm:mb-3.5" style={{ color: 'var(--navy)' }}>
+      <h2 className="font-sans font-semibold text-h3 sm:text-h2 tracking-[-0.005em] m-0 mb-3 sm:mb-3.5" style={{ color: 'var(--navy)' }}>
         Property overview
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-[0.55fr_1.45fr] bg-surface border border-line rounded-lg shadow-sm overflow-hidden">
@@ -26,7 +26,7 @@ function PropertyOverview() {
             <span className="w-7 h-7 rounded-full bg-surface border border-line grid place-items-center text-ink-2 shrink-0">
               <Icon name="pin" size={14} />
             </span>
-            <span className="font-sans text-[13.5px] font-medium text-ink">
+            <span className="font-sans text-label font-medium text-ink">
               {mapOpen ? 'Hide map' : 'View on map'}
             </span>
             <span

@@ -21,7 +21,7 @@ function PropertySpecs() {
           </h2>
           <div className="text-sm sm:text-base text-ink-3">{PROPERTY.city}</div>
         </div>
-        <span className="inline-flex items-center h-[26px] sm:h-[30px] px-2.5 sm:px-3.5 rounded-sm bg-surface-2 border border-line font-sans text-[10.5px] sm:text-[11.5px] font-medium text-ink-2 tracking-wide shrink-0">
+        <span className="inline-flex items-center h-[26px] sm:h-[30px] px-2.5 sm:px-3.5 rounded-sm bg-surface-2 border border-line font-sans text-eyebrow sm:text-micro font-medium text-ink-2 tracking-wide shrink-0">
           {PROPERTY.propertyType}
         </span>
       </div>
@@ -29,15 +29,15 @@ function PropertySpecs() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-4 sm:gap-x-5 py-4 sm:py-5 border-t border-b border-line">
         {SPECS.map((s) => (
           <div key={s.k} className="min-w-0">
-            <div className="text-[11px] sm:text-[12px] text-ink-3 mb-1 sm:mb-1.5 font-normal">{s.k}</div>
-            <div className="text-[14px] sm:text-[16px] font-semibold text-ink tracking-tight">
+            <div className="text-micro sm:text-caption text-ink-3 mb-1 sm:mb-1.5 font-normal">{s.k}</div>
+            <div className="text-body-sm sm:text-body font-semibold text-ink tracking-tight">
               {s.v}
             </div>
           </div>
         ))}
       </div>
 
-      <p className="mt-4 sm:mt-5 mb-0 text-[14px] sm:text-[15.5px] text-ink-2 leading-relaxed">{PROPERTY.description}</p>
+      <p className="mt-4 sm:mt-5 mb-0 text-body-sm sm:text-body text-ink-2 leading-relaxed">{PROPERTY.description}</p>
     </div>
   );
 }

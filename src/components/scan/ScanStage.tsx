@@ -59,12 +59,12 @@ function ScanStage({ steps, progress }: ScanStageProps) {
       {/* Header */}
       <div className="text-center mb-12 relative">
         <div
-          className="font-sans font-bold text-[36px] sm:text-[42px] leading-[1.08] tracking-[-0.005em] max-w-[28ch] mx-auto mb-4"
+          className="font-sans font-semibold text-h2 sm:text-h1 leading-[1.08] tracking-[-0.005em] max-w-[28ch] mx-auto mb-4"
           style={{ color: 'var(--navy)' }}
         >
           {address}
         </div>
-        <div className="font-sans text-[11px] uppercase tracking-[0.22em] text-ink-3 inline-flex items-center gap-2">
+        <div className="font-sans text-micro uppercase tracking-[0.22em] text-ink-3 inline-flex items-center gap-2">
           <span className="relative inline-flex w-2 h-2">
             <span className="absolute inset-0 rounded-full bg-brand opacity-70 animate-ping" />
             <span className="relative w-2 h-2 rounded-full bg-brand" />
@@ -117,13 +117,13 @@ function ScanStage({ steps, progress }: ScanStageProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <div
-                  className={`text-[14px] leading-tight font-medium ${
+                  className={`text-body-sm leading-tight font-medium ${
                     isRunning ? 'text-brand' : 'text-ink'
                   }`}
                 >
                   {s.label}
                 </div>
-                <div className="text-[11.5px] text-ink-3 leading-tight mt-0.5 truncate">
+                <div className="text-micro text-ink-3 leading-tight mt-0.5 truncate">
                   {isDone || isRunning ? s.result : s.sub}
                 </div>
               </div>

@@ -1,14 +1,12 @@
-/* global React, AppShell, ScanContextBar, ScoreCard, PropertyOverview, WhyCard, ListingsPanel, ReportCertificateBar */
+/* global React, AppShell, ScanContextBar, ConfidenceHero, PropertyOverview, ListingsPanel */
 // Screen 03 — Result · "Not rented · High confidence" (low signal strength).
 
 function ResultCleanScreen() {
   return (
     <AppShell>
-      <ScanContextBar />
+      <ScanContextBar showDownloadPDF />
       <div className="mt-5 flex flex-col gap-5">
-        <ReportCertificateBar kind="single" />
-        <ScoreCard scenario="low" />
-        <WhyCard scenario="low" />
+        <ConfidenceHero scenario="low" />
         <ListingsPanel scenario="low" />
         <PropertyOverview />
       </div>

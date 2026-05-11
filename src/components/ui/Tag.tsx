@@ -13,7 +13,7 @@ function Tag({ icon, children, className = '', ...rest }: TagProps) {
   return (
     <span
       {...rest}
-      className={`inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-full bg-surface-2 border border-line text-ink-2 font-sans text-[11.5px] ${className}`.trim()}
+      className={`inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-full bg-surface-2 border border-line text-ink-2 font-sans text-micro ${className}`.trim()}
     >
       {icon && (
         <span className="inline-flex shrink-0 opacity-70 [&>svg]:w-3 [&>svg]:h-3">{icon}</span>

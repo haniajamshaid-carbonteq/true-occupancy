@@ -1,7 +1,7 @@
-/* global React, AppShell, ScanContextBar, ScoreCard, WhyCard */
+/* global React, AppShell, ScanContextBar, ConfidenceHero */
 // Screen 06 — Why this score · expanded.
-// Score card + the explainability card open by default, no other content,
-// so the contributing factors are the focus.
+// ConfidenceHero with the breakdown accordion open by default, no other
+// content — contributing factors are the focus.
 
 function WhyExpandedScreen() {
   return (
@@ -12,8 +12,7 @@ function WhyExpandedScreen() {
         backLabel="Back to result"
       />
       <div className="mt-5 flex flex-col gap-5">
-        <ScoreCard scenario="high" />
-        <WhyCard scenario="high" defaultOpen />
+        <ConfidenceHero scenario="high" defaultOpen />
       </div>
     </AppShell>
   );

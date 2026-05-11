@@ -1,4 +1,4 @@
-/* global React, Icon, PROPERTY, openCommandPalette */
+/* global React, Icon, Keycap, PROPERTY, openCommandPalette */
 
 interface PageHeaderProps {
   /** Persistent address search trigger (opens the ⌘K palette). */
@@ -25,7 +25,7 @@ function PageHeader({ showSearch = true, showTitle = true, rightSlot }: PageHead
           {showTitle && (
             <div className="hidden sm:block">
               <div
-                className="font-sans text-[11px] font-semibold tracking-[0.14em] uppercase mb-1.5"
+                className="font-sans text-micro font-semibold tracking-[0.14em] uppercase mb-1.5"
                 style={{ color: 'var(--brand-deep)' }}
               >
                 Halcyon · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
@@ -55,22 +55,12 @@ function PageHeader({ showSearch = true, showTitle = true, rightSlot }: PageHead
           >
             <Icon name="search" size={16} />
           </span>
-          <span className="flex-1 min-w-0 truncate text-[14px] text-ink-3 font-sans">
+          <span className="flex-1 min-w-0 truncate text-body-sm text-ink-3 font-sans">
             {currentAddress}
           </span>
-          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-ink-3">
-            <kbd
-              className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1 rounded-[5px] border border-line bg-surface-2 font-mono leading-none"
-              style={{ boxShadow: '0 1px 0 rgba(20,45,85,0.08)' }}
-            >
-              ⌘
-            </kbd>
-            <kbd
-              className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1 rounded-[5px] border border-line bg-surface-2 font-mono leading-none"
-              style={{ boxShadow: '0 1px 0 rgba(20,45,85,0.08)' }}
-            >
-              K
-            </kbd>
+          <span className="hidden sm:inline-flex items-center gap-1 text-micro text-ink-3">
+            <Keycap>⌘</Keycap>
+            <Keycap>K</Keycap>
           </span>
         </button>
       )}

@@ -1,8 +1,8 @@
-/* global React, AppShell, Button, Icon, Pill, ReactRouterDOM, SCENARIOS,
-   SCAN_TABLE_COLS, HOME_VERDICT_LABEL, VERDICT_VARIANT, ScanRow */
+/* global React, AppShell, Button, Icon, Pill, DataTable, DropdownMenu, ReactRouterDOM, SCENARIOS,
+   HOME_VERDICT_LABEL, VERDICT_VARIANT, SCAN_COLUMNS, scanLeadingAccent */
 // History — full table of past scans the investigator can search, filter,
-// and drill into. Reuses ScanRow + table tokens from HomeScreen.tsx so the
-// two surfaces feel identical.
+// and drill into. Reuses SCAN_COLUMNS from HomeScreen.tsx so the two
+// surfaces share one source of truth for table cell styling.
 
 interface HistoryRow {
   id: string;
@@ -45,7 +45,7 @@ const FILTER_OPTIONS: { id: Filter; label: string; count: (rows: HistoryRow[]) =
 function HistoryEyebrow({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="font-sans text-[10.5px] font-semibold tracking-[0.16em] uppercase"
+      className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
       style={{ color: 'var(--ink-3)' }}
     >
       {children}
@@ -82,7 +82,7 @@ function HistoryScreen() {
       <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
         <div>
           <div
-            className="font-sans text-[11px] font-semibold tracking-[0.14em] uppercase mb-1.5"
+            className="font-sans text-micro font-semibold tracking-[0.14em] uppercase mb-1.5"
             style={{ color: 'var(--brand-deep)' }}
           >
             Halcyon · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
@@ -93,14 +93,49 @@ function HistoryScreen() {
           >
             Scan history.
           </h1>
-          <p className="text-[14.5px] text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
+          <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
             Every scan you've run — searchable, filterable, click any row to reopen the case.
           </p>
         </div>
         <div className="hidden md:flex items-center gap-2 shrink-0">
-          <Button variant="default" icon={<Icon name="pdf" size={14} />}>
-            Export CSV
-          </Button>
+          <DropdownMenu
+            title="Download history"
+            trigger={(open: boolean) => (
+              <Button
+                icon={<Icon name="pdf" size={14} />}
+                iconRight={
+                  <svg
+                    viewBox="0 0 12 12"
+                    className={`w-2.5 h-2.5 transition-transform ${open ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="m3 5 3 3 3-3" />
+                  </svg>
+                }
+              >
+                Download
+              </Button>
+            )}
+            items={[
+              {
+                label: 'PDF report',
+                hint: 'Lender-ready summary with all scans',
+                icon: <Icon name="pdf" />,
+                onClick: () => window.print(),
+              },
+              {
+                label: 'CSV',
+                hint: 'Tabular data for spreadsheets',
+                icon: <Icon name="layers" />,
+                onClick: () => {},
+              },
+            ]}
+          />
         </div>
       </header>
 
@@ -114,16 +149,16 @@ function HistoryScreen() {
                 key={opt.id}
                 type="button"
                 onClick={() => setFilter(opt.id)}
-                className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-[12.5px] font-medium transition-colors ${
+                className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors ${
                   active
                     ? '!bg-brand-tint !border-brand/40'
-                    : 'bg-surface border-line hover:border-line-strong'
+                    : 'bg-surface border-line hover:bg-line hover:border-line-strong'
                 }`}
                 style={{ color: active ? 'var(--brand-deep)' : 'var(--ink-2)' }}
               >
                 {opt.label}
                 <span
-                  className="tabular-nums text-[11px] font-semibold px-1.5 py-0.5 rounded"
+                  className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
                   style={{
                     background: active ? 'rgba(2,146,190,0.12)' : 'var(--surface-2)',
                     color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
@@ -144,33 +179,27 @@ function HistoryScreen() {
             value={query}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
             placeholder="Filter by address"
-            className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-[13px] outline-none focus:border-brand placeholder:text-ink-4"
+            className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4"
           />
         </div>
       </section>
 
-      {/* Table */}
-      <div className="bg-surface border border-line rounded-lg overflow-hidden">
-        <div className={`grid ${SCAN_TABLE_COLS} gap-4 px-5 py-2.5 bg-surface-2 border-b border-line`}>
-          <div />
-          <div className="font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-3">Address</div>
-          <div className="hidden sm:block font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-3">Verdict</div>
-          <div className="hidden sm:block font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-3">Score</div>
-          <div className="hidden md:block text-right font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-3">Platforms</div>
-          <div className="hidden md:block text-right font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-3">Scanned</div>
-          <div />
-        </div>
-        {rows.length === 0 ? (
-          <div className="px-5 py-12 text-center text-[13.5px] text-ink-3">
+      {/* Table — same DataTable + columns as HomeScreen */}
+      <DataTable
+        columns={SCAN_COLUMNS}
+        rows={rows}
+        rowKey={(r: HistoryRow) => r.id}
+        onRowClick={openResult}
+        leadingAccent={scanLeadingAccent}
+        empty={
+          <div className="px-5 py-12 text-center text-label text-ink-3">
             No scans match your filters.
           </div>
-        ) : (
-          rows.map((row) => <ScanRow key={row.id} row={row} onOpen={openResult} />)
-        )}
-      </div>
+        }
+      />
 
       {/* Footer caption */}
-      <div className="mt-4 flex items-center justify-between text-[12.5px] text-ink-3">
+      <div className="mt-4 flex items-center justify-between text-caption text-ink-3">
         <HistoryEyebrow>
           Showing {rows.length} of {HISTORY.length} scans
         </HistoryEyebrow>

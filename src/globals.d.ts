@@ -89,6 +89,10 @@ declare function CommandPalette(props?: any): any;
 declare function openCommandPalette(): void;
 declare function Avatar(props?: any): any;
 declare function Tag(props?: any): any;
+declare function Keycap(props?: any): any;
+declare function DataTable(props?: any): any;
+declare function MetricCard(props?: any): any;
+declare function DropdownMenu(props?: any): any;
 declare function Icon(props?: any): any;
 
 // === Compositions ===

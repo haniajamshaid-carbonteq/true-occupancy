@@ -56,22 +56,22 @@ function ReportCertificateBar({ scanId, kind = 'single' }: ReportCertificateBarP
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span
-            className="font-sans text-[10.5px] font-semibold tracking-[0.16em] uppercase"
+            className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
             style={{ color: 'var(--brand-deep)' }}
           >
             Verifiable report
           </span>
-          <span className="text-[11px] text-ink-4">·</span>
-          <span className="text-[11px] text-ink-3 uppercase tracking-[0.12em]">
+          <span className="text-micro text-ink-4">·</span>
+          <span className="text-micro text-ink-3 uppercase tracking-[0.12em]">
             {kind === 'batch' ? 'Batch scan' : 'Single scan'}
           </span>
         </div>
         <div className="mt-0.5 flex items-center gap-3 flex-wrap">
-          <span className="font-mono text-[12.5px] tabular-nums" style={{ color: 'var(--navy)' }}>
+          <span className="font-mono text-caption tabular-nums" style={{ color: 'var(--navy)' }}>
             {id}
           </span>
-          <span className="text-[12.5px] text-ink-3 tabular-nums">{timestamp}</span>
-          <span className="text-[12px] text-ink-3 hidden sm:inline">
+          <span className="text-caption text-ink-3 tabular-nums">{timestamp}</span>
+          <span className="text-caption text-ink-3 hidden sm:inline">
             Live evidence links · Lender-ready
           </span>
         </div>

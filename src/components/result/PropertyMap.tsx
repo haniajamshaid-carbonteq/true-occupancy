@@ -77,17 +77,17 @@ function PropertyMap() {
       {/* Info popup */}
       <div className="absolute left-[24%] top-[30%] bg-white border border-black/10 rounded p-2 pr-3 sm:p-3 sm:pr-4 shadow-md min-w-[150px] sm:min-w-[200px] max-w-[60%]">
         <div className="absolute top-1 right-2 sm:top-1.5 sm:right-2.5 text-neutral-400 text-xs sm:text-sm cursor-pointer leading-none">×</div>
-        <div className="font-semibold text-[12px] sm:text-sm text-ink mb-0.5 sm:mb-1">Searched Property</div>
-        <div className="text-[11px] sm:text-[13px] text-ink-2">{PROPERTY.short}</div>
-        <div className="text-[11px] sm:text-[13px] text-ink-2 mb-1.5 sm:mb-2">{PROPERTY.city}</div>
-        <div className="text-[11px] sm:text-[13px] text-ink-2">
+        <div className="font-semibold text-caption sm:text-sm text-ink mb-0.5 sm:mb-1">Searched Property</div>
+        <div className="text-micro sm:text-label text-ink-2">{PROPERTY.short}</div>
+        <div className="text-micro sm:text-label text-ink-2 mb-1.5 sm:mb-2">{PROPERTY.city}</div>
+        <div className="text-micro sm:text-label text-ink-2">
           {PROPERTY.bedrooms} beds · {PROPERTY.bathrooms} baths
         </div>
         <div className="absolute -bottom-[7px] left-6 sm:left-8 w-3 h-3 bg-white border-r border-b border-black/10 rotate-45" />
       </div>
 
       {/* Attribution */}
-      <div className="absolute bottom-0 right-0 bg-white/85 text-[10px] text-neutral-600 px-1.5 py-0.5 font-sans">
+      <div className="absolute bottom-0 right-0 bg-white/85 text-eyebrow text-neutral-600 px-1.5 py-0.5 font-sans">
         Leaflet | © OpenStreetMap contributors
       </div>
     </div>
