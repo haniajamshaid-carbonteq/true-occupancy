@@ -1,15 +1,16 @@
-/* global React, AppShell, Card, Icon, Pill, DataTable, ReactRouterDOM, useAppState,
+/* global React, AppShell, Card, Icon, Pill, Modal, Button, DataTable, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress */
 // Schedule detail — full page for a scheduled automation.
 // Layout:
 //   1. Header bar  — back link (left) + Cancel automation (right, destructive)
-//   2. Summary Card — eyebrow strip · title · subline · hairline · 4-up meta grid
+//   2. Summary Card — title row (address + type pill) · cadence chip · meta grid
 //   3. Run history — h3 + DataTable; rows drill to /batch/:id or /result/<scenario>
 
 function ScheduleDetailScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
   const { id } = ReactRouterDOM.useParams<{ id: string }>();
   const { schedules, history, cancelSchedule } = useAppState();
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
 
   const schedule: any = schedules.find((s: any) => s.id === id);
   if (!schedule) {
@@ -36,7 +37,7 @@ function ScheduleDetailScreen() {
     routerHistory.push(path);
   }
 
-  function handleCancel() {
+  function confirmCancel() {
     cancelSchedule(schedule.id);
     routerHistory.push('/scheduled');
   }
@@ -114,7 +115,7 @@ function ScheduleDetailScreen() {
 
         <button
           type="button"
-          onClick={handleCancel}
+          onClick={() => setConfirmOpen(true)}
           className="inline-flex items-center gap-stack-tight h-9 px-control-x rounded-md bg-transparent border border-transparent font-sans text-label font-medium text-error-ink hover:bg-error-soft transition-colors cursor-pointer"
         >
           <Icon name="x" size={14} />
@@ -126,41 +127,47 @@ function ScheduleDetailScreen() {
         {/* Summary card */}
         <Card allowOverflow>
           <div className="px-card-loose py-card">
-            {/* Eyebrow strip */}
-            <div className="flex items-center gap-stack-tight mb-stack-tight">
-              <Pill variant={isBatch ? 'brand' : 'default'}>
+            {/* Title row: address + type pill (right). The pill is a
+                secondary classification, so it sits in the trailing corner
+                rather than the eyebrow slot above the title. */}
+            <div className="flex items-start justify-between gap-stack">
+              <div className="min-w-0 flex-1">
+                <h2
+                  className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 leading-tight truncate"
+                  style={{ color: 'var(--navy)' }}
+                >
+                  {street}
+                </h2>
+                {locality && (
+                  <p className="font-sans text-body-sm text-ink-3 leading-relaxed m-0 mt-1 truncate">
+                    {locality}
+                  </p>
+                )}
+              </div>
+              <Pill variant={isBatch ? 'brand' : 'default'} className="shrink-0">
                 {isBatch ? 'Batch automation' : 'Single property'}
               </Pill>
-              <span
-                className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
-                style={{ color: 'var(--ink-3)' }}
-              >
+            </div>
+
+            {/* Cadence — the load-bearing fact for a *scheduled* automation.
+                Rendered as ink-2 text with a calendar icon so it reads as
+                summary copy, not a stylistic tag. */}
+            <div className="mt-stack-tight inline-flex items-center gap-stack-tight text-ink-2">
+              <Icon name="cal" size={14} />
+              <span className="font-sans text-body-sm font-medium">
                 Every {schedule.cadenceMonths} months
               </span>
             </div>
 
-            {/* Title + subline */}
-            <h2
-              className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 leading-tight truncate"
-              style={{ color: 'var(--navy)' }}
-            >
-              {street}
-            </h2>
-            {locality && (
-              <p className="font-sans text-body-sm text-ink-3 leading-relaxed m-0 mt-1 truncate">
-                {locality}
-              </p>
-            )}
-
-            {/* Hairline divider */}
-            <div className="border-t border-line my-card" />
+            {/* Hairline divider — tightened now that the cadence above is
+                plain text (no chip / pill height) so vertical rhythm doesn't
+                overweigh the header block. */}
+            <div className="border-t border-line mt-stack mb-stack" />
 
             {/* Meta strip — natural-width columns, left-packed with a
-                consistent section gap. Avoids the disconnected look an
-                equal-width 4-col grid creates when "3" sits in a column
-                as wide as "Nov 12, 2026". */}
+                consistent section gap. Cadence is omitted here because it's
+                already featured above. */}
             <dl className="flex flex-wrap gap-x-section-sub gap-y-stack m-0">
-              <RuleField label="Cadence" value={`Every ${schedule.cadenceMonths} months`} />
               <RuleField label="Next run" value={schedule.nextRunLabel} />
               <RuleField label="Created" value={schedule.createdAgo} />
               <RuleField label="Runs to date" value={String(runs.length)} />
@@ -192,6 +199,51 @@ function ScheduleDetailScreen() {
           />
         </div>
       </div>
+
+      {/* Cancel-automation confirmation. Mirrors the AutomationControl
+          confirmation modal so behaviour and palette are consistent. */}
+      <Modal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        width={420}
+        title="Cancel Automation?"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => setConfirmOpen(false)}
+              className="flex-1 justify-center"
+            >
+              Keep Automation
+            </Button>
+            <button
+              type="button"
+              onClick={confirmCancel}
+              className="flex-1 inline-flex items-center justify-center gap-inline-tight h-9 px-control-x rounded-lg border border-error-soft bg-error-soft text-error-ink hover:bg-error/10 transition-colors cursor-pointer font-sans text-label font-medium"
+            >
+              <Icon name="x" size={14} />
+              Cancel Automation
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center gap-3">
+          <span
+            className="shrink-0 w-9 h-9 rounded-full grid place-items-center bg-error-soft text-error-ink [&>svg]:w-[18px] [&>svg]:h-[18px]"
+            aria-hidden
+          >
+            <Icon name="alert" size={18} />
+          </span>
+          <p className="text-body-sm text-ink-2 leading-relaxed m-0">
+            This automation won't run again. You can re-create it any time from
+            the same{' '}
+            <span className="font-medium text-ink">
+              {isBatch ? 'batch' : 'scan'}
+            </span>{' '}
+            page.
+          </p>
+        </div>
+      </Modal>
     </AppShell>
   );
 }

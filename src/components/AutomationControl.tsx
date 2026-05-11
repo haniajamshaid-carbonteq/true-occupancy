@@ -168,13 +168,17 @@ function AutomationControl({ target }: AutomationControlProps) {
         title="Cancel Automation?"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+            <Button
+              variant="ghost"
+              onClick={() => setConfirmOpen(false)}
+              className="flex-1 justify-center"
+            >
               Keep Automation
             </Button>
             <button
               type="button"
               onClick={handleCancel}
-              className="inline-flex items-center gap-inline-tight h-9 px-control-x rounded-lg border border-error-soft bg-error-soft text-error-ink hover:bg-error/10 transition-colors cursor-pointer font-sans text-label font-medium"
+              className="flex-1 inline-flex items-center justify-center gap-inline-tight h-9 px-control-x rounded-lg border border-error-soft bg-error-soft text-error-ink hover:bg-error/10 transition-colors cursor-pointer font-sans text-label font-medium"
             >
               <Icon name="x" size={14} />
               Cancel Automation
