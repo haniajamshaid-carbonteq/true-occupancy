@@ -138,12 +138,12 @@ function AutomationControl({ target }: AutomationControlProps) {
         )}
         items={[
           {
-            label: 'Change cadence',
+            label: 'Change Cadence',
             icon: <Icon name="cal" />,
             onClick: () => setEditOpen(true),
           },
           {
-            label: 'Cancel automation',
+            label: 'Cancel',
             icon: <Icon name="x" />,
             destructive: true,
             onClick: () => setConfirmOpen(true),
@@ -165,11 +165,11 @@ function AutomationControl({ target }: AutomationControlProps) {
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         width={420}
-        title="Cancel automation?"
+        title="Cancel Automation?"
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
-              Keep automation
+              Keep Automation
             </Button>
             <button
               type="button"
@@ -177,7 +177,7 @@ function AutomationControl({ target }: AutomationControlProps) {
               className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-error-soft bg-error-soft text-error-ink hover:bg-error/10 transition-colors cursor-pointer font-sans text-label font-medium"
             >
               <Icon name="x" size={14} />
-              Cancel automation
+              Cancel Automation
             </button>
           </>
         }
@@ -206,10 +206,31 @@ function AutomationControl({ target }: AutomationControlProps) {
 }
 
 function Toast({ message }: { message: string | null }) {
-  if (!message) return null;
+  // Keep the toast mounted briefly after `message` clears so the exit
+  // animation has time to play.
+  const [rendered, setRendered] = React.useState<string | null>(null);
+  const [phase, setPhase] = React.useState<'in' | 'out'>('in');
+
+  React.useEffect(() => {
+    if (message) {
+      setRendered(message);
+      setPhase('in');
+      return;
+    }
+    if (rendered) {
+      setPhase('out');
+      const t = window.setTimeout(() => setRendered(null), 200);
+      return () => window.clearTimeout(t);
+    }
+  }, [message]);
+
+  if (!rendered) return null;
   return (
     <div
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] px-4 py-2.5 rounded-md shadow-md font-sans text-label flex items-center gap-2"
+      key={rendered}
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] px-4 py-2.5 rounded-md shadow-md font-sans text-label flex items-center gap-2 ${
+        phase === 'in' ? 'toast-in' : 'toast-out'
+      }`}
       style={{ background: 'var(--navy)', color: 'white' }}
       role="status"
     >
@@ -220,7 +241,7 @@ function Toast({ message }: { message: string | null }) {
       >
         <Icon name="check" size={12} />
       </span>
-      {message}
+      {rendered}
     </div>
   );
 }

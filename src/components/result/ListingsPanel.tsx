@@ -729,7 +729,7 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
       {/* Section heading + view tabs */}
       <div className="mt-7 sm:mt-9 mb-4">
         <h2
-          className="font-sans font-semibold text-h3 sm:text-h2 tracking-[-0.005em] m-0 mb-3"
+          className="font-sans font-semibold text-h4 sm:text-h3 tracking-[-0.005em] m-0 mb-3"
           style={{ color: 'var(--navy)' }}
         >
           Property Listings

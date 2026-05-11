@@ -5,10 +5,22 @@
 
 function PropertyOverview() {
   const [mapOpen, setMapOpen] = React.useState(false);
+  const mapRef = React.useRef<HTMLDivElement>(null);
+  const [mapHeight, setMapHeight] = React.useState(0);
+
+  React.useEffect(() => {
+    const el = mapRef.current;
+    if (!el) return;
+    if (mapOpen) {
+      const raf = requestAnimationFrame(() => setMapHeight(el.scrollHeight));
+      return () => cancelAnimationFrame(raf);
+    }
+    setMapHeight(0);
+  }, [mapOpen]);
 
   return (
     <section className="mt-8 sm:mt-12">
-      <h2 className="font-sans font-semibold text-h3 sm:text-h2 tracking-[-0.005em] m-0 mb-3 sm:mb-3.5" style={{ color: 'var(--navy)' }}>
+      <h2 className="font-sans font-semibold text-h4 sm:text-h3 tracking-[-0.005em] m-0 mb-3 sm:mb-3.5" style={{ color: 'var(--navy)' }}>
         Property Overview
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-[0.55fr_1.45fr] bg-surface border border-line rounded-lg shadow-sm overflow-hidden">
@@ -37,7 +49,14 @@ function PropertyOverview() {
               <Icon name="chevron" size={14} />
             </span>
           </button>
-          {mapOpen && <PropertyMap />}
+          <div
+            ref={mapRef}
+            className="accordion-content"
+            style={{ maxHeight: mapHeight, opacity: mapOpen ? 1 : 0 }}
+            aria-hidden={!mapOpen}
+          >
+            <PropertyMap />
+          </div>
         </div>
         <PropertySpecs />
       </div>

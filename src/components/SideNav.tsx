@@ -14,7 +14,7 @@ interface NavItem {
 
 const PRIMARY: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: 'trend-up', exact: true },
-  { to: '/batch', label: 'Batch upload', icon: 'layers' },
+  { to: '/batch', label: 'Batch Upload', icon: 'layers' },
   { to: '/history', label: 'History', icon: 'history' },
   { to: '/scheduled', label: 'Scheduled', icon: 'cal' },
 ];

@@ -51,7 +51,7 @@ function BatchScreen() {
             className="font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0"
             style={{ color: 'var(--navy)' }}
           >
-            Batch upload
+            Batch Upload
           </h1>
           <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
             Upload a CSV of addresses to scan against Airbnb, Vrbo, and Facebook Marketplace.
@@ -181,7 +181,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
                 {isComplete ? (
                   <Pill variant="clean">Complete</Pill>
                 ) : (
-                  <Pill variant="warn">In progress</Pill>
+                  <Pill variant="warn">In Progress</Pill>
                 )}
               </div>
               <h2 className="font-sans font-semibold text-h2 tracking-[-0.005em] m-0 leading-tight" style={{ color: 'var(--navy)' }}>

@@ -24,14 +24,42 @@ interface TabsProps<V extends string> {
 }
 
 function Tabs<V extends string>({ items, value, onChange, rightSlot, className = '' }: TabsProps<V>) {
+  const tablistRef = React.useRef<HTMLDivElement>(null);
+  const tabRefs = React.useRef<Map<V, HTMLButtonElement>>(new Map());
+  const [indicator, setIndicator] = React.useState<{ left: number; width: number } | null>(null);
+
+  React.useLayoutEffect(() => {
+    const container = tablistRef.current;
+    const el = tabRefs.current.get(value);
+    if (!container || !el) return;
+    const measure = () => {
+      const cRect = container.getBoundingClientRect();
+      const rect = el.getBoundingClientRect();
+      setIndicator({ left: rect.left - cRect.left, width: rect.width });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    ro.observe(container);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [value, items.map((i) => `${i.value}:${i.count ?? ''}`).join('|')]);
+
   return (
     <div className={`flex items-center justify-between gap-4 border-b border-line ${className}`}>
-      <div role="tablist" className="flex items-center gap-1">
+      <div ref={tablistRef} role="tablist" className="relative flex items-center gap-1">
         {items.map((it) => {
           const active = it.value === value;
           return (
             <button
               key={it.value}
+              ref={(el) => {
+                if (el) tabRefs.current.set(it.value, el);
+                else tabRefs.current.delete(it.value);
+              }}
               role="tab"
               type="button"
               aria-selected={active}
@@ -42,16 +70,11 @@ function Tabs<V extends string>({ items, value, onChange, rightSlot, className =
               ].join(' ')}
               style={active ? { color: 'var(--navy)' } : undefined}
             >
-              <span
-                className={[
-                  'inline-flex items-center gap-2 h-full border-b-2 -mb-px whitespace-nowrap',
-                  active ? 'border-brand' : 'border-transparent',
-                ].join(' ')}
-              >
+              <span className="inline-flex items-center gap-2 h-full whitespace-nowrap">
                 <span>{it.label}</span>
                 {typeof it.count === 'number' && (
                   <span
-                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
+                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded transition-colors duration-200"
                     style={{
                       background: active ? 'var(--brand-tint)' : 'var(--surface-2)',
                       color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
@@ -64,6 +87,17 @@ function Tabs<V extends string>({ items, value, onChange, rightSlot, className =
             </button>
           );
         })}
+        {indicator && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -bottom-px h-[2px] bg-brand"
+            style={{
+              left: indicator.left,
+              width: indicator.width,
+              transition: 'left 220ms var(--ease-out), width 220ms var(--ease-out)',
+            }}
+          />
+        )}
       </div>
       {rightSlot && <div className="shrink-0">{rightSlot}</div>}
     </div>
