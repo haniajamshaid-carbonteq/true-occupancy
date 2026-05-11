@@ -17,7 +17,10 @@ function HistoryScreen() {
   const [platformsBucket, setPlatformsBucket] = React.useState<PlatformsBucket>('all');
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
-  const advancedCount = (recency !== 'all' ? 1 : 0) + (platformsBucket !== 'all' ? 1 : 0);
+  const advancedCount =
+    (type !== 'all' ? 1 : 0) +
+    (recency !== 'all' ? 1 : 0) +
+    (platformsBucket !== 'all' ? 1 : 0);
 
   const filtered = rows.filter((r: any) => {
     if (type !== 'all' && r.kind !== type) return false;
@@ -49,6 +52,7 @@ function HistoryScreen() {
   });
 
   function clearAdvanced() {
+    setType('all');
     setRecency('all');
     setPlatformsBucket('all');
   }
@@ -58,12 +62,6 @@ function HistoryScreen() {
     { id: 'high',   label: 'Rented',           count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'high').length },
     { id: 'medium', label: 'Possibly rented',  count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'medium').length },
     { id: 'low',    label: 'Not rented',       count: rows.filter((r: any) => r.kind === 'single' && r.scenario === 'low').length },
-  ];
-
-  const TYPE_FILTERS: { id: Type; label: string; count: number }[] = [
-    { id: 'all',    label: 'All',    count: rows.length },
-    { id: 'single', label: 'Single', count: rows.filter((r: any) => r.kind === 'single').length },
-    { id: 'batch',  label: 'Batch',  count: rows.filter((r: any) => r.kind === 'batch').length },
   ];
 
   function openRow(row: any) {
@@ -103,39 +101,9 @@ function HistoryScreen() {
         </div>
       </header>
 
-      {/* Filter row — Type segment on the left, verdict chips on the right, search far right. */}
+      {/* Filter row — verdict chips on the left, search + Filters drawer on the right. Type filter lives in the drawer. */}
       <section className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            {TYPE_FILTERS.map((opt) => {
-              const active = type === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setType(opt.id)}
-                  className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors ${
-                    active
-                      ? '!bg-brand-tint !border-brand/40'
-                      : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
-                  }`}
-                  style={{ color: active ? 'var(--brand-deep)' : 'var(--ink-2)' }}
-                >
-                  {opt.label}
-                  <span
-                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
-                    style={{
-                      background: active ? 'rgba(2,146,190,0.12)' : 'var(--surface-2)',
-                      color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
-                    }}
-                  >
-                    {opt.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="hidden sm:block w-px h-5 bg-line" aria-hidden />
           <div className="flex items-center gap-1.5 flex-wrap">
             {VERDICT_FILTERS.map((opt) => {
               const active = verdict === opt.id;
@@ -221,6 +189,16 @@ function HistoryScreen() {
         }
       >
         <div className="flex flex-col gap-6">
+          <ChipRow
+            label="Scan type"
+            value={type}
+            onChange={(v: string) => setType(v as Type)}
+            options={[
+              { value: 'all',    label: 'All scans' },
+              { value: 'single', label: 'Single property' },
+              { value: 'batch',  label: 'Batch' },
+            ]}
+          />
           <ChipRow
             label="When scanned"
             value={recency}
