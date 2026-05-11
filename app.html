@@ -10,8 +10,20 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="src/styles/tokens.css">
-<link rel="stylesheet" href="src/styles/typography.css">
+<!-- CSS loaded via inline script with per-load cache-bust so edits to
+     tokens / typography / motion show up on refresh without a hard reload.
+     Mirrors the .tsx cache-bust pattern in the bootstrap loader below. -->
+<script>
+  (function () {
+    var v = Date.now();
+    ['src/styles/tokens.css', 'src/styles/typography.css', 'src/styles/motion.css'].forEach(function (href) {
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href + '?v=' + v;
+      document.head.appendChild(link);
+    });
+  })();
+</script>
 
 <!-- Tailwind Play CDN — config mirrors tailwind.config.js so utilities resolve to our tokens -->
 <script src="https://cdn.tailwindcss.com"></script>
@@ -42,6 +54,7 @@
           bg: 'var(--bg)',
           surface: { DEFAULT: 'var(--surface)', 2: 'var(--surface-2)' },
           line:    { DEFAULT: 'var(--line)',    strong: 'var(--line-strong)' },
+          'hover-bg': 'var(--hover-bg)',
           ink:     { DEFAULT: 'var(--ink)', 2: 'var(--ink-2)', 3: 'var(--ink-3)', 4: 'var(--ink-4)' },
           brand:   { DEFAULT: 'var(--brand)', 2: 'var(--brand-2)', soft: 'var(--brand-soft)', tint: 'var(--brand-tint)', deep: 'var(--brand-deep)' },
           clean:   { DEFAULT: 'var(--clean)', soft: 'var(--clean-soft)', ink: 'var(--clean-ink)' },

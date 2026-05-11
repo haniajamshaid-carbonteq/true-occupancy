@@ -40,7 +40,7 @@ function ScanContextBar({
       <button
         type="button"
         onClick={() => history.push(backTo)}
-        className="group inline-flex items-center gap-1 h-9 px-2.5 -ml-2.5 rounded-md bg-transparent border-0 text-label text-ink-2 hover:bg-line transition-colors shrink-0 cursor-pointer"
+        className="group inline-flex items-center gap-1 h-9 px-2.5 -ml-2.5 rounded-md bg-transparent border-0 text-label text-ink-2 hover:bg-hover-bg transition-colors shrink-0 cursor-pointer"
         aria-label={backLabel}
       >
         <span
@@ -75,7 +75,7 @@ function ScanContextBar({
       <button
         type="button"
         onClick={() => openCommandPalette()}
-        className="hidden sm:inline-flex items-center gap-1.5 h-9 px-2.5 rounded-md text-caption text-ink-2 hover:bg-line transition-colors shrink-0"
+        className="hidden sm:inline-flex items-center gap-1.5 h-9 px-2.5 rounded-md text-caption text-ink-2 hover:bg-hover-bg transition-colors shrink-0"
         aria-label="Open search"
       >
         <Icon name="search" size={14} />

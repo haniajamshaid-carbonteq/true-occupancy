@@ -92,15 +92,28 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 // stays in lockstep on padding, type ramp, and footer rhythm. The leading
 // "Scanned today" tile is promoted to primary — it's the headline number
 // every investigator opens the dashboard for.
-function KpiTile({ kpi, primary }: { kpi: typeof KPIS[number]; primary?: boolean }) {
+function KpiTile({
+  kpi,
+  primary,
+  index,
+}: {
+  kpi: typeof KPIS[number];
+  primary?: boolean;
+  index: number;
+}) {
   return (
-    <MetricCard
-      primary={primary}
-      label={kpi.label}
-      value={kpi.value}
-      hint={kpi.hint}
-      delta={kpi.delta ? { dir: kpi.delta.dir, value: kpi.delta.pct } : undefined}
-    />
+    <div
+      className="card-rise"
+      style={{ ['--rise-delay' as any]: `${index * 60}ms` }}
+    >
+      <MetricCard
+        primary={primary}
+        label={kpi.label}
+        value={kpi.value}
+        hint={kpi.hint}
+        delta={kpi.delta ? { dir: kpi.delta.dir, value: kpi.delta.pct } : undefined}
+      />
+    </div>
   );
 }
 
@@ -243,7 +256,7 @@ function FlaggedRow({ row, onOpen }: { row: RecentScan; onOpen: (row: RecentScan
     <button
       type="button"
       onClick={() => onOpen(row)}
-      className="w-full flex items-center gap-3 px-4 py-3 border-t border-line first:border-t-0 hover:bg-line transition-colors text-left"
+      className="w-full flex items-center gap-3 px-4 py-3 border-t border-line first:border-t-0 hover:bg-hover-bg transition-colors text-left"
     >
       <span
         className="w-10 h-10 rounded-md grid place-items-center font-semibold text-label tabular-nums shrink-0"
@@ -342,7 +355,7 @@ function HomeScreen() {
       <section className="mb-10 sm:mb-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {KPIS.map((kpi, i) => (
-            <KpiTile key={kpi.label} kpi={kpi} primary={i === 0} />
+            <KpiTile key={kpi.label} kpi={kpi} primary={i === 0} index={i} />
           ))}
         </div>
       </section>
@@ -370,13 +383,18 @@ function HomeScreen() {
           </Button>
         </div>
 
-        <DataTable
-          columns={SCAN_COLUMNS}
-          rows={RECENT_SCANS}
-          rowKey={(r: RecentScan) => r.id}
-          onRowClick={openResult}
-          leadingAccent={scanLeadingAccent}
-        />
+        <div
+          className="card-rise"
+          style={{ ['--rise-delay' as any]: '320ms' }}
+        >
+          <DataTable
+            columns={SCAN_COLUMNS}
+            rows={RECENT_SCANS}
+            rowKey={(r: RecentScan) => r.id}
+            onRowClick={openResult}
+            leadingAccent={scanLeadingAccent}
+          />
+        </div>
       </section>
 
       {/* Utility footer — single hairline strip */}

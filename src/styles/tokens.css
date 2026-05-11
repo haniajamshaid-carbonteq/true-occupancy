@@ -18,6 +18,12 @@
   --line: #E5E7EB;
   --line-strong: #CBD5E1;
 
+  /* === Hover surface ===
+   * Slightly lighter than --line so hover states read as a calm
+   * background wash rather than the same value as the borders around
+   * them. Used by buttons, nav rows, ghost CTAs, table rows. */
+  --hover-bg: #E8EBF0;
+
   /* === Ink (text) === */
   --ink:   #1C1C1E;           /* body ink (brand book) */
   --ink-2: #142D55;           /* deep navy — headlines on white */

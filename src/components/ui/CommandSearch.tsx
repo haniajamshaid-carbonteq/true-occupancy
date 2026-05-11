@@ -143,44 +143,21 @@ function CommandSearch({
 
   return (
     <div className={mode === 'overlay' ? 'w-full' : 'w-full'}>
-      {/* Glow layer — soft brand wash visible only when focused */}
+      {/* Focus state mirrors Input.tsx — brand border + brand-soft ring +
+          the standard tinted shadow. No glow / gradient ring / deep
+          drop-shadow so the search bar stays in lockstep with every other
+          input across the platform. */}
       <div className="relative">
         <div
-          className="pointer-events-none absolute -inset-2 rounded-[24px] transition-opacity duration-200"
-          aria-hidden
+          className="relative flex items-center gap-3 bg-surface rounded-lg transition-shadow duration-150"
           style={{
-            background:
-              'radial-gradient(60% 70% at 50% 50%, rgba(10,183,163,0.18), rgba(4,152,198,0.05) 60%, transparent 80%)',
-            opacity: focused ? 1 : 0,
-            filter: 'blur(14px)',
-          }}
-        />
-        {/* Gradient ring — paints under the surface card on focus */}
-        <div
-          className="absolute inset-0 rounded-[14px] transition-opacity duration-200"
-          aria-hidden
-          style={{
-            padding: '2px',
-            background:
-              'linear-gradient(120deg, var(--brand) 0%, var(--brand-2) 60%, var(--brand) 100%)',
-            opacity: focused ? 1 : 0,
-            WebkitMask:
-              'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
-            WebkitMaskComposite: 'xor',
-            maskComposite: 'exclude',
-          }}
-        />
-        <div
-          className="relative flex items-center gap-3 bg-surface rounded-[14px] transition-shadow duration-200"
-          style={{
-            border: focused ? '1px solid transparent' : '1px solid var(--line-strong)',
+            border: `1px solid ${focused ? 'var(--brand)' : 'var(--line)'}`,
             boxShadow: focused
-              ? '0 12px 36px -12px rgba(20, 45, 85, 0.18), 0 2px 6px rgba(20, 45, 85, 0.06)'
+              ? '0 0 0 3px var(--brand-soft), var(--shadow-sm)'
               : 'var(--shadow-sm)',
             paddingLeft: 16,
             paddingRight: 8,
             height: wrapperHeight,
-            backdropFilter: 'blur(8px)',
           }}
         >
           <span
@@ -228,7 +205,7 @@ function CommandSearch({
               key={c.label}
               type="button"
               onClick={() => onChange(c.value)}
-              className="px-2.5 py-1 rounded-full border border-line text-caption text-ink-2 hover:border-line-strong hover:bg-line transition-colors"
+              className="px-2.5 py-1 rounded-full border border-line text-caption text-ink-2 hover:border-line-strong hover:bg-hover-bg transition-colors"
             >
               {c.label}
             </button>

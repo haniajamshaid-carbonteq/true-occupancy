@@ -152,7 +152,7 @@ function HistoryScreen() {
                 className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors ${
                   active
                     ? '!bg-brand-tint !border-brand/40'
-                    : 'bg-surface border-line hover:bg-line hover:border-line-strong'
+                    : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
                 }`}
                 style={{ color: active ? 'var(--brand-deep)' : 'var(--ink-2)' }}
               >

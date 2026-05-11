@@ -141,8 +141,18 @@ function DiffCellInline({ cell }: { cell: DiffCell }) {
       ? 'var(--risk-ink)'
       : 'var(--ink-3)';
 
+  // One-shot attention pulse on mismatch cells so the eye finds the
+  // deviations on the user's first paint. CSS animation runs once at
+  // 900ms after mount, then never again.
+  const pulseClass =
+    cell.kind === 'fail'
+      ? 'pulse-mismatch-fail'
+      : cell.kind === 'warn'
+      ? 'pulse-mismatch-warn'
+      : '';
+
   return (
-    <div className={`px-3 py-3 text-caption tabular-nums ${cls}`}>
+    <div className={`px-3 py-3 text-caption tabular-nums ${cls} ${pulseClass}`}>
       <div className="font-medium leading-tight flex items-baseline gap-1.5">
         <span
           className="font-bold w-3.5 text-center shrink-0"
@@ -338,8 +348,8 @@ function DesktopMatrix({
               >
                 {strong ? (
                   <div
-                    className="text-center text-white text-eyebrow uppercase tracking-[0.18em] font-semibold py-1.5 leading-none"
-                    style={{ background: 'var(--brand)' }}
+                    className="text-center text-white text-eyebrow uppercase tracking-[0.18em] font-semibold py-1.5 leading-none ribbon-drop"
+                    style={{ background: 'var(--brand)', transformOrigin: 'top center' }}
                   >
                     ★ Strongest match
                   </div>
@@ -456,13 +466,13 @@ function DesktopMatrix({
                 href={l.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-caption font-semibold no-underline"
+                className="group inline-flex items-center gap-1 h-7 px-2 -ml-2 rounded-md text-caption font-semibold no-underline transition-colors hover:bg-hover-bg"
                 style={{ color: 'var(--brand-deep)' }}
               >
                 Open
                 <svg
                   viewBox="0 0 16 16"
-                  className="w-3 h-3"
+                  className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth={2}
@@ -483,6 +493,43 @@ function DesktopMatrix({
 }
 
 // --- mobile accordion stack ----------------------------------------------
+
+// Smooth open/close for mobile listing accordions. Measures the child's
+// scrollHeight and tweens max-height + opacity. Children stay mounted so
+// the next open animates from a known geometry.
+function MobileAccordionBody({
+  open,
+  children,
+}: {
+  open: boolean;
+  children: React.ReactNode;
+}) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = React.useState(0);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (open) {
+      const raf = requestAnimationFrame(() => {
+        setMaxHeight(el.scrollHeight);
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+    setMaxHeight(0);
+  }, [open, children]);
+
+  return (
+    <div
+      ref={ref}
+      className="accordion-content"
+      style={{ maxHeight, opacity: open ? 1 : 0 }}
+      aria-hidden={!open}
+    >
+      {children}
+    </div>
+  );
+}
 
 function MobileAttrRow({
   label,
@@ -631,7 +678,7 @@ function MobileStack({
                 <path d="M4 6l4 4 4-4" />
               </svg>
             </button>
-            {isOpen && (
+            <MobileAccordionBody open={isOpen}>
               <div className="px-3 pb-3 border-t border-line">
                 {rows.map((row, ri) => {
                   const cellIdx = listings.findIndex((x) => x.url === l.url);
@@ -649,14 +696,15 @@ function MobileStack({
                     href={l.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-caption font-semibold no-underline"
+                    className="group inline-flex items-center gap-1 h-8 px-2 rounded-md text-caption font-semibold no-underline transition-colors hover:bg-hover-bg"
                     style={{ color: 'var(--brand-deep)' }}
                   >
-                    Open on {PLATFORM_NAME[l.platformId]} ↗
+                    Open on {PLATFORM_NAME[l.platformId]}
+                    <span className="transition-transform group-hover:translate-x-0.5">↗</span>
                   </a>
                 </div>
               </div>
-            )}
+            </MobileAccordionBody>
           </div>
         );
       })}

@@ -20,7 +20,7 @@ function PropertyOverview() {
           <button
             type="button"
             onClick={() => setMapOpen((v) => !v)}
-            className="w-full flex items-center gap-2.5 px-5 py-3.5 bg-surface-2 hover:bg-line/40 transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-5 py-3.5 bg-surface-2 hover:bg-hover-bg/40 transition-colors text-left"
             aria-expanded={mapOpen}
           >
             <span className="w-7 h-7 rounded-full bg-surface border border-line grid place-items-center text-ink-2 shrink-0">

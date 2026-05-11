@@ -73,7 +73,7 @@ function Sidebar() {
                 key={item.to}
                 to={item.to}
                 exact={item.exact}
-                className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-ink-2 text-sm font-medium hover:bg-line transition-colors no-underline"
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-ink-2 text-sm font-medium hover:bg-hover-bg transition-colors no-underline"
                 activeClassName="bg-brand-tint text-brand"
               >
                 <Icon name={item.icon} size={16} className="opacity-80" />

@@ -69,7 +69,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
         {/* Drop-zone with hover affordance */}
         <label
           htmlFor="batch-csv"
-          className="w-full max-w-[520px] cursor-pointer block rounded-lg border-2 border-dashed border-line-strong bg-surface-2 hover:bg-brand-soft hover:border-brand transition-colors px-6 py-8 mb-4"
+          className="w-full max-w-[520px] cursor-pointer block rounded-lg border-2 border-dashed border-line bg-surface hover:bg-brand-soft hover:border-brand transition-colors px-6 py-8 mb-4"
         >
           <div className="font-medium text-ink-2 mb-1">
             Drop a CSV here, or <span className="text-brand">browse</span>

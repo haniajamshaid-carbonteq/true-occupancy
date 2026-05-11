@@ -1,4 +1,7 @@
-/* global React, PROPERTY */
+/* global React, PROPERTY, Pill */
+
+const formatPropertyType = (t: string) =>
+  t.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
 const SPECS = [
   { k: 'Bedrooms', v: PROPERTY.bedrooms },
@@ -21,9 +24,7 @@ function PropertySpecs() {
           </h2>
           <div className="text-sm sm:text-base text-ink-3">{PROPERTY.city}</div>
         </div>
-        <span className="inline-flex items-center h-[26px] sm:h-[30px] px-2.5 sm:px-3.5 rounded-sm bg-surface-2 border border-line font-sans text-eyebrow sm:text-micro font-medium text-ink-2 tracking-wide shrink-0">
-          {PROPERTY.propertyType}
-        </span>
+        <Pill className="shrink-0">{formatPropertyType(PROPERTY.propertyType)}</Pill>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-4 sm:gap-x-5 py-4 sm:py-5 border-t border-b border-line">

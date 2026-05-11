@@ -18,8 +18,9 @@ interface AuthScreenProps {
 
 const HERO_IMAGE_URL = 'uploads/pexels-introspectivedsgn-9150640.jpg';
 
-const HERO_OVERLAY =
-  'linear-gradient(135deg, rgba(10,183,163,.55), rgba(1,94,122,.78))';
+// Subtle bottom scrim so white headline/CTA stay legible against the photo.
+const HERO_SCRIM =
+  'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.45) 100%)';
 
 // --- shared bits ---------------------------------------------------------
 
@@ -35,15 +36,20 @@ function HalcyonMark({ size = 28 }: { size?: number }) {
   );
 }
 
-function FormHeading({ title, sub }: { title: string; sub: string }) {
+function FormHeading({
+  title,
+  sub,
+  formMode,
+}: {
+  title: string;
+  sub: string;
+  formMode: 'signin' | 'signup';
+}) {
   return (
-    <div>
-      <div className="mb-5">
-        <HalcyonMark size={28} />
-      </div>
+    <div data-form-heading={formMode}>
       <h1
         className="font-sans font-semibold m-0 leading-tight tracking-[-0.012em]"
-        style={{ fontSize: "var(--text-h2)", color: 'var(--navy)' }}
+        style={{ fontSize: 'var(--text-h2)', color: 'var(--navy)' }}
       >
         {title}
       </h1>
@@ -58,106 +64,47 @@ function FormHeading({ title, sub }: { title: string; sub: string }) {
 }
 
 // Image-panel content — used both desktop (full-height) and mobile (strip).
-function ImagePanelContent({
-  oppositeMode,
-  onToggle,
-  compact = false,
-}: {
-  oppositeMode: 'signin' | 'signup';
-  onToggle: () => void;
-  compact?: boolean;
-}) {
-  const eyebrow = compact ? 'Halcyon · TrueOccupancy™' : null;
-  const heading = compact
-    ? oppositeMode === 'signup'
-      ? 'New here?'
-      : 'Welcome back.'
-    : 'Verify with confidence.';
-  const sub =
-    oppositeMode === 'signup'
-      ? 'Create an account to start scanning properties.'
-      : 'Sign in to continue your scan history.';
-  const ctaLabel = oppositeMode === 'signup' ? 'Sign up' : 'Sign in';
-  const ctaHint =
-    oppositeMode === 'signup'
-      ? "Don't have an account?"
-      : 'Already have an account?';
-
+// Content is mode-agnostic so the desktop slide animation has no in-flight
+// content swap (one transform on static content = perceived smoothness).
+// The mode toggle lives at the bottom of each form.
+function ImagePanelContent({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className={`relative h-full w-full flex flex-col text-white ${
         compact ? 'p-6' : 'p-12'
       }`}
       style={{
-        background: `${HERO_OVERLAY}, url(${HERO_IMAGE_URL}) center/cover no-repeat`,
-        // grayscale safety net — applied only to the image layer via
-        // a sibling pseudo-element wouldn't work here, so apply a desaturating
-        // mix-blend overlay below to be safe even if the asset is colour.
+        background: `url(${HERO_IMAGE_URL}) center/cover no-repeat`,
       }}
     >
-      {/* Grayscale safety net — sits under the teal overlay so the photo
-          reads desaturated even if it's a colour source */}
       <div
         className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `url(${HERO_IMAGE_URL}) center/cover no-repeat`,
-          filter: 'grayscale(1) contrast(1.05)',
-          zIndex: 0,
-        }}
-        aria-hidden
-      />
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: HERO_OVERLAY, zIndex: 1 }}
+        style={{ background: HERO_SCRIM, zIndex: 1 }}
         aria-hidden
       />
 
       <div className="relative z-10 flex flex-col h-full">
-        {!compact && (
-          <div className="font-sans text-micro uppercase tracking-[0.18em] font-semibold opacity-90">
-            Halcyon · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup>
-          </div>
-        )}
-
         <div className={compact ? 'mt-3' : 'mt-auto'}>
-          {eyebrow && (
+          {compact && (
             <div className="font-sans text-eyebrow uppercase tracking-[0.18em] font-semibold opacity-85 mb-1">
-              {eyebrow}
+              Halcyon · TrueOccupancy™
             </div>
           )}
           <div
             className="font-sans font-semibold leading-[1.1] tracking-[-0.015em]"
-            style={{ fontSize: compact ? 22 : 38 }}
+            style={{
+              fontSize: compact ? 22 : 38,
+              textShadow: '0 1px 12px rgba(0,0,0,0.5)',
+            }}
           >
-            {heading}
+            True occupancy, verified.
           </div>
           <p
             className="mt-2 text-label leading-relaxed opacity-90 max-w-[34ch]"
+            style={{ textShadow: '0 1px 10px rgba(0,0,0,0.45)' }}
           >
-            {sub}
+            One address — every listing, every signal, scored in seconds.
           </p>
-
-          <button
-            type="button"
-            onClick={onToggle}
-            className="mt-6 inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-label font-semibold cursor-pointer transition-colors"
-            style={{
-              border: '1.5px solid rgba(255,255,255,0.85)',
-              color: 'white',
-              background: 'transparent',
-            }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.background =
-                'rgba(255,255,255,0.12)')
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.background =
-                'transparent')
-            }
-          >
-            <span style={{ opacity: 0.85, fontWeight: 500 }}>{ctaHint}</span>
-            <span>{ctaLabel}</span>
-          </button>
         </div>
       </div>
     </div>
@@ -189,6 +136,7 @@ function SignInForm({
       <FormHeading
         title="Sign in"
         sub="Continue your scan history and verifications."
+        formMode="signin"
       />
 
       <Input
@@ -304,6 +252,7 @@ function SignUpForm({
       <FormHeading
         title="Create account"
         sub="Start verifying property occupancy in minutes."
+        formMode="signup"
       />
 
       <Input
@@ -395,7 +344,6 @@ function SignUpForm({
 function AuthScreen({ mode }: AuthScreenProps) {
   const history = ReactRouterDOM.useHistory();
   const isSignIn = mode === 'signin';
-  const oppositeMode = isSignIn ? 'signup' : 'signin';
 
   function toggle() {
     history.push(isSignIn ? '/signup' : '/signin');
@@ -405,10 +353,120 @@ function AuthScreen({ mode }: AuthScreenProps) {
     history.push('/');
   }
 
+  // Drive the slide imperatively with the Web Animations API. CSS
+  // `transition` on a React-managed style object proved unreliable —
+  // sometimes the style change and transition declaration get committed
+  // in the same paint and no transition fires. WAAPI explicitly animates
+  // from current → target on every mode change, regardless of React's
+  // commit timing. Skips the first paint (no animation on initial mount).
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
+  const logoRef = React.useRef<HTMLDivElement | null>(null);
+  const prevModeRef = React.useRef<'signin' | 'signup' | null>(null);
+  // useLayoutEffect — snaps positions *before* the browser paints, so the
+  // first frame on /signin doesn't briefly show the logo on the wrong side.
+  React.useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const panelTarget = isSignIn ? '0%' : '100%';
+
+    // Logo sits in the corner OPPOSITE the image panel: on /signin the
+    // image is left so the logo is right, and vice versa. Translated in
+    // pixels so it lands at the far edge of its rail regardless of width.
+    const logoEl = logoRef.current;
+    const rail = logoEl?.parentElement;
+    const logoFarX = rail && logoEl ? rail.offsetWidth - logoEl.offsetWidth : 0;
+    const logoTargetX = isSignIn ? logoFarX : 0;
+
+    // First mount: snap to target, no animation.
+    if (prevModeRef.current === null) {
+      el.style.transform = `translateX(${panelTarget})`;
+      if (logoEl) logoEl.style.transform = `translateX(${logoTargetX}px)`;
+      prevModeRef.current = mode;
+      return;
+    }
+    if (prevModeRef.current === mode) return;
+
+    const panelFrom = isSignIn ? '100%' : '0%';
+    const timing: KeyframeAnimationOptions = {
+      duration: 900,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fill: 'forwards',
+    };
+
+    el.animate(
+      [
+        { transform: `translateX(${panelFrom})` },
+        { transform: `translateX(${panelTarget})` },
+      ],
+      timing
+    );
+    el.style.transform = `translateX(${panelTarget})`;
+
+    // Logo snaps to the opposite corner — no animation, intentionally abrupt.
+    if (logoEl) {
+      logoEl.style.transform = `translateX(${logoTargetX}px)`;
+    }
+
+    // Pull attention to the heading of the form being revealed. Fires AFTER
+    // the panel finishes sliding (delay ~= panel duration) so the heading
+    // springs in as the user's eye lands on the now-uncovered form — not
+    // while the panel is still covering it. Direction-aware: the heading
+    // slides in from the same side the panel travelled toward.
+    const revealedHeading = document.querySelector<HTMLElement>(
+      `[data-form-heading="${mode}"]`
+    );
+    if (revealedHeading) {
+      const h1 = revealedHeading.querySelector('h1');
+      const sub = revealedHeading.querySelector('p');
+      // On /signup the form is on the LEFT (panel went right) → heading
+      // slides in from the LEFT. On /signin the form is on the RIGHT →
+      // heading slides in from the RIGHT.
+      const xFrom = isSignIn ? 36 : -36;
+      if (h1) {
+        h1.animate(
+          [
+            {
+              opacity: 0,
+              transform: `translate(${xFrom}px, 8px) scale(0.94)`,
+              filter: 'blur(6px)',
+            },
+            {
+              opacity: 1,
+              transform: 'translate(0, 0) scale(1)',
+              filter: 'blur(0)',
+            },
+          ],
+          {
+            duration: 700,
+            delay: 650,
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            fill: 'both',
+          }
+        );
+      }
+      if (sub) {
+        sub.animate(
+          [
+            { opacity: 0, transform: `translate(${xFrom * 0.5}px, 6px)` },
+            { opacity: 1, transform: 'translate(0, 0)' },
+          ],
+          {
+            duration: 600,
+            delay: 820,
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            fill: 'both',
+          }
+        );
+      }
+    }
+
+    prevModeRef.current = mode;
+  }, [mode, isSignIn]);
+
   return (
     <div
       className="min-h-screen w-full flex flex-col"
-      style={{ background: 'var(--bg)' }}
+      style={{ background: '#ffffff' }}
     >
       {/* Mobile: stacked layout (image strip on top, form below) */}
       <div className="lg:hidden w-full max-w-[440px] mx-auto flex flex-col gap-5 p-4 sm:p-6">
@@ -416,11 +474,7 @@ function AuthScreen({ mode }: AuthScreenProps) {
           className="rounded-xl overflow-hidden shadow-md"
           style={{ height: 200 }}
         >
-          <ImagePanelContent
-            oppositeMode={oppositeMode}
-            onToggle={toggle}
-            compact
-          />
+          <ImagePanelContent compact />
         </div>
         <div
           className="rounded-xl shadow-md p-6 sm:p-8"
@@ -441,6 +495,37 @@ function AuthScreen({ mode }: AuthScreenProps) {
         className="hidden lg:block relative w-full"
         style={{ height: '100vh', padding: 24 }}
       >
+        {/* Single brand mark — lives in the corner opposite the image panel
+            and slides with it on mode change. The wrapper occupies the
+            screen's left rail (top:36, left:40, width = viewport - margins)
+            with the logo nested inside; we then translate the logo from
+            left edge (0%) to right edge (100%) of that rail, perfectly
+            mirroring the panel's slide. */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: 36,
+            left: 40,
+            right: 40,
+            height: 32,
+            zIndex: 20,
+          }}
+        >
+          <div
+            ref={logoRef}
+            style={{
+              width: 32,
+              height: 32,
+              // useLayoutEffect snaps this to the correct pixel offset before
+              // the first paint.
+              transform: 'translateX(0)',
+              willChange: 'transform',
+            }}
+          >
+            <HalcyonMark size={32} />
+          </div>
+        </div>
+
         <div className="relative w-full h-full">
           {/* Two forms always rendered, side by side, each filling 50% of the viewport */}
           <div
@@ -457,31 +542,24 @@ function AuthScreen({ mode }: AuthScreenProps) {
             </div>
           </div>
 
-          {/* Image panel — absolutely positioned, 50% wide, slides via translateX.
-              Uses cubic-bezier(0.65, 0, 0.35, 1) — a smoother in/out curve so the
-              motion reads as "the panel travelled across" rather than "the panel
-              jumped". Duration bumped to 750ms so the eye can track it. */}
+          {/* Image panel — single static panel that slides across the viewport.
+              No inner content swap during travel, so the motion reads as one
+              continuous transform. Toggle is triggered by the link at the
+              bottom of each form. */}
           <div
-            className="absolute top-0 bottom-0"
+            ref={panelRef}
+            className="absolute top-0 bottom-0 overflow-hidden rounded-xl"
             style={{
               left: 0,
               width: '50%',
-              transform: isSignIn ? 'translateX(0)' : 'translateX(100%)',
-              transition: 'transform 750ms cubic-bezier(0.65, 0, 0.35, 1)',
               zIndex: 10,
               padding: 0,
               willChange: 'transform',
+              boxShadow: 'var(--shadow-lg)',
+              transform: `translateX(${isSignIn ? '0%' : '100%'})`,
             }}
           >
-            <div
-              className="relative w-full h-full rounded-xl overflow-hidden"
-              style={{ boxShadow: 'var(--shadow-lg)' }}
-            >
-              <ImagePanelContent
-                oppositeMode={oppositeMode}
-                onToggle={toggle}
-              />
-            </div>
+            <ImagePanelContent />
           </div>
         </div>
       </div>
@@ -489,10 +567,20 @@ function AuthScreen({ mode }: AuthScreenProps) {
   );
 }
 
+// Single routed entry for both /signin and /signup — derives the mode from
+// the URL so React Router keeps ONE AuthScreen instance across the toggle.
+// (Two separate Route components would remount the screen on every flip,
+// killing the CSS slide transition.) The name SignInScreen is preserved
+// since App.tsx imports it from the global scope.
 function SignInScreen() {
-  return <AuthScreen mode="signin" />;
+  const location = ReactRouterDOM.useLocation();
+  const mode: 'signin' | 'signup' =
+    location.pathname === '/signup' ? 'signup' : 'signin';
+  return <AuthScreen mode={mode} />;
 }
 
+// Unused after consolidation — kept as a no-op alias so older entry points
+// (e.g. design-spec previews) still resolve the global.
 function SignUpScreen() {
   return <AuthScreen mode="signup" />;
 }

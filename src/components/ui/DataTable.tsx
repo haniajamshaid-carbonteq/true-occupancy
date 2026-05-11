@@ -128,7 +128,7 @@ function DataTable<T>({
               'group relative w-full text-left',
               'border-t border-line',
               interactive
-                ? 'cursor-pointer transition-colors hover:bg-line'
+                ? 'cursor-pointer transition-colors hover:bg-hover-bg'
                 : '',
               // Mobile (card) layout
               'block md:hidden px-4 py-3.5',
@@ -160,7 +160,7 @@ function DataTable<T>({
               'group relative w-full text-left',
               'border-t border-line',
               interactive
-                ? 'cursor-pointer transition-colors hover:bg-line'
+                ? 'cursor-pointer transition-colors hover:bg-hover-bg'
                 : '',
               // Desktop table grid
               'hidden md:grid gap-4 px-6 py-3.5 items-center',

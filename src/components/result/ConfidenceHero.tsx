@@ -43,19 +43,27 @@ function WaffleGrid({ score }: { score: number }) {
   const GAP_X = 8;
   const WIDTH = DOT * 10 + GAP_X * 9; // 232
 
+  // Sequential fill on mount — dots pop in reading order over ~800ms total.
+  // The whole 100-dot grid animates in via CSS keyframe with per-dot delay.
+  const TOTAL_FILL_MS = 800;
   const dots = Array.from({ length: 100 }, (_, i) => {
     const idx = i + 1;
     const filled = idx <= score;
+    const finalOpacity = filled ? 1 : 0.16;
     return (
       <div
         key={i}
-        className="rounded-full"
-        style={{
-          width: DOT,
-          height: DOT,
-          background: rainbowAt(idx),
-          opacity: filled ? 1 : 0.16,
-        }}
+        className="rounded-full waffle-dot-anim"
+        style={
+          {
+            width: DOT,
+            height: DOT,
+            background: rainbowAt(idx),
+            '--final-opacity': finalOpacity,
+            '--waffle-delay': `${Math.round((i / 100) * TOTAL_FILL_MS)}ms`,
+            opacity: finalOpacity, // fallback for reduced-motion
+          } as React.CSSProperties
+        }
       />
     );
   });
@@ -93,17 +101,31 @@ function FactorRow({
   desc,
   impact,
   maxAbs,
+  index,
 }: {
   title: string;
   desc: string;
   impact: number;
   maxAbs: number;
+  index: number;
 }) {
   const abs = Math.abs(impact);
   const widthPct = maxAbs === 0 ? 0 : (abs / maxAbs) * 100;
   const positive = impact > 0;
   const negative = impact < 0;
   const sign = positive ? '+' : negative ? '−' : '';
+
+  // Bar grows from 0 → widthPct% on mount with a per-row stagger (60ms each).
+  // Mount = when the accordion opens (parent unmounts/remounts FactorRow on
+  // close+reopen so this also re-fires every time the user reopens).
+  const [animatedWidth, setAnimatedWidth] = React.useState(0);
+  React.useEffect(() => {
+    const delay = 80 + index * 70;
+    const raf = requestAnimationFrame(() => {
+      setTimeout(() => setAnimatedWidth(widthPct), delay);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [widthPct, index]);
 
   return (
     <div className="py-3.5">
@@ -141,8 +163,9 @@ function FactorRow({
           <div
             className="absolute inset-y-0 left-0 rounded-full"
             style={{
-              width: `${widthPct}%`,
+              width: `${animatedWidth}%`,
               background: 'linear-gradient(90deg, #2EBDA6 0%, #2BA8B5 50%, #2C8FCC 100%)',
+              transition: 'width 650ms cubic-bezier(.16, 1, .3, 1)',
             }}
           />
         </div>
@@ -196,25 +219,91 @@ function WhyThisScore({
         </span>
       </button>
 
-      {open && (
+      <AccordionPanel open={open}>
         <div className="mt-3 divide-y divide-line">
           {rows.map((r, i) => (
             <FactorRow
-              key={i}
+              key={`${open ? 'o' : 'c'}-${i}`}
               title={r.title}
               desc={r.desc}
               impact={r.impact}
               maxAbs={maxAbs}
+              index={i}
             />
           ))}
         </div>
-      )}
+      </AccordionPanel>
     </div>
   );
 }
 
+// Measures child scrollHeight and animates max-height + opacity for a smooth
+// open/close. Children always rendered when `open` is true; collapsed state
+// is height 0 + zero opacity.
+function AccordionPanel({
+  open,
+  children,
+}: {
+  open: boolean;
+  children: React.ReactNode;
+}) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (open) {
+      // measure on next frame so children are laid out
+      const raf = requestAnimationFrame(() => {
+        setMaxHeight(el.scrollHeight);
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+    setMaxHeight(0);
+  }, [open, children]);
+
+  return (
+    <div
+      ref={ref}
+      className="accordion-content"
+      style={{
+        maxHeight,
+        opacity: open ? 1 : 0,
+      }}
+      aria-hidden={!open}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Count-up driven by setInterval — eases from 0 → target with cubic
+// ease-out. Interval is more reliable than RAF here because the score
+// component remounts on every route change (the RouteCrossfade wrapper
+// keys on pathname) and the strict-mode double-effect-cancel was leaving
+// RAF in a stuck state.
+function useCountUp(target: number, duration = 800): number {
+  const [value, setValue] = React.useState(0);
+  React.useEffect(() => {
+    setValue(0);
+    const startTime = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const id = setInterval(() => {
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      const elapsed = now - startTime;
+      const p = Math.min(1, elapsed / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(Math.round(target * eased));
+      if (p >= 1) clearInterval(id);
+    }, 16);
+    return () => clearInterval(id);
+  }, [target, duration]);
+  return value;
+}
+
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
+  const animatedScore = useCountUp(sc.score, 800);
 
   return (
     <Card className="px-6 py-5">
@@ -232,7 +321,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               className="font-sans font-semibold text-ink leading-none tabular-nums"
               style={{ fontSize: "var(--text-display)", letterSpacing: '-0.04em' }}
             >
-              {sc.score}
+              {animatedScore}
             </div>
             <div className="font-sans text-ink-4 text-h3 tabular-nums">
               %

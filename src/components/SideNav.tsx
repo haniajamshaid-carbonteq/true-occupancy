@@ -38,7 +38,7 @@ function NavLinkRow({
       onClick={onNavigate}
       className={`flex items-center gap-3 rounded-md no-underline transition-colors ${
         isMobile ? 'h-12 px-3 text-body' : 'h-10 px-3 text-label'
-      } font-medium hover:bg-line`}
+      } font-medium hover:bg-hover-bg`}
       activeClassName="!bg-brand-tint !text-brand-deep"
       style={{ color: 'var(--navy)' }}
     >
@@ -119,10 +119,12 @@ function SideNav() {
 
   return (
     <>
-      {/* Desktop side rail (md+) */}
+      {/* Desktop side rail (md+) — h-screen pinned so the user profile at
+          the bottom of the flex column always sits at the viewport edge,
+          never pushed below the fold by a long route's content. */}
       <aside
         className="hidden md:flex fixed inset-y-0 left-0 flex-col bg-surface border-r border-line z-30"
-        style={{ width: NAV_WIDTH }}
+        style={{ width: NAV_WIDTH, height: '100vh' }}
       >
         <div className="px-5 pt-6 pb-5 border-b border-line">
           <BrandLockup />
@@ -143,7 +145,7 @@ function SideNav() {
         <div className="px-3 py-3 border-t border-line">
           <button
             type="button"
-            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-line transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-hover-bg transition-colors text-left"
           >
             <span
               className="w-9 h-9 rounded-full grid place-items-center text-white text-caption font-semibold tabular-nums shrink-0"
@@ -187,7 +189,7 @@ function SideNav() {
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
-            className="w-11 h-11 -mr-2 grid place-items-center rounded-md hover:bg-line transition-colors"
+            className="w-11 h-11 -mr-2 grid place-items-center rounded-md hover:bg-hover-bg transition-colors"
             style={{ color: 'var(--navy)' }}
           >
             <span className="relative w-5 h-4 block" aria-hidden>
