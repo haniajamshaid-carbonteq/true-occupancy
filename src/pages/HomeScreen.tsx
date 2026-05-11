@@ -325,26 +325,32 @@ function LiveBatchStrip() {
             <Icon name="x" size={14} />
           </button>
         )}
-        <div className="px-5 sm:px-6 py-5">
-          <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
+        <div className="px-5 sm:px-6 py-4 sm:py-5">
+          <div className="flex items-center gap-4">
             <div
-              className={`w-11 h-11 rounded-full grid place-items-center shrink-0 ${
+              className={`w-10 h-10 rounded-full grid place-items-center shrink-0 ${
                 isComplete ? 'bg-clean-soft text-clean-ink' : 'bg-brand-soft text-brand'
               }`}
               aria-hidden
             >
-              <Icon name={isComplete ? 'check' : 'layers'} size={isComplete ? 22 : 20} />
+              <Icon name={isComplete ? 'check' : 'layers'} size={isComplete ? 20 : 18} />
             </div>
+
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-0.5">
-                {isComplete ? (
-                  <Pill variant="clean" dot>Complete</Pill>
-                ) : (
-                  <Pill variant="brand" dot>Live</Pill>
+              <div className="flex items-center gap-2 mb-1">
+                <Pill variant={isComplete ? 'clean' : 'brand'} dot>
+                  {isComplete ? 'Complete' : 'Live'}
+                </Pill>
+                {!isComplete && (
+                  <span className="font-sans text-caption text-ink-3 tabular-nums">
+                    {done}/{total} · {pct}%
+                  </span>
                 )}
-                <div className="font-sans text-eyebrow uppercase tracking-[0.16em] font-semibold text-ink-3 truncate">
-                  {isComplete ? 'Batch complete · added to History' : 'Batch in progress'}
-                </div>
+                {isComplete && (
+                  <span className="font-sans text-caption text-ink-3 tabular-nums">
+                    {total} scanned · added to History
+                  </span>
+                )}
               </div>
               <div
                 className="font-sans font-semibold text-body sm:text-h4 leading-tight tracking-[-0.005em] truncate"
@@ -352,19 +358,29 @@ function LiveBatchStrip() {
               >
                 {liveBatch.filename}
               </div>
-              <div className="font-sans text-caption text-ink-3 mt-1 tabular-nums">
-                {isComplete ? (
-                  <>
-                    <span className="text-ink-2 font-semibold">{total}</span> of {total} scanned · 100%
-                  </>
-                ) : (
-                  <>
-                    <span className="text-ink-2 font-semibold">{done}</span> of {total} scanned · {running} in progress · {pct}%
-                  </>
+              <div className="mt-1.5 flex items-center flex-wrap gap-x-4 gap-y-1 text-caption text-ink-3">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-high)' }} aria-hidden />
+                  <span className="text-ink-2 font-semibold tabular-nums">{flagged}</span> rented
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-med)' }} aria-hidden />
+                  <span className="text-ink-2 font-semibold tabular-nums">{warn}</span> possibly
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-low)' }} aria-hidden />
+                  <span className="text-ink-2 font-semibold tabular-nums">{clean}</span> not rented
+                </span>
+                {!isComplete && running > 0 && (
+                  <span className="inline-flex items-center gap-1.5 text-ink-3">
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--brand)' }} aria-hidden />
+                    <span className="text-ink-2 font-semibold tabular-nums">{running}</span> scanning
+                  </span>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0 pr-8 sm:pr-0">
+
+            <div className="shrink-0 pr-8 sm:pr-0">
               <Button
                 variant={isComplete ? 'primary' : 'ghost'}
                 onClick={() => {
@@ -386,29 +402,16 @@ function LiveBatchStrip() {
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="mt-4 h-1.5 bg-line rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
-              style={{ width: `${isComplete ? 100 : pct}%` }}
-            />
-          </div>
-
-          {/* Inline tallies */}
-          <div className="mt-3 flex items-center flex-wrap gap-x-5 gap-y-1 text-caption text-ink-3">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-high)' }} aria-hidden />
-              <span className="text-ink-2 font-semibold tabular-nums">{flagged}</span> rented
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-med)' }} aria-hidden />
-              <span className="text-ink-2 font-semibold tabular-nums">{warn}</span> possibly
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--verdict-low)' }} aria-hidden />
-              <span className="text-ink-2 font-semibold tabular-nums">{clean}</span> not rented
-            </span>
-          </div>
+          {/* Progress bar — only while running, since 100% is conveyed by the
+              Complete pill + "added to History" caption. */}
+          {!isComplete && (
+            <div className="mt-3.5 h-1 bg-line rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          )}
         </div>
       </Card>
     </section>
