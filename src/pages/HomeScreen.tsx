@@ -429,12 +429,13 @@ function LiveBatchStrip() {
             </div>
           )}
 
-          {/* Status sits at the bottom — pill + count caption form the
-              status footer. Verdict counts have moved off this strip;
-              they live on the batch detail screen where there's room. */}
-          <div className="mt-4 flex items-center flex-wrap gap-x-2 gap-y-1">
-            <Pill variant={cfg.pillVariant} dot>{cfg.pillLabel}</Pill>
-            <span className="font-sans text-caption text-ink-3 tabular-nums">{caption}</span>
+          {/* Filename + scan count form the bottom metadata line. Both
+              render at caption emphasis so neither overpowers the headline
+              (which carries the status semantics). */}
+          <div className="mt-4 flex items-center flex-wrap gap-x-2 gap-y-1 font-sans text-caption text-ink-3 tabular-nums">
+            <span className="truncate" title={liveBatch.filename}>{liveBatch.filename}</span>
+            <span aria-hidden>·</span>
+            <span>{caption}</span>
           </div>
         </div>
       </Card>
