@@ -836,7 +836,7 @@ function TableView({ listings, strongestId }: { listings: ListingFlat[]; stronge
                   <Icon name="star" size={14} />
                 </span>
               )}
-              <span className="truncate">{r.title}</span>
+              <span className="truncate" title={r.title}>{r.title}</span>
             </div>
             <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
               @{r.host.handle}
