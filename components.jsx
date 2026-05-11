@@ -37,7 +37,6 @@ function Sidebar({ open, onClose }) {
         </div>
 
         <div className="nav">
-          <div className="nav-section">Workspace</div>
           <div className="nav-item active"><Ico name="search" /> New scan</div>
           <div className="nav-item"><Ico name="history" /> History <span className="badge">142</span></div>
           <div className="nav-item"><Ico name="flag" /> Flagged <span className="badge">9</span></div>
@@ -107,7 +106,7 @@ function PageHead({ scanning, doneAt }) {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div className="score-label" style={{ marginBottom: 4 }}>{scanning ? 'Scan started' : 'Scan completed'}</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: 'var(--ink-2)' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 'var(--text-caption)', color: 'var(--ink-2)' }}>
             {doneAt ? doneAt : 'just now · 8:42 AM'}
           </div>
         </div>

@@ -33,7 +33,7 @@
   padding: 0.35in 0.4in 0.3in;
   background: #FFFFFF;
   color: var(--ink);
-  font-family: 'Jost', system-ui, sans-serif;
+  font-family: var(--sans);
   font-size: 10.5pt;
   line-height: 1.42;
   display: flex;
@@ -79,14 +79,14 @@
   line-height: 1.45;
 }
 .certificate-sheet .cert-id {
-  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-family: var(--mono);
   font-size: 10pt;
   font-weight: 600;
   color: var(--navy);
   letter-spacing: 0.04em;
 }
 .certificate-sheet .cert-stamp {
-  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
 .certificate-sheet .cert-kind {
@@ -148,7 +148,7 @@
   justify-content: center;
 }
 .certificate-sheet .cert-verdict-headline {
-  font-family: 'Jost', system-ui, sans-serif;
+  font-family: var(--sans);
   font-size: 30pt;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -240,7 +240,7 @@
 .certificate-sheet .cert-listing-url {
   display: inline-block;
   margin-top: 2pt;
-  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-family: var(--mono);
   font-size: 7.5pt;
   color: var(--ink-3);
   text-decoration: none;
@@ -268,13 +268,13 @@
   color: var(--ink-3);
 }
 .certificate-sheet .cert-foot .mono {
-  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-family: var(--mono);
   color: var(--navy);
 }
 .certificate-sheet .cert-foot-line { line-height: 1.4; }
 .certificate-sheet .cert-foot-line.muted { color: var(--ink-4); margin-top: 2pt; }
 .certificate-sheet .cert-foot-right {
-  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-family: var(--mono);
   letter-spacing: 0.04em;
 }
 

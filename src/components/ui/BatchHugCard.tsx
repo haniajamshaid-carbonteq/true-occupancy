@@ -109,12 +109,12 @@ function BatchHugCard({
 
       <div className="flex flex-col gap-1.5 min-w-0 flex-1">
         <h3
-          className="font-sans font-semibold leading-[1.25] m-0"
-          style={{ color: 'var(--navy)', fontSize: 19, letterSpacing: '-.005em' }}
+          className="font-sans font-semibold leading-[1.25] m-0 text-h4"
+          style={{ color: 'var(--navy)', letterSpacing: '-.005em' }}
         >
           {title}
         </h3>
-        <p className="font-sans m-0 text-ink-3" style={{ fontSize: 13, lineHeight: 1.5 }}>
+        <p className="font-sans m-0 text-ink-3 text-label" style={{ lineHeight: 1.5 }}>
           {meta}
         </p>
 
@@ -135,7 +135,7 @@ function BatchHugCard({
 
         {state === 'completed' && (
           <div className="mt-2.5 flex gap-2.5">
-            <Button variant="primary" iconRight={ThumbIcon.arrowRight} onClick={onPrimary}>
+            <Button size="sm" variant="primary" iconRight={ThumbIcon.arrowRight} onClick={onPrimary}>
               View Results
             </Button>
           </div>
@@ -143,10 +143,10 @@ function BatchHugCard({
 
         {state === 'completed-errors' && (
           <div className="mt-2.5 flex gap-2.5">
-            <Button variant="primary" iconRight={ThumbIcon.arrowRight} onClick={onPrimary}>
+            <Button size="sm" variant="primary" iconRight={ThumbIcon.arrowRight} onClick={onPrimary}>
               View Results
             </Button>
-            <Button variant="default" onClick={onSecondary}>
+            <Button size="sm" variant="default" onClick={onSecondary}>
               Retry Failed
             </Button>
           </div>
@@ -154,10 +154,10 @@ function BatchHugCard({
 
         {state === 'error' && (
           <div className="mt-2.5 flex gap-2.5">
-            <Button variant="primary" icon={ThumbIcon.retry} onClick={onPrimary}>
+            <Button size="sm" variant="primary" icon={ThumbIcon.retry} onClick={onPrimary}>
               Retry Batch
             </Button>
-            <Button variant="default" onClick={onSecondary}>
+            <Button size="sm" variant="default" onClick={onSecondary}>
               View Partial Results
             </Button>
           </div>

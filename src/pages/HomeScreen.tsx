@@ -75,6 +75,20 @@ const HOME_VERDICT_LABEL: Record<'low' | 'medium' | 'high', string> = {
   high: 'Rented',
 };
 
+// Batch execution outcome — distinct from the single-scan verdict above.
+// Shared with HistoryScreen so both surfaces speak the same vocabulary.
+const BATCH_STATUS_LABEL: Record<'complete' | 'partial' | 'failed', string> = {
+  complete: 'Successful',
+  partial: 'Partial Failed',
+  failed: 'Failed',
+};
+
+const BATCH_STATUS_VARIANT: Record<'complete' | 'partial' | 'failed', 'clean' | 'warn' | 'risk'> = {
+  complete: 'clean',
+  partial: 'warn',
+  failed: 'risk',
+};
+
 const SAMPLE_CHIPS: { zip: string; label: string }[] = [
   { zip: '28804', label: 'Not Rented' },
   { zip: '28805', label: 'Possibly Rented' },
@@ -407,7 +421,7 @@ function LiveBatchStrip() {
   );
 
   return (
-    <section className="mb-10 sm:mb-12">
+    <section className="mb-section">
       <div
         className="card-rise relative inline-flex items-start gap-[18px] bg-surface border border-line rounded-[14px] shadow-sm max-w-full"
         style={{ padding: '18px 44px 18px 18px', minWidth: 'min(460px, 100%)', maxWidth: 720 }}
@@ -424,8 +438,8 @@ function LiveBatchStrip() {
 
         <div className="flex flex-col gap-1.5 min-w-0 flex-1">
           <h3
-            className="font-sans font-semibold leading-tight tracking-[-0.005em] m-0"
-            style={{ color: 'var(--navy)', fontSize: 19 }}
+            className="font-sans font-semibold leading-tight tracking-[-0.005em] m-0 text-h4"
+            style={{ color: 'var(--navy)' }}
           >
             {headline}
           </h3>
@@ -444,21 +458,21 @@ function LiveBatchStrip() {
 
           {state === 'complete' && (
             <div className="flex gap-2.5 mt-2.5">
-              <Button variant="primary" onClick={goResults} iconRight={chevron}>View Results</Button>
+              <Button size="sm" variant="primary" onClick={goResults} iconRight={chevron}>View Results</Button>
             </div>
           )}
 
           {state === 'partial' && (
             <div className="flex gap-2.5 mt-2.5">
-              <Button variant="primary" onClick={goResults} iconRight={chevron}>View Results</Button>
-              <Button variant="ghost" onClick={retry}>Retry Failed</Button>
+              <Button size="sm" variant="primary" onClick={goResults} iconRight={chevron}>View Results</Button>
+              <Button size="sm" variant="ghost" onClick={retry}>Retry Failed</Button>
             </div>
           )}
 
           {state === 'allFailed' && (
             <div className="flex gap-2.5 mt-2.5">
-              <Button variant="primary" onClick={retry} icon={replay}>Retry Batch</Button>
-              <Button variant="ghost" onClick={openBatch}>View Partial Results</Button>
+              <Button size="sm" variant="primary" onClick={retry} icon={replay}>Retry Batch</Button>
+              <Button size="sm" variant="ghost" onClick={openBatch}>View Partial Results</Button>
             </div>
           )}
         </div>
@@ -480,19 +494,18 @@ function LiveBatchStrip() {
 
 // --- Activity tabs (History | Schedule) -----------------------------------
 
-function ActivityTabs() {
+function RecentScansPanel() {
   const history = useHistory();
-  const { history: histRows, schedules } = useAppState();
-  const [tab, setTab] = React.useState<'history' | 'schedule'>('history');
+  const { history: histRows } = useAppState();
+  const [tab, setTab] = React.useState<'single' | 'batch'>('single');
 
-  const histPreview = histRows.slice(0, 6);
-  const schedulePreview = schedules.slice(0, 6);
+  const singles = histRows.filter((r: any) => r.kind !== 'batch');
+  const batches = histRows.filter((r: any) => r.kind === 'batch');
 
-  function openHistoryRow(row: any) {
-    if (row.kind === 'batch') {
-      history.push(`/batch/${row.id}`);
-      return;
-    }
+  const singlesPreview = singles.slice(0, 6);
+  const batchesPreview = batches.slice(0, 6);
+
+  function openSingleRow(row: any) {
     sessionStorage.setItem('scanScenario', row.scenario);
     sessionStorage.setItem('scanAddress', row.address);
     const path =
@@ -502,23 +515,31 @@ function ActivityTabs() {
     history.push(path);
   }
 
-  function openScheduleRow() {
-    history.push('/scheduled');
+  function openBatchRow(row: any) {
+    history.push(`/batch/${row.id}`);
   }
 
   return (
-    <section className="mb-10 sm:mb-12">
+    <section className="mb-section">
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <h2
+          className="font-sans font-semibold text-h4 leading-tight tracking-[-0.01em] m-0"
+          style={{ color: 'var(--navy)' }}
+        >
+          Recent Scans
+        </h2>
+      </div>
       <Tabs
         value={tab}
         onChange={(v: any) => setTab(v)}
         items={[
-          { value: 'history',  label: 'Recent Scans',  count: histRows.length },
-          { value: 'schedule', label: 'Scheduled', count: schedules.length },
+          { value: 'single', label: 'Single', count: singles.length },
+          { value: 'batch',  label: 'Batch',  count: batches.length },
         ]}
         rightSlot={
           <Button
             variant="ghost"
-            onClick={() => history.push(tab === 'history' ? '/history' : '/scheduled')}
+            onClick={() => history.push('/history')}
             iconRight={
               <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="m6 4 4 4-4 4" />
@@ -531,19 +552,29 @@ function ActivityTabs() {
       />
 
       <div className="mt-4 card-rise" style={{ ['--rise-delay' as any]: '120ms' }}>
-        {tab === 'history' ? (
+        {tab === 'single' ? (
           <DataTable
-            columns={DASHBOARD_HISTORY_COLUMNS}
-            rows={histPreview}
+            columns={DASHBOARD_SINGLE_COLUMNS}
+            rows={singlesPreview}
             rowKey={(r: any) => r.id}
-            onRowClick={openHistoryRow}
+            onRowClick={openSingleRow}
+            empty={
+              <div className="px-5 py-12 text-center text-label text-ink-3">
+                No single scans yet.
+              </div>
+            }
           />
         ) : (
           <DataTable
-            columns={DASHBOARD_SCHEDULE_COLUMNS}
-            rows={schedulePreview}
+            columns={DASHBOARD_BATCH_COLUMNS}
+            rows={batchesPreview}
             rowKey={(r: any) => r.id}
-            onRowClick={openScheduleRow}
+            onRowClick={openBatchRow}
+            empty={
+              <div className="px-5 py-12 text-center text-label text-ink-3">
+                No batch runs yet.
+              </div>
+            }
           />
         )}
       </div>
@@ -551,37 +582,16 @@ function ActivityTabs() {
   );
 }
 
-// Dashboard previews use compact columns — Type + Target + Verdict/Cadence
-// + relative-time. Full detail (score bar, platforms) lives on the History
-// page; the dashboard is at-a-glance.
+// Dashboard previews use compact columns — Target + Verdict/Status +
+// relative-time. Tabs split single vs batch so the Type pill is redundant.
+// Full detail (score bar, platforms) lives on the History page.
 
-const DASHBOARD_HISTORY_COLUMNS: any[] = [
-  {
-    key: 'type',
-    label: 'Type',
-    width: '88px',
-    cell: (r: any) => <Pill>{r.kind === 'batch' ? 'Batch' : 'Single'}</Pill>,
-  },
+const DASHBOARD_SINGLE_COLUMNS: any[] = [
   {
     key: 'target',
     label: 'Address',
     primary: true,
     cell: (r: any) => {
-      if (r.kind === 'batch') {
-        return (
-          <div className="min-w-0">
-            <div
-              className="font-sans font-semibold text-body-sm leading-tight truncate"
-              style={{ color: 'var(--navy)' }}
-            >
-              {r.filename}
-            </div>
-            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
-              {r.total} properties · {r.flagged} flagged
-            </div>
-          </div>
-        );
-      }
       const [street, locality] = splitAddress(r.address);
       return (
         <div className="min-w-0">
@@ -606,7 +616,6 @@ const DASHBOARD_HISTORY_COLUMNS: any[] = [
     width: '156px',
     hideBelow: 'sm' as const,
     cell: (r: any) => {
-      if (r.kind === 'batch') return <span className="font-mono text-caption text-ink-4">—</span>;
       const variant =
         r.scenario === 'high'  ? 'verdict-high'
         : r.scenario === 'medium' ? 'verdict-med'
@@ -626,70 +635,45 @@ const DASHBOARD_HISTORY_COLUMNS: any[] = [
   },
 ];
 
-const DASHBOARD_SCHEDULE_COLUMNS: any[] = [
-  {
-    key: 'type',
-    label: 'Type',
-    width: '88px',
-    cell: (r: any) => <Pill>{r.kind === 'batch' ? 'Batch' : 'Single'}</Pill>,
-  },
+const DASHBOARD_BATCH_COLUMNS: any[] = [
   {
     key: 'target',
-    label: 'Address',
+    label: 'File',
     primary: true,
-    cell: (r: any) => {
-      if (r.kind === 'batch') {
-        return (
-          <div className="min-w-0">
-            <div
-              className="font-sans font-semibold text-body-sm leading-tight truncate"
-              style={{ color: 'var(--navy)' }}
-            >
-              {r.filename}
-            </div>
-            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
-              {r.total} properties
-            </div>
-          </div>
-        );
-      }
-      const [street, locality] = splitAddress(r.address);
-      return (
-        <div className="min-w-0">
-          <div
-            className="font-sans font-semibold text-body-sm leading-tight truncate"
-            style={{ color: 'var(--navy)' }}
-          >
-            {street}
-          </div>
-          {locality && (
-            <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
-              {locality}
-            </div>
-          )}
-        </div>
-      );
-    },
-  },
-  {
-    key: 'cadence',
-    label: 'Cadence',
-    width: '140px',
-    hideBelow: 'sm' as const,
     cell: (r: any) => (
-      <span className="font-sans text-label text-ink-2 whitespace-nowrap">
-        Every {r.cadenceMonths} months
-      </span>
+      <div className="min-w-0">
+        <div
+          className="font-sans font-semibold text-body-sm leading-tight truncate"
+          style={{ color: 'var(--navy)' }}
+        >
+          {r.filename}
+        </div>
+        <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+          {r.total} properties · {r.flagged} flagged
+        </div>
+      </div>
     ),
   },
   {
-    key: 'next',
-    label: 'Next run',
+    key: 'status',
+    label: 'Status',
+    width: '156px',
+    hideBelow: 'sm' as const,
+    cell: (r: any) => {
+      // Older seed entries pre-date the status field; treat them as
+      // successful completions so the column never reads "—".
+      const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
+      return <Pill variant={BATCH_STATUS_VARIANT[status]}>{BATCH_STATUS_LABEL[status]}</Pill>;
+    },
+  },
+  {
+    key: 'scanned',
+    label: 'Scanned',
     width: '100px',
     align: 'right' as const,
     hideBelow: 'md' as const,
     cell: (r: any) => (
-      <span className="font-mono tabular-nums text-caption text-ink-3">{r.nextRunLabel}</span>
+      <span className="font-mono tabular-nums text-caption text-ink-3">{r.scannedAgo}</span>
     ),
   },
 ];
@@ -726,7 +710,7 @@ function HomeScreen() {
   return (
     <AppShell>
       {/* Page header — eyebrow + H1 + sync status */}
-      <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
+      <header className="flex items-end justify-between gap-6 mb-section-sub">
         <div>
           <h1
             className="font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0"
@@ -740,8 +724,12 @@ function HomeScreen() {
         </div>
       </header>
 
+      {/* Live batch strip — only when a batch is running. Sits above the
+          scanner so running work surfaces immediately. */}
+      <LiveBatchStrip />
+
       {/* Scanner — primary affordance, hero of the platform */}
-      <section className="mb-10 sm:mb-12">
+      <section className="mb-section">
         <CommandSearch
           mode="inline"
           value={address}
@@ -755,7 +743,7 @@ function HomeScreen() {
       </section>
 
       {/* KPI cards — separate inline cards, equal-width grid */}
-      <section className="mb-10 sm:mb-12">
+      <section className="mb-section">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {KPIS.map((kpi, i) => (
             <KpiTile key={kpi.label} kpi={kpi} index={i} />
@@ -763,17 +751,12 @@ function HomeScreen() {
         </div>
       </section>
 
-      {/* Live batch strip — only when a batch is running. Inserted between
-          metric cards and the activity tabs so it sits where running work
-          would naturally surface. */}
-      <LiveBatchStrip />
-
-      {/* Activity — History + Schedule tabs, each capped to 6 rows.
-          "View all" links to the matching full-page surface. */}
-      <ActivityTabs />
+      {/* Recent Scans — Single / Batch tabs, each capped to 6 rows.
+          "View all" links to /history. Scheduled lives at /scheduled. */}
+      <RecentScansPanel />
 
       {/* Utility footer — single hairline strip */}
-      <footer className="mt-12 -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 border-t border-line">
+      <footer className="mt-section -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 border-t border-line">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 py-5 text-caption text-ink-3">
           <div>
             © 2026 Halcyon Solutions · TrueOccupancy<sup className="text-[0.6em] align-top">™</sup> · Decide with certainty.
