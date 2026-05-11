@@ -87,25 +87,25 @@
   .spec-canvas { padding: 80px 64px 120px; max-width: 1640px; margin: 0 auto; }
 
   .spec-header { max-width: 900px; margin-bottom: 60px; }
-  .spec-header .eyebrow { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--brand); margin-bottom: 14px; }
-  .spec-header h1 { font-family: var(--serif); font-size: 64px; font-weight: 600; line-height: 1; letter-spacing: -.02em; margin: 0 0 18px; }
+  .spec-header .eyebrow { font-family: var(--mono); font-size: var(--text-caption); text-transform: uppercase; letter-spacing: .1em; color: var(--brand); margin-bottom: 14px; }
+  .spec-header h1 { font-family: var(--serif); font-size: var(--text-display); font-weight: 600; line-height: 1; letter-spacing: -.02em; margin: 0 0 18px; }
   .spec-header h1 em { font-style: italic; color: var(--brand); }
-  .spec-header p { font-size: 17px; color: var(--ink-2); line-height: 1.55; margin: 0; max-width: 60ch; }
-  .spec-header code { font-family: var(--mono); font-size: 14px; background: var(--brand-soft); color: var(--brand-deep); padding: 1px 6px; border-radius: 4px; }
+  .spec-header p { font-size: var(--text-h4); color: var(--ink-2); line-height: 1.55; margin: 0; max-width: 60ch; }
+  .spec-header code { font-family: var(--mono); font-size: var(--text-body-sm); background: var(--brand-soft); color: var(--brand-deep); padding: 1px 6px; border-radius: 4px; }
 
   .spec-section { margin-bottom: 80px; }
   .spec-section-head { display: flex; align-items: baseline; gap: 18px; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
-  .spec-section-head .num { font-family: var(--mono); font-size: 13px; color: var(--ink-4); }
-  .spec-section-head h2 { font-family: var(--serif); font-size: 36px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
-  .spec-section-head .desc { font-size: 14px; color: var(--ink-3); margin-left: auto; max-width: 42ch; line-height: 1.5; }
+  .spec-section-head .num { font-family: var(--mono); font-size: var(--text-label); color: var(--ink-4); }
+  .spec-section-head h2 { font-family: var(--serif); font-size: var(--text-h2); font-weight: 600; letter-spacing: -.01em; margin: 0; }
+  .spec-section-head .desc { font-size: var(--text-body-sm); color: var(--ink-3); margin-left: auto; max-width: 42ch; line-height: 1.5; }
   .spec-row { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; }
 
   .screen-wrap { display: flex; flex-direction: column; gap: 14px; }
   .screen-meta { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-  .screen-meta .label { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--brand); }
-  .screen-meta h3 { font-family: var(--serif); font-size: 20px; font-weight: 600; margin: 0; }
-  .screen-meta .dim { font-family: var(--mono); font-size: 11px; color: var(--ink-4); margin-left: auto; }
-  .screen-meta .desc { font-size: 13px; color: var(--ink-3); width: 100%; line-height: 1.5; max-width: 80ch; }
+  .screen-meta .label { font-family: var(--mono); font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .08em; color: var(--brand); }
+  .screen-meta h3 { font-family: var(--serif); font-size: var(--text-h3); font-weight: 600; margin: 0; }
+  .screen-meta .dim { font-family: var(--mono); font-size: var(--text-micro); color: var(--ink-4); margin-left: auto; }
+  .screen-meta .desc { font-size: var(--text-label); color: var(--ink-3); width: 100%; line-height: 1.5; max-width: 80ch; }
 
   .screen-frame {
     border: 1px solid var(--line-strong);
@@ -128,7 +128,7 @@
   .browser-bar .dots span:nth-child(1) { background: #E6604F; }
   .browser-bar .dots span:nth-child(2) { background: #E5A93A; }
   .browser-bar .dots span:nth-child(3) { background: #5BB35C; }
-  .browser-bar .url { flex: 1; height: 22px; border-radius: 6px; background: rgba(255, 255, 255, .6); border: 1px solid var(--line); display: flex; align-items: center; padding: 0 10px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin: 0 80px; }
+  .browser-bar .url { flex: 1; height: 22px; border-radius: 6px; background: rgba(255, 255, 255, .6); border: 1px solid var(--line); display: flex; align-items: center; padding: 0 10px; font-family: var(--mono); font-size: var(--text-micro); color: var(--ink-3); margin: 0 80px; }
 
   .screen-canvas { transform-origin: top left; }
 
@@ -144,11 +144,11 @@
     display: flex;
     gap: 18px;
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--text-caption);
   }
   .nav-anchor a { color: var(--ink-3); text-decoration: none; padding: 4px 10px; border-radius: 6px; }
   .nav-anchor a:hover { color: var(--brand); background: var(--brand-soft); }
-  .nav-anchor .brand { font-family: var(--serif); font-size: 16px; font-style: italic; color: var(--brand); margin-right: auto; }
+  .nav-anchor .brand { font-family: var(--serif); font-size: var(--text-body); font-style: italic; color: var(--brand); margin-right: auto; }
 </style>
 </head>
 
@@ -207,7 +207,6 @@
     'src/components/result/PropertySpecs.tsx',
     'src/components/result/PropertyOverview.tsx',
     'src/components/result/ListingsPanel.tsx',
-    'src/components/result/ReportCertificateBar.tsx',
     'src/components/result/CertificateSheet.tsx',
     // 6. Pages (real production screens — no Static* clones)
     'src/pages/Components.tsx',
