@@ -233,6 +233,7 @@ interface AppStateValue {
   startSampleBatch: () => void;
   clearBatch: () => void;
   dismissBatch: () => void;
+  retryBatchRow: (id: number) => void;
   addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel'> & { cadenceMonths: Cadence }) => void;
   updateScheduleCadence: (id: string, cadenceMonths: Cadence) => void;
   cancelSchedule: (id: string) => void;
@@ -313,6 +314,18 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const clearBatch = React.useCallback(() => setLiveBatch(null), []);
 
+  const retryBatchRow = React.useCallback((id: number) => {
+    setLiveBatch((prev) => {
+      if (!prev) return prev;
+      const rows = prev.rows.map((r) =>
+        r.id === id
+          ? { id: r.id, address: r.address, status: 'queued' as const }
+          : r
+      );
+      return { ...prev, rows, status: 'running' };
+    });
+  }, []);
+
   const dismissBatch = React.useCallback(() => {
     setLiveBatch((prev) => (prev ? { ...prev, dismissed: true } : prev));
   }, []);
@@ -364,6 +377,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     startSampleBatch,
     clearBatch,
     dismissBatch,
+    retryBatchRow,
     addSchedule,
     updateScheduleCadence,
     cancelSchedule,

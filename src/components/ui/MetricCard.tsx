@@ -39,12 +39,52 @@ interface MetricCardProps {
   /** Optional categorical accent — renders a small dot to the left of the
    *  eyebrow label in the verdict tone. */
   accent?: MetricAccent;
+  /** Optional decorative icon — rendered top-right in a soft tinted square. */
+  icon?: React.ReactNode;
+  /** Optional inline sparkline data — renders as a mini line chart between
+   *  the value and the footer. Trend direction colours the stroke. */
+  sparkline?: number[];
+  /** Override the sparkline trend tone. Defaults to delta direction, then brand. */
+  sparklineTone?: 'up' | 'down' | 'brand';
   /** Optional override className for the outer card. */
   className?: string;
   /** When provided, the card renders as a button and fires this on click. */
   onClick?: () => void;
   /** Selected state for interactive cards — brand-tinted border + faint tint bg. */
   selected?: boolean;
+}
+
+function Sparkline({
+  data,
+  stroke,
+  fill,
+}: { data: number[]; stroke: string; fill: string }) {
+  if (data.length < 2) return null;
+  const W = 100;
+  const H = 28;
+  const PAD = 1.5;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const stepX = (W - PAD * 2) / (data.length - 1);
+  const pts = data.map((v, i) => {
+    const x = PAD + i * stepX;
+    const y = PAD + (H - PAD * 2) * (1 - (v - min) / range);
+    return [x, y] as const;
+  });
+  const line = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`).join(' ');
+  const area = `${line} L${pts[pts.length - 1][0].toFixed(2)} ${H} L${pts[0][0].toFixed(2)} ${H} Z`;
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      className="w-full h-7 mt-3 block"
+      aria-hidden
+    >
+      <path d={area} fill={fill} />
+      <path d={line} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 const ACCENT_VAR: Record<MetricAccent, string> = {
@@ -61,6 +101,9 @@ function MetricCard({
   size = 'md',
   primary = false,
   accent,
+  icon,
+  sparkline,
+  sparklineTone,
   className = '',
   onClick,
   selected = false,
@@ -99,23 +142,52 @@ function MetricCard({
     ? { type: 'button', onClick, 'aria-pressed': selected }
     : {};
 
+  const tone = sparklineTone ?? (delta?.dir === 'down' ? 'down' : delta?.dir === 'up' ? 'up' : 'brand');
+  const sparkStroke = primary
+    ? 'rgba(255,255,255,0.95)'
+    : tone === 'up'
+    ? 'var(--success-ink)'
+    : tone === 'down'
+    ? 'var(--error-ink)'
+    : 'var(--brand)';
+  const sparkFill = primary
+    ? 'rgba(255,255,255,0.18)'
+    : tone === 'up'
+    ? 'rgba(46,160,67,0.10)'
+    : tone === 'down'
+    ? 'rgba(207,34,46,0.10)'
+    : 'rgba(15,143,184,0.10)';
+  const iconWrap = primary
+    ? 'bg-white/15 text-white'
+    : 'bg-brand-soft text-brand';
+
   return (
     <Tag
       {...tagProps}
       className={`border rounded-lg p-5 flex flex-col ${surface} ${interactiveClasses} ${className}`}
     >
-      <div
-        className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase inline-flex items-center gap-1.5"
-        style={{ color: labelColor }}
-      >
-        {accent && (
+      <div className="flex items-start justify-between gap-2">
+        <div
+          className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase inline-flex items-center gap-1.5"
+          style={{ color: labelColor }}
+        >
+          {accent && (
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ background: ACCENT_VAR[accent] }}
+              aria-hidden
+            />
+          )}
+          {label}
+        </div>
+        {icon && (
           <span
-            className="w-1.5 h-1.5 rounded-full shrink-0"
-            style={{ background: ACCENT_VAR[accent] }}
+            className={`w-7 h-7 rounded-md grid place-items-center shrink-0 ${iconWrap} [&>svg]:w-3.5 [&>svg]:h-3.5`}
             aria-hidden
-          />
+          >
+            {icon}
+          </span>
         )}
-        {label}
       </div>
 
       <div
@@ -124,6 +196,10 @@ function MetricCard({
       >
         {value}
       </div>
+
+      {sparkline && sparkline.length > 1 && (
+        <Sparkline data={sparkline} stroke={sparkStroke} fill={sparkFill} />
+      )}
 
       {hasFooter && (
         <div className={`mt-4 pt-3 border-t ${footerDivider} flex items-center justify-between gap-2 text-caption text-left`}>

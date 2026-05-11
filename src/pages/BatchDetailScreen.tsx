@@ -21,7 +21,7 @@ function BatchDetailScreen() {
 
   return (
     <AppShell>
-      <BatchResults batch={batch} />
+      <BatchResults batch={batch} readOnly />
     </AppShell>
   );
 }
