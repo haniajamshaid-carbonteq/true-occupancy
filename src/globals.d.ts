@@ -102,6 +102,7 @@ declare function PageHeader(props?: any): any;
 declare function ScanContextBar(props?: any): any;
 declare function AutomateModal(props?: any): any;
 declare function AutomationControl(props?: any): any;
+declare function VerdictTiles(props?: any): any;
 declare function useAppState(): any;
 declare function ScanCard(props?: any): any;
 declare function ScoreCard(props?: any): any;

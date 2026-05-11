@@ -110,8 +110,6 @@ function KpiTile({
         primary={primary}
         label={kpi.label}
         value={kpi.value}
-        hint={kpi.hint}
-        delta={kpi.delta ? { dir: kpi.delta.dir, value: kpi.delta.pct } : undefined}
       />
     </div>
   );

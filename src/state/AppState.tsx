@@ -158,11 +158,19 @@ const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h18', kind: 'single', address: '50 Ridgeview Ct, Asheville, NC 28805',       scenario: 'high',   platforms: 3, scannedAgo: '1 w ago'   },
 ];
 
+// Renders an absolute calendar date — readable label that doesn't decay over
+// time the way "In 6 months" does once a row is a few weeks old.
+function formatNextRun(cadenceMonths: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + cadenceMonths);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 const SEED_SCHEDULES: ScheduleEntry[] = [
-  { id: 's01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadenceMonths: 6,  nextRunLabel: 'In 6 months',  createdAgo: '8 min ago' },
-  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadenceMonths: 3,  nextRunLabel: 'In 3 months',  createdAgo: '2 h ago' },
-  { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadenceMonths: 12, nextRunLabel: 'In 12 months', createdAgo: '3 h ago' },
-  { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadenceMonths: 4,  nextRunLabel: 'In 4 months',  createdAgo: 'Yesterday' },
+  { id: 's01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadenceMonths: 6,  nextRunLabel: formatNextRun(6),  createdAgo: '8 min ago' },
+  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadenceMonths: 3,  nextRunLabel: formatNextRun(3),  createdAgo: '2 h ago' },
+  { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadenceMonths: 12, nextRunLabel: formatNextRun(12), createdAgo: '3 h ago' },
+  { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadenceMonths: 4,  nextRunLabel: formatNextRun(4),  createdAgo: 'Yesterday' },
 ];
 
 // Batch sample addresses — kept identical to the previous BatchScreen mock
@@ -302,7 +310,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   const addSchedule = React.useCallback(
     (entry: any) => {
       const id = uid('s');
-      const nextRunLabel = `In ${entry.cadenceMonths} months`;
+      const nextRunLabel = formatNextRun(entry.cadenceMonths);
       setSchedules((s) => [{ ...entry, id, nextRunLabel, createdAgo: 'Just now' }, ...s]);
     },
     []
@@ -312,7 +320,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     setSchedules((s) =>
       s.map((entry) =>
         entry.id === id
-          ? { ...entry, cadenceMonths, nextRunLabel: `In ${cadenceMonths} months` }
+          ? { ...entry, cadenceMonths, nextRunLabel: formatNextRun(cadenceMonths) }
           : entry
       )
     );

@@ -26,7 +26,7 @@ interface TabsProps<V extends string> {
 function Tabs<V extends string>({ items, value, onChange, rightSlot, className = '' }: TabsProps<V>) {
   return (
     <div className={`flex items-center justify-between gap-4 border-b border-line ${className}`}>
-      <div role="tablist" className="flex items-center gap-1 -mb-px">
+      <div role="tablist" className="flex items-center gap-1">
         {items.map((it) => {
           const active = it.value === value;
           return (
@@ -37,26 +37,30 @@ function Tabs<V extends string>({ items, value, onChange, rightSlot, className =
               aria-selected={active}
               onClick={() => onChange(it.value)}
               className={[
-                'inline-flex items-center gap-2 h-10 px-3.5 font-sans text-label font-medium transition-colors',
-                'border-b-2 -mb-px',
-                active
-                  ? 'border-brand text-navy'
-                  : 'border-transparent text-ink-3 hover:text-ink-2',
+                'group inline-flex items-center h-10 px-3.5 font-sans text-label font-medium transition-colors',
+                active ? 'text-navy' : 'text-ink-3 hover:text-ink-2',
               ].join(' ')}
               style={active ? { color: 'var(--navy)' } : undefined}
             >
-              {it.label}
-              {typeof it.count === 'number' && (
-                <span
-                  className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded"
-                  style={{
-                    background: active ? 'var(--brand-tint)' : 'var(--surface-2)',
-                    color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
-                  }}
-                >
-                  {it.count}
-                </span>
-              )}
+              <span
+                className={[
+                  'inline-flex items-center gap-2 h-full border-b-2 -mb-px',
+                  active ? 'border-brand' : 'border-transparent',
+                ].join(' ')}
+              >
+                {it.label}
+                {typeof it.count === 'number' && (
+                  <span
+                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line"
+                    style={{
+                      background: active ? 'var(--brand-tint)' : 'var(--surface-2)',
+                      color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
+                    }}
+                  >
+                    {it.count}
+                  </span>
+                )}
+              </span>
             </button>
           );
         })}

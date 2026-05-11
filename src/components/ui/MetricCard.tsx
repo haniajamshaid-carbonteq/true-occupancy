@@ -79,7 +79,7 @@ function MetricCard({
   const surface = primary
     ? 'text-white border-transparent shadow-md bg-gradient-to-r from-brand to-brand-2'
     : selected
-    ? 'bg-brand-tint border-brand/40 shadow-sm'
+    ? '!bg-surface !border-brand shadow-sm'
     : 'bg-surface border-line shadow-sm';
   const interactiveClasses = interactive
     ? 'text-left w-full cursor-pointer transition-colors hover:border-line-strong hover:bg-hover-bg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1'
