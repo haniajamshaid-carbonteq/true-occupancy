@@ -10,7 +10,7 @@
 // killing the bootstrap. Call `ReactRouterDOM.useHistory()` inline instead.
 
 type Risk = 'clean' | 'warn' | 'risk';
-type RowStatus = 'done' | 'running' | 'queued';
+type RowStatus = 'done' | 'running' | 'queued' | 'failed';
 
 interface BatchRow {
   id: number;
@@ -19,6 +19,7 @@ interface BatchRow {
   score?: number;
   risk?: Risk;
   listings?: number;
+  errorReason?: string;
 }
 
 const SAMPLE_BATCH: BatchRow[] = [
@@ -47,12 +48,12 @@ function BatchScreen() {
       <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
         <div>
           <h1
-            className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
-            style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
+            className="font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0"
+            style={{ color: 'var(--navy)' }}
           >
             Batch upload
           </h1>
-          <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-[64ch]">
+          <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
             Upload a CSV of addresses to scan against Airbnb, Vrbo, and Facebook Marketplace.
           </p>
         </div>
@@ -113,9 +114,9 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
 
 // ---------- Loaded state: header + table ----------
 
-function BatchResults({ batch }: { batch: any }) {
+function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const routerHistory = ReactRouterDOM.useHistory();
-  const { clearBatch } = useAppState();
+  const { clearBatch, retryBatchRow } = useAppState();
   const rows: BatchRow[] = batch.rows;
   const total = rows.length;
   const done = rows.filter((r) => r.status === 'done').length;
@@ -126,7 +127,9 @@ function BatchResults({ batch }: { batch: any }) {
   const progress = Math.round((done / total) * 100);
   const isComplete = batch.status === 'complete';
 
-  type StatusFilter = 'all' | 'done' | 'running' | 'queued';
+  const onRetry = readOnly ? undefined : retryBatchRow;
+
+  type StatusFilter = 'all' | 'done' | 'running' | 'queued' | 'failed';
   type VerdictFilter = 'all' | 'risk' | 'warn' | 'clean';
   type ScoreBand = 'all' | 'low' | 'med' | 'high';
   const [query, setQuery] = React.useState('');
@@ -259,17 +262,17 @@ function BatchResults({ batch }: { batch: any }) {
             </div>
           </div>
 
-          {/* Status counts — shared component used wherever verdict tallies appear */}
-          <VerdictTiles
-            flagged={flagged}
-            warn={warn}
-            clean={clean}
-            onSelect={toggleVerdict}
-            selected={verdictFilter === 'all' ? null : verdictFilter}
-          />
-
         </div>
       </Card>
+
+      {/* Status counts — sit outside the summary card, mirroring the dashboard KPI strip */}
+      <VerdictTiles
+        flagged={flagged}
+        warn={warn}
+        clean={clean}
+        onSelect={toggleVerdict}
+        selected={verdictFilter === 'all' ? null : verdictFilter}
+      />
 
       {/* Properties — same DataTable primitive as Home + History */}
       <div>
@@ -317,7 +320,7 @@ function BatchResults({ batch }: { batch: any }) {
             </button>
           </div>
         </div>
-        <BatchTable rows={filteredRows} />
+        <BatchTable rows={filteredRows} onRetry={onRetry} />
       </div>
 
       <Drawer
@@ -345,6 +348,7 @@ function BatchResults({ batch }: { batch: any }) {
               { value: 'done',    label: 'Scanned' },
               { value: 'running', label: 'Scanning' },
               { value: 'queued',  label: 'Queued' },
+              { value: 'failed',  label: 'Failed' },
             ]}
           />
           <ChipRow
@@ -376,7 +380,7 @@ function BatchResults({ batch }: { batch: any }) {
   );
 }
 
-function BatchTable({ rows }: { rows: BatchRow[] }) {
+function BatchTable({ rows, onRetry }: { rows: BatchRow[]; onRetry?: (id: number) => void }) {
   const history = ReactRouterDOM.useHistory();
 
   function openIfDone(row: BatchRow) {
@@ -385,15 +389,21 @@ function BatchTable({ rows }: { rows: BatchRow[] }) {
     }
   }
 
+  const columns = React.useMemo(() => buildBatchColumns(onRetry), [onRetry]);
+
   return (
     <DataTable
-      columns={BATCH_COLUMNS}
+      columns={columns}
       rows={rows}
       rowKey={(r: BatchRow) => String(r.id)}
       onRowClick={openIfDone}
       pageSize={25}
       leadingAccent={(r: BatchRow) =>
-        r.status === 'done' && r.risk ? VERDICT_ACCENT[r.risk] : undefined
+        r.status === 'done' && r.risk
+          ? VERDICT_ACCENT[r.risk]
+          : r.status === 'failed'
+          ? VERDICT_ACCENT.risk
+          : undefined
       }
     />
   );
@@ -418,7 +428,8 @@ const ROUTE_FOR_RISK: Record<Risk, string> = {
 // Column definitions for the BatchTable. Mirrors the SCAN_COLUMNS shape
 // from HomeScreen so both data tables share rhythm, hover treatment, and
 // the table↔card switch via the global DataTable primitive.
-const BATCH_COLUMNS: any[] = [
+function buildBatchColumns(onRetry?: (id: number) => void): any[] {
+  const cols: any[] = [
   {
     key: 'index',
     label: '#',
@@ -502,6 +513,13 @@ const BATCH_COLUMNS: any[] = [
       if (row.status === 'running') {
         return <Pill variant="brand" dot>Scanning</Pill>;
       }
+      if (row.status === 'failed') {
+        return (
+          <Pill variant="verdict-high" title={row.errorReason}>
+            Failed
+          </Pill>
+        );
+      }
       return <Pill>Queued</Pill>;
     },
   },
@@ -521,3 +539,32 @@ const BATCH_COLUMNS: any[] = [
       ),
   },
 ];
+  if (onRetry) {
+    cols.push({
+      key: 'actions',
+      label: '',
+      width: '56px',
+      align: 'right' as const,
+      cell: (row: BatchRow) => {
+        if (row.status !== 'done' && row.status !== 'failed') {
+          return <span className="text-ink-4">—</span>;
+        }
+        return (
+          <button
+            type="button"
+            aria-label="Retry scan"
+            title={row.status === 'failed' ? `Retry — ${row.errorReason ?? 'failed'}` : 'Retry scan'}
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              onRetry(row.id);
+            }}
+            className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-line bg-surface text-ink-2 hover:bg-brand-soft hover:border-brand hover:text-brand transition-colors"
+          >
+            <Icon name="replay" size={14} />
+          </button>
+        );
+      },
+    });
+  }
+  return cols;
+}

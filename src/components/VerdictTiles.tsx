@@ -1,4 +1,4 @@
-/* global React, MetricCard */
+/* global React, MetricCard, Icon */
 // VerdictTiles — Rented / Possibly rented / Not rented count cards.
 // Mirrors the dashboard KPI strip visually (shared MetricCard primitive,
 // no verdict-dot accent so the typography matches the home KPI tiles).
@@ -32,18 +32,21 @@ function VerdictTiles({
       <MetricCard
         label="Rented"
         value={flagged}
+        icon={<Icon name="flag" />}
         onClick={handle('risk')}
         selected={selected === 'risk'}
       />
       <MetricCard
         label="Possibly rented"
         value={warn}
+        icon={<Icon name="alert" />}
         onClick={handle('warn')}
         selected={selected === 'warn'}
       />
       <MetricCard
         label="Not rented"
         value={clean}
+        icon={<Icon name="shield" />}
         onClick={handle('clean')}
         selected={selected === 'clean'}
       />

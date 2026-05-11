@@ -115,8 +115,8 @@ function ScheduledScreen() {
       <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
         <div>
           <h1
-            className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
-            style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
+            className="font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0"
+            style={{ color: 'var(--navy)' }}
           >
             Scheduled
           </h1>

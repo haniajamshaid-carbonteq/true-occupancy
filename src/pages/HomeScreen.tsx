@@ -27,11 +27,18 @@ function pickScenario(input: string): 'low' | 'medium' | 'high' {
 
 // --- demo data (believable, not aspirational) -----------------------------
 
-const KPIS: { label: string; value: string; delta?: { dir: 'up' | 'down'; pct: string }; hint: string }[] = [
-  { label: 'Scanned today',     value: '34',  delta: { dir: 'up',   pct: '+12%' }, hint: 'vs. yesterday' },
-  { label: 'Flagged this week', value: '11',  delta: { dir: 'up',   pct: '+3' },   hint: 'vs. last week' },
-  { label: 'Verified clean',    value: '187', delta: { dir: 'up',   pct: '+22' },  hint: 'past 30 days' },
-  { label: 'Avg confidence',    value: '92',  delta: { dir: 'down', pct: '-1pt' }, hint: 'vs. 30 d avg' },
+const KPIS: {
+  label: string;
+  value: string;
+  delta?: { dir: 'up' | 'down'; pct: string };
+  hint: string;
+  icon: string;
+  spark: number[];
+}[] = [
+  { label: 'Scanned today',     value: '34',  delta: { dir: 'up',   pct: '+12%' }, hint: 'vs. yesterday',  icon: 'search',     spark: [18, 22, 19, 25, 21, 28, 24, 30, 27, 32, 30, 34] },
+  { label: 'Flagged this week', value: '11',  delta: { dir: 'up',   pct: '+3' },   hint: 'vs. last week',  icon: 'flag',       spark: [4, 5, 3, 6, 5, 7, 6, 8, 7, 9, 10, 11] },
+  { label: 'Verified clean',    value: '187', delta: { dir: 'up',   pct: '+22' },  hint: 'past 30 days',   icon: 'shield',     spark: [140, 148, 152, 158, 161, 165, 168, 172, 176, 178, 183, 187] },
+  { label: 'Avg confidence',    value: '92',  delta: { dir: 'down', pct: '-1pt' }, hint: 'vs. 30 d avg',   icon: 'trend-down', spark: [95, 94, 96, 95, 93, 94, 93, 92, 93, 92, 91, 92] },
 ];
 
 interface RecentScan {
@@ -110,6 +117,8 @@ function KpiTile({
         primary={primary}
         label={kpi.label}
         value={kpi.value}
+        icon={<Icon name={kpi.icon} />}
+        sparkline={kpi.spark}
       />
     </div>
   );
@@ -296,22 +305,44 @@ function FlaggedRow({ row, onOpen }: { row: RecentScan; onOpen: (row: RecentScan
 
 type StripState = 'live' | 'complete' | 'partial' | 'allFailed';
 
-// Visual config keyed by terminal state — keeps the render logic below
-// declarative so adding a new state is a one-row addition rather than a
-// fresh branch through the JSX.
-const STATE_CONFIG: Record<
-  StripState,
-  {
-    iconWrap: string;
-    iconName: 'layers' | 'check' | 'alert' | 'x';
-    iconSize: number;
-  }
-> = {
-  live:      { iconWrap: 'bg-brand-soft text-brand',     iconName: 'layers', iconSize: 18 },
-  complete:  { iconWrap: 'bg-clean-soft text-clean-ink', iconName: 'check',  iconSize: 20 },
-  partial:   { iconWrap: 'bg-warn-soft text-warn-ink',   iconName: 'alert',  iconSize: 18 },
-  allFailed: { iconWrap: 'bg-risk-soft text-risk-ink',   iconName: 'x',      iconSize: 18 },
+const THUMB_BG: Record<StripState, { bg: string; fg: string }> = {
+  live:      { bg: 'var(--brand-soft)', fg: 'var(--brand)' },
+  complete:  { bg: 'var(--clean-soft)', fg: 'var(--clean-ink)' },
+  partial:   { bg: 'var(--warn-soft)',  fg: 'var(--warn-ink)' },
+  allFailed: { bg: 'var(--risk-soft)',  fg: 'var(--risk-ink)' },
 };
+
+function HugSpinner() {
+  return (
+    <span
+      aria-hidden
+      className="block w-7 h-7 rounded-full animate-spin"
+      style={{
+        border: '2.5px solid rgba(10,183,163,.22)',
+        borderTopColor: 'var(--brand)',
+        borderRightColor: 'var(--brand-2)',
+      }}
+    />
+  );
+}
+
+function HugCheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 12.5l5 5L20 6.5" />
+    </svg>
+  );
+}
+
+function HugAlertIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 4l10 17H2L12 4z" />
+      <path d="M12 10v5" />
+      <path d="M12 18h.01" strokeWidth={2.5} />
+    </svg>
+  );
+}
 
 function LiveBatchStrip() {
   const history = useHistory();
@@ -332,113 +363,112 @@ function LiveBatchStrip() {
     : failed > 0       ? 'partial'
     : 'complete';
 
-  const cfg = STATE_CONFIG[state];
-  const isComplete = !isRunning;
-
-  const caption =
-    state === 'live'      ? `${settled} of ${total} scanned`
-    : state === 'complete' ? `${done} scanned`
-    : state === 'partial' ? `${done} scanned · ${failed} failed`
-    : `0 of ${total} scanned`;
+  const thumb = THUMB_BG[state];
 
   const headline =
-    state === 'live'      ? 'Batch is being scanned'
-    : state === 'complete' ? 'Batch scan complete'
-    : state === 'partial' ? 'Batch scanned with errors'
-    : 'Batch scan failed';
+    state === 'live'      ? 'Batch Is Being Scanned'
+    : state === 'complete' ? 'Batch Completed'
+    : state === 'partial' ? 'Batch Completed With Errors'
+    : 'Network Failure';
 
-  function onAction() {
-    if (state === 'allFailed') {
-      // Send the user back to the upload screen to retry with a fresh CSV.
-      dismissBatch();
-      history.push('/batch');
-      return;
-    }
-    if (isComplete) {
-      dismissBatch();
-      history.push('/history');
-      return;
-    }
+  const meta =
+    state === 'live'      ? `${liveBatch.filename}  ·  ${settled} / ${total} scanned`
+    : state === 'complete' ? `${liveBatch.filename}  ·  ${done} / ${total} scanned`
+    : state === 'partial' ? `${liveBatch.filename}  ·  ${done} / ${total} scanned  ·  ${failed} failed`
+    : `${liveBatch.filename}  ·  stopped at row ${settled} of ${total}`;
+
+  function goResults() {
+    dismissBatch();
+    history.push('/history');
+  }
+  function retry() {
+    dismissBatch();
     history.push('/batch');
   }
-  const actionLabel =
-    state === 'allFailed' ? 'Retry batch'
-    : state === 'live'    ? 'Open batch'
-    : 'View in History';
+  function openBatch() {
+    history.push('/batch');
+  }
+
+  const chevron = (
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+  const replay = (
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 12a9 9 0 1 1 3 6.7" />
+      <path d="M3 20v-5h5" />
+    </svg>
+  );
 
   return (
     <section className="mb-10 sm:mb-12">
-      <Card padded={false} className="card-rise relative">
-        {isComplete && (
-          <button
-            type="button"
-            onClick={dismissBatch}
-            aria-label="Dismiss batch"
-            className="absolute top-2.5 right-2.5 z-10 w-8 h-8 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors"
+      <div
+        className="card-rise relative inline-flex items-start gap-[18px] bg-surface border border-line rounded-[14px] shadow-sm max-w-full"
+        style={{ padding: '18px 44px 18px 18px', minWidth: 'min(460px, 100%)', maxWidth: 720 }}
+      >
+        <div
+          className="w-14 h-14 shrink-0 rounded-[10px] grid place-items-center"
+          style={{ background: thumb.bg, color: thumb.fg }}
+          aria-hidden
+        >
+          {state === 'live' ? <HugSpinner />
+            : state === 'complete' ? <HugCheckIcon />
+            : <HugAlertIcon />}
+        </div>
+
+        <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+          <h3
+            className="font-sans font-semibold leading-tight tracking-[-0.005em] m-0"
+            style={{ color: 'var(--navy)', fontSize: 19 }}
           >
-            <Icon name="x" size={14} />
-          </button>
-        )}
-
-        <div className={`px-5 sm:px-6 py-4 sm:py-5 ${isComplete ? 'pr-12 sm:pr-14' : ''}`}>
-          <div className="flex items-center gap-4">
-            <div className={`w-10 h-10 rounded-full grid place-items-center shrink-0 ${cfg.iconWrap}`} aria-hidden>
-              <Icon name={cfg.iconName} size={cfg.iconSize} />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div
-                className="font-sans font-semibold text-body sm:text-h4 leading-tight tracking-[-0.005em] truncate"
-                style={{ color: 'var(--navy)' }}
-              >
-                {headline}
-              </div>
-            </div>
-
-            <div className="shrink-0">
-              <Button
-                variant={state === 'live' ? 'ghost' : 'primary'}
-                onClick={onAction}
-                iconRight={
-                  state === 'allFailed' ? (
-                    <Icon name="replay" size={14} />
-                  ) : (
-                    <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="m6 4 4 4-4 4" />
-                    </svg>
-                  )
-                }
-              >
-                {actionLabel}
-              </Button>
-            </div>
-          </div>
+            {headline}
+          </h3>
+          <p className="font-sans text-caption text-ink-3 leading-snug m-0 truncate" title={liveBatch.filename}>
+            {meta}
+          </p>
 
           {state === 'live' && (
-            <div className="mt-4 h-1 bg-line rounded-full overflow-hidden">
+            <div className="mt-2 h-1 bg-line rounded-full overflow-hidden" aria-label={`${pct} percent`}>
               <div
-                className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
-                style={{ width: `${pct}%` }}
+                className="h-full rounded-full transition-[width] duration-500"
+                style={{ width: `${pct}%`, background: 'linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%)' }}
               />
             </div>
           )}
 
-          {state === 'allFailed' && (
-            <div className="mt-4 px-3.5 py-3 rounded-md text-caption bg-risk-soft text-risk-ink leading-relaxed">
-              None of the {total} addresses could be scanned. Check the CSV for formatting issues and try again.
+          {state === 'complete' && (
+            <div className="flex gap-2.5 mt-2.5">
+              <Button variant="primary" onClick={goResults} iconRight={chevron}>View results</Button>
             </div>
           )}
 
-          {/* Filename + scan count form the bottom metadata line. Both
-              render at caption emphasis so neither overpowers the headline
-              (which carries the status semantics). */}
-          <div className="mt-4 flex items-center flex-wrap gap-x-2 gap-y-1 font-sans text-caption text-ink-3 tabular-nums">
-            <span className="truncate" title={liveBatch.filename}>{liveBatch.filename}</span>
-            <span aria-hidden>·</span>
-            <span>{caption}</span>
-          </div>
+          {state === 'partial' && (
+            <div className="flex gap-2.5 mt-2.5">
+              <Button variant="primary" onClick={goResults} iconRight={chevron}>View results</Button>
+              <Button variant="ghost" onClick={retry}>Retry failed</Button>
+            </div>
+          )}
+
+          {state === 'allFailed' && (
+            <div className="flex gap-2.5 mt-2.5">
+              <Button variant="primary" onClick={retry} icon={replay}>Retry batch</Button>
+              <Button variant="ghost" onClick={openBatch}>View partial results</Button>
+            </div>
+          )}
         </div>
-      </Card>
+
+        <button
+          type="button"
+          onClick={dismissBatch}
+          aria-label="Dismiss batch"
+          className="absolute top-2.5 right-3 w-6 h-6 grid place-items-center rounded-md text-ink-4 hover:bg-surface-2 hover:text-ink-2 transition-colors"
+        >
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
     </section>
   );
 }
@@ -477,7 +507,7 @@ function ActivityTabs() {
         value={tab}
         onChange={(v: any) => setTab(v)}
         items={[
-          { value: 'history',  label: 'History',  count: histRows.length },
+          { value: 'history',  label: 'Recent Scans',  count: histRows.length },
           { value: 'schedule', label: 'Scheduled', count: schedules.length },
         ]}
         rightSlot={
@@ -694,13 +724,13 @@ function HomeScreen() {
       <header className="flex items-end justify-between gap-6 mb-8 pb-5 border-b border-line">
         <div>
           <h1
-            className="font-sans font-semibold leading-[1.1] tracking-[-0.012em] m-0"
-            style={{ fontSize: 'clamp(28px, 4.4vw, 40px)', color: 'var(--navy)' }}
+            className="font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0"
+            style={{ color: 'var(--navy)' }}
           >
             Dashboard
           </h1>
-          <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
-            One address — every public listing within a mile, every signal scored.
+          <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2">
+            Identify public rental activity with explainable confidence and evidence-backed results.
           </p>
         </div>
       </header>
@@ -723,7 +753,7 @@ function HomeScreen() {
       <section className="mb-10 sm:mb-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {KPIS.map((kpi, i) => (
-            <KpiTile key={kpi.label} kpi={kpi} primary={i === 0} index={i} />
+            <KpiTile key={kpi.label} kpi={kpi} index={i} />
           ))}
         </div>
       </section>
