@@ -1,5 +1,5 @@
 /* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, MetricCard, DropdownMenu, Drawer, ChipRow, ReactRouterDOM,
-   VERDICT_ACCENT, splitAddress, AutomateModal, useAppState */
+   VERDICT_ACCENT, splitAddress, AutomationControl, useAppState */
 // Batch processing — upload a CSV (or click "Try sample data") to scan
 // dozens of properties in one queue. Shows a partially-complete batch:
 // some scanned, some scanning, some queued.
@@ -102,7 +102,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
 
 function BatchResults({ batch }: { batch: any }) {
   const routerHistory = ReactRouterDOM.useHistory();
-  const { addSchedule, clearBatch } = useAppState();
+  const { clearBatch } = useAppState();
   const rows: BatchRow[] = batch.rows;
   const total = rows.length;
   const done = rows.filter((r) => r.status === 'done').length;
@@ -112,9 +112,6 @@ function BatchResults({ batch }: { batch: any }) {
   const clean = rows.filter((r) => r.risk === 'clean').length;
   const progress = Math.round((done / total) * 100);
   const isComplete = batch.status === 'complete';
-
-  const [automateOpen, setAutomateOpen] = React.useState(false);
-  const [confirmation, setConfirmation] = React.useState<string | null>(null);
 
   type StatusFilter = 'all' | 'done' | 'running' | 'queued';
   type VerdictFilter = 'all' | 'risk' | 'warn' | 'clean';
@@ -148,17 +145,14 @@ function BatchResults({ batch }: { batch: any }) {
     return true;
   });
 
+  const toggleVerdict = (v: 'risk' | 'warn' | 'clean') =>
+    setVerdictFilter((cur) => (cur === v ? 'all' : v));
+
   function clearAdvanced() {
     setStatusFilter('all');
     setVerdictFilter('all');
     setScoreBand('all');
   }
-
-  React.useEffect(() => {
-    if (!confirmation) return;
-    const t = window.setTimeout(() => setConfirmation(null), 3000);
-    return () => window.clearTimeout(t);
-  }, [confirmation]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -180,13 +174,9 @@ function BatchResults({ batch }: { batch: any }) {
               </h2>
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button
-                variant="default"
-                onClick={() => setAutomateOpen(true)}
-                icon={<Icon name="cal" size={14} />}
-              >
-                Automate
-              </Button>
+              <AutomationControl
+                target={{ kind: 'batch', filename: batch.filename, total }}
+              />
               <DropdownMenu
                 title="Download Report"
                 trigger={(open: boolean) => (
@@ -259,9 +249,9 @@ function BatchResults({ batch }: { batch: any }) {
 
           {/* Status counts — same MetricCard primitive as Home KPIs */}
           <div className="grid grid-cols-3 gap-3">
-            <MetricCard size="sm" accent="verdict-high" label="Rented"          value={flagged} />
-            <MetricCard size="sm" accent="verdict-med"  label="Possibly rented" value={warn} />
-            <MetricCard size="sm" accent="verdict-low"  label="Not rented"      value={clean} />
+            <MetricCard size="sm" accent="verdict-high" label="Rented"          value={flagged} onClick={() => toggleVerdict('risk')}  selected={verdictFilter === 'risk'} />
+            <MetricCard size="sm" accent="verdict-med"  label="Possibly rented" value={warn}    onClick={() => toggleVerdict('warn')}  selected={verdictFilter === 'warn'} />
+            <MetricCard size="sm" accent="verdict-low"  label="Not rented"      value={clean}   onClick={() => toggleVerdict('clean')} selected={verdictFilter === 'clean'} />
           </div>
         </div>
       </Card>
@@ -367,38 +357,6 @@ function BatchResults({ batch }: { batch: any }) {
         </div>
       </Drawer>
 
-      <AutomateModal
-        open={automateOpen}
-        onClose={() => setAutomateOpen(false)}
-        target={{ kind: 'batch', filename: batch.filename, total }}
-        onConfirm={({ cadenceMonths }: { cadenceMonths: 3 | 4 | 6 | 12 }) => {
-          addSchedule({
-            kind: 'batch',
-            filename: batch.filename,
-            total,
-            cadenceMonths,
-          });
-          setAutomateOpen(false);
-          setConfirmation(`Batch automation scheduled · every ${cadenceMonths} months`);
-        }}
-      />
-
-      {confirmation && (
-        <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] px-4 py-2.5 rounded-md shadow-md font-sans text-label flex items-center gap-2"
-          style={{ background: 'var(--navy)', color: 'white' }}
-          role="status"
-        >
-          <span
-            className="w-5 h-5 rounded-full grid place-items-center shrink-0"
-            style={{ background: 'rgba(255,255,255,0.16)' }}
-            aria-hidden
-          >
-            <Icon name="check" size={12} />
-          </span>
-          {confirmation}
-        </div>
-      )}
     </div>
   );
 }
@@ -485,7 +443,7 @@ const BATCH_COLUMNS: any[] = [
     key: 'score',
     label: 'Score',
     width: '60px',
-    align: 'right' as const,
+    align: 'center' as const,
     hideBelow: 'sm' as const,
     cell: (row: BatchRow) =>
       row.status === 'done' ? (

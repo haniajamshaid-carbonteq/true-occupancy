@@ -41,6 +41,10 @@ interface MetricCardProps {
   accent?: MetricAccent;
   /** Optional override className for the outer card. */
   className?: string;
+  /** When provided, the card renders as a button and fires this on click. */
+  onClick?: () => void;
+  /** Selected state for interactive cards — brand-tinted border + faint tint bg. */
+  selected?: boolean;
 }
 
 const ACCENT_VAR: Record<MetricAccent, string> = {
@@ -58,7 +62,10 @@ function MetricCard({
   primary = false,
   accent,
   className = '',
+  onClick,
+  selected = false,
 }: MetricCardProps) {
+  const interactive = typeof onClick === 'function';
   const hasFooter = !!(delta || hint);
   const valueClass =
     size === 'sm'
@@ -71,7 +78,12 @@ function MetricCard({
   // green/red would fight the gradient if applied as fill colour.
   const surface = primary
     ? 'text-white border-transparent shadow-md bg-gradient-to-r from-brand to-brand-2'
+    : selected
+    ? 'bg-brand-tint border-brand/40 shadow-sm'
     : 'bg-surface border-line shadow-sm';
+  const interactiveClasses = interactive
+    ? 'text-left w-full cursor-pointer transition-colors hover:border-line-strong hover:bg-hover-bg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1'
+    : '';
   const labelColor = primary ? 'rgba(255,255,255,0.85)' : 'var(--ink-3)';
   const valueColor = primary ? '#FFFFFF' : 'var(--navy)';
   const footerDivider = primary ? 'border-white/20' : 'border-line';
@@ -82,9 +94,15 @@ function MetricCard({
     ? 'var(--success-ink)'
     : 'var(--error-ink)';
 
+  const Tag: any = interactive ? 'button' : 'div';
+  const tagProps: any = interactive
+    ? { type: 'button', onClick, 'aria-pressed': selected }
+    : {};
+
   return (
-    <div
-      className={`border rounded-lg p-5 flex flex-col ${surface} ${className}`}
+    <Tag
+      {...tagProps}
+      className={`border rounded-lg p-5 flex flex-col ${surface} ${interactiveClasses} ${className}`}
     >
       <div
         className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase inline-flex items-center gap-1.5"
@@ -108,7 +126,7 @@ function MetricCard({
       </div>
 
       {hasFooter && (
-        <div className={`mt-4 pt-3 border-t ${footerDivider} flex items-center justify-between gap-2 text-caption`}>
+        <div className={`mt-4 pt-3 border-t ${footerDivider} flex items-center justify-between gap-2 text-caption text-left`}>
           {delta ? (
             <span
               className="inline-flex items-center gap-1 font-semibold tabular-nums"
@@ -138,6 +156,6 @@ function MetricCard({
           )}
         </div>
       )}
-    </div>
+    </Tag>
   );
 }

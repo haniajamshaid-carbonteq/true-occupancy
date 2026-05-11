@@ -258,6 +258,7 @@ function ScheduledScreen() {
 }
 
 function ScheduleDetailsModal({ entry, onClose }: { entry: any | null; onClose: () => void }) {
+  const { cancelSchedule } = useAppState();
   if (!entry) {
     return <Modal open={false} onClose={onClose} />;
   }
@@ -270,8 +271,18 @@ function ScheduleDetailsModal({ entry, onClose }: { entry: any | null; onClose: 
       width={520}
       footer={
         <>
+          <button
+            type="button"
+            onClick={() => {
+              cancelSchedule(entry.id);
+              onClose();
+            }}
+            className="mr-auto inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-transparent border border-transparent font-sans text-label font-medium text-error-ink hover:bg-error-soft transition-colors cursor-pointer"
+          >
+            <Icon name="x" size={14} />
+            Cancel automation
+          </button>
           <Button variant="ghost" onClick={onClose}>Close</Button>
-          <Button variant="default" onClick={onClose}>Cancel automation</Button>
         </>
       }
     >

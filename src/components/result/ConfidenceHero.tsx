@@ -303,7 +303,7 @@ function useCountUp(target: number, duration = 800): number {
 
 const VERDICT_TEXT: Record<ScenarioKey, string> = {
   high:   'Rented',
-  medium: 'Likely rented',
+  medium: 'Likely Rented',
   low:    'Not rented',
 };
 
