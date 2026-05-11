@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Batch hug card — states</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&family=Jost:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --surface: #FFFFFF;
+    --surface-2: #F2F2F2;
+    --line: #E5E7EB;
+    --line-strong: #CBD5E1;
+
+    --ink:   #1C1C1E;
+    --ink-2: #142D55;
+    --ink-3: #475569;
+    --ink-4: #94A3B8;
+
+    --brand:       #0AB7A3;
+    --brand-2:     #0498C6;
+    --brand-soft:  #E6F8F5;
+    --brand-tint:  #F2FBFA;
+    --brand-deep:  #015E7A;
+
+    --navy:        #142D55;
+
+    --clean:      #0AB7A3;
+    --clean-soft: #E6F8F5;
+    --clean-ink:  #015E7A;
+
+    --warn:      #EDA436;
+    --warn-soft: #FDF1DC;
+    --warn-ink:  #6B4914;
+
+    --risk:      #C0533C;
+    --risk-soft: #FBE3DB;
+    --risk-ink:  #6F2917;
+
+    --sans:  "Jost", "Century Gothic", "URW Geometric", system-ui, sans-serif;
+    --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    --mono:  "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --brand-gradient: linear-gradient(90deg, #0AB7A3 0%, #0498C6 100%);
+    --shadow-sm: 0 1px 2px rgba(20, 45, 85, .06), 0 1px 1px rgba(20, 45, 85, .04);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #FAFAF7; color: var(--ink); font-family: var(--sans); }
+
+  .page {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 64px 48px 120px;
+  }
+  .page-eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--brand);
+    margin: 0 0 14px;
+  }
+  .page-title {
+    font-family: var(--serif);
+    font-size: 48px;
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    color: var(--navy);
+    margin: 0 0 12px;
+  }
+  .page-lede {
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-3);
+    max-width: 60ch;
+    margin: 0 0 56px;
+  }
+
+  .state-section {
+    margin-top: 48px;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+  }
+  .state-section:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .state-label {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .state-label .num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-4);
+  }
+  .state-label h2 {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--navy);
+    letter-spacing: -.01em;
+  }
+  .state-label .desc {
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-left: auto;
+    max-width: 36ch;
+    line-height: 1.5;
+  }
+
+  /* ---------- the hug card ---------- */
+  .hug-card {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 18px;
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow-sm);
+    padding: 18px 44px 18px 18px;
+    min-width: 460px;
+    max-width: 720px;
+  }
+
+  .hug-thumb {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+  }
+  .hug-thumb.scanning  { background: var(--brand-soft); color: var(--brand); }
+  .hug-thumb.complete  { background: var(--clean-soft); color: var(--clean-ink); }
+  .hug-thumb.warn      { background: var(--warn-soft);  color: var(--warn-ink); }
+  .hug-thumb.error     { background: var(--risk-soft);  color: var(--risk-ink); }
+
+  /* spinner */
+  .spinner {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2.5px solid rgba(10,183,163,.22);
+    border-top-color: var(--brand);
+    border-right-color: var(--brand-2);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hug-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 3px 9px;
+    border-radius: 999px;
+    line-height: 1.4;
+    margin-bottom: 2px;
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill.warn  { background: var(--warn-soft);  color: var(--warn-ink); }
+  .pill.warn  .dot { background: var(--warn); }
+  .pill.clean { background: var(--clean-soft); color: var(--clean-ink); }
+  .pill.clean .dot { background: var(--clean); }
+  .pill.risk  { background: var(--risk-soft);  color: var(--risk-ink); }
+  .pill.risk  .dot { background: var(--risk); }
+
+  .hug-title {
+    font-family: var(--sans);
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -.005em;
+    color: var(--navy);
+    margin: 0;
+  }
+
+  .hug-meta {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink-3);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .hug-sub-error {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--risk-ink);
+    margin: 0;
+  }
+
+  .hug-progress {
+    margin-top: 8px;
+    height: 4px;
+    width: 100%;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .hug-progress > span {
+    display: block;
+    height: 100%;
+    background: var(--brand-gradient);
+    border-radius: 999px;
+    transition: width .5s ease;
+  }
+
+  .hug-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  /* button styles */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    line-height: 1;
+    transition: filter .15s, background .15s, border-color .15s;
+  }
+  .btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .btn.ghost {
+    background: transparent;
+    color: var(--ink-2);
+    border-color: var(--line-strong);
+  }
+  .btn.ghost:hover { background: var(--surface-2); }
+  .btn.primary {
+    background: var(--brand);
+    color: white;
+    border-color: var(--brand);
+  }
+  .btn.primary:hover { background: var(--brand-deep); border-color: var(--brand-deep); }
+  .btn.danger {
+    background: var(--risk);
+    color: white;
+  }
+  .btn.danger:hover { filter: brightness(1.05); }
+
+  /* dismiss X */
+  .hug-dismiss {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--ink-4);
+    transition: color .15s, background .15s;
+  }
+  .hug-dismiss:hover { color: var(--ink-2); background: var(--surface-2); }
+  .hug-dismiss svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* check & alert icons */
+  .icon-lg { width: 28px; height: 28px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+
+<main class="page">
+
+  <div class="page-eyebrow">Batch status · hug card</div>
+  <h1 class="page-title"><em style="font-style: italic; color: var(--brand);">Four states,</em> one component.</h1>
+  <p class="page-lede">A compact, horizontal status surface for the Batch flow — replaces the wide summary block on <code style="font-family: var(--mono); font-size: 13px; background: var(--brand-soft); color: var(--brand-deep); padding: 1px 6px; border-radius: 4px;">BatchScreen</code> with a hug-width card that fits beside other content. Below: scanning, complete, complete-with-errors, error.</p>
+
+  <!-- ============ SCANNING ============ -->
+  <section class="state-section">
+    <div class="state-label">
+      <span class="num">01</span>
+      <h2>Scanning</h2>
+      <span class="desc">Live batch in progress. Animated spinner thumbnail, gradient progress bar, ghost <em>Pause</em> action.</span>
+    </div>
+
+    <div class="hug-card">
+      <div class="hug-thumb scanning">
+        <div class="spinner" aria-hidden="true"></div>
+      </div>
+      <div class="hug-body">
+        <h3 class="hug-title">Batch Is Being Scanned</h3>
+        <p class="hug-meta">properties-asheville.csv  ·  12 / 14 scanned</p>
+        <div class="hug-progress" aria-label="86 percent">
+          <span style="width: 86%;"></span>
+        </div>
+      </div>
+      <button class="hug-dismiss" aria-label="Dismiss">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ COMPLETED ============ -->
+  <section class="state-section">
+    <div class="state-label">
+      <span class="num">02</span>
+      <h2>Completed</h2>
+      <span class="desc">All rows scanned cleanly. Primary <em>View results</em> CTA in solid brand teal.</span>
+    </div>
+
+    <div class="hug-card">
+      <div class="hug-thumb complete">
+        <svg class="icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>
+      </div>
+      <div class="hug-body">
+        <h3 class="hug-title">Batch Completed</h3>
+        <p class="hug-meta">properties-asheville.csv  ·  14 / 14 scanned</p>
+        <div class="hug-actions">
+          <button class="btn primary" type="button">
+            View results
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="hug-dismiss" aria-label="Dismiss">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ COMPLETED WITH ERRORS ============ -->
+  <section class="state-section">
+    <div class="state-label">
+      <span class="num">03</span>
+      <h2>Completed with errors</h2>
+      <span class="desc">Batch finished but some rows failed. Warn thumbnail, primary <em>View results</em> + ghost <em>Retry failed</em>.</span>
+    </div>
+
+    <div class="hug-card">
+      <div class="hug-thumb warn">
+        <svg class="icon-lg" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 4l10 17H2L12 4z"/>
+          <path d="M12 10v5"/>
+          <path d="M12 18h.01" stroke-width="2.5"/>
+        </svg>
+      </div>
+      <div class="hug-body">
+        <h3 class="hug-title">Batch Completed With Errors</h3>
+        <p class="hug-meta">properties-asheville.csv  ·  12 / 14 scanned  ·  2 failed</p>
+        <div class="hug-actions">
+          <button class="btn primary" type="button">
+            View results
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+          <button class="btn ghost" type="button">Retry failed</button>
+        </div>
+      </div>
+      <button class="hug-dismiss" aria-label="Dismiss">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ ERROR ============ -->
+  <section class="state-section">
+    <div class="state-label">
+      <span class="num">04</span>
+      <h2>Error</h2>
+      <span class="desc">Scan stopped mid-batch — total failure. Risk thumbnail, retry + view-partial actions.</span>
+    </div>
+
+    <div class="hug-card">
+      <div class="hug-thumb error">
+        <svg class="icon-lg" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 4l10 17H2L12 4z"/>
+          <path d="M12 10v5"/>
+          <path d="M12 18h.01" stroke-width="2.5"/>
+        </svg>
+      </div>
+      <div class="hug-body">
+        <h3 class="hug-title">Network Failure</h3>
+        <p class="hug-meta">properties-asheville.csv  ·  stopped at row 8 of 14</p>
+        <div class="hug-actions">
+          <button class="btn primary" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 20v-5h5"/></svg>
+            Retry batch
+          </button>
+          <button class="btn ghost" type="button">View partial results</button>
+        </div>
+      </div>
+      <button class="hug-dismiss" aria-label="Dismiss">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </section>
+
+</main>
+
+</body>
+</html>

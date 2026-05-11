@@ -1,0 +1,311 @@
+/* True Occupancy — Print stylesheet
+ *
+ * Halcyon-branded one-page PDF certificate. See:
+ *   src/components/result/CertificateSheet.tsx
+ *   docs/pdf-certificate-spec.md
+ *
+ * Mechanics: CertificateSheet portals a <div class="cert-print-root">
+ * into <body> as a sibling of #root. On screen it's hidden. On print we
+ * hide #root and show .cert-print-root.
+ */
+
+/* === Off-screen on a normal viewport ================================ */
+.cert-print-root { display: none; }
+
+/* === Inline preview (design-spec canvas) ============================ */
+.cert-preview-host {
+  display: block;
+  background: var(--bg);
+  padding: 32px;
+  min-height: 100%;
+}
+.cert-preview-host .certificate-sheet {
+  margin: 0 auto;
+  box-shadow: 0 1px 2px rgba(20, 45, 85, 0.05), 0 8px 24px rgba(20, 45, 85, 0.08);
+}
+
+/* === Certificate page itself ======================================== */
+.certificate-sheet {
+  /* Letter, minus our @page 0.4in margins on each side. */
+  width: 7.7in;
+  min-height: 10.2in;
+  box-sizing: border-box;
+  padding: 0.35in 0.4in 0.3in;
+  background: #FFFFFF;
+  color: var(--ink);
+  font-family: 'Jost', system-ui, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.42;
+  display: flex;
+  flex-direction: column;
+  gap: 14pt;
+}
+
+.certificate-sheet .cert-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24pt;
+}
+.certificate-sheet .cert-head-left {
+  display: flex;
+  align-items: center;
+  gap: 12pt;
+}
+.certificate-sheet .cert-mark {
+  width: 38pt;
+  height: 38pt;
+  object-fit: contain;
+  display: block;
+}
+.certificate-sheet .cert-wordmark { line-height: 1.1; }
+.certificate-sheet .cert-brand {
+  font-weight: 700;
+  font-size: 16pt;
+  letter-spacing: -0.01em;
+  color: var(--navy);
+}
+.certificate-sheet .cert-product {
+  font-size: 9.5pt;
+  font-weight: 500;
+  color: var(--brand-deep);
+  letter-spacing: 0.02em;
+  margin-top: 2pt;
+}
+.certificate-sheet .cert-head-right {
+  text-align: right;
+  font-size: 8.5pt;
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+.certificate-sheet .cert-id {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 10pt;
+  font-weight: 600;
+  color: var(--navy);
+  letter-spacing: 0.04em;
+}
+.certificate-sheet .cert-stamp {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.certificate-sheet .cert-kind {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 7.5pt;
+  color: var(--ink-3);
+  margin-top: 1pt;
+}
+
+.certificate-sheet .cert-rule {
+  height: 1pt;
+  background: var(--navy);
+  margin-top: -4pt;
+  opacity: 0.85;
+}
+
+/* --- Property block --- */
+.certificate-sheet .cert-eyebrow {
+  text-transform: uppercase;
+  font-size: 7.5pt;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-bottom: 4pt;
+}
+.certificate-sheet .cert-address {
+  font-size: 15pt;
+  font-weight: 600;
+  color: var(--navy);
+  letter-spacing: -0.005em;
+  line-height: 1.25;
+}
+.certificate-sheet .cert-meta {
+  margin-top: 4pt;
+  font-size: 9pt;
+  color: var(--ink-3);
+}
+
+/* --- Verdict band ---
+ * Verdict is the headline (large, navy). Score is secondary: a tabular-nums
+ * confidence figure underneath. Palette is brand navy + teal accent only —
+ * deliberately scenario-agnostic to keep the certificate reading as a sober
+ * compliance document, not a colored dashboard. */
+.certificate-sheet .cert-verdict-band {
+  display: grid;
+  grid-template-columns: minmax(180pt, 240pt) 1fr;
+  gap: 24pt;
+  align-items: stretch;
+  border: 0.75pt solid var(--line);
+  border-left: 4pt solid var(--brand-deep);
+  border-radius: 6pt;
+  padding: 14pt 18pt;
+  background: #FFFFFF;
+}
+.certificate-sheet .cert-verdict-head {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.certificate-sheet .cert-verdict-headline {
+  font-family: 'Jost', system-ui, sans-serif;
+  font-size: 30pt;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.0;
+  color: var(--navy);
+}
+.certificate-sheet .cert-verdict-sub {
+  margin-top: 8pt;
+  font-size: 9.5pt;
+  color: var(--ink-3);
+  letter-spacing: 0.005em;
+}
+.certificate-sheet .cert-verdict-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.certificate-sheet .cert-verdict-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 18pt;
+  border-left: 0.5pt solid var(--line);
+}
+.certificate-sheet .cert-summary {
+  font-size: 9.5pt;
+  color: var(--ink-2);
+  margin: 4pt 0 0;
+  line-height: 1.45;
+}
+
+/* --- Listings table --- */
+.certificate-sheet .cert-section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 11pt;
+  font-weight: 600;
+  color: var(--navy);
+  border-bottom: 0.75pt solid var(--line);
+  padding-bottom: 4pt;
+  margin-bottom: 6pt;
+}
+.certificate-sheet .cert-section-count {
+  font-size: 8.5pt;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.certificate-sheet .cert-empty {
+  font-size: 10pt;
+  color: var(--ink-3);
+  padding: 10pt 0;
+  font-style: italic;
+}
+.certificate-sheet .cert-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+}
+.certificate-sheet .cert-table thead th {
+  text-align: left;
+  font-size: 7.5pt;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  padding: 4pt 6pt 4pt 0;
+  border-bottom: 0.5pt solid var(--line);
+}
+.certificate-sheet .cert-table tbody td {
+  padding: 6pt 6pt 6pt 0;
+  border-bottom: 0.4pt solid var(--line);
+  vertical-align: top;
+}
+.certificate-sheet .cert-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.certificate-sheet .cert-table .col-platform { width: 80pt; color: var(--navy); font-weight: 600; }
+.certificate-sheet .cert-table .col-conf     { width: 50pt; text-align: right; padding-right: 0; color: var(--navy); font-weight: 600; }
+.certificate-sheet .cert-table .col-seen     { width: 80pt; text-align: right; padding-right: 0; color: var(--ink-3); }
+.certificate-sheet .cert-table .col-title    { padding-right: 12pt; }
+.certificate-sheet .cert-listing-title {
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.certificate-sheet .cert-listing-url {
+  display: inline-block;
+  margin-top: 2pt;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 7.5pt;
+  color: var(--ink-3);
+  text-decoration: none;
+  word-break: break-all;
+}
+.certificate-sheet .tabular { font-variant-numeric: tabular-nums; }
+
+.certificate-sheet .cert-remaining {
+  margin-top: 6pt;
+  font-size: 8.5pt;
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+/* --- Footer --- */
+.certificate-sheet .cert-foot {
+  margin-top: auto;
+  padding-top: 10pt;
+  border-top: 0.5pt solid var(--line);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16pt;
+  font-size: 7.5pt;
+  color: var(--ink-3);
+}
+.certificate-sheet .cert-foot .mono {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  color: var(--navy);
+}
+.certificate-sheet .cert-foot-line { line-height: 1.4; }
+.certificate-sheet .cert-foot-line.muted { color: var(--ink-4); margin-top: 2pt; }
+.certificate-sheet .cert-foot-right {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+
+/* === Print-only overrides =========================================== */
+@media print {
+  @page {
+    size: Letter;
+    margin: 0.4in;
+  }
+  html, body {
+    background: #FFFFFF !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  /* Force brand colors to print rather than being stripped by user-agent
+     "background graphics off" defaults. Chromium honors this; Safari uses
+     -webkit-print-color-adjust. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  /* Hide the live app — only the certificate prints. */
+  #root { display: none !important; }
+  .cert-print-root { display: block !important; }
+  .certificate-sheet {
+    width: auto;
+    min-height: auto;
+    padding: 0;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+  /* Keep links clickable but not styled with browser-default underlines. */
+  .certificate-sheet a { text-decoration: none; }
+}

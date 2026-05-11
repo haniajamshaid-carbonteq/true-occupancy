@@ -1,4 +1,4 @@
-/* global React, AppShell, ScanContextBar, ConfidenceHero, PropertyOverview, ListingsPanel */
+/* global React, AppShell, ScanContextBar, ConfidenceHero, PropertyOverview, ListingsPanel, CertificateSheet */
 // Screen 05 — Result · "Rented · High confidence" (strong signal).
 
 function ResultHighScreen() {
@@ -10,6 +10,7 @@ function ResultHighScreen() {
         <ListingsPanel scenario="high" />
         <PropertyOverview />
       </div>
+      <CertificateSheet scenario="high" />
     </AppShell>
   );
 }

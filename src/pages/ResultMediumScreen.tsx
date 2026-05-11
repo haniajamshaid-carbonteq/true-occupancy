@@ -1,4 +1,4 @@
-/* global React, AppShell, ScanContextBar, ConfidenceHero, PropertyOverview, ListingsPanel */
+/* global React, AppShell, ScanContextBar, ConfidenceHero, PropertyOverview, ListingsPanel, CertificateSheet */
 // Screen 04 — Result · "Possibly rented · Medium confidence" (mixed signals).
 
 function ResultMediumScreen() {
@@ -10,6 +10,7 @@ function ResultMediumScreen() {
         <ListingsPanel scenario="medium" />
         <PropertyOverview />
       </div>
+      <CertificateSheet scenario="medium" />
     </AppShell>
   );
 }

@@ -2,7 +2,7 @@
    HomeScreen, HistoryScreen, BatchScreen,
    ScanStartScreen, ScanMidScreen,
    ResultCleanScreen, ResultMediumScreen, ResultHighScreen,
-   WhyExpandedScreen, ComponentsPage */
+   WhyExpandedScreen, ComponentsPage, CertificatePreview */
 // Top-level design-spec layout. Each <Screen> mounts a real production page
 // from src/pages — no copies, no drift. Add a new page to src/pages and a
 // new <Screen> here to feature it.
@@ -15,6 +15,7 @@ function SpecApp() {
         <a href="#section-01">Home</a>
         <a href="#section-02">Scan</a>
         <a href="#section-03">Results</a>
+        <a href="#section-03b">Certificate</a>
         <a href="#section-04">Why</a>
         <a href="#section-05">Components</a>
       </nav>
@@ -86,6 +87,46 @@ function SpecApp() {
           initialPath="/result/high"
         >
           <ResultHighScreen />
+        </Screen>
+      </SpecSection>
+
+      <SpecSection
+        num="03b"
+        title="PDF Certificate — the downloadable report"
+        desc="Halcyon-branded, single-page certificate. One template, all scans. Replaces the historical lender form. See docs/pdf-certificate-spec.md."
+      >
+        <Screen
+          label="03b.1"
+          title="Certificate · Not rented"
+          desc="Empty-state listings table; clean verdict band."
+          width={820}
+          height={1060}
+          scale={0.7}
+          url="halcyon.app/verify/TO-…"
+        >
+          <CertificatePreview scenario="low" />
+        </Screen>
+        <Screen
+          label="03b.2"
+          title="Certificate · Possibly rented"
+          desc="Mixed-signal example with partial-match listings."
+          width={820}
+          height={1060}
+          scale={0.7}
+          url="halcyon.app/verify/TO-…"
+        >
+          <CertificatePreview scenario="medium" />
+        </Screen>
+        <Screen
+          label="03b.3"
+          title="Certificate · Rented"
+          desc="Full table with multiple platforms; clickable listing URLs preserved in print."
+          width={820}
+          height={1060}
+          scale={0.7}
+          url="halcyon.app/verify/TO-…"
+        >
+          <CertificatePreview scenario="high" />
         </Screen>
       </SpecSection>
 
