@@ -7,7 +7,7 @@ type IconName =
   | 'check' | 'x' | 'alert' | 'info' | 'chevron'
   | 'pin' | 'bed' | 'bath' | 'square' | 'shield' | 'cal' | 'price' | 'star'
   | 'spark' | 'replay' | 'share' | 'trend-up' | 'trend-down' | 'external'
-  | 'arrow-right' | 'upload' | 'layers';
+  | 'arrow-right' | 'upload' | 'layers' | 'brain';
 
 interface IconProps extends Omit<React.SVGAttributes<SVGSVGElement>, 'children'> {
   name: IconName;
@@ -48,6 +48,7 @@ function Icon({ name, size = 16, className = '', ...rest }: IconProps) {
     case 'price':      return <svg {...common}><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
     case 'star':       return <svg {...common}><path d="m12 3 2.7 5.7 6.3.9-4.6 4.4 1.1 6.3L12 17.3 6.5 20.3l1.1-6.3L3 9.6l6.3-.9z"/></svg>;
     case 'spark':      return <svg {...common}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg>;
+    case 'brain':      return <svg {...common}><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 0 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4M9 13a4.5 4.5 0 0 0 3-4"/></svg>;
     case 'replay':     return <svg {...common}><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>;
     case 'share':      return <svg {...common}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>;
     case 'trend-up':   return <svg {...common}><path d="m3 17 6-6 4 4 8-9"/><path d="M14 6h7v7"/></svg>;

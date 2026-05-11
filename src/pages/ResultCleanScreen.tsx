@@ -1,16 +1,26 @@
-/* global React, AppShell, Sidebar, PageHeader, ScoreCard, ModeToggle, PropertyOverview, WhyCard, ListingsPanel */
-// Screen 03 — Result · clean (low risk).
+/* global React, AppShell, Sidebar, PageHeader, ScoreCard, PropertyOverview, WhyCard, ListingsPanel, CertDownloadButton, RunInvestigationCTA, PROPERTY, SCENARIOS */
+// Result screen — "no public evidence found" verdict.
 
 function ResultCleanScreen() {
-  const [mode, setMode] = React.useState<AudienceMode>('investigator');
+  const rightActions = (
+    <CertDownloadButton
+      payload={{
+        address: PROPERTY.address,
+        date: new Date(),
+        score: SCENARIOS.low.score,
+        risk: SCENARIOS.low.risk,
+      }}
+    />
+  );
   return (
     <AppShell sidebar={<Sidebar />}>
-      <PageHeader rightSlot={<ModeToggle value={mode} onChange={setMode} />} />
+      <PageHeader rightSlot={rightActions} />
       <div className="mt-5 flex flex-col gap-5">
-        <ScoreCard scenario="low" mode={mode} />
+        <ScoreCard scenario="low" />
         <WhyCard scenario="low" />
         <ListingsPanel scenario="low" />
         <PropertyOverview />
+        <RunInvestigationCTA />
       </div>
     </AppShell>
   );

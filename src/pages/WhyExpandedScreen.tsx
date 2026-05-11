@@ -1,15 +1,14 @@
-/* global React, AppShell, Sidebar, PageHeader, ScoreCard, ModeToggle, WhyCard */
-// Screen 06 — Why this score · expanded.
-// Score card + the explainability card open by default, no other content,
-// so the contributing factors are the focus.
+/* global React, AppShell, Sidebar, PageHeader, ScoreCard, WhyCard */
+// Why this score · expanded.
+// Confidence card + the explainability card open by default — contributing
+// signals are the focus.
 
 function WhyExpandedScreen() {
-  const [mode, setMode] = React.useState<AudienceMode>('investigator');
   return (
     <AppShell sidebar={<Sidebar />}>
-      <PageHeader rightSlot={<ModeToggle value={mode} onChange={setMode} />} />
+      <PageHeader />
       <div className="mt-5 flex flex-col gap-5">
-        <ScoreCard scenario="high" mode={mode} />
+        <ScoreCard scenario="high" />
         <WhyCard scenario="high" defaultOpen />
       </div>
     </AppShell>

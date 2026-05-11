@@ -16,6 +16,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { to: '/', label: 'New scan', icon: 'search', exact: true },
       { to: '/batch', label: 'Batch scan', icon: 'layers' },
+      { to: '/history', label: 'History', icon: 'history' },
       { to: '/scan/start', label: 'In progress', icon: 'history', badge: '1' },
       { to: '/result/high', label: 'Flagged', icon: 'flag', badge: '9' },
     ],

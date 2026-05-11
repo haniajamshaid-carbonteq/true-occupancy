@@ -1,6 +1,6 @@
 /* global React, ReactRouterDOM, HomeScreen, ScanStartScreen, ScanMidScreen,
    ResultCleanScreen, ResultMediumScreen, ResultHighScreen,
-   WhyExpandedScreen, ComponentsPage, BatchScreen */
+   WhyExpandedScreen, ComponentsPage, BatchScreen, HistoryScreen */
 // Top-level router. Each route = one screen.
 // HashRouter so the static server doesn't need URL-rewriting config.
 
@@ -9,14 +9,17 @@ const { HashRouter, Switch, Route, Redirect } = ReactRouterDOM;
 // Specific routes first; "/" is matched with `exact` so it doesn't swallow
 // nested paths. Order matters with v5's Switch.
 const ROUTES = [
-  { path: '/batch',          component: BatchScreen },
-  { path: '/scan/start',     component: ScanStartScreen },
-  { path: '/scan/mid',       component: ScanMidScreen },
-  { path: '/result/clean',   component: ResultCleanScreen },
-  { path: '/result/medium',  component: ResultMediumScreen },
-  { path: '/result/high',    component: ResultHighScreen },
-  { path: '/why-expanded',   component: WhyExpandedScreen },
-  { path: '/components',     component: ComponentsPage },
+  { path: '/batch',                component: BatchScreen },
+  { path: '/scan/start',           component: ScanStartScreen },
+  { path: '/scan/mid',             component: ScanMidScreen },
+  { path: '/result/clean',         component: ResultCleanScreen },
+  { path: '/result/medium',        component: ResultMediumScreen },
+  { path: '/result/high',          component: ResultHighScreen },
+  { path: '/why-expanded',         component: WhyExpandedScreen },
+  { path: '/components',           component: ComponentsPage },
+  // /history/:address_id must come before /history so the param matches.
+  { path: '/history/:address_id',  component: HistoryScreen },
+  { path: '/history',              component: HistoryScreen },
 ];
 
 function App() {
