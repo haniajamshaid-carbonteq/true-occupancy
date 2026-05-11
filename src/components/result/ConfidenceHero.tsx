@@ -112,8 +112,7 @@ function FactorRow({
   const abs = Math.abs(impact);
   const widthPct = maxAbs === 0 ? 0 : (abs / maxAbs) * 100;
   const positive = impact > 0;
-  const negative = impact < 0;
-  const sign = positive ? '+' : negative ? '−' : '';
+  const sign = positive ? '+' : '';
 
   // Bar grows from 0 → widthPct% on mount with a per-row stagger (60ms each).
   // Mount = when the accordion opens (parent unmounts/remounts FactorRow on
@@ -139,7 +138,7 @@ function FactorRow({
           className="font-sans font-semibold tabular-nums shrink-0 leading-none"
           style={{
             fontSize: "var(--text-body)",
-            color: negative ? 'var(--error-ink)' : positive ? 'var(--success-ink)' : 'var(--ink)',
+            color: positive ? 'var(--success-ink)' : 'var(--ink)',
             letterSpacing: '-0.02em',
           }}
         >
@@ -205,7 +204,7 @@ function WhyThisScore({
             Why this score
           </div>
           <div className="font-sans text-micro text-ink-4 tabular-nums">
-            {rows.length} signals · net {net >= 0 ? '+' : '−'}
+            {rows.length} signals · net {net >= 0 ? '+' : ''}
             {Math.abs(net)}%
           </div>
         </div>

@@ -14,20 +14,20 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: 'Workspace',
     items: [
-      { to: '/', label: 'New scan', icon: 'search', exact: true },
-      { to: '/batch', label: 'Batch scan', icon: 'layers' },
-      { to: '/scan/start', label: 'In progress', icon: 'history', badge: '1' },
+      { to: '/', label: 'New Scan', icon: 'search', exact: true },
+      { to: '/batch', label: 'Batch Scan', icon: 'layers' },
+      { to: '/scan/start', label: 'In Progress', icon: 'history', badge: '1' },
     ],
   },
   {
     section: 'Spec',
     items: [
-      { to: '/scan/start', label: 'Scan · start', icon: 'history' },
-      { to: '/scan/mid', label: 'Scan · mid', icon: 'history' },
-      { to: '/result/clean', label: 'Result · clean', icon: 'shield' },
-      { to: '/result/medium', label: 'Result · medium', icon: 'info' },
-      { to: '/result/high', label: 'Result · high', icon: 'alert' },
-      { to: '/why-expanded', label: 'Why expanded', icon: 'spark' },
+      { to: '/scan/start', label: 'Scan · Start', icon: 'history' },
+      { to: '/scan/mid', label: 'Scan · Mid', icon: 'history' },
+      { to: '/result/clean', label: 'Result · Clean', icon: 'shield' },
+      { to: '/result/medium', label: 'Result · Medium', icon: 'info' },
+      { to: '/result/high', label: 'Result · High', icon: 'alert' },
+      { to: '/why-expanded', label: 'Why Expanded', icon: 'spark' },
     ],
   },
   {

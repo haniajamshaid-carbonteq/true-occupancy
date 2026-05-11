@@ -33,10 +33,10 @@ interface AutomateModalProps {
 }
 
 const OPTIONS: { value: Cadence; label: string; hint: string }[] = [
-  { value: 3,  label: '3 months',  hint: 'Quarterly compliance sweeps' },
-  { value: 4,  label: '4 months',  hint: 'Tri-annual cadence' },
-  { value: 6,  label: '6 months',  hint: 'Recommended for most portfolios' },
-  { value: 12, label: '12 months', hint: 'Annual recheck' },
+  { value: 3,  label: '3 Months',  hint: 'Quarterly compliance sweeps' },
+  { value: 4,  label: '4 Months',  hint: 'Tri-annual cadence' },
+  { value: 6,  label: '6 Months',  hint: 'Recommended for most portfolios' },
+  { value: 12, label: '12 Months', hint: 'Annual recheck' },
 ];
 
 function AutomateModal({
@@ -65,7 +65,7 @@ function AutomateModal({
       open={open}
       onClose={onClose}
       width={520}
-      title={isEdit ? 'Update automation' : 'Automate this scan'}
+      title={isEdit ? 'Update Automation' : 'Automate This Scan'}
       footer={
         <>
           {isEdit && onCancelAutomation && (
@@ -75,7 +75,7 @@ function AutomateModal({
               className="mr-auto inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-transparent border border-transparent font-sans text-label font-medium text-error-ink hover:bg-error-soft transition-colors cursor-pointer"
             >
               <Icon name="x" size={14} />
-              Cancel automation
+              Cancel Automation
             </button>
           )}
           <Button variant="ghost" onClick={onClose}>Close</Button>
@@ -85,7 +85,7 @@ function AutomateModal({
             icon={<Icon name="cal" size={14} />}
             disabled={primaryDisabled}
           >
-            {isEdit ? 'Update cadence' : 'Automate'}
+            {isEdit ? 'Update Cadence' : 'Automate'}
           </Button>
         </>
       }

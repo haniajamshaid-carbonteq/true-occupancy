@@ -28,7 +28,7 @@ function PageHeader({ showSearch = true, showTitle = true, rightSlot }: PageHead
                 className="font-sans font-semibold leading-[1.1] tracking-[-0.008em] m-0"
                 style={{ fontSize: 'clamp(24px, 4.4vw, 32px)', color: 'var(--navy)' }}
               >
-                Verify property occupancy.
+                Verify Property Occupancy.
               </h1>
             </div>
           )}

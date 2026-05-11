@@ -36,7 +36,7 @@ function ChipRow({ label, value, onChange, options }: ChipRowProps) {
               key={opt.value}
               type="button"
               onClick={() => onChange(opt.value)}
-              className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors ${
+              className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors duration-200 ${
                 active
                   ? '!bg-brand-tint !border-brand/40'
                   : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
@@ -46,7 +46,7 @@ function ChipRow({ label, value, onChange, options }: ChipRowProps) {
               {opt.label}
               {opt.count !== undefined && (
                 <span
-                  className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line"
+                  className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line transition-colors duration-200"
                   style={{
                     background: active ? 'rgba(2,146,190,0.12)' : 'var(--surface-2)',
                     color: active ? 'var(--brand-deep)' : 'var(--ink-3)',

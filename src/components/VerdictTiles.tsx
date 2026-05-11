@@ -37,14 +37,14 @@ function VerdictTiles({
         selected={selected === 'risk'}
       />
       <MetricCard
-        label="Possibly rented"
+        label="Possibly Rented"
         value={warn}
         icon={<Icon name="alert" />}
         onClick={handle('warn')}
         selected={selected === 'warn'}
       />
       <MetricCard
-        label="Not rented"
+        label="Not Rented"
         value={clean}
         icon={<Icon name="shield" />}
         onClick={handle('clean')}

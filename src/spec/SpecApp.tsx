@@ -69,21 +69,21 @@ function SpecApp() {
       >
         <Screen
           label="03.1"
-          title="Not rented · High confidence"
+          title="Not Rented · High Confidence"
           initialPath="/result/clean"
         >
           <ResultCleanScreen />
         </Screen>
         <Screen
           label="03.2"
-          title="Possibly rented · Medium confidence"
+          title="Possibly Rented · Medium Confidence"
           initialPath="/result/medium"
         >
           <ResultMediumScreen />
         </Screen>
         <Screen
           label="03.3"
-          title="Rented · High confidence"
+          title="Rented · High Confidence"
           initialPath="/result/high"
         >
           <ResultHighScreen />
@@ -97,7 +97,7 @@ function SpecApp() {
       >
         <Screen
           label="03b.1"
-          title="Certificate · Not rented"
+          title="Certificate · Not Rented"
           desc="Empty-state listings table; clean verdict band."
           width={820}
           height={1060}
@@ -108,7 +108,7 @@ function SpecApp() {
         </Screen>
         <Screen
           label="03b.2"
-          title="Certificate · Possibly rented"
+          title="Certificate · Possibly Rented"
           desc="Mixed-signal example with partial-match listings."
           width={820}
           height={1060}

@@ -142,6 +142,17 @@ function MetricCard({
     ? { type: 'button', onClick, 'aria-pressed': selected }
     : {};
 
+  // One-shot pulse on numeric value changes. Skips the initial mount so
+  // tiles don't jitter when the screen first appears.
+  const [pulseKey, setPulseKey] = React.useState(0);
+  const prevValueRef = React.useRef(value);
+  React.useEffect(() => {
+    if (prevValueRef.current !== value) {
+      prevValueRef.current = value;
+      setPulseKey((k) => k + 1);
+    }
+  }, [value]);
+
   const tone = sparklineTone ?? (delta?.dir === 'down' ? 'down' : delta?.dir === 'up' ? 'up' : 'brand');
   const sparkStroke = primary
     ? 'rgba(255,255,255,0.95)'
@@ -191,7 +202,10 @@ function MetricCard({
       </div>
 
       <div
-        className={`font-sans font-semibold ${valueClass} leading-none tracking-[-0.025em] tabular-nums mt-3`}
+        key={pulseKey}
+        className={`font-sans font-semibold ${valueClass} leading-none tracking-[-0.025em] tabular-nums mt-3 origin-left ${
+          pulseKey > 0 ? 'verdict-pulse' : ''
+        }`}
         style={{ color: valueColor }}
       >
         {value}
