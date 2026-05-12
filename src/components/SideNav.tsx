@@ -1,4 +1,4 @@
-/* global React, Icon, ReactRouterDOM */
+/* global React, Icon, Pill, ReactRouterDOM */
 // Halcyon side navigation. Persistent left rail on md+, slide-out drawer
 // on mobile triggered by a small top bar with the Halcyon mark + hamburger.
 
@@ -45,12 +45,7 @@ function NavLinkRow({
       <Icon name={item.icon} size={isMobile ? 17 : 15} className="opacity-80 shrink-0" />
       <span className="truncate">{item.label}</span>
       {item.badge && (
-        <span
-          className="ml-auto font-sans text-eyebrow font-bold px-1.5 py-0.5 rounded-full"
-          style={{ background: 'var(--warn-soft)', color: 'var(--warn-ink)' }}
-        >
-          {item.badge}
-        </span>
+        <Pill size="sm" className="ml-auto">{item.badge}</Pill>
       )}
     </NavLink>
   );

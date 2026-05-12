@@ -277,6 +277,14 @@ interface AppStateValue {
   liveBatch: LiveBatch | null;
   schedules: ScheduleEntry[];
   history: HistoryEntry[];
+  /** True when a screen's primary data is being fetched. Real app sets
+   *  this during async loads; live prototype always leaves it false. Used
+   *  by states-spec.html to mount skeleton variants. */
+  loading?: boolean;
+  /** Non-null when a fetch failed. Pages render <ScreenError/> in place
+   *  of their normal body. Same purpose as `loading` — exposed for
+   *  states-spec injection and ready for a backend later. */
+  error?: string | null;
   startSampleBatch: () => void;
   clearBatch: () => void;
   dismissBatch: () => void;
@@ -430,6 +438,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     liveBatch,
     schedules,
     history,
+    loading: false,
+    error: null,
     startSampleBatch,
     clearBatch,
     dismissBatch,

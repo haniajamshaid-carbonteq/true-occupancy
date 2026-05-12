@@ -1,4 +1,4 @@
-/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState */
+/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty */
 // Home — product-first dashboard. The user lands directly on the working
 // scanner with real evidence visible (KPI strip, recent scans, flagged for
 // review, methodology note). Marketing-landing surfaces (photo hero,
@@ -496,7 +496,7 @@ function LiveBatchStrip() {
 
 function RecentScansPanel() {
   const history = useHistory();
-  const { history: histRows } = useAppState();
+  const { history: histRows, loading, error } = useAppState();
   const [tab, setTab] = React.useState<'single' | 'batch'>('single');
 
   const singles = histRows.filter((r: any) => r.kind !== 'batch');
@@ -552,12 +552,27 @@ function RecentScansPanel() {
       />
 
       <div className="mt-4 card-rise" style={{ ['--rise-delay' as any]: '120ms' }}>
-        {tab === 'single' ? (
+        {error ? (
+          <ScreenError
+            title="Couldn't load recent scans"
+            message={error}
+            onRetry={() => window.location.reload()}
+          />
+        ) : !loading && histRows.length === 0 ? (
+          <ScreenEmpty
+            icon="history"
+            title="No scans yet"
+            message="Run your first scan and it'll show up here."
+            actionLabel="Scan a property"
+            onAction={() => history.push('/')}
+          />
+        ) : tab === 'single' ? (
           <DataTable
             columns={DASHBOARD_SINGLE_COLUMNS}
             rows={singlesPreview}
             rowKey={(r: any) => r.id}
             onRowClick={openSingleRow}
+            loading={loading}
             empty={
               <div className="px-5 py-12 text-center text-label text-ink-3">
                 No single scans yet.
@@ -570,6 +585,7 @@ function RecentScansPanel() {
             rows={batchesPreview}
             rowKey={(r: any) => r.id}
             onRowClick={openBatchRow}
+            loading={loading}
             empty={
               <div className="px-5 py-12 text-center text-label text-ink-3">
                 No batch runs yet.

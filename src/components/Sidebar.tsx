@@ -1,4 +1,4 @@
-/* global React, Avatar, Icon, ReactRouterDOM */
+/* global React, Avatar, Icon, Pill, ReactRouterDOM */
 
 const { NavLink } = ReactRouterDOM;
 
@@ -79,7 +79,7 @@ function Sidebar() {
                 <Icon name={item.icon} size={16} className="opacity-80" />
                 <span>{item.label}</span>
                 {item.badge && (
-                  <span className="ml-auto font-mono text-micro text-ink-4">{item.badge}</span>
+                  <Pill size="sm" className="ml-auto">{item.badge}</Pill>
                 )}
               </NavLink>
             ))}
