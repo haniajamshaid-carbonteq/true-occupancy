@@ -206,18 +206,12 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
                   <Button
                     icon={<Icon name="pdf" />}
                     iconRight={
-                      <svg
-                        viewBox="0 0 12 12"
-                        className={`w-2.5 h-2.5 transition-transform ${open ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                      <span
+                        className={`inline-flex shrink-0 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
                         aria-hidden
                       >
-                        <path d="m3 5 3 3 3-3" />
-                      </svg>
+                        <Icon name="chevron" size={12} />
+                      </span>
                     }
                   >
                     Download
