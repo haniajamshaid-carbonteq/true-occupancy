@@ -174,6 +174,20 @@
   30%           { transform: translateY(-3px); opacity: 1; }
 }
 
+/* === Skeleton pulse =================================================
+ * Subtle opacity oscillation for TableSkeleton bars. Reduced-motion
+ * respects user preference. */
+.skeleton-pulse {
+  animation: skeleton-pulse 1400ms ease-in-out infinite;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-pulse { animation: none; opacity: 0.7; }
+}
+
 /* === Accordion content slide ======================================== */
 /* The wrapper uses inline max-height for measurement; this class just
  * carries the transition. */

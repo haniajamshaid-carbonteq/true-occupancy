@@ -1,29 +1,77 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, DropdownMenu, Drawer, Tabs, ReactRouterDOM, SCENARIOS,
    HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
-   SCAN_COLUMNS, scanLeadingAccent, useAppState, splitAddress, ChipRow, parseAgoHours */
+   SCAN_COLUMNS, scanLeadingAccent, useAppState, splitAddress, ChipRow, DateRangePicker, parseAgoHours,
+   ScreenError, ScreenEmpty */
+
+function scannedAgoToHours(label: string): number {
+  if (!label) return NaN;
+  const s = label.toLowerCase().trim();
+  if (s === 'just now') return 0;
+  if (s === 'yesterday') return 24;
+  const m = s.match(/^(\d+)\s*(min|h|d|w|mo|y)\b/);
+  if (!m) return NaN;
+  const n = parseInt(m[1], 10);
+  switch (m[2]) {
+    case 'min': return n / 60;
+    case 'h':   return n;
+    case 'd':   return n * 24;
+    case 'w':   return n * 24 * 7;
+    case 'mo':  return n * 24 * 30;
+    case 'y':   return n * 24 * 365;
+    default:    return NaN;
+  }
+}
+
+function formatScannedDate(scannedAgo: string): string {
+  const hrs = scannedAgoToHours(scannedAgo);
+  if (!Number.isFinite(hrs)) return scannedAgo;
+  const d = new Date(Date.now() - hrs * 60 * 60 * 1000);
+  return d.toLocaleDateString('en-US', {
+    month: 'short', day: '2-digit', year: 'numeric',
+  });
+}
 
 type Verdict = 'all' | 'high' | 'medium' | 'low';
 type Kind = 'single' | 'batch';
 type BatchStatus = 'all' | 'complete' | 'partial' | 'failed';
-type Recency = 'all' | 'today' | 'week' | 'older';
+type DateRange = { from?: string; to?: string };
 type PlatformsBucket = 'all' | 'none' | 'any' | 'multi';
+
+function isoDaysAgo(days: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+// Derive a scanned-date ISO string from a row's relative-time seed value.
+// Uses the same hour conversion as formatScannedDate so display + filter
+// stay in lockstep.
+function scannedIso(row: any): string {
+  const hrs = scannedAgoToHours(row.scannedAgo);
+  if (!Number.isFinite(hrs)) return '';
+  const d = new Date(Date.now() - hrs * 60 * 60 * 1000);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
 
 function HistoryScreen() {
   const history = ReactRouterDOM.useHistory();
-  const { history: rows } = useAppState();
+  const { history: rows, loading, error } = useAppState();
   const [kind, setKind] = React.useState<Kind>('single');
   const [verdict, setVerdict] = React.useState<Verdict>('all');
   const [batchStatus, setBatchStatus] = React.useState<BatchStatus>('all');
   const [query, setQuery] = React.useState('');
-  const [recency, setRecency] = React.useState<Recency>('all');
+  const [dateRange, setDateRange] = React.useState<DateRange>({});
   const [platformsBucket, setPlatformsBucket] = React.useState<PlatformsBucket>('all');
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   // Platforms filter only makes sense on the single tab; it disappears
   // from the drawer on batch, so don't count it toward the badge there.
   // Verdict (single) / batch status (batch) also live in the drawer now.
+  const dateRangeActive = Boolean(dateRange.from || dateRange.to);
   const advancedCount =
-    (recency !== 'all' ? 1 : 0) +
+    (dateRangeActive ? 1 : 0) +
     (kind === 'single' && verdict !== 'all' ? 1 : 0) +
     (kind === 'batch'  && batchStatus !== 'all' ? 1 : 0) +
     (kind === 'single' && platformsBucket !== 'all' ? 1 : 0);
@@ -37,11 +85,11 @@ function HistoryScreen() {
       const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
       if (status !== batchStatus) return false;
     }
-    if (recency !== 'all') {
-      const hrs = parseAgoHours(r.scannedAgo);
-      if (recency === 'today' && hrs > 24) return false;
-      if (recency === 'week'  && (hrs <= 24 || hrs > 24 * 7)) return false;
-      if (recency === 'older' && hrs <= 24 * 7) return false;
+    if (dateRangeActive) {
+      const iso = scannedIso(r);
+      if (!iso) return false;
+      if (dateRange.from && iso < dateRange.from) return false;
+      if (dateRange.to   && iso > dateRange.to)   return false;
     }
     if (kind === 'single' && platformsBucket !== 'all') {
       const p: number = r.platforms ?? 0;
@@ -57,7 +105,7 @@ function HistoryScreen() {
   });
 
   function clearAdvanced() {
-    setRecency('all');
+    setDateRange({});
     setPlatformsBucket('all');
     setVerdict('all');
     setBatchStatus('all');
@@ -190,15 +238,15 @@ function HistoryScreen() {
               options={STATUS_FILTERS.map((f) => ({ value: f.id, label: f.label }))}
             />
           )}
-          <ChipRow
+          <DateRangePicker
             label="When scanned"
-            value={recency}
-            onChange={(v: string) => setRecency(v as Recency)}
-            options={[
-              { value: 'all',   label: 'Any time' },
-              { value: 'today', label: 'Today' },
-              { value: 'week',  label: 'This week' },
-              { value: 'older', label: 'Older' },
+            value={dateRange}
+            onChange={setDateRange}
+            presets={[
+              { id: 'today',  label: 'Today',      range: { from: isoDaysAgo(0),  to: isoDaysAgo(0) } },
+              { id: 'week',   label: 'Last 7 days', range: { from: isoDaysAgo(6),  to: isoDaysAgo(0) } },
+              { id: 'month',  label: 'Last 30 days', range: { from: isoDaysAgo(29), to: isoDaysAgo(0) } },
+              { id: 'quarter', label: 'Last 90 days', range: { from: isoDaysAgo(89), to: isoDaysAgo(0) } },
             ]}
           />
           {kind === 'single' && (
@@ -217,19 +265,39 @@ function HistoryScreen() {
         </div>
       </Drawer>
 
-      {/* Table */}
-      <DataTable
-        columns={kind === 'single' ? HISTORY_SINGLE_COLUMNS : HISTORY_BATCH_COLUMNS}
-        rows={filtered}
-        rowKey={(r: any) => r.id}
-        onRowClick={openRow}
-        pageSize={10}
-        empty={
-          <div className="px-5 py-12 text-center text-label text-ink-3">
-            No scans match your filters.
-          </div>
-        }
-      />
+      {/* Table — falls back to ScreenError on fetch failure. Loading
+          delegates to DataTable's skeleton. True-empty (no scans yet,
+          unfiltered) shows a ScreenEmpty block instead of the table's
+          filter-zero message. */}
+      {error ? (
+        <ScreenError
+          title="Couldn't load your scans"
+          message={error}
+          onRetry={() => window.location.reload()}
+        />
+      ) : !loading && rows.length === 0 ? (
+        <ScreenEmpty
+          icon="history"
+          title="No scans yet"
+          message="Your scans and batch runs will appear here once you've run them."
+          actionLabel="Scan a property"
+          onAction={() => history.push('/')}
+        />
+      ) : (
+        <DataTable
+          columns={kind === 'single' ? HISTORY_SINGLE_COLUMNS : HISTORY_BATCH_COLUMNS}
+          rows={filtered}
+          rowKey={(r: any) => r.id}
+          onRowClick={openRow}
+          pageSize={10}
+          loading={loading}
+          empty={
+            <div className="px-5 py-12 text-center text-label text-ink-3">
+              No scans match your filters.
+            </div>
+          }
+        />
+      )}
 
       {/* Footer caption */}
       <div className="mt-4 flex items-center justify-between text-caption text-ink-3">
@@ -328,12 +396,12 @@ const HISTORY_SINGLE_COLUMNS: any[] = [
   {
     key: 'scanned',
     label: 'Scanned',
-    width: '100px',
+    width: '120px',
     align: 'right' as const,
     hideBelow: 'md' as const,
     cell: (r: any) => (
       <span className="font-mono tabular-nums text-caption text-ink-3">
-        {r.scannedAgo}
+        {formatScannedDate(r.scannedAgo)}
       </span>
     ),
   },
@@ -371,12 +439,12 @@ const HISTORY_BATCH_COLUMNS: any[] = [
   {
     key: 'scanned',
     label: 'Scanned',
-    width: '100px',
+    width: '120px',
     align: 'right' as const,
     hideBelow: 'md' as const,
     cell: (r: any) => (
       <span className="font-mono tabular-nums text-caption text-ink-3">
-        {r.scannedAgo}
+        {formatScannedDate(r.scannedAgo)}
       </span>
     ),
   },

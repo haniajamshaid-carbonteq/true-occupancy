@@ -3,37 +3,29 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>True Occupancy — Design Spec</title>
+<title>True Occupancy — States Spec</title>
 
-<!-- Heavy font set kept here on purpose: design-spec.html is where the
-     type-pairing toggle lives, so all fallback families need to be loadable. -->
+<!-- Same font set as design-spec.html so the type-pairing toggle works here too. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Hanken+Grotesk:wght@200;300;400;500;600;700;800&family=Archivo+Narrow:wght@400;500;600;700&family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
-<link href="https://api.fontshare.com/v2/css?f[]=recoleta@400,500,600,700&f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<!-- Production design tokens & type pairings — same source files as app.html
-     so the spec can never drift from the live UI's design system. -->
 <link rel="stylesheet" href="src/styles/tokens.css">
 <link rel="stylesheet" href="src/styles/typography.css">
+<link rel="stylesheet" href="src/styles/motion.css">
 <link rel="stylesheet" href="src/styles/print.css">
 
-<!-- Tailwind Play CDN — config mirrors app.html so utilities resolve identically -->
+<!-- Tailwind config mirrors app.html so utilities resolve identically. -->
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
-    // Mirror the safelist from app.html (flat string list — no regex)
-    // so the spec canvas exposes the same state-token utilities as the
-    // live product surface.
     safelist: [
-      'bg-success', 'bg-success-soft', 'text-success', 'text-success-ink', 'border-success', 'border-success-soft',
-      'bg-warning', 'bg-warning-soft', 'text-warning', 'text-warning-ink', 'border-warning', 'border-warning-soft',
-      'bg-error',   'bg-error-soft',   'text-error',   'text-error-ink',   'border-error',   'border-error-soft',
-      'hover:bg-success-soft', 'hover:text-success-ink',
-      'hover:bg-warning-soft', 'hover:text-warning-ink',
-      'hover:bg-error-soft',   'hover:text-error-ink',
-      'active:bg-success-soft', 'active:bg-warning-soft', 'active:bg-error-soft',
+      'bg-success', 'bg-success-soft', 'text-success', 'text-success-ink',
+      'bg-warning', 'bg-warning-soft', 'text-warning', 'text-warning-ink',
+      'bg-error',   'bg-error-soft',   'text-error',   'text-error-ink',
+      'bg-verdict-high', 'bg-verdict-high-soft', 'text-verdict-high', 'text-verdict-high-ink',
+      'bg-verdict-med',  'bg-verdict-med-soft',  'text-verdict-med',  'text-verdict-med-ink',
+      'bg-verdict-low',  'bg-verdict-low-soft',  'text-verdict-low',  'text-verdict-low-ink',
       'text-display', 'text-h1', 'text-h2', 'text-h3', 'text-h4',
       'text-body', 'text-body-sm', 'text-label', 'text-caption', 'text-micro', 'text-eyebrow',
     ],
@@ -42,12 +34,19 @@
         colors: {
           bg: 'var(--bg)',
           surface: { DEFAULT: 'var(--surface)', 2: 'var(--surface-2)' },
+          'pill-neutral': 'var(--pill-neutral-bg)',
           line:    { DEFAULT: 'var(--line)',    strong: 'var(--line-strong)' },
+          'hover-bg': 'var(--hover-bg)',
           ink:     { DEFAULT: 'var(--ink)', 2: 'var(--ink-2)', 3: 'var(--ink-3)', 4: 'var(--ink-4)' },
           brand:   { DEFAULT: 'var(--brand)', 2: 'var(--brand-2)', soft: 'var(--brand-soft)', tint: 'var(--brand-tint)', deep: 'var(--brand-deep)' },
           clean:   { DEFAULT: 'var(--clean)', soft: 'var(--clean-soft)', ink: 'var(--clean-ink)' },
           warn:    { DEFAULT: 'var(--warn)',  soft: 'var(--warn-soft)',  ink: 'var(--warn-ink)' },
           risk:    { DEFAULT: 'var(--risk)',  soft: 'var(--risk-soft)',  ink: 'var(--risk-ink)' },
+          verdict: {
+            high: { DEFAULT: 'var(--verdict-high)', soft: 'var(--verdict-high-soft)', ink: 'var(--verdict-high-ink)' },
+            med:  { DEFAULT: 'var(--verdict-med)',  soft: 'var(--verdict-med-soft)',  ink: 'var(--verdict-med-ink)' },
+            low:  { DEFAULT: 'var(--verdict-low)',  soft: 'var(--verdict-low-soft)',  ink: 'var(--verdict-low-ink)' },
+          },
           success: { DEFAULT: 'var(--success)', soft: 'var(--success-soft)', ink: 'var(--success-ink)' },
           warning: { DEFAULT: 'var(--warning)', soft: 'var(--warning-soft)', ink: 'var(--warning-ink)' },
           error:   { DEFAULT: 'var(--error)',   soft: 'var(--error-soft)',   ink: 'var(--error-ink)' },
@@ -71,20 +70,41 @@
           micro:     ['var(--text-micro)',   { lineHeight: '1.3' }],
           eyebrow:   ['var(--text-eyebrow)', { lineHeight: '1.2' }],
         },
+        spacing: {
+          'inline-tight': 'var(--pad-inline-tight)',
+          'inline':       'var(--pad-inline)',
+          'inline-loose': 'var(--pad-inline-loose)',
+          'control-x':    'var(--pad-control-x)',
+          'control-y':    'var(--pad-control-y)',
+          'cell-x':       'var(--pad-cell-x)',
+          'cell-y':       'var(--pad-cell-y)',
+          'card':          'var(--pad-card)',
+          'card-tight':    'var(--pad-card-tight)',
+          'card-loose':    'var(--pad-card-loose)',
+          'surface-x':     'var(--pad-surface-x)',
+          'surface-y-h':   'var(--pad-surface-y-header)',
+          'surface-y-b':   'var(--pad-surface-y-body)',
+          'surface-y-f':   'var(--pad-surface-y-footer)',
+          'stack-tight':   'var(--gap-stack-tight)',
+          'stack-md':      'var(--gap-stack-md)',
+          'stack':         'var(--gap-stack)',
+          'section-tight': 'var(--gap-section-tight)',
+          'section-sub':   'var(--gap-section-sub)',
+          'section':       'var(--gap-section)',
+        },
       },
     },
   };
 </script>
 
 <style>
-  /* === Spec-canvas chrome only — production component styles come from
-        tokens.css + Tailwind utilities resolved against the live src/ tree. */
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #FAFAF7; color: var(--ink); font-family: var(--sans); }
   #boot-status { position: fixed; left: 16px; bottom: 16px; font: 12px/1.4 ui-monospace, monospace; color: var(--ink-3); background: var(--surface); border: 1px solid var(--line); padding: 6px 10px; border-radius: 6px; box-shadow: var(--shadow-sm); z-index: 9999; }
   #boot-status.error { color: var(--error-ink); background: var(--error-soft); border-color: transparent; }
 
-  .spec-canvas { padding: 80px 64px 120px; max-width: 1640px; margin: 0 auto; }
+  /* Spec-canvas chrome — same primitives as design-spec.html. */
+  .spec-canvas { padding: 80px 64px 120px; max-width: 1840px; margin: 0 auto; }
 
   .spec-header { max-width: 900px; margin-bottom: 60px; }
   .spec-header .eyebrow { font-family: var(--mono); font-size: var(--text-caption); text-transform: uppercase; letter-spacing: .1em; color: var(--brand); margin-bottom: 14px; }
@@ -157,7 +177,6 @@
 <div id="root"></div>
 <div id="boot-status">Loading…</div>
 
-<!-- React 18 + React Router v5 (UMD) + Babel Standalone -->
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
 <script src="https://unpkg.com/react-router@5.3.4/umd/react-router.min.js" crossorigin></script>
@@ -166,61 +185,62 @@
 
 <script>
 /*
- * Bootstrap: same fetch+compile+inject pipeline as app.html. Mounts the
- * exact same /src TSX tree, then renders <SpecApp /> (instead of <App />)
- * to lay every page out on the canvas.
- *
- * Adding a new page to /src/pages: import it in src/spec/SpecApp.tsx
- * (and add to the global declaration), then add a <Screen> for it.
+ * Bootstrap: same compile-and-inject pipeline as app.html / design-spec.html.
+ * Includes src/state/AppState.tsx because StatesSpecApp uses AppStateContext.
+ * Each Screen is wrapped in MockAppStateProvider with controlled values
+ * so the real production pages render their loading / empty / error
+ * variants without a backend.
  */
 (async () => {
   const status = document.getElementById('boot-status');
   const files = [
     // 1. Domain
     'src/data/scenarios.tsx',
-    // 2. Primitives
+    // 2. Real AppState — needed so AppStateContext exists in scope and
+    //    consumers of useAppState() still resolve.
+    'src/state/AppState.tsx',
+    // 3. Primitives (mirrors app.html load order)
     'src/components/ui/Icons.tsx',
     'src/components/ui/Button.tsx',
     'src/components/ui/Pill.tsx',
     'src/components/ui/Card.tsx',
+    'src/components/ui/Modal.tsx',
+    'src/components/ui/Drawer.tsx',
+    'src/components/ui/ChipRow.tsx',
+    'src/components/ui/DateRangePicker.tsx',
+    'src/components/ui/Tabs.tsx',
+    'src/components/ui/Input.tsx',
+    'src/components/ui/Checkbox.tsx',
     'src/components/ui/RiskBadge.tsx',
     'src/components/ui/SearchBar.tsx',
     'src/components/ui/CommandSearch.tsx',
     'src/components/ui/CommandPalette.tsx',
     'src/components/ui/Avatar.tsx',
     'src/components/ui/Keycap.tsx',
+    'src/components/ui/TableSkeleton.tsx',
     'src/components/ui/DataTable.tsx',
+    'src/components/ui/ScreenEmpty.tsx',
+    'src/components/ui/ScreenError.tsx',
     'src/components/ui/MetricCard.tsx',
     'src/components/ui/DropdownMenu.tsx',
-    // 3. Structural
+    'src/components/ui/BatchHugCard.tsx',
+    // 4. Structural
     'src/components/SideNav.tsx',
     'src/components/AppShell.tsx',
     'src/components/PageHeader.tsx',
     'src/components/ScanContextBar.tsx',
-    // 4. Scan
-    'src/components/scan/ScanCard.tsx',
-    'src/components/scan/ScanStage.tsx',
-    // 5. Result
-    'src/components/result/ConfidenceHero.tsx',
-    'src/components/result/PropertyMap.tsx',
-    'src/components/result/PropertySpecs.tsx',
-    'src/components/result/PropertyOverview.tsx',
-    'src/components/result/ListingsPanel.tsx',
-    'src/components/result/CertificateSheet.tsx',
-    // 6. Pages (real production screens — no Static* clones)
-    'src/pages/Components.tsx',
+    'src/components/AutomateModal.tsx',
+    'src/components/AutomationControl.tsx',
+    'src/components/VerdictTiles.tsx',
+    // 5. Pages used by the states spec
     'src/pages/HomeScreen.tsx',
     'src/pages/HistoryScreen.tsx',
-    'src/pages/BatchScreen.tsx',
-    'src/pages/ScanStartScreen.tsx',
-    'src/pages/ScanMidScreen.tsx',
-    'src/pages/ResultCleanScreen.tsx',
-    'src/pages/ResultMediumScreen.tsx',
-    'src/pages/ResultHighScreen.tsx',
-    'src/pages/WhyExpandedScreen.tsx',
-    // 7. Spec canvas (only files unique to this surface)
+    'src/pages/ScheduledScreen.tsx',
+    'src/pages/ScheduleDetailScreen.tsx',
+    // 6. Spec canvas + mock provider + states-spec entry
     'src/spec/SpecCanvas.tsx',
-    'src/spec/SpecApp.tsx',
+    'src/spec/MockAppStateProvider.tsx',
+    'src/spec/StatesSpecApp.tsx',
   ];
 
   const compileOpts = {
@@ -250,12 +270,12 @@
       inject(code, path);
     }
     status.textContent = 'Mounting…';
-    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(SpecApp));
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(StatesSpecApp));
     status.remove();
   } catch (err) {
     status.className = 'error';
     status.textContent = 'Boot error — see console';
-    console.error('[design-spec.html] boot failed:', err);
+    console.error('[states-spec.html] boot failed:', err);
   }
 })();
 </script>

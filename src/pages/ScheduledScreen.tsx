@@ -1,12 +1,12 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, Drawer, ChipRow, ReactRouterDOM, useAppState,
-   HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress */
+   HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress, ScreenError, ScreenEmpty */
 
 type Filter = 'all' | 'single' | 'batch';
 type CadenceFilter = 'all' | '3' | '4' | '6' | '12';
 
 function ScheduledScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
-  const { schedules } = useAppState();
+  const { schedules, loading, error } = useAppState();
   const [filter, setFilter] = React.useState<Filter>('all');
   const [query, setQuery] = React.useState('');
   const [cadence, setCadence] = React.useState<CadenceFilter>('all');
@@ -207,18 +207,33 @@ function ScheduledScreen() {
         </div>
       </Drawer>
 
-      <DataTable
-        columns={COLUMNS}
-        rows={rows}
-        rowKey={(r: any) => r.id}
-        onRowClick={(r: any) => routerHistory.push(`/scheduled/${r.id}`)}
-        pageSize={10}
-        empty={
-          <div className="px-5 py-12 text-center text-label text-ink-3">
-            No schedules yet — click <span className="font-medium text-ink-2">Automate</span> on a scan or batch to set one up.
-          </div>
-        }
-      />
+      {error ? (
+        <ScreenError
+          title="Couldn't load your schedules"
+          message={error}
+          onRetry={() => window.location.reload()}
+        />
+      ) : !loading && schedules.length === 0 ? (
+        <ScreenEmpty
+          icon="cal"
+          title="No automations yet"
+          message="Schedule a recurring scan from any property or batch — they'll show up here."
+        />
+      ) : (
+        <DataTable
+          columns={COLUMNS}
+          rows={rows}
+          rowKey={(r: any) => r.id}
+          onRowClick={(r: any) => routerHistory.push(`/scheduled/${r.id}`)}
+          pageSize={10}
+          loading={loading}
+          empty={
+            <div className="px-5 py-12 text-center text-label text-ink-3">
+              No schedules match your filters.
+            </div>
+          }
+        />
+      )}
     </AppShell>
   );
 }

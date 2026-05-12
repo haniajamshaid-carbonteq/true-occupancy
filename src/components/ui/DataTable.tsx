@@ -1,4 +1,4 @@
-/* global React */
+/* global React, TableSkeleton */
 // DataTable — single source of truth for every tabular surface in the
 // product (recent scans, history, batch upload). On viewports >= md it
 // renders as a CSS-grid table with a quiet header (no filled background
@@ -47,6 +47,10 @@ interface DataTableProps<T> {
   className?: string;
   /** When set, slice rows into pages and render a pagination footer. */
   pageSize?: number;
+  /** Render skeleton placeholder rows instead of real rows / empty state.
+   *  Used by pages reading `useAppState().loading` and by the states-spec
+   *  canvas. */
+  loading?: boolean;
 }
 
 const HIDE_CLS: Record<NonNullable<ColumnDef<unknown>['hideBelow']>, string> = {
@@ -64,6 +68,7 @@ function DataTable<T>({
   empty,
   className = '',
   pageSize,
+  loading,
 }: DataTableProps<T>) {
   const [page, setPage] = React.useState(0);
   // Reset to first page when the filtered row set shrinks below current page.
@@ -89,6 +94,41 @@ function DataTable<T>({
   const headerLabels = columns.some((c) => c.label);
 
   const RowEl: any = interactive ? 'button' : 'div';
+
+  if (loading) {
+    return (
+      <div
+        className={`bg-surface border border-line rounded-lg overflow-hidden ${className}`}
+      >
+        {headerLabels && (
+          <div
+            className="hidden md:grid gap-4 px-6 py-4 bg-surface-2 border-b border-line"
+            style={{ gridTemplateColumns: gridTemplate }}
+            aria-hidden
+          >
+            {columns.map((c) => (
+              <div
+                key={c.key}
+                className={[
+                  'font-sans text-eyebrow font-semibold uppercase tracking-[0.16em] text-ink-3 leading-none',
+                  c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : '',
+                  c.hideBelow ? HIDE_CLS[c.hideBelow] : '',
+                ].join(' ')}
+              >
+                {c.label}
+              </div>
+            ))}
+            {interactive && <div />}
+          </div>
+        )}
+        <TableSkeleton
+          columns={columns as any}
+          count={pageSize ?? 6}
+          interactive={interactive}
+        />
+      </div>
+    );
+  }
 
   if (rows.length === 0) {
     return (

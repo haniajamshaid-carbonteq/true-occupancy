@@ -1,28 +1,45 @@
 /* global React */
-// Pill — matches .pill in design-spec.html
-//   height 24 · padding 0 10 · radius full · mono 11/500 uppercase, tracking .04em
-//   default: bg-surface-2, ink-2 text, line border
-//   clean / warn / risk: {status}-soft bg + {status}-ink text, transparent border
-//   brand: brand-soft bg + brand text, transparent border
+// Pill — the single canonical small-label primitive. See design-spec.html.
+//
+// Sizes
+//   md (default) — h-6 (24px) · px-2.5 · text-micro · 500 · uppercase · tracking .04em
+//   sm           — h-5 (20px) · px-1.5 · text-eyebrow · 700 · uppercase · tracking .08em
+//
+// Variants (color pairs are token-driven, never inline)
+//   default                       bg-pill-neutral · ink-2  · line border
+//   clean / warn / risk           {status}-soft   · {status}-ink · no border
+//   brand                         brand-soft      · brand-deep   · no border
+//   verdict-high / -med / -low    purple / yellow / blue — categorical, not severity
+//
+// Modifiers
+//   dot      — leading 6px currentColor dot (status / live indicator)
+//   subtle   — surface-2 bg · ink-2 · normal weight · mixed-case (replaces old Tag)
+//   icon     — optional leading icon (rendered at 12px @ .7 opacity, like old Tag)
 
 type PillVariant =
   | 'default'
   | 'clean' | 'warn' | 'risk'
   | 'brand'
-  // Neutral categorical fills for the rental-verdict triplet. Distinct
-  // from the clean/warn/risk status ramp so "Rented" doesn't read as bad
-  // and "Not rented" doesn't read as good — purple / yellow / blue.
   | 'verdict-high' | 'verdict-med' | 'verdict-low';
+
+type PillSize = 'sm' | 'md';
 
 interface PillProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'children'> {
   variant?: PillVariant;
-  /** Show the leading 6px dot (currentColor). */
+  size?: PillSize;
+  /** Leading 6px dot in currentColor. */
   dot?: boolean;
+  /** Quieter pill: surface-2 bg, ink-2, normal weight, mixed-case (former Tag). */
+  subtle?: boolean;
+  /** Leading icon — sized to 12px at .7 opacity. */
+  icon?: React.ReactNode;
   children?: React.ReactNode;
 }
 
-const PILL_BASE =
-  "inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full font-sans text-micro font-medium uppercase tracking-[0.04em] border";
+const PILL_SIZE: Record<PillSize, string> = {
+  md: 'h-6 px-2.5 gap-1.5 text-micro font-medium uppercase tracking-[0.04em]',
+  sm: 'h-5 px-1.5 gap-1 text-eyebrow font-bold uppercase tracking-[0.08em]',
+};
 
 const PILL_VARIANTS: Record<PillVariant, string> = {
   default: 'bg-pill-neutral text-ink-2 border-line',
@@ -35,13 +52,36 @@ const PILL_VARIANTS: Record<PillVariant, string> = {
   'verdict-low':  'bg-verdict-low-soft text-verdict-low-ink border-transparent',
 };
 
-function Pill({ variant = 'default', dot, children, className = '', ...rest }: PillProps) {
+// `subtle` overrides typography (normal weight, mixed-case) on top of the
+// chosen size. Keeps height/padding so subtle pills line up with regular ones.
+const SUBTLE_TYPO = 'font-normal normal-case tracking-normal';
+
+const PILL_BASE = 'inline-flex items-center rounded-full font-sans border';
+
+function Pill({
+  variant = 'default',
+  size = 'md',
+  dot,
+  subtle,
+  icon,
+  children,
+  className = '',
+  ...rest
+}: PillProps) {
+  const sizeCls = PILL_SIZE[size];
+  const variantCls = subtle
+    ? 'bg-surface-2 text-ink-2 border-line'
+    : PILL_VARIANTS[variant];
+  const typoOverride = subtle ? ` ${SUBTLE_TYPO}` : '';
   return (
     <span
       {...rest}
-      className={`${PILL_BASE} ${PILL_VARIANTS[variant]} ${className}`.trim()}
+      className={`${PILL_BASE} ${sizeCls} ${variantCls}${typoOverride} ${className}`.trim()}
     >
       {dot && <span className="w-1.5 h-1.5 rounded-full bg-current" />}
+      {icon && (
+        <span className="inline-flex shrink-0 opacity-70 [&>svg]:w-3 [&>svg]:h-3">{icon}</span>
+      )}
       {children}
     </span>
   );

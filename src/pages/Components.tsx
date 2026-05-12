@@ -1,4 +1,4 @@
-/* global React, Button, Pill, Card, RiskBadge, SearchBar, CommandSearch, Avatar, Tag, BatchHugCard, openCommandPalette */
+/* global React, Button, Pill, Card, RiskBadge, SearchBar, CommandSearch, Avatar, BatchHugCard, openCommandPalette */
 // Visual QA showcase. Renders every variant of every primitive so a
 // designer / engineer can scan the whole UI library on one page.
 
@@ -203,28 +203,39 @@ function ComponentsPage() {
         </Section>
 
         {/* === Pill === */}
-        <Section num="02" title="Pill" desc="24px tall, fully rounded. Mono 11/500 caps with .04em tracking. Status variants drop the border.">
+        <Section num="02" title="Pill" desc="The single canonical label primitive. md (24px) is the default; sm (20px) is reserved for nav counts and inline metadata. Status (clean/warn/risk) communicates severity; verdict (high/med/low) is categorical and must not read as good/bad; brand is reserved for live/system states. Token-driven: bg-{name}-soft + text-{name}-ink, never hardcoded.">
           <Stage>
-            <Row label="Default">
+            <Row label="Sizes">
+              <Pill size="sm">12</Pill>
+              <Pill size="sm" variant="brand">New</Pill>
+              <Pill>Default · md</Pill>
+              <Pill dot>With dot</Pill>
+            </Row>
+            <Row label="Default · pill-neutral bg, ink-2, line border">
               <Pill>Active</Pill>
               <Pill dot>Active</Pill>
               <Pill>1924 sqft</Pill>
             </Row>
-            <Row label="Clean">
+            <Row label="Status · clean (clean-soft + clean-ink)">
               <Pill variant="clean">No findings</Pill>
               <Pill variant="clean" dot>Verified</Pill>
             </Row>
-            <Row label="Warn">
+            <Row label="Status · warn (warn-soft + warn-ink)">
               <Pill variant="warn">Possible match</Pill>
               <Pill variant="warn" dot>Review</Pill>
             </Row>
-            <Row label="Risk">
+            <Row label="Status · risk (risk-soft + risk-ink)">
               <Pill variant="risk">Rented</Pill>
               <Pill variant="risk" dot>3 platforms</Pill>
             </Row>
-            <Row label="Brand">
+            <Row label="Brand · live / system (brand-soft + brand-deep)">
               <Pill variant="brand">Live scan</Pill>
               <Pill variant="brand" dot>Beta</Pill>
+            </Row>
+            <Row label="Verdict · categorical (purple / yellow / blue)">
+              <Pill variant="verdict-high">Rented</Pill>
+              <Pill variant="verdict-med">Possibly rented</Pill>
+              <Pill variant="verdict-low">Not rented</Pill>
             </Row>
           </Stage>
         </Section>
@@ -334,18 +345,18 @@ function ComponentsPage() {
           </Stage>
         </Section>
 
-        {/* === Tag === */}
-        <Section num="07" title="Tag" desc="Quieter than a Pill. Mono 11.5, surface-2 background, optional 12px leading icon at .7 opacity.">
+        {/* === Pill · subtle === */}
+        <Section num="07" title="Pill · subtle" desc="Quieter Pill variant for descriptive metadata. Surface-2 background, ink-2, normal weight, mixed-case. Optional 12px leading icon at .7 opacity.">
           <Stage>
             <Row label="Text only">
-              <Tag>R-1 Single Family</Tag>
-              <Tag>Asheville, NC</Tag>
-              <Tag>1930</Tag>
+              <Pill subtle>R-1 Single Family</Pill>
+              <Pill subtle>Asheville, NC</Pill>
+              <Pill subtle>1930</Pill>
             </Row>
             <Row label="With icon">
-              <Tag icon={Glyph.bed}>3 bed · 2 bath</Tag>
-              <Tag icon={Glyph.pin}>1428 Maplewood Dr</Tag>
-              <Tag icon={Glyph.check}>Verified parcel</Tag>
+              <Pill subtle icon={Glyph.bed}>3 bed · 2 bath</Pill>
+              <Pill subtle icon={Glyph.pin}>1428 Maplewood Dr</Pill>
+              <Pill subtle icon={Glyph.check}>Verified parcel</Pill>
             </Row>
           </Stage>
         </Section>

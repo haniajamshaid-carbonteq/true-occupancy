@@ -1,5 +1,5 @@
 /* global React, AppShell, Card, Icon, Pill, Modal, Button, DataTable, ReactRouterDOM, useAppState,
-   HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress */
+   HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress, ScreenError */
 // Schedule detail — full page for a scheduled automation.
 // Layout:
 //   1. Header bar  — back link (left) + Cancel automation (right, destructive)
@@ -9,16 +9,34 @@
 function ScheduleDetailScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
   const { id } = ReactRouterDOM.useParams<{ id: string }>();
-  const { schedules, history, cancelSchedule } = useAppState();
+  const { schedules, history, cancelSchedule, loading, error } = useAppState();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
+  // Surface fetch errors before the redirect-on-missing guard so the user
+  // sees "Couldn't load" instead of being bounced back silently.
+  if (error) {
+    return (
+      <AppShell>
+        <ScreenError
+          title="Couldn't load this automation"
+          message={error}
+          onRetry={() => window.location.reload()}
+          onBack={() => routerHistory.push('/scheduled')}
+          backLabel="Back to Scheduled"
+        />
+      </AppShell>
+    );
+  }
+
   const schedule: any = schedules.find((s: any) => s.id === id);
-  if (!schedule) {
+  if (!schedule && !loading) {
     return <ReactRouterDOM.Redirect to="/scheduled" />;
   }
 
-  const isBatch = schedule.kind === 'batch';
-  const runIds: string[] = schedule.runHistoryIds ?? [];
+  // Loading variant: render the page chrome but swap the detail body
+  // and run-history table for skeleton placeholders.
+  const isBatch = schedule?.kind === 'batch';
+  const runIds: string[] = schedule?.runHistoryIds ?? [];
   const runs: any[] = runIds
     .map((rid) => history.find((h: any) => h.id === rid))
     .filter(Boolean);
@@ -42,7 +60,9 @@ function ScheduleDetailScreen() {
     routerHistory.push('/scheduled');
   }
 
-  const [street, locality] = isBatch
+  const [street, locality] = !schedule
+    ? ['', '']
+    : isBatch
     ? [schedule.filename, `${schedule.total} properties`]
     : splitAddress(schedule.address);
 
@@ -127,51 +147,77 @@ function ScheduleDetailScreen() {
         {/* Summary card */}
         <Card allowOverflow>
           <div className="px-card-loose py-card">
-            {/* Title row: address + type pill (right). The pill is a
-                secondary classification, so it sits in the trailing corner
-                rather than the eyebrow slot above the title. */}
-            <div className="flex items-start justify-between gap-stack">
-              <div className="min-w-0 flex-1">
-                <h2
-                  className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 leading-tight truncate"
-                  style={{ color: 'var(--navy)' }}
-                >
-                  {street}
-                </h2>
-                {locality && (
-                  <p className="font-sans text-body-sm text-ink-3 leading-relaxed m-0 mt-1 truncate">
-                    {locality}
-                  </p>
-                )}
-              </div>
-              <Pill variant={isBatch ? 'brand' : 'default'} className="shrink-0">
-                {isBatch ? 'Batch automation' : 'Single property'}
-              </Pill>
-            </div>
+            {loading || !schedule ? (
+              <>
+                {/* Loading skeleton — same anatomy as the populated header so
+                    layout doesn't jump when data lands. */}
+                <div className="flex items-start justify-between gap-stack">
+                  <div className="min-w-0 flex-1 flex flex-col gap-2">
+                    <div className="h-6 w-3/4 max-w-[360px] rounded-sm bg-line skeleton-pulse" />
+                    <div className="h-3 w-1/2 max-w-[200px] rounded-sm bg-line skeleton-pulse" />
+                  </div>
+                  <div className="h-5 w-28 rounded-full bg-line skeleton-pulse" />
+                </div>
+                <div className="mt-stack-tight h-3 w-40 rounded-sm bg-line skeleton-pulse" />
+                <div className="border-t border-line mt-stack mb-stack" />
+                <dl className="flex flex-wrap gap-x-section-sub gap-y-stack m-0">
+                  {['a', 'b', 'c'].map((k) => (
+                    <div key={k} className="flex flex-col gap-1.5">
+                      <div className="h-2 w-16 rounded-sm bg-line skeleton-pulse" />
+                      <div className="h-3 w-20 rounded-sm bg-line skeleton-pulse" />
+                    </div>
+                  ))}
+                </dl>
+              </>
+            ) : (
+              <>
+                {/* Title row: address + type pill (right). The pill is a
+                    secondary classification, so it sits in the trailing corner
+                    rather than the eyebrow slot above the title. */}
+                <div className="flex items-start justify-between gap-stack">
+                  <div className="min-w-0 flex-1">
+                    <h2
+                      className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 leading-tight truncate"
+                      style={{ color: 'var(--navy)' }}
+                    >
+                      {street}
+                    </h2>
+                    {locality && (
+                      <p className="font-sans text-body-sm text-ink-3 leading-relaxed m-0 mt-1 truncate">
+                        {locality}
+                      </p>
+                    )}
+                  </div>
+                  <Pill variant={isBatch ? 'brand' : 'default'} className="shrink-0">
+                    {isBatch ? 'Batch automation' : 'Single property'}
+                  </Pill>
+                </div>
 
-            {/* Cadence — the load-bearing fact for a *scheduled* automation.
-                Rendered as ink-2 text with a calendar icon so it reads as
-                summary copy, not a stylistic tag. */}
-            <div className="mt-stack-tight inline-flex items-center gap-stack-tight text-ink-2">
-              <Icon name="cal" size={14} />
-              <span className="font-sans text-body-sm font-medium">
-                Every {schedule.cadenceMonths} months
-              </span>
-            </div>
+                {/* Cadence — the load-bearing fact for a *scheduled* automation.
+                    Rendered as ink-2 text with a calendar icon so it reads as
+                    summary copy, not a stylistic tag. */}
+                <div className="mt-stack-tight inline-flex items-center gap-stack-tight text-ink-2">
+                  <Icon name="cal" size={14} />
+                  <span className="font-sans text-body-sm font-medium">
+                    Every {schedule.cadenceMonths} months
+                  </span>
+                </div>
 
-            {/* Hairline divider — tightened now that the cadence above is
-                plain text (no chip / pill height) so vertical rhythm doesn't
-                overweigh the header block. */}
-            <div className="border-t border-line mt-stack mb-stack" />
+                {/* Hairline divider — tightened now that the cadence above is
+                    plain text (no chip / pill height) so vertical rhythm doesn't
+                    overweigh the header block. */}
+                <div className="border-t border-line mt-stack mb-stack" />
 
-            {/* Meta strip — natural-width columns, left-packed with a
-                consistent section gap. Cadence is omitted here because it's
-                already featured above. */}
-            <dl className="flex flex-wrap gap-x-section-sub gap-y-stack m-0">
-              <RuleField label="Next run" value={schedule.nextRunLabel} />
-              <RuleField label="Created" value={schedule.createdAgo} />
-              <RuleField label="Runs to date" value={String(runs.length)} />
-            </dl>
+                {/* Meta strip — natural-width columns, left-packed with a
+                    consistent section gap. Cadence is omitted here because it's
+                    already featured above. */}
+                <dl className="flex flex-wrap gap-x-section-sub gap-y-stack m-0">
+                  <RuleField label="Next run" value={schedule.nextRunLabel} />
+                  <RuleField label="Created" value={schedule.createdAgo} />
+                  <RuleField label="Runs to date" value={String(runs.length)} />
+                </dl>
+              </>
+            )}
           </div>
         </Card>
 
@@ -190,10 +236,11 @@ function ScheduleDetailScreen() {
             rowKey={(r: any) => r.id}
             onRowClick={openRun}
             pageSize={20}
+            loading={loading}
             empty={
               <div className="px-5 py-12 text-center text-label text-ink-3">
                 No runs recorded yet — the next scan will appear here on{' '}
-                <span className="font-medium text-ink-2">{schedule.nextRunLabel}</span>.
+                <span className="font-medium text-ink-2">{schedule?.nextRunLabel}</span>.
               </div>
             }
           />
