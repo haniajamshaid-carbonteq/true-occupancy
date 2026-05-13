@@ -150,8 +150,8 @@ function WhyThisScore({
         className="w-full flex items-center justify-between gap-3 bg-transparent border-0 cursor-pointer text-left p-0"
       >
         <h3
-          className="font-sans font-semibold text-ink m-0"
-          style={{ fontSize: 'var(--text-h4)' }}
+          className="font-sans font-semibold m-0"
+          style={{ fontSize: 'var(--text-h4)', color: 'var(--navy)' }}
         >
           Why This Score
         </h3>

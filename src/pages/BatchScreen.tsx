@@ -73,23 +73,23 @@ function BatchScreen() {
 function BatchUpload({ onSample }: { onSample: () => void }) {
   return (
     <Card>
-      <div className="px-6 py-16 flex flex-col items-center text-center">
-        <div className="w-14 h-14 rounded-full bg-brand-soft text-brand grid place-items-center mb-5">
+      <div className="px-card py-section flex flex-col items-center text-center">
+        <div className="w-14 h-14 rounded-full bg-brand-soft text-brand grid place-items-center mb-stack">
           <Icon name="upload" size={24} />
         </div>
-        <h2 className="font-sans font-semibold text-h3 sm:text-h3 tracking-[-0.005em] m-0 mb-2" style={{ color: 'var(--navy)' }}>
+        <h2 className="font-sans font-semibold text-h3 sm:text-h3 tracking-[-0.005em] m-0 mb-stack-tight" style={{ color: 'var(--navy)' }}>
           Scan Many Properties at Once.
         </h2>
-        <p className="text-ink-3 text-body-sm leading-relaxed max-w-[68ch] m-0 mb-7">
+        <p className="text-ink-3 text-body-sm leading-relaxed max-w-[68ch] m-0 mb-section-sub">
           Drop a CSV with one address per row. We&rsquo;ll cross-check every entry against Airbnb, Vrbo, and Facebook Marketplace, then surface the matches in one reviewable queue.
         </p>
 
         {/* Drop-zone with hover affordance */}
         <label
           htmlFor="batch-csv"
-          className="w-full max-w-[520px] cursor-pointer block rounded-lg border-2 border-dashed border-line bg-surface hover:bg-brand-soft hover:border-brand transition-colors px-6 py-8 mb-4"
+          className="w-full max-w-[520px] cursor-pointer block rounded-lg border-2 border-dashed border-line bg-surface hover:bg-brand-soft hover:border-brand transition-colors px-card py-section-sub mb-stack"
         >
-          <div className="font-medium text-ink-2 mb-1">
+          <div className="font-medium text-ink-2 mb-stack-tight">
             Drop a CSV here, or <span className="text-brand">browse</span>
           </div>
           <div className="font-sans text-micro uppercase tracking-widest text-ink-4">
@@ -151,7 +151,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
     setVerdictFilter((cur) => (cur === v ? 'all' : v));
 
   return (
-    <div className="flex flex-col gap-section-tight">
+    <div className="flex flex-col gap-section-sub">
       {/* Summary card */}
       <Card allowOverflow>
         <div className="px-card-loose py-card">
@@ -226,7 +226,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           </div>
 
           {/* Progress */}
-          <div className="flex items-center gap-3 mb-section-tight">
+          <div className="flex items-center gap-stack-md mb-section-tight">
             <div className="flex-1 h-1.5 bg-line rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
@@ -252,7 +252,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
 
       {/* Properties — same DataTable primitive as Home + History */}
       <div>
-        <div className="flex items-end justify-between mb-stack-md gap-4 flex-wrap">
+        <div className="flex items-end justify-between mb-stack-md gap-stack flex-wrap">
           <h3
             className="font-sans font-semibold text-h4 sm:text-h3 tracking-[-0.005em] m-0"
             style={{ color: 'var(--navy)' }}

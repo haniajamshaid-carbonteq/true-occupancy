@@ -60,7 +60,7 @@ function BottomRail({
   return (
     <div
       aria-hidden
-      className="absolute left-[14px] right-[14px] bottom-[5px] h-[2px] rounded-full overflow-hidden"
+      className="absolute left-[40px] right-[14px] bottom-[6px] h-[2px] rounded-full overflow-hidden"
       style={{ background: 'var(--line)' }}
     >
       <div
@@ -155,8 +155,8 @@ function NotificationPill({
     return (
       <>
         <div
-          className="w-[26px] h-[26px] rounded-full grid place-items-center shrink-0 relative"
-          style={{ background: theme.soft, color: theme.accent }}
+          className="w-[26px] h-[26px] grid place-items-center shrink-0 relative"
+          style={{ color: theme.accent }}
         >
           <PillGlyph status={s.status} />
           {countdownProgress !== null && <CountdownRing progress={countdownProgress} />}
@@ -184,8 +184,8 @@ function NotificationPill({
   const renderMulti = () => (
     <>
       <div
-        className="w-[26px] h-[26px] rounded-full grid place-items-center shrink-0"
-        style={{ background: theme.soft, color: theme.accent }}
+        className="w-[26px] h-[26px] grid place-items-center shrink-0"
+        style={{ color: theme.accent }}
       >
         <StackedDotsGlyph />
       </div>
@@ -224,7 +224,8 @@ function NotificationPill({
       role={isAnyError ? 'alert' : 'status'}
       className={[
         'notification-dock-pill',
-        'inline-flex items-center gap-2 h-[52px] pr-3.5 pl-1.5 relative',
+        'inline-flex items-center gap-2 pr-3.5 pl-1.5 relative',
+        isScanningSingle ? 'h-[52px] pt-[10px] items-start' : 'py-1.5',
         'border cursor-pointer appearance-none',
         forceHover ? 'is-hover' : '',
         forceFocused ? 'is-focus' : '',

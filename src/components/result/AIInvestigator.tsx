@@ -267,18 +267,23 @@ function AICtaButton({
 // phase; the parent bus controls the phase. A soft teal scan beam
 // sweeps the rail to keep the surface alive between ticks.
 const LOADING_STEPS: Array<{ phase: 1 | 2; label: string; short: string }> = [
-  { phase: 1, label: 'Locating parcel & owner records',      short: 'Parcel' },
-  { phase: 1, label: 'Pulling deed history & STR permits',   short: 'Deed & permits' },
-  { phase: 1, label: 'Scanning Airbnb, Vrbo & Marketplace',  short: 'Listings' },
-  { phase: 2, label: 'Matching photos & metadata signals',   short: 'Photos' },
+  { phase: 1, label: 'Locating parcel & owner records',        short: 'Parcel' },
+  { phase: 1, label: 'Pulling deed history & STR permits',     short: 'Deed & permits' },
+  { phase: 1, label: 'Scanning Airbnb, Vrbo & Marketplace',    short: 'Listings' },
+  { phase: 2, label: 'Matching photos & metadata signals',     short: 'Photos' },
   { phase: 2, label: 'Computing confidence & drafting report', short: 'Report' },
 ];
 
+// Horizontal stepper + skeleton silhouette of the success card. The two
+// backend phases (loading-step-1, loading-step-2) are expanded into five
+// visible substeps so progress feels granular; the breadcrumb at the top
+// shows where the scanner is, and the skeleton below pre-fills the shape
+// of the result that is about to land.
 function LoadingCard({ activeStep }: { activeStep: 1 | 2 }) {
   const [tick, setTick] = React.useState(0);
   React.useEffect(() => {
     setTick(0);
-    const id = window.setInterval(() => setTick((t) => t + 1), 800);
+    const id = window.setInterval(() => setTick((t) => t + 1), 1200);
     return () => window.clearInterval(id);
   }, [activeStep]);
 
@@ -288,38 +293,46 @@ function LoadingCard({ activeStep }: { activeStep: 1 | 2 }) {
       ? Math.min(tick, phase1Count - 1)
       : Math.min(phase1Count + tick, LOADING_STEPS.length - 1);
 
-  const visible = LOADING_STEPS.slice(0, current + 1);
   const currentStep = LOADING_STEPS[current];
 
   return (
     <Card padded>
       <div aria-live="polite" aria-busy="true">
-        {/* Horizontal breadcrumb of completed steps */}
-        <ol className="list-none m-0 p-0 flex flex-wrap items-center gap-x-2 gap-y-1.5 mb-3">
-          {visible.map((s, i) => {
+        {/* Horizontal breadcrumb — completed steps + current */}
+        <ol className="list-none m-0 p-0 flex flex-wrap items-center gap-x-2 gap-y-1.5 mb-4">
+          {LOADING_STEPS.map((s, i) => {
+            const isDone = i < current;
             const isCurrent = i === current;
+            const isPending = i > current;
             return (
               <React.Fragment key={i}>
                 {i > 0 && (
                   <span
                     aria-hidden
                     className="font-sans text-caption"
-                    style={{ color: 'var(--ink-4)' }}
+                    style={{
+                      color: isPending ? 'var(--ink-5)' : 'var(--ink-4)',
+                    }}
                   >
                     ›
                   </span>
                 )}
                 <span
-                  className={`inline-flex items-center gap-1.5 card-rise ${
-                    isCurrent ? '' : 'opacity-70'
+                  className={`inline-flex items-center gap-1.5 ${
+                    !isPending ? 'card-rise' : ''
                   }`}
                   style={{
                     ['--rise-delay' as any]: '0ms',
-                    color: isCurrent ? 'var(--ink)' : 'var(--ink-3)',
+                    color: isCurrent
+                      ? 'var(--ink)'
+                      : isDone
+                      ? 'var(--ink-2)'
+                      : 'var(--ink-4)',
                     fontWeight: isCurrent ? 600 : 500,
                     fontSize: isCurrent
                       ? 'var(--text-body-sm)'
                       : 'var(--text-caption)',
+                    opacity: isPending ? 0.6 : 1,
                   }}
                 >
                   <span
@@ -327,7 +340,12 @@ function LoadingCard({ activeStep }: { activeStep: 1 | 2 }) {
                     style={{
                       width: isCurrent ? 18 : 14,
                       height: isCurrent ? 18 : 14,
-                      ...(isCurrent
+                      ...(isDone
+                        ? {
+                            background: 'var(--clean)',
+                            color: 'white',
+                          }
+                        : isCurrent
                         ? {
                             background: 'var(--brand-soft)',
                             color: 'var(--brand-deep)',
@@ -335,13 +353,27 @@ function LoadingCard({ activeStep }: { activeStep: 1 | 2 }) {
                               '0 0 0 3px rgba(10,183,163,0.18), 0 0 0 1px var(--brand)',
                           }
                         : {
-                            background: 'var(--clean)',
-                            color: 'white',
+                            background: 'var(--surface)',
+                            color: 'var(--ink-4)',
+                            boxShadow: '0 0 0 1px var(--line)',
                           }),
                     }}
                     aria-hidden
                   >
-                    {isCurrent ? <Spinner size={10} /> : <Icon name="check" size={9} />}
+                    {isDone ? (
+                      <Icon name="check" size={9} />
+                    ) : isCurrent ? (
+                      <Spinner size={10} />
+                    ) : (
+                      <span
+                        style={{
+                          width: 3,
+                          height: 3,
+                          borderRadius: 999,
+                          background: 'currentColor',
+                        }}
+                      />
+                    )}
                   </span>
                   {isCurrent ? s.label : s.short}
                 </span>
@@ -350,21 +382,41 @@ function LoadingCard({ activeStep }: { activeStep: 1 | 2 }) {
           })}
         </ol>
 
-        {/* Slim progress rail underneath — visualizes overall position */}
+        {/* Success-card silhouette — pre-fills the shape of what's about to appear */}
         <div
-          className="relative overflow-hidden rounded-full"
-          style={{ height: 3, background: 'var(--line)' }}
           aria-hidden
+          className="rounded-lg"
+          style={{
+            padding: 14,
+            background: 'var(--surface)',
+            boxShadow: '0 0 0 1px var(--line)',
+          }}
         >
+          <div className="flex items-center gap-2 mb-3">
+            <span
+              className="skeleton-pulse rounded-full"
+              style={{ width: 72, height: 20, background: 'var(--line)' }}
+            />
+            <span
+              className="skeleton-pulse rounded-md"
+              style={{ width: 42, height: 20, background: 'var(--line)' }}
+            />
+            <span
+              className="skeleton-pulse rounded-md ml-auto"
+              style={{ width: 96, height: 16, background: 'var(--line)' }}
+            />
+          </div>
           <div
-            className="absolute inset-y-0 left-0 rounded-full transition-all"
-            style={{
-              width: `${((current + 1) / LOADING_STEPS.length) * 100}%`,
-              background:
-                'linear-gradient(90deg, var(--brand) 0%, var(--brand-deep) 100%)',
-              transitionDuration: '600ms',
-              transitionTimingFunction: 'var(--ease-out, ease-out)',
-            }}
+            className="skeleton-pulse rounded-md mb-2"
+            style={{ width: '88%', height: 8, background: 'var(--line)' }}
+          />
+          <div
+            className="skeleton-pulse rounded-md mb-2"
+            style={{ width: '74%', height: 8, background: 'var(--line)' }}
+          />
+          <div
+            className="skeleton-pulse rounded-md"
+            style={{ width: '60%', height: 8, background: 'var(--line)' }}
           />
         </div>
 
@@ -471,7 +523,7 @@ function SuccessHero({
         </Button>
       </div>
 
-      <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
+      <div className="flex items-center flex-wrap gap-x-3 gap-y-2">
         <div
           className="font-sans font-semibold leading-[0.95] tracking-[-0.015em]"
           style={{ fontSize: 'var(--text-h3)', color: 'var(--navy)' }}
@@ -487,13 +539,12 @@ function SuccessHero({
           </span>{' '}
           {result.confidenceLabel.toLowerCase()} confidence
         </div>
+        <AlignmentRow
+          agrees={align.agrees}
+          ruleLabel={align.ruleLabel}
+          aiLabel={align.aiLabel}
+        />
       </div>
-
-      <AlignmentRow
-        agrees={align.agrees}
-        ruleLabel={align.ruleLabel}
-        aiLabel={align.aiLabel}
-      />
     </div>
   );
 }
@@ -524,7 +575,7 @@ function AlignmentRow({
       };
   return (
     <div
-      className="mt-3 inline-flex items-center gap-2 rounded-full pl-2 pr-3 py-1.5"
+      className="inline-flex items-center gap-2 rounded-full pl-2 pr-3 py-1.5"
       style={{
         background: palette.background,
         color: palette.color,
@@ -610,11 +661,11 @@ function ReportAccordion({
             }}
             aria-hidden
           >
-            <Icon name="layers" size={12} />
+            <Icon name="ai-star" size={12} />
           </span>
           <h3
-            className="font-sans font-semibold text-ink m-0"
-            style={{ fontSize: 'var(--text-body)' }}
+            className="font-sans font-semibold m-0"
+            style={{ fontSize: 'var(--text-h4)', color: 'var(--navy)' }}
           >
             AI report
           </h3>
@@ -685,7 +736,7 @@ function FindingsList({
             >
               <Icon name="check" size={14} />
             </span>
-            <span className="font-sans text-body-sm text-ink-2 leading-snug">
+            <span className="font-sans text-caption text-ink-2 leading-snug">
               {f}
             </span>
           </li>
@@ -734,7 +785,7 @@ function ActionsList({ actions }: { actions: string[] }) {
             >
               {i + 1}
             </span>
-            <span className="font-sans text-body-sm text-ink-2 leading-snug pt-0.5">
+            <span className="font-sans text-caption text-ink-2 leading-snug pt-0.5">
               {a}
             </span>
           </li>
@@ -754,7 +805,7 @@ function SectionHeading({
   return (
     <h3
       className="font-sans font-semibold text-ink m-0 flex items-center gap-2"
-      style={{ fontSize: 'var(--text-body)' }}
+      style={{ fontSize: 'var(--text-body-sm)' }}
     >
       {icon}
       {children}

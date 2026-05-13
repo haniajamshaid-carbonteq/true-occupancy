@@ -27,8 +27,8 @@ interface AIInvestigationResult {
 
 // Loading-step timings. Constant here so the prototype animation is
 // deterministic; a real backend would drive these via SSE / polling.
-const AI_STEP_1_MS = 2600; // "Retrieving property, owner & STR evidence"
-const AI_STEP_2_MS = 1900; // "Analyzing evidence & generating report"
+const AI_STEP_1_MS = 3600; // "Retrieving property, owner & STR evidence"
+const AI_STEP_2_MS = 2800; // "Analyzing evidence & generating report"
 
 const AI_INVESTIGATIONS: Record<ScenarioKey, AIInvestigationResult> = {
   low: {

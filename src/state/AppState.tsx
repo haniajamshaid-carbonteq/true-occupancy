@@ -273,10 +273,18 @@ interface ScheduleTarget {
   filename?: string;
 }
 
+interface TransientNotification {
+  id: string;
+  message: string;
+  createdAt: number;
+  durationMs: number;
+}
+
 interface AppStateValue {
   liveBatch: LiveBatch | null;
   schedules: ScheduleEntry[];
   history: HistoryEntry[];
+  transients: TransientNotification[];
   /** True when a screen's primary data is being fetched. Real app sets
    *  this during async loads; live prototype always leaves it false. Used
    *  by states-spec.html to mount skeleton variants. */
@@ -293,6 +301,8 @@ interface AppStateValue {
   updateScheduleCadence: (id: string, cadenceMonths: Cadence) => void;
   cancelSchedule: (id: string) => void;
   findScheduleByTarget: (target: ScheduleTarget) => ScheduleEntry | null;
+  pushTransient: (message: string, durationMs?: number) => void;
+  dismissTransient: (id: string) => void;
 }
 
 const AppStateContext = React.createContext<AppStateValue | null>(null);
@@ -305,6 +315,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [liveBatch, setLiveBatch] = React.useState<LiveBatch | null>(null);
   const [schedules, setSchedules] = React.useState<ScheduleEntry[]>(SEED_SCHEDULES);
   const [history, setHistory] = React.useState<HistoryEntry[]>(SEED_HISTORY);
+  const [transients, setTransients] = React.useState<TransientNotification[]>([]);
 
   // Sim: tick the live batch forward one row at a time. Each tick moves
   // the first 'queued' row to 'running' and the first 'running' row to
@@ -417,6 +428,24 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     setSchedules((s) => s.filter((entry) => entry.id !== id));
   }, []);
 
+  const dismissTransient = React.useCallback((id: string) => {
+    setTransients((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const pushTransient = React.useCallback(
+    (message: string, durationMs: number = 3000) => {
+      const id = uid('tn');
+      setTransients((prev) => [
+        ...prev,
+        { id, message, createdAt: Date.now(), durationMs },
+      ]);
+      window.setTimeout(() => {
+        setTransients((prev) => prev.filter((t) => t.id !== id));
+      }, durationMs);
+    },
+    []
+  );
+
   const findScheduleByTarget = React.useCallback(
     (target: ScheduleTarget): ScheduleEntry | null => {
       const match = schedules.find((entry) => {
@@ -438,6 +467,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     liveBatch,
     schedules,
     history,
+    transients,
     loading: false,
     error: null,
     startSampleBatch,
@@ -448,6 +478,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     updateScheduleCadence,
     cancelSchedule,
     findScheduleByTarget,
+    pushTransient,
+    dismissTransient,
   };
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
