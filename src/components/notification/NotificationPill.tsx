@@ -51,7 +51,7 @@ function StackedDotsGlyph() {
   );
 }
 
-function BottomRail({
+function InlineRail({
   done,
   total,
   accent,
@@ -60,7 +60,7 @@ function BottomRail({
   return (
     <div
       aria-hidden
-      className="absolute left-[40px] right-[14px] bottom-[5px] h-[2px] rounded-full overflow-hidden"
+      className="h-[2px] rounded-full overflow-hidden"
       style={{ background: 'var(--line)' }}
     >
       <div
@@ -152,6 +152,8 @@ function NotificationPill({
     } else if (s.meta) {
       metaText = s.meta;
     }
+    const showRail =
+      s.status === 'running' && s.progress?.kind === 'count';
     return (
       <>
         <div
@@ -161,20 +163,29 @@ function NotificationPill({
           <PillGlyph status={s.status} />
           {countdownProgress !== null && <CountdownRing progress={countdownProgress} />}
         </div>
-        <div className="flex items-baseline gap-2 min-w-0 pr-1">
-          <span
-            className="font-sans font-medium text-label whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]"
-            style={{ color: 'var(--ink-2)', lineHeight: 1.2 }}
-          >
-            {s.title}
-          </span>
-          {metaText && (
+        <div className="flex flex-col gap-1 min-w-0 pr-1 flex-1">
+          <div className="flex items-baseline gap-2 min-w-0">
             <span
-              className="font-mono text-micro whitespace-nowrap"
-              style={{ color: 'var(--ink-3)' }}
+              className="font-sans font-medium text-label whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]"
+              style={{ color: 'var(--ink-2)', lineHeight: 1.2 }}
             >
-              {metaText}
+              {s.title}
             </span>
+            {metaText && (
+              <span
+                className="font-mono text-micro whitespace-nowrap"
+                style={{ color: 'var(--ink-3)' }}
+              >
+                {metaText}
+              </span>
+            )}
+          </div>
+          {showRail && (
+            <InlineRail
+              done={(s.progress as any).done}
+              total={(s.progress as any).total}
+              accent={theme.accent}
+            />
           )}
         </div>
       </>
@@ -205,9 +216,6 @@ function NotificationPill({
     </>
   );
 
-  const isScanningSingle =
-    single && single.status === 'running' && single.progress?.kind === 'count';
-
   const isAnyError = notifications.some(
     (n) => n.status === 'error' || n.status === 'completed-errors',
   );
@@ -224,8 +232,7 @@ function NotificationPill({
       role={isAnyError ? 'alert' : 'status'}
       className={[
         'notification-dock-pill',
-        'inline-flex gap-2 pr-3.5 pl-1.5 relative',
-        isScanningSingle ? 'h-[44px] pt-[5px] items-start' : 'items-center py-1.5',
+        'inline-flex items-center gap-2 pr-3.5 pl-1.5 py-1.5 relative',
         'border cursor-pointer appearance-none',
         forceHover ? 'is-hover' : '',
         forceFocused ? 'is-focus' : '',
@@ -244,13 +251,6 @@ function NotificationPill({
       }}
     >
       {single ? renderSingle() : renderMulti()}
-      {isScanningSingle && (
-        <BottomRail
-          done={(single!.progress as any).done}
-          total={(single!.progress as any).total}
-          accent={theme.accent}
-        />
-      )}
     </button>
   );
 }
