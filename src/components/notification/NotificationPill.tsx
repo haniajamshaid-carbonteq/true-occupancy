@@ -220,6 +220,9 @@ function NotificationPill({
     (n) => n.status === 'error' || n.status === 'completed-errors',
   );
 
+  const isScanningSingle =
+    single && single.status === 'running' && single.progress?.kind === 'count';
+
   return (
     <button
       type="button"
@@ -244,7 +247,7 @@ function NotificationPill({
         boxShadow:
           '0 24px 48px -16px rgba(20,45,85,.14), 0 8px 16px -8px rgba(20,45,85,.07)',
         color: 'var(--ink-2)',
-        minWidth: single ? 220 : 180,
+        minWidth: isScanningSingle ? 220 : single ? 0 : 180,
         maxWidth: 360,
         transition:
           'transform 200ms cubic-bezier(.16,1,.3,1), box-shadow 200ms cubic-bezier(.16,1,.3,1)',
