@@ -41,7 +41,7 @@ function Sidebar() {
       {/* Logo — Halcyon parent / TrueOccupancy product hierarchy per brand book §2 */}
       <div className="flex items-center gap-2.5">
         <div className="w-10 h-10 shrink-0">
-          <img src="halcyon-mark-v2.png" alt="Halcyon Solutions" className="w-full h-full object-contain block" />
+          <img src="docs/brand/halcyon-mark-v2.png" alt="Halcyon Solutions" className="w-full h-full object-contain block" />
         </div>
         <div className="leading-tight">
           <div

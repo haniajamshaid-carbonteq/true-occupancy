@@ -86,7 +86,7 @@ function CertificateBody({
     <article className="certificate-sheet">
       <header className="cert-head">
         <div className="cert-head-left">
-          <img src="halcyon-mark-v2.png" alt="" className="cert-mark" />
+          <img src="docs/brand/halcyon-mark-v2.png" alt="" className="cert-mark" />
           <div className="cert-wordmark">
             <div className="cert-brand">Halcyon</div>
             <div className="cert-product">True Occupancy Certificate</div>

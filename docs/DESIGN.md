@@ -31,7 +31,7 @@ The logo has two parts: the **symbol mark** (stylized bird/helix in the teal-to-
 - Color modes: full color · black · white reversed
 - Lockups: horizontal · vertical · with-tagline · wordmark · icon-only
 
-**Existing assets in repo:** `halcyon-logo.png`, `halcyon-mark.png`, `halcyon-mark-v2.png`. Source EPS files in `Halcyon/EPS.zip`.
+**Existing assets in repo:** all under `docs/brand/` — `halcyon-logo.png`, `halcyon-mark.png`, `halcyon-mark-v2.png`, source EPS files in `EPS.zip`, and the master `Halcyon_Brand Guidelines_2026.pdf`.
 
 **Clear space.** Always reserve a margin equal to the cap-height of the "H" in HALCYON on all four sides. Nothing — type, image, graphic — may cross that zone.
 
@@ -350,7 +350,7 @@ These are tracked here so the rebrand PR can find them. Don't change them in the
 
 ## 11. Governance
 
-- **Source PDF:** `Halcyon_Brand Guidelines_2026.pdf` at the project root. Do not move or rename.
+- **Brand source assets:** PDF, EPS, and logo PNGs live in `true-occupancy/docs/brand/`. Do not duplicate elsewhere in the repo.
 - **Approval gate:** new collateral formats, partner co-brands, event signage, and any departure from this doc require sign-off from the Halcyon marketing team **before** production or publication.
 - **Asset requests:** logos, approved background files, one-pager templates, master decks — request from Halcyon marketing. Do not create derivative assets, recolor the logo, or modify approved layouts without prior approval.
 - **Trademark check:** confirm with legal before publishing any product name in new collateral.
