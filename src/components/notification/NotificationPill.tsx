@@ -60,7 +60,7 @@ function BottomRail({
   return (
     <div
       aria-hidden
-      className="absolute left-[40px] right-[14px] bottom-[3px] h-[2px] rounded-full overflow-hidden"
+      className="absolute left-[40px] right-[14px] bottom-[5px] h-[2px] rounded-full overflow-hidden"
       style={{ background: 'var(--line)' }}
     >
       <div
@@ -224,8 +224,8 @@ function NotificationPill({
       role={isAnyError ? 'alert' : 'status'}
       className={[
         'notification-dock-pill',
-        'inline-flex items-center gap-2 pr-3.5 pl-1.5 relative',
-        isScanningSingle ? 'h-[52px] pt-[10px] items-start' : 'py-1.5',
+        'inline-flex gap-2 pr-3.5 pl-1.5 relative',
+        isScanningSingle ? 'h-[44px] pt-[5px] items-start' : 'items-center py-1.5',
         'border cursor-pointer appearance-none',
         forceHover ? 'is-hover' : '',
         forceFocused ? 'is-focus' : '',
