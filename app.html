@@ -162,6 +162,7 @@
   const files = [
     // 1. Domain
     'src/data/scenarios.tsx',
+    'src/data/aiInvestigation.tsx',
     // 2. Primitives
     'src/state/AppState.tsx',
     'src/components/ui/Icons.tsx',
@@ -188,6 +189,12 @@
     'src/components/ui/MetricCard.tsx',
     'src/components/ui/DropdownMenu.tsx',
     'src/components/ui/BatchHugCard.tsx',
+    // 2b. Notification Dock (pinned top-center, owns long-running tasks).
+    //     Row → Stack + Pill → Dock; Dock is consumed by AppShell.
+    'src/components/notification/NotificationRow.tsx',
+    'src/components/notification/NotificationStack.tsx',
+    'src/components/notification/NotificationPill.tsx',
+    'src/components/notification/NotificationDock.tsx',
     // 3. Structural
     'src/components/SideNav.tsx',
     'src/components/AppShell.tsx',
@@ -206,6 +213,7 @@
     'src/components/result/PropertyOverview.tsx',
     'src/components/result/ListingsPanel.tsx',
     'src/components/result/CertificateSheet.tsx',
+    'src/components/result/AIInvestigator.tsx',
     // 6. Pages
     'src/pages/Components.tsx',
     'src/pages/HomeScreen.tsx',
@@ -221,6 +229,7 @@
     'src/pages/ResultHighScreen.tsx',
     'src/pages/WhyExpandedScreen.tsx',
     'src/pages/AuthScreen.tsx',
+    'src/pages/ProfileScreen.tsx',
     // 7. Router
     'src/App.tsx',
   ];

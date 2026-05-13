@@ -126,4 +126,5 @@ declare function ResultCleanScreen(props?: any): any;
 declare function ResultMediumScreen(props?: any): any;
 declare function ResultHighScreen(props?: any): any;
 declare function WhyExpandedScreen(props?: any): any;
+declare function ProfileScreen(props?: any): any;
 declare function App(props?: any): any;

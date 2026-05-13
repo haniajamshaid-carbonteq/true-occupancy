@@ -1,12 +1,13 @@
-/* global React, AppShell, ScanContextBar, ConfidenceHero, PropertyOverview, ListingsPanel, CertificateSheet */
+/* global React, AppShell, ScanContextBar, ConfidenceHero, AIInvestigator, PropertyOverview, ListingsPanel, CertificateSheet */
 // Screen 04 — Result · "Possibly rented · Medium confidence" (mixed signals).
 
 function ResultMediumScreen() {
   return (
     <AppShell>
-      <ScanContextBar showDownloadPDF showAutomate automateScenario="medium" />
+      <ScanContextBar showDownloadPDF showAutomate showAI automateScenario="medium" />
       <div className="mt-stack flex flex-col gap-stack">
         <ConfidenceHero scenario="medium" />
+        <AIInvestigator scenario="medium" />
         <ListingsPanel scenario="medium" />
         <PropertyOverview />
       </div>

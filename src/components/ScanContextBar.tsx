@@ -1,4 +1,4 @@
-/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl */
+/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, AICtaButton */
 // ScanContextBar — replaces the persistent search trigger on detail
 // pages (result + why-expanded). Shows a back button plus the address
 // currently being viewed, so the user knows what scan they're looking at
@@ -26,6 +26,12 @@ interface ScanContextBarProps {
   /** Scenario for the Automate target (defaults to whatever sessionStorage
    *  has at scan time, else 'high' to keep the demo populated). */
   automateScenario?: 'low' | 'medium' | 'high';
+  /** Show the "Run AI Investigator" CTA in the top-right (result screens
+   *  only). The CTA subscribes to the AI bus so it auto-hides once the
+   *  result card is rendered in the page body. */
+  showAI?: boolean;
+  /** Scenario the AI CTA should investigate. Defaults to automateScenario. */
+  aiScenario?: 'low' | 'medium' | 'high';
 }
 
 function ScanContextBar({
@@ -36,6 +42,8 @@ function ScanContextBar({
   showDownloadPDF = false,
   showAutomate = false,
   automateScenario,
+  showAI = false,
+  aiScenario,
 }: ScanContextBarProps) {
   const history = ReactRouterDOM.useHistory();
   const resolvedAddress =
@@ -117,6 +125,13 @@ function ScanContextBar({
         >
           Download PDF
         </Button>
+      )}
+
+      {showAI && (
+        <AICtaButton
+          scenario={(aiScenario || scenarioForTarget) as 'low' | 'medium' | 'high'}
+          size="md"
+        />
       )}
     </div>
   );
