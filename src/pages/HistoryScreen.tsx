@@ -36,12 +36,11 @@ type Kind = 'single' | 'batch';
 type BatchStatus = 'all' | 'complete' | 'partial' | 'failed';
 type DateRange = { from?: string; to?: string };
 type PlatformsBucket = 'all' | 'none' | 'any' | 'multi';
+type ScoreRange = { min?: number; max?: number };
 
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+function rowScore(row: any): number | null {
+  const sc = SCENARIOS[row.scenario as keyof typeof SCENARIOS];
+  return sc ? sc.score : null;
 }
 
 // Derive a scanned-date ISO string from a row's relative-time seed value.
@@ -64,17 +63,21 @@ function HistoryScreen() {
   const [query, setQuery] = React.useState('');
   const [dateRange, setDateRange] = React.useState<DateRange>({});
   const [platformsBucket, setPlatformsBucket] = React.useState<PlatformsBucket>('all');
+  const [scoreRange, setScoreRange] = React.useState<ScoreRange>({});
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   // Platforms filter only makes sense on the single tab; it disappears
   // from the drawer on batch, so don't count it toward the badge there.
   // Verdict (single) / batch status (batch) also live in the drawer now.
   const dateRangeActive = Boolean(dateRange.from || dateRange.to);
+  const scoreRangeActive =
+    scoreRange.min !== undefined || scoreRange.max !== undefined;
   const advancedCount =
     (dateRangeActive ? 1 : 0) +
     (kind === 'single' && verdict !== 'all' ? 1 : 0) +
     (kind === 'batch'  && batchStatus !== 'all' ? 1 : 0) +
-    (kind === 'single' && platformsBucket !== 'all' ? 1 : 0);
+    (kind === 'single' && platformsBucket !== 'all' ? 1 : 0) +
+    (kind === 'single' && scoreRangeActive ? 1 : 0);
 
   const singleRows = rows.filter((r: any) => r.kind !== 'batch');
   const batchRows  = rows.filter((r: any) => r.kind === 'batch');
@@ -97,6 +100,12 @@ function HistoryScreen() {
       if (platformsBucket === 'any'   && p < 1)  return false;
       if (platformsBucket === 'multi' && p < 2)  return false;
     }
+    if (kind === 'single' && scoreRangeActive) {
+      const s = rowScore(r);
+      if (s === null) return false;
+      if (scoreRange.min !== undefined && s < scoreRange.min) return false;
+      if (scoreRange.max !== undefined && s > scoreRange.max) return false;
+    }
     if (query) {
       const target = r.kind === 'batch' ? r.filename : r.address;
       if (!target.toLowerCase().includes(query.toLowerCase())) return false;
@@ -109,6 +118,7 @@ function HistoryScreen() {
     setPlatformsBucket('all');
     setVerdict('all');
     setBatchStatus('all');
+    setScoreRange({});
   }
 
   const VERDICT_FILTERS: { id: Verdict; label: string; count: number }[] = [
@@ -242,12 +252,6 @@ function HistoryScreen() {
             label="When scanned"
             value={dateRange}
             onChange={setDateRange}
-            presets={[
-              { id: 'today',  label: 'Today',      range: { from: isoDaysAgo(0),  to: isoDaysAgo(0) } },
-              { id: 'week',   label: 'Last 7 days', range: { from: isoDaysAgo(6),  to: isoDaysAgo(0) } },
-              { id: 'month',  label: 'Last 30 days', range: { from: isoDaysAgo(29), to: isoDaysAgo(0) } },
-              { id: 'quarter', label: 'Last 90 days', range: { from: isoDaysAgo(89), to: isoDaysAgo(0) } },
-            ]}
           />
           {kind === 'single' && (
             <ChipRow
@@ -261,6 +265,9 @@ function HistoryScreen() {
                 { value: 'multi', label: '2+ platforms' },
               ]}
             />
+          )}
+          {kind === 'single' && (
+            <ScoreRangeField value={scoreRange} onChange={setScoreRange} />
           )}
         </div>
       </Drawer>
@@ -449,3 +456,119 @@ const HISTORY_BATCH_COLUMNS: any[] = [
     ),
   },
 ];
+
+function ScoreRangeField({
+  value,
+  onChange,
+}: {
+  value: ScoreRange;
+  onChange: (next: ScoreRange) => void;
+}) {
+  const active = value.min !== undefined || value.max !== undefined;
+  const parse = (raw: string): number | undefined => {
+    if (raw === '') return undefined;
+    const n = Math.max(0, Math.min(100, parseInt(raw, 10)));
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const setMin = (raw: string) => {
+    const next = parse(raw);
+    if (next !== undefined && value.max !== undefined && next > value.max) {
+      onChange({ min: next, max: next });
+    } else {
+      onChange({ ...value, min: next });
+    }
+  };
+  const setMax = (raw: string) => {
+    const next = parse(raw);
+    if (next !== undefined && value.min !== undefined && next < value.min) {
+      onChange({ min: next, max: next });
+    } else {
+      onChange({ ...value, max: next });
+    }
+  };
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div
+          className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          Score range
+        </div>
+        {active && (
+          <button
+            type="button"
+            onClick={() => onChange({})}
+            className="font-sans text-micro font-semibold hover:underline"
+            style={{ color: 'var(--brand-deep)' }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <ScoreField
+          ariaLabel="Minimum score"
+          placeholder="Min"
+          value={value.min}
+          onChange={setMin}
+        />
+        <span
+          aria-hidden
+          className="font-sans text-caption shrink-0"
+          style={{ color: 'var(--ink-4)' }}
+        >
+          —
+        </span>
+        <ScoreField
+          ariaLabel="Maximum score"
+          placeholder="Max"
+          value={value.max}
+          onChange={setMax}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ScoreField({
+  ariaLabel,
+  placeholder,
+  value,
+  onChange,
+}: {
+  ariaLabel: string;
+  placeholder: string;
+  value: number | undefined;
+  onChange: (next: string) => void;
+}) {
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <div
+      className="flex-1 min-w-0 flex items-center rounded-lg transition-shadow"
+      style={{
+        background: 'var(--surface)',
+        border: `1px solid ${focused ? 'var(--brand)' : 'var(--line)'}`,
+        boxShadow: focused
+          ? '0 0 0 3px var(--brand-soft), var(--shadow-sm)'
+          : 'var(--shadow-sm)',
+      }}
+    >
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={100}
+        step={1}
+        aria-label={ariaLabel}
+        placeholder={placeholder}
+        value={value ?? ''}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className="flex-1 min-w-0 bg-transparent border-0 outline-none h-9 px-3 text-caption font-sans tabular-nums"
+        style={{ color: value !== undefined ? 'var(--ink)' : 'var(--ink-4)' }}
+      />
+    </div>
+  );
+}
