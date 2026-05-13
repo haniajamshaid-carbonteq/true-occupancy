@@ -1,4 +1,4 @@
-/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, DropdownMenu, Drawer, ChipRow, ReactRouterDOM,
+/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, DropdownMenu, ReactRouterDOM,
    VERDICT_ACCENT, splitAddress, AutomationControl, VerdictTiles, useAppState */
 // Batch processing — upload a CSV (or click "Try sample data") to scan
 // dozens of properties in one queue. Shows a partially-complete batch:
@@ -135,46 +135,20 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         failedRows.forEach((r) => retryBatchRow(r.id));
       };
 
-  type StatusFilter = 'all' | 'done' | 'running' | 'queued' | 'failed';
   type VerdictFilter = 'all' | 'risk' | 'warn' | 'clean';
-  type ScoreBand = 'all' | 'low' | 'med' | 'high';
   const [query, setQuery] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('all');
   const [verdictFilter, setVerdictFilter] = React.useState<VerdictFilter>('all');
-  const [scoreBand, setScoreBand] = React.useState<ScoreBand>('all');
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
-
-  const advancedCount =
-    (statusFilter  !== 'all' ? 1 : 0) +
-    (verdictFilter !== 'all' ? 1 : 0) +
-    (scoreBand     !== 'all' ? 1 : 0);
 
   const filteredRows = rows.filter((r) => {
-    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
     if (verdictFilter !== 'all') {
       if (r.status !== 'done' || r.risk !== verdictFilter) return false;
     }
-    if (scoreBand !== 'all') {
-      const s = r.score ?? -1;
-      if (s < 0) return false;
-      if (scoreBand === 'low'  && s > 33) return false;
-      if (scoreBand === 'med'  && (s < 34 || s > 66)) return false;
-      if (scoreBand === 'high' && s < 67) return false;
-    }
-    if (query) {
-      if (!r.address.toLowerCase().includes(query.toLowerCase())) return false;
-    }
+    if (query && !r.address.toLowerCase().includes(query.toLowerCase())) return false;
     return true;
   });
 
   const toggleVerdict = (v: 'risk' | 'warn' | 'clean') =>
     setVerdictFilter((cur) => (cur === v ? 'all' : v));
-
-  function clearAdvanced() {
-    setStatusFilter('all');
-    setVerdictFilter('all');
-    setScoreBand('all');
-  }
 
   return (
     <div className="flex flex-col gap-section-tight">
@@ -313,85 +287,10 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
                 className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4"
               />
             </div>
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Open filters"
-              className={`inline-flex items-center gap-2 h-8 px-3 rounded-md border text-caption font-medium transition-colors shrink-0 ${
-                advancedCount > 0
-                  ? '!bg-brand-tint !border-brand/40'
-                  : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
-              }`}
-              style={{ color: advancedCount > 0 ? 'var(--brand-deep)' : 'var(--ink-2)' }}
-            >
-              <Icon name="sliders" size={14} />
-              <span className="hidden sm:inline">Filters</span>
-              {advancedCount > 0 && (
-                <span
-                  className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line"
-                  style={{ background: 'rgba(2,146,190,0.12)', color: 'var(--brand-deep)' }}
-                >
-                  {advancedCount}
-                </span>
-              )}
-            </button>
           </div>
         </div>
         <BatchTable rows={filteredRows} />
       </div>
-
-      <Drawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title="Filters"
-        footer={
-          <>
-            <Button variant="ghost" onClick={clearAdvanced} disabled={advancedCount === 0}>
-              Clear All
-            </Button>
-            <Button variant="primary" onClick={() => setDrawerOpen(false)}>
-              Done
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-6">
-          <ChipRow
-            label="Status"
-            value={statusFilter}
-            onChange={(v: string) => setStatusFilter(v as StatusFilter)}
-            options={[
-              { value: 'all',     label: 'Any' },
-              { value: 'done',    label: 'Scanned' },
-              { value: 'running', label: 'Scanning' },
-              { value: 'queued',  label: 'Queued' },
-              { value: 'failed',  label: 'Failed' },
-            ]}
-          />
-          <ChipRow
-            label="Verdict"
-            value={verdictFilter}
-            onChange={(v: string) => setVerdictFilter(v as VerdictFilter)}
-            options={[
-              { value: 'all',   label: 'Any' },
-              { value: 'risk',  label: 'Rented' },
-              { value: 'warn',  label: 'Possibly Rented' },
-              { value: 'clean', label: 'Not Rented' },
-            ]}
-          />
-          <ChipRow
-            label="Score band"
-            value={scoreBand}
-            onChange={(v: string) => setScoreBand(v as ScoreBand)}
-            options={[
-              { value: 'all',  label: 'Any' },
-              { value: 'low',  label: '0–33' },
-              { value: 'med',  label: '34–66' },
-              { value: 'high', label: '67–100' },
-            ]}
-          />
-        </div>
-      </Drawer>
 
     </div>
   );
