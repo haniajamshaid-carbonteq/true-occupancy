@@ -6,8 +6,8 @@ function ResultMediumScreen() {
     <AppShell>
       <ScanContextBar showDownloadPDF showAutomate showAI automateScenario="medium" />
       <div className="mt-stack flex flex-col gap-stack">
-        <ConfidenceHero scenario="medium" />
         <AIInvestigator scenario="medium" />
+        <ConfidenceHero scenario="medium" />
         <ListingsPanel scenario="medium" />
         <PropertyOverview />
       </div>

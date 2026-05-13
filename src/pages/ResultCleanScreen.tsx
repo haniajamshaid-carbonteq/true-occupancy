@@ -6,8 +6,8 @@ function ResultCleanScreen() {
     <AppShell>
       <ScanContextBar showDownloadPDF showAutomate showAI automateScenario="low" />
       <div className="mt-stack flex flex-col gap-stack">
-        <ConfidenceHero scenario="low" />
         <AIInvestigator scenario="low" />
+        <ConfidenceHero scenario="low" />
         <ListingsPanel scenario="low" />
         <PropertyOverview />
       </div>

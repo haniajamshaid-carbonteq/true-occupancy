@@ -30,14 +30,13 @@ function NotificationStack({
     <div
       role={hasAlert ? 'alert' : 'status'}
       aria-live={hasAlert ? 'assertive' : 'polite'}
-      className="notification-dock-stack w-[420px] max-h-[360px] border border-white/[0.08] p-3 flex flex-col gap-3 overflow-hidden"
+      className="notification-dock-stack w-[420px] max-h-[360px] border p-3 flex flex-col gap-3 overflow-hidden"
       style={{
         borderRadius: 22,
-        background: 'rgba(20,45,85,0.92)',
+        background: 'var(--surface)',
+        borderColor: 'var(--line-strong)',
         boxShadow:
-          '0 16px 40px -10px rgba(20,45,85,0.42), 0 4px 10px rgba(20,45,85,0.22)',
-        backdropFilter: 'blur(14px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+          '0 24px 48px -16px rgba(20,45,85,.14), 0 8px 16px -8px rgba(20,45,85,.07)',
       }}
     >
       {/* Header */}
@@ -46,7 +45,7 @@ function NotificationStack({
           className="font-mono text-eyebrow uppercase"
           style={{
             letterSpacing: '0.08em',
-            color: 'rgba(255,255,255,0.5)',
+            color: 'var(--ink-4)',
             lineHeight: 1,
           }}
         >
@@ -58,8 +57,8 @@ function NotificationStack({
           type="button"
           aria-label="Collapse"
           onClick={onCollapse}
-          className="ml-auto appearance-none bg-transparent border-0 cursor-pointer p-1 leading-none rounded-md hover:bg-white/8"
-          style={{ color: 'rgba(255,255,255,0.55)' }}
+          className="ml-auto appearance-none bg-transparent border-0 cursor-pointer p-1 leading-none rounded-md hover:bg-hover-bg"
+          style={{ color: 'var(--ink-3)' }}
         >
           <span className="inline-block rotate-180" aria-hidden>
             <Icon name="chevron" size={12} />

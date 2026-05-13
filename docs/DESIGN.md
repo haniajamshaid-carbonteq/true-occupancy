@@ -449,41 +449,42 @@ A single pinned-to-top, iOS-Dynamic-Island-style surface that owns every long-ru
 
 ### 14.1 Surface
 
+The dock sits on the product surface (not against it) so it inherits the §13.3 "white surface + hairline" treatment. The lift comes from `--shadow-lg`, not from a value swap.
+
 | Token | Value |
 |---|---|
-| Background | `rgba(20, 45, 85, .92)` (`--navy` at 92%) |
-| Border | 1 px `rgba(255, 255, 255, .08)` |
-| Backdrop filter | `blur(14px) saturate(140%)` |
-| Pill radius | 22 px (full pill — the Dynamic-Island shape is the point) |
+| Background | `var(--surface)` (`#FFFFFF`, no opacity) |
+| Border | 1 px `var(--line-strong)` (`#CBD5E1`) |
+| Pill radius | 22 px (full pill — the Dynamic-Island silhouette is the point) |
 | Pill height | 44 px |
 | Stack outer radius | 22 px |
-| Row radius | `rounded-xl` / `--r-xl` (14 px) |
-| Pill shadow | `0 12px 32px -8px rgba(20,45,85,.35), 0 2px 6px rgba(20,45,85,.18)` |
-| Stack shadow | `0 16px 40px -10px rgba(20,45,85,.42), 0 4px 10px rgba(20,45,85,.22)` |
+| Row container | `bg-surface-2` + 1 px `--line` + `rounded-xl` (`--r-xl` 14 px) |
+| Pill shadow | `0 24px 48px -16px rgba(20,45,85,.14), 0 8px 16px -8px rgba(20,45,85,.07)` (= `--shadow-lg`) |
+| Stack shadow | same as pill |
 | Position | `fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 90` |
 
-The dock is the **only** large dark surface allowed on the product canvas. It earns the contrast by being persistent system status, not page content (§13.1 budget).
+Because the dock no longer carries a dark surface, the status accents in §14.2 do all the heavy lifting visually. That's the point: it reads as product chrome with a status tint, not a separate visual layer.
 
 ### 14.2 Status accents
 
-Per-row tints follow the existing status convention (§3, §13.3), applied as a small chip on the dark surface:
+Per-row tints reuse the existing `*-soft` / `*-ink` token pairs (§3, §13.3) — the same convention used by cards and pills, applied here as a 26 px status chip:
 
-| Status | Accent | Soft chip bg | Glyph |
+| Status | Glyph color | Soft chip bg | Glyph |
 |---|---|---|---|
-| running          | `--brand` | `rgba(10,183,163,.18)` | `ai-spin` spinner |
-| completed        | `--clean` | `rgba(10,183,163,.18)` | `Icon name="check"` |
-| completed-errors | `--warn`  | `rgba(237,164,54,.22)` | `Icon name="alert"` |
-| error            | `--risk`  | `rgba(192,83,60,.24)`  | `Icon name="alert"` |
+| running          | `--brand` | `--brand-soft` | `ai-spin` spinner |
+| completed        | `--clean` | `--clean-soft` | `Icon name="check"` |
+| completed-errors | `--warn`  | `--warn-soft`  | `Icon name="alert"` |
+| error            | `--risk`  | `--risk-soft`  | `Icon name="alert"` |
 
 ### 14.3 Typography
 
-White-tinted on the dark surface; sizes pull from the §4.1 ramp:
+Ink tokens on the white surface; sizes pull from the §4.1 ramp:
 
-- **Pill label** — `font-sans font-medium text-label` (13 / 1.2), `rgba(255,255,255,.94)`.
-- **Pill meta** — `font-mono text-micro` (11 / 1), `rgba(255,255,255,.62)`.
-- **Row title** — `font-sans font-semibold text-label` (13 / 1.3), `rgba(255,255,255,.94)`.
-- **Row meta** — `font-mono text-micro` (11 / 1.4), `rgba(255,255,255,.62)`.
-- **Stack header** — `font-mono text-eyebrow uppercase tracking-[0.08em]` (10), `rgba(255,255,255,.5)`. Renders `2 running · 1 done · 1 failed`.
+- **Pill label** — `font-sans font-medium text-label` (13 / 1.2), `var(--ink-2)`.
+- **Pill meta** — `font-mono text-micro` (11 / 1), `var(--ink-3)`.
+- **Row title** — `font-sans font-semibold text-label` (13 / 1.3), `var(--ink-2)`.
+- **Row meta** — `font-mono text-micro` (11 / 1.4), `var(--ink-3)`.
+- **Stack header** — `font-mono text-eyebrow uppercase tracking-[0.08em]` (10), `var(--ink-4)`. Renders `2 running · 1 done · 1 failed`.
 
 ### 14.4 Spacing
 
@@ -500,11 +501,11 @@ On the §13.4 ramp (8 / 12 / 16 / 20 / 24 / …). Internal whitespace is generou
 
 ### 14.5 Actions
 
-Action buttons mirror `Button` (§13.3) but live on the dark surface:
+Action buttons are the standard `Button` variants from §13.3:
 
-- Primary — `bg-white/15 border-white/10`, hover `bg-white/22`.
-- Default — transparent + `border-white/14`, hover `bg-white/8`.
-- Both: `h-8 px-3 rounded-md` (`--r-md` = 8 px) so they sit on the same scale as standard `Button.sm`. Text: `font-sans font-medium text-caption`, white at 94% alpha.
+- Primary — `bg-brand` + `border-brand`, white text, hover → `bg-brand-deep` (mirrors §13.3 primary button exactly).
+- Default — `bg-surface` + `border-line-strong`, `text-ink-2`, hover → `bg-hover-bg`.
+- Both: `h-8 px-3 rounded-md` (`--r-md` = 8 px) so they share the scale of standard `Button.sm`. Text: `font-sans font-medium text-caption`.
 
 Wired in `LiveDock`:
 
