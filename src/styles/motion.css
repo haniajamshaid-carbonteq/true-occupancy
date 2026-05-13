@@ -129,8 +129,8 @@
 .notification-dock-pill.is-hover {
   transform: scale(1.02);
   box-shadow:
-    0 16px 40px -8px rgba(20, 45, 85, .42),
-    0 4px 10px rgba(20, 45, 85, .22);
+    0 28px 56px -16px rgba(20, 45, 85, .18),
+    0 10px 20px -8px rgba(20, 45, 85, .10);
 }
 .notification-dock-pill:active {
   transform: scale(0.98);
@@ -138,9 +138,9 @@
 .notification-dock-pill:focus-visible,
 .notification-dock-pill.is-focus {
   box-shadow:
-    0 0 0 2px rgba(255, 255, 255, 0.6),
-    0 12px 32px -8px rgba(20, 45, 85, .35),
-    0 2px 6px rgba(20, 45, 85, .18);
+    0 0 0 2px rgba(10, 183, 163, .45),
+    0 24px 48px -16px rgba(20, 45, 85, .14),
+    0 8px 16px -8px rgba(20, 45, 85, .07);
 }
 .notification-dock {
   /* Morph driver for collapsed ↔ expanded transitions when both share class. */
@@ -273,19 +273,37 @@
 }
 .ai-cta {
   position: relative;
-  transition:
-    transform 120ms var(--ease-out),
-    box-shadow 220ms var(--ease-out);
+  overflow: hidden;
+  isolation: isolate;
+  transition: filter 180ms var(--ease-out);
+}
+.ai-cta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 65%
+  );
+  transform: translateX(-110%);
+  animation: ai-cta-sheen 6.5s ease-in-out infinite;
 }
 .ai-cta:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    0 2px 4px rgba(15,42,76,.12),
-    0 10px 24px rgba(10,183,163,.36),
-    inset 0 0 0 1px rgba(255,255,255,.22);
+  filter: brightness(1.06) saturate(1.05);
+}
+.ai-cta:hover::after {
+  animation-duration: 2.2s;
+}
+@keyframes ai-cta-sheen {
+  0%        { transform: translateX(-110%); }
+  55%, 100% { transform: translateX(110%);  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ai-cta-spark { animation: none; }
+  .ai-cta-spark,
+  .ai-cta::after { animation: none; }
 }
 
 /* === AI Investigator — vertical scan timeline ========================

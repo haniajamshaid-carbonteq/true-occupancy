@@ -3,11 +3,14 @@
 // summary OR aggregated "N tasks running" chip when more than one job is
 // active. Pure presentation; expansion is owned by NotificationDock.
 
+// Soft tints reuse the existing `*-soft` tokens (see tokens.css §3) —
+// designed for light surfaces so the chip reads as a calm status cue
+// rather than a saturated dot.
 const PILL_STATUS_THEME = {
-  'running':           { accent: 'var(--brand)', soft: 'rgba(10,183,163,0.18)' },
-  'completed':         { accent: 'var(--clean)', soft: 'rgba(10,183,163,0.18)' },
-  'completed-errors':  { accent: 'var(--warn)',  soft: 'rgba(237,164,54,0.22)' },
-  'error':             { accent: 'var(--risk)',  soft: 'rgba(192,83,60,0.24)' },
+  'running':           { accent: 'var(--brand)', soft: 'var(--brand-soft)' },
+  'completed':         { accent: 'var(--clean)', soft: 'var(--clean-soft)' },
+  'completed-errors':  { accent: 'var(--warn)',  soft: 'var(--warn-soft)' },
+  'error':             { accent: 'var(--risk)',  soft: 'var(--risk-soft)' },
 } as const;
 
 function PillSpinner() {
@@ -58,7 +61,7 @@ function BottomRail({
     <div
       aria-hidden
       className="absolute left-[14px] right-[14px] bottom-[5px] h-[2px] rounded-full overflow-hidden"
-      style={{ background: 'rgba(255,255,255,0.10)' }}
+      style={{ background: 'var(--line)' }}
     >
       <div
         className="h-full rounded-full transition-[width] duration-300"
@@ -83,7 +86,7 @@ function CountdownRing({ progress }: { progress: number }) {
       className="absolute inset-0"
       aria-hidden
     >
-      <circle cx="13" cy="13" r={r} stroke="rgba(255,255,255,0.10)" strokeWidth="1.5" fill="none" />
+      <circle cx="13" cy="13" r={r} stroke="var(--line)" strokeWidth="1.5" fill="none" />
       <circle
         cx="13"
         cy="13"
@@ -161,14 +164,14 @@ function NotificationPill({
         <div className="flex items-baseline gap-2 min-w-0 pr-1">
           <span
             className="font-sans font-medium text-label whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]"
-            style={{ color: 'rgba(255,255,255,0.94)', lineHeight: 1.2 }}
+            style={{ color: 'var(--ink-2)', lineHeight: 1.2 }}
           >
             {s.title}
           </span>
           {metaText && (
             <span
               className="font-mono text-micro whitespace-nowrap"
-              style={{ color: 'rgba(255,255,255,0.62)' }}
+              style={{ color: 'var(--ink-3)' }}
             >
               {metaText}
             </span>
@@ -189,13 +192,13 @@ function NotificationPill({
       <div className="flex items-baseline gap-2 pr-1.5">
         <span
           className="font-sans font-medium text-label whitespace-nowrap"
-          style={{ color: 'rgba(255,255,255,0.94)', lineHeight: 1.2 }}
+          style={{ color: 'var(--ink-2)', lineHeight: 1.2 }}
         >
           {runningCount > 0
             ? `${notifications.length} tasks running`
             : `${notifications.length} tasks`}
         </span>
-        <span style={{ color: 'rgba(255,255,255,0.65)' }} aria-hidden>
+        <span style={{ color: 'var(--ink-3)' }} aria-hidden>
           <Icon name="chevron" size={12} />
         </span>
       </div>
@@ -221,19 +224,18 @@ function NotificationPill({
       role={isAnyError ? 'alert' : 'status'}
       className={[
         'notification-dock-pill',
-        'inline-flex items-center gap-2 h-11 pr-3.5 pl-1.5 relative',
-        'border border-white/[0.08] cursor-pointer appearance-none',
+        'inline-flex items-center gap-2 h-[52px] pr-3.5 pl-1.5 relative',
+        'border cursor-pointer appearance-none',
         forceHover ? 'is-hover' : '',
         forceFocused ? 'is-focus' : '',
       ].filter(Boolean).join(' ')}
       style={{
         borderRadius: 22,
-        background: 'rgba(20,45,85,0.92)',
+        background: 'var(--surface)',
+        borderColor: 'var(--line-strong)',
         boxShadow:
-          '0 12px 32px -8px rgba(20,45,85,0.35), 0 2px 6px rgba(20,45,85,0.18)',
-        backdropFilter: 'blur(14px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
-        color: 'rgba(255,255,255,0.94)',
+          '0 24px 48px -16px rgba(20,45,85,.14), 0 8px 16px -8px rgba(20,45,85,.07)',
+        color: 'var(--ink-2)',
         minWidth: single ? 220 : 180,
         maxWidth: 360,
         transition:

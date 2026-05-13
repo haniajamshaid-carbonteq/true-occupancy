@@ -240,8 +240,6 @@ function AICtaButton({
         letterSpacing: '0.01em',
         background:
           'linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%)',
-        boxShadow:
-          '0 1px 2px rgba(15,42,76,.10), 0 6px 18px rgba(10,183,163,.28), inset 0 0 0 1px rgba(255,255,255,.18)',
       }}
     >
       <span
@@ -251,7 +249,7 @@ function AICtaButton({
         style={{ width: 14, height: 14 }}
         aria-hidden
       >
-        {running ? <Spinner size={12} /> : <Icon name="spark" size={14} />}
+        {running ? <Spinner size={12} /> : <Icon name="ai-star" size={14} />}
       </span>
       {running ? 'Investigating…' : 'Run AI Investigator'}
     </button>
@@ -268,19 +266,19 @@ function AICtaButton({
 // through a checklist. A local interval advances substeps within each
 // phase; the parent bus controls the phase. A soft teal scan beam
 // sweeps the rail to keep the surface alive between ticks.
-const LOADING_STEPS: Array<{ phase: 1 | 2; label: string }> = [
-  { phase: 1, label: 'Locating parcel & owner records' },
-  { phase: 1, label: 'Pulling deed history & STR permits' },
-  { phase: 1, label: 'Scanning Airbnb, Vrbo & Marketplace' },
-  { phase: 2, label: 'Matching photos & metadata signals' },
-  { phase: 2, label: 'Computing confidence & drafting report' },
+const LOADING_STEPS: Array<{ phase: 1 | 2; label: string; short: string }> = [
+  { phase: 1, label: 'Locating parcel & owner records',      short: 'Parcel' },
+  { phase: 1, label: 'Pulling deed history & STR permits',   short: 'Deed & permits' },
+  { phase: 1, label: 'Scanning Airbnb, Vrbo & Marketplace',  short: 'Listings' },
+  { phase: 2, label: 'Matching photos & metadata signals',   short: 'Photos' },
+  { phase: 2, label: 'Computing confidence & drafting report', short: 'Report' },
 ];
 
 function LoadingCard({ activeStep }: { activeStep: 1 | 2 }) {
   const [tick, setTick] = React.useState(0);
   React.useEffect(() => {
     setTick(0);
-    const id = window.setInterval(() => setTick((t) => t + 1), 380);
+    const id = window.setInterval(() => setTick((t) => t + 1), 800);
     return () => window.clearInterval(id);
   }, [activeStep]);
 
@@ -290,105 +288,93 @@ function LoadingCard({ activeStep }: { activeStep: 1 | 2 }) {
       ? Math.min(tick, phase1Count - 1)
       : Math.min(phase1Count + tick, LOADING_STEPS.length - 1);
 
+  const visible = LOADING_STEPS.slice(0, current + 1);
+  const currentStep = LOADING_STEPS[current];
+
   return (
     <Card padded>
-      <ModuleHeader tagline="Scanning evidence…" />
-      <div className="relative pl-1" aria-live="polite" aria-busy="true">
-        {/* Connector rail through the dots */}
-        <div
-          className="absolute w-px ai-scan-rail"
-          style={{ left: 10, top: 10, bottom: 10, background: 'var(--line)' }}
-          aria-hidden
-        />
-        {/* Sweeping scan beam */}
-        <div
-          className="absolute rounded-full pointer-events-none ai-scan-beam"
-          style={{
-            left: 4,
-            width: 12,
-            height: 12,
-            background:
-              'radial-gradient(circle, rgba(10,183,163,0.55) 0%, rgba(10,183,163,0) 70%)',
-          }}
-          aria-hidden
-        />
-        <ol className="list-none m-0 p-0 flex flex-col gap-3 relative">
-          {LOADING_STEPS.map((s, i) => {
-            const state =
-              i < current ? 'done' : i === current ? 'running' : 'pending';
+      <div aria-live="polite" aria-busy="true">
+        {/* Horizontal breadcrumb of completed steps */}
+        <ol className="list-none m-0 p-0 flex flex-wrap items-center gap-x-2 gap-y-1.5 mb-3">
+          {visible.map((s, i) => {
+            const isCurrent = i === current;
             return (
-              <LoadingStep key={i} label={s.label} state={state} index={i} />
+              <React.Fragment key={i}>
+                {i > 0 && (
+                  <span
+                    aria-hidden
+                    className="font-sans text-caption"
+                    style={{ color: 'var(--ink-4)' }}
+                  >
+                    ›
+                  </span>
+                )}
+                <span
+                  className={`inline-flex items-center gap-1.5 card-rise ${
+                    isCurrent ? '' : 'opacity-70'
+                  }`}
+                  style={{
+                    ['--rise-delay' as any]: '0ms',
+                    color: isCurrent ? 'var(--ink)' : 'var(--ink-3)',
+                    fontWeight: isCurrent ? 600 : 500,
+                    fontSize: isCurrent
+                      ? 'var(--text-body-sm)'
+                      : 'var(--text-caption)',
+                  }}
+                >
+                  <span
+                    className="rounded-full grid place-items-center shrink-0 transition-all"
+                    style={{
+                      width: isCurrent ? 18 : 14,
+                      height: isCurrent ? 18 : 14,
+                      ...(isCurrent
+                        ? {
+                            background: 'var(--brand-soft)',
+                            color: 'var(--brand-deep)',
+                            boxShadow:
+                              '0 0 0 3px rgba(10,183,163,0.18), 0 0 0 1px var(--brand)',
+                          }
+                        : {
+                            background: 'var(--clean)',
+                            color: 'white',
+                          }),
+                    }}
+                    aria-hidden
+                  >
+                    {isCurrent ? <Spinner size={10} /> : <Icon name="check" size={9} />}
+                  </span>
+                  {isCurrent ? s.label : s.short}
+                </span>
+              </React.Fragment>
             );
           })}
         </ol>
+
+        {/* Slim progress rail underneath — visualizes overall position */}
+        <div
+          className="relative overflow-hidden rounded-full"
+          style={{ height: 3, background: 'var(--line)' }}
+          aria-hidden
+        >
+          <div
+            className="absolute inset-y-0 left-0 rounded-full transition-all"
+            style={{
+              width: `${((current + 1) / LOADING_STEPS.length) * 100}%`,
+              background:
+                'linear-gradient(90deg, var(--brand) 0%, var(--brand-deep) 100%)',
+              transitionDuration: '600ms',
+              transitionTimingFunction: 'var(--ease-out, ease-out)',
+            }}
+          />
+        </div>
+
+        {currentStep && (
+          <span className="sr-only">
+            Step {current + 1} of {LOADING_STEPS.length}: {currentStep.label}
+          </span>
+        )}
       </div>
     </Card>
-  );
-}
-
-function LoadingStep({
-  label,
-  state,
-  index,
-}: {
-  label: string;
-  state: 'pending' | 'running' | 'done';
-  index: number;
-}) {
-  return (
-    <li
-      className="flex items-start gap-3 relative card-rise"
-      style={{ ['--rise-delay' as any]: `${index * 60}ms` }}
-    >
-      <span
-        className="rounded-full grid place-items-center shrink-0 relative z-10 transition-all"
-        style={{
-          width: 20,
-          height: 20,
-          ...(state === 'done'
-            ? { background: 'var(--clean)', color: 'white' }
-            : state === 'running'
-              ? {
-                  background: 'var(--brand-soft)',
-                  color: 'var(--brand-deep)',
-                  boxShadow:
-                    '0 0 0 3px rgba(10,183,163,0.18), 0 0 0 1px var(--brand)',
-                }
-              : {
-                  background: 'var(--surface)',
-                  color: 'var(--ink-4)',
-                  boxShadow: 'inset 0 0 0 1.5px var(--line)',
-                }),
-        }}
-        aria-hidden
-      >
-        {state === 'done' ? (
-          <Icon name="check" size={11} />
-        ) : state === 'running' ? (
-          <Spinner size={11} />
-        ) : (
-          <span
-            className="rounded-full"
-            style={{ width: 4, height: 4, background: 'currentColor' }}
-          />
-        )}
-      </span>
-      <div
-        className="font-sans text-body-sm leading-snug transition-colors flex-1 min-w-0"
-        style={{
-          color:
-            state === 'pending'
-              ? 'var(--ink-4)'
-              : state === 'running'
-                ? 'var(--ink)'
-                : 'var(--ink-2)',
-          fontWeight: state === 'running' ? 600 : 500,
-          paddingTop: 1,
-        }}
-      >
-        {label}
-      </div>
-    </li>
   );
 }
 
@@ -448,9 +434,8 @@ function SuccessCard({
         actionsCount={result.actions.length}
       >
         <div className="px-card pb-card pt-3 space-y-4">
-          <FindingsList findings={result.findings} verdict={result.verdict} />
+          <FindingsList findings={result.findings} />
           <ActionsList actions={result.actions} />
-          {result.caveat && <CaveatNote text={result.caveat} />}
         </div>
       </ReportAccordion>
     </Card>
@@ -475,29 +460,21 @@ function SuccessHero({
   const verdict = result.verdict;
   return (
     <div className="relative p-card pb-4">
-      <ModuleHeader
-        tagline={align.agrees ? 'Second opinion · confirmed' : 'Second opinion · escalated'}
-        trailing={
-          <div className="flex items-center gap-2 shrink-0">
-            <Pill variant={verdict} dot>
-              {result.verdictLabel}
-            </Pill>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRunAgain}
-              icon={<Icon name="replay" />}
-            >
-              Run again
-            </Button>
-          </div>
-        }
-      />
+      <div className="absolute right-card top-card">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRunAgain}
+          icon={<Icon name="replay" />}
+        >
+          Run again
+        </Button>
+      </div>
 
-      <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1 mt-3">
+      <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
         <div
-          className="font-sans font-semibold leading-[0.95] tracking-[-0.025em]"
-          style={{ fontSize: 'var(--text-h2)', color: 'var(--navy)' }}
+          className="font-sans font-semibold leading-[0.95] tracking-[-0.015em]"
+          style={{ fontSize: 'var(--text-h3)', color: 'var(--navy)' }}
         >
           {result.verdictLabel}
         </div>
@@ -622,7 +599,7 @@ function ReportAccordion({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="w-full flex items-center justify-between gap-3 bg-transparent border-0 cursor-pointer text-left p-card hover:bg-hover-bg transition-colors"
+        className="w-full flex items-center justify-between gap-3 bg-transparent border-0 cursor-pointer text-left px-card py-3"
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <span
@@ -673,10 +650,9 @@ function ReportAccordion({
 
 function FindingsList({
   findings,
-  verdict,
 }: {
   findings: string[];
-  verdict: 'clean' | 'warn' | 'risk';
+  verdict?: 'clean' | 'warn' | 'risk';
 }) {
   return (
     <section>
@@ -685,8 +661,8 @@ function FindingsList({
           <span
             className="w-5 h-5 rounded-full grid place-items-center"
             style={{
-              background: `var(--${verdict}-soft)`,
-              color: `var(--${verdict}-ink)`,
+              background: 'var(--brand-soft)',
+              color: 'var(--brand-deep)',
             }}
           >
             <Icon name="check" size={12} />
@@ -699,21 +675,15 @@ function FindingsList({
         {findings.map((f, i) => (
           <li
             key={i}
-            className="flex items-start gap-3 rounded-lg p-3 card-rise"
-            style={{
-              background: 'var(--surface-2)',
-              ['--rise-delay' as any]: `${i * 60}ms`,
-            }}
+            className="flex items-start gap-3 card-rise"
+            style={{ ['--rise-delay' as any]: `${i * 60}ms` }}
           >
             <span
-              className="w-5 h-5 rounded-full grid place-items-center shrink-0 mt-px"
-              style={{
-                background: `var(--${verdict})`,
-                color: 'white',
-              }}
+              className="w-5 h-5 grid place-items-center shrink-0 mt-px"
+              style={{ color: 'var(--brand)' }}
               aria-hidden
             >
-              <Icon name="check" size={11} />
+              <Icon name="check" size={14} />
             </span>
             <span className="font-sans text-body-sm text-ink-2 leading-snug">
               {f}
@@ -743,7 +713,10 @@ function ActionsList({ actions }: { actions: string[] }) {
       >
         Recommended actions
       </SectionHeading>
-      <ol className="list-none m-0 p-0 mt-3 flex flex-col gap-2">
+      <ol
+        className="list-none m-0 p-3 mt-3 flex flex-col gap-3 rounded-lg"
+        style={{ background: 'var(--surface-2)' }}
+      >
         {actions.map((a, i) => (
           <li
             key={i}
@@ -753,7 +726,7 @@ function ActionsList({ actions }: { actions: string[] }) {
             <span
               className="w-6 h-6 rounded-full grid place-items-center shrink-0 mt-px font-sans font-semibold tabular-nums"
               style={{
-                background: 'var(--brand-soft)',
+                background: 'var(--surface)',
                 color: 'var(--brand-deep)',
                 fontSize: 'var(--text-micro)',
               }}
@@ -768,35 +741,6 @@ function ActionsList({ actions }: { actions: string[] }) {
         ))}
       </ol>
     </section>
-  );
-}
-
-function CaveatNote({ text }: { text: string }) {
-  return (
-    <div
-      className="rounded-lg flex items-start gap-2.5 p-3"
-      style={{
-        background: 'var(--warn-soft)',
-        color: 'var(--warn-ink)',
-      }}
-      role="note"
-    >
-      <span
-        className="w-5 h-5 rounded-full grid place-items-center shrink-0 mt-0.5"
-        style={{ background: 'var(--warn)', color: 'white' }}
-        aria-hidden
-      >
-        <Icon name="alert" size={12} />
-      </span>
-      <div className="min-w-0">
-        <div
-          className="font-sans font-semibold text-caption uppercase tracking-[0.06em] mb-0.5"
-        >
-          Caveat
-        </div>
-        <div className="font-sans text-body-sm leading-snug">{text}</div>
-      </div>
-    </div>
   );
 }
 
