@@ -60,7 +60,7 @@ function BottomRail({
   return (
     <div
       aria-hidden
-      className="absolute left-[40px] right-[14px] bottom-[6px] h-[2px] rounded-full overflow-hidden"
+      className="absolute left-[40px] right-[14px] bottom-[3px] h-[2px] rounded-full overflow-hidden"
       style={{ background: 'var(--line)' }}
     >
       <div
