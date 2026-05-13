@@ -68,8 +68,8 @@ function ProfileScreen() {
         </button>
 
         <h1
-          className="flex-1 min-w-0 font-sans font-semibold leading-[1.1] tracking-[-0.008em] m-0 truncate"
-          style={{ fontSize: 'clamp(20px, 3.2vw, 28px)', color: 'var(--navy)' }}
+          className="flex-1 min-w-0 font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0 truncate"
+          style={{ color: 'var(--navy)' }}
         >
           Profile
         </h1>
