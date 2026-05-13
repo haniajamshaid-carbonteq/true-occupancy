@@ -27,7 +27,7 @@ const HERO_SCRIM =
 function HalcyonMark({ size = 28 }: { size?: number }) {
   return (
     <img
-      src="halcyon-mark-v2.png"
+      src="docs/brand/halcyon-mark-v2.png"
       alt="Halcyon"
       width={size}
       height={size}

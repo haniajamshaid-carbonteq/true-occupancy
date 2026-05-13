@@ -67,7 +67,7 @@ function BrandLockup({
     >
       <div style={{ width: markPx, height: markPx }} className="shrink-0">
         <img
-          src="halcyon-mark-v2.png"
+          src="docs/brand/halcyon-mark-v2.png"
           alt="Halcyon Solutions — Decide with certainty."
           className="w-full h-full object-contain block"
         />
