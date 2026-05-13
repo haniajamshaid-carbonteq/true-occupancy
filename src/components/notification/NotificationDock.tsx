@@ -60,6 +60,23 @@ function deriveBatchNotification(
   };
 }
 
+function deriveTransientNotifications(
+  transients: any[] | undefined,
+  dismissTransient: ((id: string) => void) | undefined,
+): any[] {
+  if (!transients || transients.length === 0) return [];
+  return transients.map((t) => ({
+    id: t.id,
+    kind: 'transient',
+    status: 'completed',
+    title: t.message,
+    startedAt: t.createdAt,
+    finishedAt: t.createdAt,
+    autoDismissAt: t.createdAt + t.durationMs,
+    onDismiss: () => dismissTransient?.(t.id),
+  }));
+}
+
 function deriveAINotification(bus: any): any | null {
   const status: string = bus?.status;
   if (!status || status === 'idle' || status === 'success') return null;
@@ -149,6 +166,10 @@ function LiveDock({ contained }: { contained?: boolean }) {
   };
 
   const dismissBatch = appState?.dismissBatch as (() => void) | undefined;
+  const transients = appState?.transients ?? [];
+  const dismissTransient = appState?.dismissTransient as
+    | ((id: string) => void)
+    | undefined;
 
   const derived: any[] = (React as any).useMemo(() => {
     const list: any[] = [];
@@ -160,12 +181,15 @@ function LiveDock({ contained }: { contained?: boolean }) {
       const a = deriveAINotification(aiBus);
       if (a) list.push(a);
     }
+    list.push(...deriveTransientNotifications(transients, dismissTransient));
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveBatch, aiBus, suppressBatch, suppressAI]);
+  }, [liveBatch, aiBus, suppressBatch, suppressAI, transients]);
 
   const dismiss = (id: string) => {
     if (liveBatch && liveBatch.id === id && dismissBatch) dismissBatch();
+    const t = transients.find((x: any) => x.id === id);
+    if (t && dismissTransient) dismissTransient(id);
   };
 
   if (derived.length === 0) return null;
@@ -204,7 +228,7 @@ function DockShell({
 
   return (
     <div
-      className={(contained ? 'absolute' : 'fixed') + ' notification-dock'}
+      className={(contained ? 'absolute' : 'fixed') + ' notification-dock md:!left-[calc(50%+140px)]'}
       style={{
         top: 14,
         left: '50%',

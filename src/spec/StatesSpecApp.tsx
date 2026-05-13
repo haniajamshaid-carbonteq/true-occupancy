@@ -453,7 +453,7 @@ function DockFrame({
           style={{
             position: 'absolute',
             inset: 0,
-            padding: '78px 32px 20px',
+            padding: '104px 32px 20px',
             opacity: 0.5,
           }}
         >

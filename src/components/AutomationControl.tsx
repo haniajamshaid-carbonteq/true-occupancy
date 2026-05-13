@@ -5,8 +5,8 @@
 //   - "Automated · every Nmo" pill-style menu trigger with change/cancel
 //     actions (active schedule exists).
 //
-// Toast confirmation (navy bottom-center) is rendered here so both surfaces
-// (single property and batch) share the same affordance.
+// Confirmation feedback is pushed to the notification dock (AppState.pushTransient)
+// so both surfaces (single property and batch) share the same affordance.
 
 type Cadence = 3 | 4 | 6 | 12;
 
@@ -22,6 +22,7 @@ function AutomationControl({ target }: AutomationControlProps) {
     updateScheduleCadence,
     cancelSchedule,
     findScheduleByTarget,
+    pushTransient,
   } = useAppState();
 
   const existing = findScheduleByTarget(
@@ -33,13 +34,6 @@ function AutomationControl({ target }: AutomationControlProps) {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [toast, setToast] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 3000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
 
   function handleCreate({ cadenceMonths }: { cadenceMonths: Cadence }) {
     if (target.kind === 'single') {
@@ -58,14 +52,14 @@ function AutomationControl({ target }: AutomationControlProps) {
       });
     }
     setCreateOpen(false);
-    setToast(`Automation scheduled · every ${cadenceMonths} months`);
+    pushTransient(`Automation scheduled · every ${cadenceMonths} months`);
   }
 
   function handleUpdate({ cadenceMonths }: { cadenceMonths: Cadence }) {
     if (!existing) return;
     updateScheduleCadence(existing.id, cadenceMonths);
     setEditOpen(false);
-    setToast(`Automation updated · every ${cadenceMonths} months`);
+    pushTransient(`Automation updated · every ${cadenceMonths} months`);
   }
 
   function handleCancel() {
@@ -73,7 +67,7 @@ function AutomationControl({ target }: AutomationControlProps) {
     cancelSchedule(existing.id);
     setConfirmOpen(false);
     setEditOpen(false);
-    setToast('Automation cancelled');
+    pushTransient('Automation cancelled');
   }
 
   // Build the AutomateTarget payload that the modal renders (its summary
@@ -102,8 +96,6 @@ function AutomationControl({ target }: AutomationControlProps) {
           target={modalTarget}
           onConfirm={handleCreate}
         />
-
-        <Toast message={toast} />
       </>
     );
   }
@@ -203,49 +195,6 @@ function AutomationControl({ target }: AutomationControlProps) {
           </p>
         </div>
       </Modal>
-
-      <Toast message={toast} />
     </>
-  );
-}
-
-function Toast({ message }: { message: string | null }) {
-  // Keep the toast mounted briefly after `message` clears so the exit
-  // animation has time to play.
-  const [rendered, setRendered] = React.useState<string | null>(null);
-  const [phase, setPhase] = React.useState<'in' | 'out'>('in');
-
-  React.useEffect(() => {
-    if (message) {
-      setRendered(message);
-      setPhase('in');
-      return;
-    }
-    if (rendered) {
-      setPhase('out');
-      const t = window.setTimeout(() => setRendered(null), 200);
-      return () => window.clearTimeout(t);
-    }
-  }, [message]);
-
-  if (!rendered) return null;
-  return (
-    <div
-      key={rendered}
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] px-4 py-2.5 rounded-md shadow-md font-sans text-label flex items-center gap-2 ${
-        phase === 'in' ? 'toast-in' : 'toast-out'
-      }`}
-      style={{ background: 'var(--navy)', color: 'white' }}
-      role="status"
-    >
-      <span
-        className="w-5 h-5 rounded-full grid place-items-center shrink-0"
-        style={{ background: 'rgba(255,255,255,0.16)' }}
-        aria-hidden
-      >
-        <Icon name="check" size={12} />
-      </span>
-      {rendered}
-    </div>
   );
 }

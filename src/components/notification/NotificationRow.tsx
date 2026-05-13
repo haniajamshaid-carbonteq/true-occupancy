@@ -77,7 +77,7 @@ function CountProgress({
   const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
   return (
     <div
-      className="mt-3 h-[3px] w-full rounded-full overflow-hidden"
+      className="mt-1 h-[3px] w-full rounded-full overflow-hidden"
       style={{ background: 'var(--line)' }}
       role="progressbar"
       aria-valuenow={pct}
@@ -101,7 +101,7 @@ function StepProgress({
   accent,
 }: { step: 1 | 2; of: 2; accent: string }) {
   return (
-    <div className="mt-3 flex gap-1.5 items-center" aria-label={`Step ${step} of ${of}`}>
+    <div className="mt-1 flex gap-1.5 items-center" aria-label={`Step ${step} of ${of}`}>
       {Array.from({ length: of }).map((_, i) => {
         const idx = i + 1;
         const filled = idx < step;
