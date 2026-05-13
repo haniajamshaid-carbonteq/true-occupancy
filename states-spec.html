@@ -196,6 +196,7 @@
   const files = [
     // 1. Domain
     'src/data/scenarios.tsx',
+    'src/data/aiInvestigation.tsx',
     // 2. Real AppState — needed so AppStateContext exists in scope and
     //    consumers of useAppState() still resolve.
     'src/state/AppState.tsx',
@@ -232,12 +233,20 @@
     'src/components/AutomateModal.tsx',
     'src/components/AutomationControl.tsx',
     'src/components/VerdictTiles.tsx',
-    // 5. Pages used by the states spec
+    // 5. Result module (used by AI Investigator state matrix in states-spec)
+    'src/components/result/AIInvestigator.tsx',
+    // 5b. Notification Dock (Dynamic-Island-style) — Section 07.
+    //     Load order: Row first (consumed by Stack), Stack + Pill, then Dock.
+    'src/components/notification/NotificationRow.tsx',
+    'src/components/notification/NotificationStack.tsx',
+    'src/components/notification/NotificationPill.tsx',
+    'src/components/notification/NotificationDock.tsx',
+    // 6. Pages used by the states spec
     'src/pages/HomeScreen.tsx',
     'src/pages/HistoryScreen.tsx',
     'src/pages/ScheduledScreen.tsx',
     'src/pages/ScheduleDetailScreen.tsx',
-    // 6. Spec canvas + mock provider + states-spec entry
+    // 7. Spec canvas + mock provider + states-spec entry
     'src/spec/SpecCanvas.tsx',
     'src/spec/MockAppStateProvider.tsx',
     'src/spec/StatesSpecApp.tsx',

@@ -92,6 +92,7 @@ function BrandLockup({
 
 function SideNav() {
   const [open, setOpen] = React.useState(false);
+  const history = ReactRouterDOM.useHistory();
 
   React.useEffect(() => {
     if (!open) return;
@@ -134,6 +135,8 @@ function SideNav() {
         <div className="px-3 py-3 border-t border-line">
           <button
             type="button"
+            onClick={() => history.push('/profile')}
+            aria-label="Open profile"
             className="w-full flex items-center gap-inline-loose px-2 py-2 rounded-md hover:bg-hover-bg transition-colors text-left"
           >
             <span

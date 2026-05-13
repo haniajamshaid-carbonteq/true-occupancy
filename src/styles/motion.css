@@ -78,6 +78,9 @@
   animation: card-rise 380ms var(--ease-out) both;
   animation-delay: var(--rise-delay, 0ms);
 }
+@media (prefers-reduced-motion: reduce) {
+  .card-rise { animation: none; opacity: 1; transform: none; }
+}
 
 /* === Triangle-marker breathe (factor bars) ========================== */
 /* Very subtle 1.5px vertical bob — calm enough for a compliance tool. */
@@ -103,6 +106,61 @@
 }
 .toast-out {
   animation: toast-out 160ms var(--ease-in-out) both;
+}
+
+/* === Notification Dock (Dynamic Island) ============================ */
+@keyframes dock-in {
+  from { opacity: 0; transform: translate(-50%, -8px) scale(0.92); }
+  to   { opacity: 1; transform: translate(-50%, 0)    scale(1); }
+}
+@keyframes dock-out {
+  from { opacity: 1; transform: translate(-50%, 0)    scale(1); }
+  to   { opacity: 0; transform: translate(-50%, -8px) scale(0.92); }
+}
+@keyframes dock-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.notification-dock-pill {
+  outline: none;
+}
+.notification-dock-pill:hover,
+.notification-dock-pill.is-hover {
+  transform: scale(1.02);
+  box-shadow:
+    0 16px 40px -8px rgba(20, 45, 85, .42),
+    0 4px 10px rgba(20, 45, 85, .22);
+}
+.notification-dock-pill:active {
+  transform: scale(0.98);
+}
+.notification-dock-pill:focus-visible,
+.notification-dock-pill.is-focus {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.6),
+    0 12px 32px -8px rgba(20, 45, 85, .35),
+    0 2px 6px rgba(20, 45, 85, .18);
+}
+.notification-dock {
+  /* Morph driver for collapsed ↔ expanded transitions when both share class. */
+  transition:
+    width 280ms var(--ease-spring),
+    height 280ms var(--ease-spring),
+    border-radius 280ms var(--ease-spring);
+}
+@media (prefers-reduced-motion: reduce) {
+  .notification-dock { animation: none; }
+  .notification-dock-pill,
+  .notification-dock-pill:hover,
+  .notification-dock-pill.is-hover,
+  .notification-dock-pill:active {
+    transform: none;
+  }
+  .notification-dock-pill *,
+  .notification-dock * {
+    animation: none !important;
+  }
 }
 
 /* === Verdict-tile count pulse ======================================= */
@@ -196,4 +254,61 @@
   transition:
     max-height 280ms var(--ease-out),
     opacity 200ms var(--ease-out);
+}
+
+/* === AI Investigator spinner ========================================= */
+@keyframes ai-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* === AI CTA — gradient pill with sparkle shimmer ==================== */
+/* The sparkle does a slow scale/opacity pulse so the CTA reads as
+ * "alive" without crossing into noisy. Hover lifts the halo slightly. */
+@keyframes ai-cta-spark-pulse {
+  0%, 100% { transform: scale(1);    opacity: 0.92; }
+  50%      { transform: scale(1.18); opacity: 1; }
+}
+.ai-cta-spark {
+  animation: ai-cta-spark-pulse 2400ms ease-in-out infinite;
+}
+.ai-cta {
+  position: relative;
+  transition:
+    transform 120ms var(--ease-out),
+    box-shadow 220ms var(--ease-out);
+}
+.ai-cta:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px rgba(15,42,76,.12),
+    0 10px 24px rgba(10,183,163,.36),
+    inset 0 0 0 1px rgba(255,255,255,.22);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-cta-spark { animation: none; }
+}
+
+/* === AI Investigator — vertical scan timeline ========================
+ * `ai-scan-beam` sweeps a soft teal halo top→bottom along the timeline
+ * rail to suggest "scanning in progress." `ai-scan-line-pulse` keeps
+ * the connector line subtly alive even between substep ticks.
+ */
+@keyframes ai-scan-beam-sweep {
+  0%   { top: -8%;  opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+.ai-scan-beam {
+  animation: ai-scan-beam-sweep 1800ms cubic-bezier(.4, 0, .6, 1) infinite;
+}
+@keyframes ai-scan-line-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1;   }
+}
+.ai-scan-rail {
+  animation: ai-scan-line-pulse 1800ms ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-scan-beam, .ai-scan-rail { animation: none; }
 }

@@ -1,4 +1,4 @@
-/* global React, Card, Icon, SCENARIOS */
+/* global React, Card, Icon, Pill, SCENARIOS */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath. Compact waffle-grid hero (10×10 dots filled to the
@@ -93,83 +93,38 @@ function WaffleGrid({ score }: { score: number }) {
   );
 }
 
-// One factor row in the "Why this score" breakdown. Bar width is normalised
-// against the strongest absolute impact in the breakdown so the leading
-// signal always fills the bar — keeps secondary signals visually legible.
+// One factor row in the "Why this score" breakdown. Positive-only render:
+// magnitude shown as a soft teal Pill, no signed sign or impact bar.
+// Mounts with a staggered fade+rise so the list reveals in cadence with the
+// waffle grid above (parent re-keys rows on accordion toggle, so the entrance
+// also fires every time the user reopens).
 function FactorRow({
   title,
   desc,
   impact,
-  maxAbs,
   index,
 }: {
   title: string;
   desc: string;
   impact: number;
-  maxAbs: number;
   index: number;
 }) {
   const abs = Math.abs(impact);
-  const widthPct = maxAbs === 0 ? 0 : (abs / maxAbs) * 100;
-  const positive = impact > 0;
-  const sign = positive ? '+' : '';
-
-  // Bar grows from 0 → widthPct% on mount with a per-row stagger (60ms each).
-  // Mount = when the accordion opens (parent unmounts/remounts FactorRow on
-  // close+reopen so this also re-fires every time the user reopens).
-  const [animatedWidth, setAnimatedWidth] = React.useState(0);
-  React.useEffect(() => {
-    const delay = 80 + index * 70;
-    const raf = requestAnimationFrame(() => {
-      setTimeout(() => setAnimatedWidth(widthPct), delay);
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [widthPct, index]);
 
   return (
-    <div className="py-3.5">
-      <div className="flex items-baseline justify-between gap-3 mb-2">
-        <div
-          className="font-sans font-semibold text-body-sm text-ink-2 leading-tight min-w-0"
-        >
+    <div
+      className="py-3.5 card-rise"
+      style={{ '--rise-delay': `${80 + index * 60}ms` } as React.CSSProperties}
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="font-sans font-semibold text-body-sm text-ink-2 leading-tight min-w-0">
           {title}
         </div>
-        <div
-          className="font-sans font-semibold tabular-nums shrink-0 leading-none"
-          style={{
-            fontSize: "var(--text-body)",
-            color: 'var(--ink)',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          {sign}
-          {abs}
-          <span
-            className="text-micro font-medium ml-0.5"
-            style={{ color: 'var(--ink-4)' }}
-          >
-            %
-          </span>
-        </div>
+        <Pill variant="clean" size="md" className="tabular-nums shrink-0">
+          {abs}%
+        </Pill>
       </div>
-      {/* Impact bar — width encodes magnitude, gradient uses the Halcyon
-          brand teal → brand-2 sky-blue. Plain bar, no marker. */}
-      <div className="relative mb-2">
-        <div
-          className="relative h-2.5 rounded-full overflow-hidden"
-          style={{ background: '#EDF1F5' }}
-        >
-          <div
-            className="absolute inset-y-0 left-0 rounded-full"
-            style={{
-              width: `${animatedWidth}%`,
-              background: 'linear-gradient(90deg, #2EBDA6 0%, #2BA8B5 50%, #2C8FCC 100%)',
-              transition: 'width 650ms cubic-bezier(.16, 1, .3, 1)',
-            }}
-          />
-        </div>
-      </div>
-      <div className="font-sans text-caption text-ink-3 leading-snug">
+      <div className="mt-1.5 font-sans text-caption text-ink-3 leading-snug">
         {desc}
       </div>
     </div>
@@ -185,8 +140,6 @@ function WhyThisScore({
 }) {
   const sc = SCENARIOS[scenario];
   const rows = sc.breakdown;
-  const net = rows.reduce((acc, r) => acc + r.impact, 0);
-  const maxAbs = rows.reduce((m, r) => Math.max(m, Math.abs(r.impact)), 0);
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
@@ -196,18 +149,12 @@ function WhyThisScore({
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between gap-3 bg-transparent border-0 cursor-pointer text-left p-0"
       >
-        <div className="flex items-baseline gap-3">
-          <h3
-            className="font-sans font-semibold text-ink m-0"
-            style={{ fontSize: 'var(--text-h4)' }}
-          >
-            Why This Score
-          </h3>
-          <div className="font-sans text-micro text-ink-4 tabular-nums">
-            {rows.length} signals · net {net >= 0 ? '+' : ''}
-            {Math.abs(net)}%
-          </div>
-        </div>
+        <h3
+          className="font-sans font-semibold text-ink m-0"
+          style={{ fontSize: 'var(--text-h4)' }}
+        >
+          Why This Score
+        </h3>
         <span
           className={`w-6 h-6 rounded-full bg-surface-2 grid place-items-center text-ink-2 transition-transform shrink-0 ${
             open ? 'rotate-180' : ''
@@ -226,7 +173,6 @@ function WhyThisScore({
               title={r.title}
               desc={r.desc}
               impact={r.impact}
-              maxAbs={maxAbs}
               index={i}
             />
           ))}

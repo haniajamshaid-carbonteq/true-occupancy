@@ -1,4 +1,4 @@
-/* global React, SideNav */
+/* global React, SideNav, NotificationDock */
 // App shell: persistent left SideNav (sticky on md+, drawer on mobile) +
 // a content column to its right. The legacy `sidebar` prop is accepted
 // but ignored so callers don't have to migrate in lockstep.
@@ -26,6 +26,10 @@ function AppShell({ children, contained = true }: AppShellProps) {
           {children}
         </main>
       </div>
+      {/* Notification Dock — pinned top-center, owns long-running task
+          status (batch progress, AI Investigator). Reads live state via
+          its own hooks; no props needed in production. */}
+      <NotificationDock />
     </div>
   );
 }

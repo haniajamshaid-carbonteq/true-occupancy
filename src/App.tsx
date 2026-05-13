@@ -2,7 +2,7 @@
    ResultCleanScreen, ResultMediumScreen, ResultHighScreen,
    WhyExpandedScreen, ComponentsPage, BatchScreen, BatchDetailScreen, HistoryScreen,
    ScheduledScreen, ScheduleDetailScreen, AppStateProvider,
-   SignInScreen, SignUpScreen, CommandPalette */
+   SignInScreen, SignUpScreen, CommandPalette, ProfileScreen */
 // Top-level router. Each route = one screen.
 // HashRouter so the static server doesn't need URL-rewriting config.
 
@@ -50,6 +50,7 @@ const ROUTES = [
   { path: '/result/high',    component: ResultHighScreen },
   { path: '/why-expanded',   component: WhyExpandedScreen },
   { path: '/components',     component: ComponentsPage },
+  { path: '/profile',        component: ProfileScreen },
   // Both auth paths share one Route → one AuthScreen instance persists
   // across the toggle so the slide CSS transition has prior state.
   { path: ['/signin', '/signup'], component: SignInScreen },

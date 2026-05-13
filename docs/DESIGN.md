@@ -440,3 +440,110 @@ The Batch page mirrors steps 1–3 (header → KPI strip → table) so the two s
 ### 13.7 Brand preservation rule
 
 If at any point the product surface reads as *less* Halcyon than this doc prescribes — logo missing, palette muted to gray, side-nav brand strip removed, sentence-case voice replaced with title case — that is a regression and gets reverted. The bar is not "less brand"; it is "brand applied via §10, not §6".
+
+## 14. Notification Dock
+
+A single pinned-to-top, iOS-Dynamic-Island-style surface that owns every long-running task — batch scans, AI Investigator runs, anything async the user might walk away from. Replaces the legacy inline `BatchHugCard` and the inline `AIInvestigator` loading / error cards so the result page stays still while work is in flight.
+
+**Implementation:** [src/components/notification/](../src/components/notification/) — `NotificationDock` (entry), `LiveDock` (subscribes to `useAppState().liveBatch` + `useAIInvestigator()`), `DockShell` (presenter), `NotificationPill` (collapsed), `NotificationStack` (expanded accordion), `NotificationRow` (single task). Mounted once in [`AppShell`](../src/components/AppShell.tsx). All thirteen states are previewable in `states-spec.html` → §07 Notification Dock.
+
+### 14.1 Surface
+
+| Token | Value |
+|---|---|
+| Background | `rgba(20, 45, 85, .92)` (`--navy` at 92%) |
+| Border | 1 px `rgba(255, 255, 255, .08)` |
+| Backdrop filter | `blur(14px) saturate(140%)` |
+| Pill radius | 22 px (full pill — the Dynamic-Island shape is the point) |
+| Pill height | 44 px |
+| Stack outer radius | 22 px |
+| Row radius | `rounded-xl` / `--r-xl` (14 px) |
+| Pill shadow | `0 12px 32px -8px rgba(20,45,85,.35), 0 2px 6px rgba(20,45,85,.18)` |
+| Stack shadow | `0 16px 40px -10px rgba(20,45,85,.42), 0 4px 10px rgba(20,45,85,.22)` |
+| Position | `fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 90` |
+
+The dock is the **only** large dark surface allowed on the product canvas. It earns the contrast by being persistent system status, not page content (§13.1 budget).
+
+### 14.2 Status accents
+
+Per-row tints follow the existing status convention (§3, §13.3), applied as a small chip on the dark surface:
+
+| Status | Accent | Soft chip bg | Glyph |
+|---|---|---|---|
+| running          | `--brand` | `rgba(10,183,163,.18)` | `ai-spin` spinner |
+| completed        | `--clean` | `rgba(10,183,163,.18)` | `Icon name="check"` |
+| completed-errors | `--warn`  | `rgba(237,164,54,.22)` | `Icon name="alert"` |
+| error            | `--risk`  | `rgba(192,83,60,.24)`  | `Icon name="alert"` |
+
+### 14.3 Typography
+
+White-tinted on the dark surface; sizes pull from the §4.1 ramp:
+
+- **Pill label** — `font-sans font-medium text-label` (13 / 1.2), `rgba(255,255,255,.94)`.
+- **Pill meta** — `font-mono text-micro` (11 / 1), `rgba(255,255,255,.62)`.
+- **Row title** — `font-sans font-semibold text-label` (13 / 1.3), `rgba(255,255,255,.94)`.
+- **Row meta** — `font-mono text-micro` (11 / 1.4), `rgba(255,255,255,.62)`.
+- **Stack header** — `font-mono text-eyebrow uppercase tracking-[0.08em]` (10), `rgba(255,255,255,.5)`. Renders `2 running · 1 done · 1 failed`.
+
+### 14.4 Spacing
+
+On the §13.4 ramp (8 / 12 / 16 / 20 / 24 / …). Internal whitespace is generous compared to a notification toast — this is a working surface, not a flash:
+
+- Stack padding: 12 px (`p-3`).
+- Stack row gap: 8 px (`gap-2`).
+- Row padding: 12 px (`p-3`).
+- Row inner gap (chip ↔ body): 12 px (`gap-3`).
+- Title → meta: 2 px (tight pair, law of proximity).
+- Meta → progress bar: 12 px (`mt-3`) — the only place the proximity rule reverses, because the bar is a separate signal.
+- Progress bar → actions: 10 px (`mt-2.5`).
+- Action row gap: 6 px (`gap-1.5`) between buttons.
+
+### 14.5 Actions
+
+Action buttons mirror `Button` (§13.3) but live on the dark surface:
+
+- Primary — `bg-white/15 border-white/10`, hover `bg-white/22`.
+- Default — transparent + `border-white/14`, hover `bg-white/8`.
+- Both: `h-8 px-3 rounded-md` (`--r-md` = 8 px) so they sit on the same scale as standard `Button.sm`. Text: `font-sans font-medium text-caption`, white at 94% alpha.
+
+Wired in `LiveDock`:
+
+- **Batch · completed / completed-errors** → "View results" navigates to `/batch/{id}` via `useHistory().push` (falls back to `location.hash`), then calls `dismissBatch()` so the dock and dashboard stay in sync.
+- **Batch · error** → "View partial" — same target as above.
+- **AI · error** → "Retry" — calls `startAIInvestigation(scenario)` on the existing bus; the dock re-derives to a fresh `running` notification.
+
+### 14.6 Motion
+
+Lives in [`src/styles/motion.css`](../src/styles/motion.css):
+
+- `dock-in` — 320 ms `--ease-spring`. Opacity 0 → 1; translateY -8 → 0; scale .92 → 1.
+- `dock-out` — 220 ms `--ease-in-out`. Reverse.
+- `dock-shimmer` — sweeps the active segment of `StepProgress` infinite.
+- Collapsed ↔ expanded morph — CSS `transition` on width / height / radius, 280 ms `--ease-spring`. (Implementation note: today React swaps `<Pill>` vs `<Stack>` rather than morphing one element; planned upgrade.)
+- Spinners reuse `ai-spin` so the dock and `AICtaButton` share one motion language for "thinking".
+- `@media (prefers-reduced-motion: reduce)` strips all transforms / animations except opacity.
+
+### 14.7 Accessibility
+
+- Collapsed pill: `role="status"` while running; `role="alert"` if any task is `error` or `completed-errors`.
+- Expanded stack: `role="alert" aria-live="assertive"` if any error; otherwise `role="status" aria-live="polite"`.
+- Pill is `<button>` with full `aria-label`. **Enter / Space** expand. **Esc** collapses.
+- Each row is a labelled `role="group"`.
+- Dismiss button has `aria-label="Dismiss"`. Auto-dismiss only on `completed` (6 s countdown ring); errors persist until acknowledged.
+
+### 14.8 Context-aware suppression
+
+The dock is for **cross-page awareness** — it covers the user while they walk away from the task. When the user is on the page that already shows the task's rich inline progress surface, the dock suppresses the matching notification so we never duplicate the signal.
+
+| Task | Inline owner | Dock suppressed when `pathname` … |
+|---|---|---|
+| Batch scan | `BatchScreen` summary card (`/batch`) — pulsing "Scanning X of Y" headline + gradient progress bar | `=== '/batch'` |
+| AI investigation | `AIInvestigator.LoadingCard` / `ErrorCard` on the matching result page | `startsWith('/result/')` |
+
+Implemented in [`LiveDock`](../src/components/notification/NotificationDock.tsx) via `useLocation().pathname`. Navigate away → the dock takes over within one render. Navigate back → it cedes the signal again. Completion / dismiss / errors follow the same rule.
+
+### 14.9 When NOT to use the dock
+
+- Ephemeral one-shot confirmations ("Automation scheduled" toast) — use the existing `AutomationControl.Toast` (bottom-center, 3 s).
+- Form validation errors — inline next to the field.
+- Idle / pre-action affordances (e.g. "Run AI Investigator") — that CTA lives in `ScanContextBar` next to Download PDF (§13.3 Buttons).

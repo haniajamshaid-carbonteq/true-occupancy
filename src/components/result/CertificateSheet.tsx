@@ -89,7 +89,7 @@ function CertificateBody({
           <img src="docs/brand/halcyon-mark-v2.png" alt="" className="cert-mark" />
           <div className="cert-wordmark">
             <div className="cert-brand">Halcyon</div>
-            <div className="cert-product">True Occupancy Certificate</div>
+            <div className="cert-product">TrueOccupancy Certificate</div>
           </div>
         </div>
         <div className="cert-head-right">
@@ -176,7 +176,7 @@ function CertificateBody({
             Verifiable at <span className="mono">halcyon.app/verify/{scanId}</span>
           </div>
           <div className="cert-foot-line muted">
-            Generated {timestamp} · Halcyon True Occupancy · halcyon.app
+            Generated {timestamp} · Halcyon TrueOccupancy · halcyon.app
           </div>
         </div>
         <div className="cert-foot-right">Page 1 of 1</div>
