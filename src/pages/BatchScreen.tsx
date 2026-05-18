@@ -73,6 +73,26 @@ function BatchScreen() {
 // ---------- Empty state: upload zone ----------
 
 function BatchUpload({ onSample }: { onSample: () => void }) {
+  // CSV parsing is mocked in this prototype. We track the user's typed
+  // column-name + an "auto-detected" flag locally so the form behaves
+  // realistically — clicking sample or "browse" simulates the auto-detect
+  // path described in the May-2026 spec (synonyms → loan_number).
+  const [referenceColumn, setReferenceColumn] = React.useState('');
+  const [autoDetected, setAutoDetected] = React.useState(false);
+
+  // Simulates the spec's auto-detect: scan CSV headers for known synonyms
+  // and pre-fill the Reference column-name field. Real implementation would
+  // parse the dropped file here.
+  function simulateUploadAndStart() {
+    if (!referenceColumn) {
+      setReferenceColumn('loan_number');
+      setAutoDetected(true);
+    }
+    // Defer onSample by a frame so the field flashes the auto-detect hint
+    // before the page swaps to the loaded state.
+    window.requestAnimationFrame(onSample);
+  }
+
   return (
     <Card>
       <div className="px-card py-section flex flex-col items-center text-center">
@@ -102,11 +122,49 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
             type="file"
             accept=".csv"
             className="hidden"
-            onChange={onSample}
+            onChange={simulateUploadAndStart}
           />
         </label>
 
-        <Button variant="ghost" onClick={onSample} icon={<Icon name="layers" />}>
+        {/* Reference column-name field — optional. Auto-detected after upload
+            when a known synonym is in the CSV headers. Helper line below tells
+            the user why filling it in matters. */}
+        <div className="w-full max-w-[520px] text-left mb-section-sub">
+          <label
+            htmlFor="batch-ref-col"
+            className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase block mb-1.5"
+            style={{ color: 'var(--ink-3)' }}
+          >
+            Reference column name (optional)
+          </label>
+          <div className="relative">
+            <input
+              id="batch-ref-col"
+              type="text"
+              value={referenceColumn}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setReferenceColumn(e.target.value);
+                setAutoDetected(false);
+              }}
+              placeholder='e.g. "loan_number" or "client_id"'
+              className="w-full h-10 px-3 pr-28 rounded-lg bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4 font-sans"
+            />
+            {autoDetected && (
+              <span
+                className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-brand-soft text-brand-deep font-mono text-micro font-semibold"
+                title="We detected a column matching a known synonym in your CSV headers."
+              >
+                <Icon name="replay" size={11} />
+                auto-detected
+              </span>
+            )}
+          </div>
+          <p className="m-0 mt-1.5 font-sans text-caption text-ink-3 leading-relaxed">
+            We&rsquo;ll show this on every certificate and table row.
+          </p>
+        </div>
+
+        <Button variant="ghost" onClick={simulateUploadAndStart} icon={<Icon name="layers" />}>
           Or Try a Sample Batch
         </Button>
       </div>

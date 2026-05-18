@@ -519,6 +519,11 @@ const DASHBOARD_BATCH_COLUMNS: any[] = [
 function HomeScreen() {
   const history = useHistory();
   const [address, setAddress] = React.useState('');
+  // Optional user-supplied identifier per the May-2026 lender spec.
+  // Hidden behind a "+ Add reference" affordance until the user opens it.
+  const [reference, setReference] = React.useState('');
+  const [referenceOpen, setReferenceOpen] = React.useState(false);
+  const referenceInputRef = React.useRef<HTMLInputElement | null>(null);
 
   function startScan(addr?: string) {
     const value = addr ?? address;
@@ -528,8 +533,24 @@ function HomeScreen() {
       'scanAddress',
       value || '1428 Maplewood Drive, Asheville, NC 28804'
     );
+    // Reference rides alongside the address through session storage so the
+    // scan / result / certificate screens can pick it up. Empty value clears.
+    const ref = reference.trim();
+    if (ref) {
+      sessionStorage.setItem('scanReference', ref);
+    } else {
+      sessionStorage.removeItem('scanReference');
+    }
     history.push('/scan/start');
   }
+
+  // Auto-focus the reference field when the user expands it.
+  React.useEffect(() => {
+    if (referenceOpen) {
+      const id = window.setTimeout(() => referenceInputRef.current?.focus(), 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [referenceOpen]);
 
   function openResult(row: RecentScan) {
     sessionStorage.setItem('scanScenario', row.scenario);
@@ -572,6 +593,66 @@ function HomeScreen() {
             value: `1428 Maplewood Drive, Asheville, NC ${c.zip}`,
           }))}
         />
+
+        {/* Optional reference — collapsed by default per the May-2026 lender
+            spec. Stays out of the way for users who don't need it; one click
+            expands a tidy input + helper line. */}
+        {!referenceOpen ? (
+          <button
+            type="button"
+            onClick={() => setReferenceOpen(true)}
+            className="mt-2 inline-flex items-center gap-1 font-sans text-caption text-ink-3 hover:text-brand-deep bg-transparent border-0 p-0 cursor-pointer transition-colors"
+          >
+            <span aria-hidden>+</span>
+            <span>Add reference (optional)</span>
+          </button>
+        ) : (
+          <div className="mt-3 max-w-[520px]">
+            <label
+              htmlFor="home-scan-ref"
+              className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase block mb-1.5"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              Reference (optional)
+            </label>
+            <div className="relative">
+              <input
+                ref={referenceInputRef}
+                id="home-scan-ref"
+                type="text"
+                value={reference}
+                maxLength={100}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReference(e.target.value)}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    startScan();
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setReference('');
+                    setReferenceOpen(false);
+                  }
+                }}
+                placeholder="LOAN-2026-0042"
+                className="w-full h-10 px-3 pr-10 rounded-lg bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4 font-mono tabular-nums"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setReference('');
+                  setReferenceOpen(false);
+                }}
+                aria-label="Collapse reference field"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded grid place-items-center text-ink-3 hover:bg-hover-bg bg-transparent border-0 cursor-pointer transition-colors"
+              >
+                <Icon name="x" size={14} />
+              </button>
+            </div>
+            <p className="m-0 mt-1.5 font-sans text-caption text-ink-3 leading-relaxed">
+              Use anything — a loan number, order ID, case file…
+            </p>
+          </div>
+        )}
       </section>
 
       {/* KPI cards — separate inline cards, equal-width grid */}
