@@ -33,14 +33,14 @@ interface AutomationBannerProps {
   };
 }
 
-const STATUS_HUMAN: Record<Risk, string> = {
+const BANNER_STATUS_LABEL: Record<Risk, string> = {
   risk: 'Rented',
   warn: 'Possibly Rented',
   clean: 'Not Rented',
 };
 
 function describeStatusList(statuses: Risk[]): string {
-  const labels = statuses.map((s) => STATUS_HUMAN[s]);
+  const labels = statuses.map((s) => BANNER_STATUS_LABEL[s]);
   if (labels.length === 0) return 'no statuses';
   if (labels.length === 1) return labels[0];
   if (labels.length === 2) return `${labels[0]}, ${labels[1]}`;
@@ -64,7 +64,7 @@ function AutomationBanner({ schedule, batch }: AutomationBannerProps) {
       (statuses.includes('clean') ? batch.counts.clean : 0);
 
   const tipLines = statuses
-    .map((s) => `${STATUS_HUMAN[s]}: ${batch.counts[s]}`)
+    .map((s) => `${BANNER_STATUS_LABEL[s]}: ${batch.counts[s]}`)
     .join('\n');
   const tip = `Per-status breakdown:\n${tipLines}`;
 
