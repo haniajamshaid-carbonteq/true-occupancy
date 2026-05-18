@@ -26,6 +26,11 @@ interface SingleHistoryEntry {
   scenario: Scenario;
   platforms: number;
   scannedAgo: string;
+  /** Optional user-supplied identifier (loan #, client ID, case file…)
+   *  set at scan-time and editable on the history page. Surfaces on the
+   *  PDF certificate header when present. Never replaces our internal UUID
+   *  — see CertificateSheet footer. */
+  reference?: string;
 }
 
 interface BatchHistoryEntry {
@@ -89,6 +94,11 @@ interface LiveBatchRow {
   listings?: number;
   /** Short reason populated when status === 'failed' (e.g. "Geocoder timeout"). */
   errorReason?: string;
+  /** Optional user-supplied identifier (loan #, client ID, case file…) set
+   *  at upload-time via a CSV column, or inline-edited in the table. Travels
+   *  with the row everywhere (history snapshot, PDF certificate) but never
+   *  replaces our internal UUID. */
+  reference?: string;
 }
 
 interface LiveBatch {
@@ -111,15 +121,17 @@ interface LiveBatch {
 
 // Curated row snapshots for the two seeded batch entries so the batch-
 // detail page has something to render before the user has run a batch.
+// Seed a mix of populated + empty references so the demo shows both the
+// filled-cell display and the "+ Add reference" hover affordance.
 const SEED_BATCH_Q1_ROWS: LiveBatchRow[] = [
-  { id: 1,  address: '1428 Maplewood Drive, Asheville, NC 28804', status: 'done', score: 87, risk: 'risk',  listings: 4 },
-  { id: 2,  address: '502 N Liberty St, Asheville, NC 28801',     status: 'done', score: 12, risk: 'clean', listings: 0 },
+  { id: 1,  address: '1428 Maplewood Drive, Asheville, NC 28804', status: 'done', score: 87, risk: 'risk',  listings: 4, reference: 'LOAN-2026-0042' },
+  { id: 2,  address: '502 N Liberty St, Asheville, NC 28801',     status: 'done', score: 12, risk: 'clean', listings: 0, reference: 'LOAN-2026-0043' },
   { id: 3,  address: '800 Hilliard Ave, Asheville, NC 28801',     status: 'done', score: 54, risk: 'warn',  listings: 1 },
-  { id: 4,  address: '145 Westchester Dr, Asheville, NC 28803',   status: 'done', score: 76, risk: 'risk',  listings: 3 },
-  { id: 5,  address: '23 Tunnel Rd, Asheville, NC 28805',         status: 'done', score: 8,  risk: 'clean', listings: 0 },
-  { id: 6,  address: '67 Charlotte Hwy, Asheville, NC 28803',     status: 'done', score: 91, risk: 'risk',  listings: 5 },
+  { id: 4,  address: '145 Westchester Dr, Asheville, NC 28803',   status: 'done', score: 76, risk: 'risk',  listings: 3, reference: 'LOAN-2026-0045-A-SUPPLEMENTAL' },
+  { id: 5,  address: '23 Tunnel Rd, Asheville, NC 28805',         status: 'done', score: 8,  risk: 'clean', listings: 0, reference: 'LOAN-2026-0046' },
+  { id: 6,  address: '67 Charlotte Hwy, Asheville, NC 28803',     status: 'done', score: 91, risk: 'risk',  listings: 5, reference: 'LOAN-2026-0047' },
   { id: 7,  address: '215 Edgewood Rd, Asheville, NC 28804',      status: 'done', score: 42, risk: 'warn',  listings: 1 },
-  { id: 8,  address: '88 Cumberland Ave, Asheville, NC 28801',    status: 'done', score: 18, risk: 'clean', listings: 0 },
+  { id: 8,  address: '88 Cumberland Ave, Asheville, NC 28801',    status: 'done', score: 18, risk: 'clean', listings: 0, reference: 'LOAN-2026-0049' },
   { id: 9,  address: '301 Merrimon Ave, Asheville, NC 28804',     status: 'done', score: 64, risk: 'warn',  listings: 2 },
   { id: 10, address: '450 Patton Ave, Asheville, NC 28806',       status: 'done', score: 71, risk: 'risk',  listings: 2 },
   { id: 11, address: '12 Hillside St, Asheville, NC 28801',       status: 'done', score: 9,  risk: 'clean', listings: 0 },
@@ -174,8 +186,8 @@ const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i)
 });
 
 const SEED_HISTORY: HistoryEntry[] = [
-  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago'  },
-  { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago' },
+  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago',  reference: 'LOAN-2026-0042' },
+  { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago', reference: 'CASE-FILE-7714' },
   { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAgo: '52 min ago', rows: SEED_BATCH_FAILED_ROWS },
   { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAgo: '2 h ago', rows: SEED_BATCH_Q1_ROWS },
   { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAgo: '3 h ago'    },
@@ -297,6 +309,12 @@ interface AppStateValue {
   clearBatch: () => void;
   dismissBatch: () => void;
   retryBatchRow: (id: number) => void;
+  /** Set or clear the user-supplied reference on a batch row. Resolves the
+   *  batch by id — works on both the live in-flight batch and any history
+   *  snapshot. Pass undefined / empty string to clear. */
+  setBatchRowReference: (batchId: string, rowId: number, reference?: string) => void;
+  /** Set or clear the reference on a single-scan history entry. */
+  setSingleScanReference: (historyId: string, reference?: string) => void;
   addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel' | 'runHistoryIds'> & { cadenceMonths: Cadence; runHistoryIds?: string[] }) => void;
   updateScheduleCadence: (id: string, cadenceMonths: Cadence) => void;
   cancelSchedule: (id: string) => void;
@@ -404,6 +422,43 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     setLiveBatch((prev) => (prev ? { ...prev, dismissed: true } : prev));
   }, []);
 
+  // Reference editing. We accept an empty/whitespace-only string as "clear",
+  // per the design spec ("treat as cleared; cell reverts to + Add reference").
+  const setBatchRowReference = React.useCallback(
+    (batchId: string, rowId: number, reference?: string) => {
+      const cleaned = reference?.trim() || undefined;
+      // 1. Live batch path.
+      setLiveBatch((prev) => {
+        if (!prev || prev.id !== batchId) return prev;
+        const rows = prev.rows.map((r) => (r.id === rowId ? { ...r, reference: cleaned } : r));
+        return { ...prev, rows };
+      });
+      // 2. History snapshot path — works on completed batches viewed from
+      //    /batch/:id. We never know which path applies, so we attempt both;
+      //    the no-op set is harmless.
+      setHistory((prev) =>
+        prev.map((h: any) =>
+          h.kind === 'batch' && h.id === batchId
+            ? { ...h, rows: h.rows.map((r: any) => (r.id === rowId ? { ...r, reference: cleaned } : r)) }
+            : h
+        )
+      );
+    },
+    []
+  );
+
+  const setSingleScanReference = React.useCallback(
+    (historyId: string, reference?: string) => {
+      const cleaned = reference?.trim() || undefined;
+      setHistory((prev) =>
+        prev.map((h: any) =>
+          h.id === historyId && h.kind === 'single' ? { ...h, reference: cleaned } : h
+        )
+      );
+    },
+    []
+  );
+
   const addSchedule = React.useCallback(
     (entry: any) => {
       const id = uid('s');
@@ -474,6 +529,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     clearBatch,
     dismissBatch,
     retryBatchRow,
+    setBatchRowReference,
+    setSingleScanReference,
     addSchedule,
     updateScheduleCadence,
     cancelSchedule,
