@@ -162,9 +162,11 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
 
   return (
     <div className="flex flex-col gap-section-sub">
-      {/* Active automation banner — only when a schedule exists for this
-          batch. Replaces the compact in-header "Automated · every Nmo" pill. */}
-      {!readOnly && activeSchedule && activeSchedule.kind === 'batch' && (
+      {/* Active automation banner — shown on BOTH the live batch view and
+          a historical detail view, because the schedule is a separate live
+          entity from the (read-only) batch run beneath it. readOnly here
+          only governs row-level actions like retry, not the automation. */}
+      {activeSchedule && activeSchedule.kind === 'batch' && (
         <AutomationBanner
           schedule={{
             id: activeSchedule.id,
