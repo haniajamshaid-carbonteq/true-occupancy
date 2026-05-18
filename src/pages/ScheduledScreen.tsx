@@ -3,10 +3,42 @@
 
 type Filter = 'all' | 'single' | 'batch';
 type CadenceFilter = 'all' | '3' | '4' | '6' | '12';
+type ScopeRisk = 'risk' | 'warn' | 'clean';
+
+const SCOPE_STATUS_LABEL: Record<ScopeRisk, string> = {
+  risk: 'Rented',
+  warn: 'Possibly Rented',
+  clean: 'Not Rented',
+};
+
+// Tiny color-keyed glyphs for the Scope column — labels-free per spec so
+// the column stays compact. Tooltip on hover surfaces the names.
+function ScopeDot({ status }: { status: ScopeRisk }) {
+  if (status === 'risk') {
+    return (
+      <svg viewBox="0 0 16 16" className="w-3 h-3 text-risk" aria-hidden>
+        <circle cx="8" cy="8" r="5" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (status === 'warn') {
+    return (
+      <svg viewBox="0 0 16 16" className="w-3 h-3 text-warn" aria-hidden>
+        <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.5} />
+        <path d="M8 3 A5 5 0 0 0 8 13 Z" fill="currentColor" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 16 16" className="w-3 h-3 text-clean" aria-hidden>
+      <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.6} />
+    </svg>
+  );
+}
 
 function ScheduledScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
-  const { schedules, loading, error } = useAppState();
+  const { schedules, history, loading, error } = useAppState();
   const [filter, setFilter] = React.useState<Filter>('all');
   const [query, setQuery] = React.useState('');
   const [cadence, setCadence] = React.useState<CadenceFilter>('all');
@@ -84,6 +116,53 @@ function ScheduledScreen() {
           Every {r.cadenceMonths} months
         </span>
       ),
+    },
+    {
+      // Spec (May-14, Erin): batch schedules carry a `statuses` set that
+      // narrows each rerun. We surface it as compact color-only dots + an
+      // in-scope/total fraction. Single-property schedules have implicit
+      // scope (the address itself), so the cell renders an em-dash.
+      key: 'scope',
+      label: 'Scope',
+      width: '160px',
+      hideBelow: 'md' as const,
+      cell: (r: any) => {
+        if (r.kind !== 'batch') {
+          return <span className="font-mono tabular-nums text-caption text-ink-4">—</span>;
+        }
+        const statuses: ScopeRisk[] = r.statuses ?? ['risk', 'warn'];
+        // Look up most recent matching batch run in history to derive live
+        // per-status counts. Fall back to a flat "of total" if no history
+        // entry exists (legacy seed with no past runs).
+        const recent: any = history.find(
+          (h: any) => h.kind === 'batch' && h.filename === r.filename
+        );
+        const counts = recent
+          ? { risk: recent.flagged, warn: recent.warn, clean: recent.clean }
+          : null;
+        const total = recent?.total ?? r.total;
+        const inScope = counts
+          ? (statuses.includes('risk')  ? counts.risk  : 0) +
+            (statuses.includes('warn')  ? counts.warn  : 0) +
+            (statuses.includes('clean') ? counts.clean : 0)
+          : null;
+        const tipLabels = statuses.map((s) => SCOPE_STATUS_LABEL[s]).join(', ');
+        return (
+          <span
+            className="inline-flex items-center gap-2 whitespace-nowrap"
+            title={`${tipLabels}${inScope !== null ? ` — ${inScope} of ${total} addresses` : ''}`}
+          >
+            <span className="inline-flex items-center gap-1">
+              {statuses.map((s) => (
+                <ScopeDot key={s} status={s} />
+              ))}
+            </span>
+            <span className="font-mono tabular-nums text-caption text-ink-3">
+              {inScope !== null ? `${inScope} / ${total}` : `— / ${total}`}
+            </span>
+          </span>
+        );
+      },
     },
     {
       key: 'next',
