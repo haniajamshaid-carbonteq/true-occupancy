@@ -3,13 +3,12 @@
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
 //
-// Right-rail visual: two-mode (May-2026 redesign, client feedback that the
-// old 100-dot waffle stole attention from the verdict copy).
-//   * 2+ scans on file for this address → <ConfidenceTrend/>, a sparkline
-//     of past scores so the user sees the trajectory ("stable", "climbing",
-//     "first-time spike") rather than a static snapshot.
-//   * 0–1 scans → <ConfidenceBadge/>, a small verdict+score chip. Compact
-//     fallback so the hero never feels empty when there's no trend to draw.
+// Right rail (May-2026 redesign):
+//   * <ScanReferenceField/>, top-aligned — the lender's tracking identifier.
+//   * <ConfidenceTrend/> sparkline below it WHEN the property has 2+ scans
+//     on file, showing the trajectory of past scores.
+//   * Single-scan properties get just the reference; the verdict + score
+//     copy on the left carries the page (no badge — was redundant).
 
 interface ConfidenceHeroProps {
   scenario: ScenarioKey;
@@ -23,11 +22,6 @@ const VERDICT_STATUS: Record<HeroVerdict, 'clean' | 'warn' | 'risk'> = {
   low: 'clean',
   medium: 'warn',
   high: 'risk',
-};
-const VERDICT_LABEL_SHORT: Record<HeroVerdict, string> = {
-  low: 'Not Rented',
-  medium: 'Likely Rented',
-  high: 'Rented',
 };
 
 interface TrendPoint {
@@ -128,37 +122,6 @@ function ConfidenceTrend({ points }: { points: TrendPoint[] }) {
             <div className="leading-tight" style={{ opacity: 0.85 }}>{p.label}</div>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-// Compact verdict + score badge — fallback when there's no trend to plot.
-// HeroVerdict carries the status color (red / amber / teal), score sits below
-// in a smaller monospaced figure. ~120px wide; far less attention-grabbing
-// than the waffle, freeing the left column to carry the page.
-function ConfidenceBadge({ scenario, score }: { scenario: HeroVerdict; score: number }) {
-  const status = VERDICT_STATUS[scenario];
-  return (
-    <div
-      className={`shrink-0 rounded-xl px-5 py-4 text-center bg-${status}-soft`}
-      role="img"
-      aria-label={`${VERDICT_LABEL_SHORT[scenario]} · ${score}% confidence`}
-    >
-      <div
-        className={`font-sans font-semibold tracking-[0.04em] uppercase text-${status}-ink`}
-        style={{ fontSize: 'var(--text-caption)' }}
-      >
-        {VERDICT_LABEL_SHORT[scenario]}
-      </div>
-      <div
-        className={`mt-1 font-sans font-semibold tabular-nums leading-none text-${status}-ink`}
-        style={{ fontSize: 'var(--text-h2)' }}
-      >
-        {score}%
-      </div>
-      <div className="mt-1 font-sans text-ink-3" style={{ fontSize: 'var(--text-eyebrow)' }}>
-        confidence
       </div>
     </div>
   );
@@ -392,8 +355,10 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
 
   return (
     <Card className="px-6 py-5">
-      {/* Hero row — verdict + supporting text on the left, trend/badge on the right */}
-      <div className="flex items-center justify-between gap-8">
+      {/* Hero row — verdict + supporting text on the left; reference (and
+          optional trend) stacked on the right. Items align to the top so
+          the reference sits flush with the verdict's baseline corner. */}
+      <div className="flex items-start justify-between gap-8">
         <div className="min-w-0">
           <div
             className="font-sans font-semibold leading-[0.95] tracking-[-0.025em]"
@@ -412,19 +377,20 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               {sc.summary}
             </div>
           </div>
-
-          {/* Reference — single-scan-only, optional. Decided 2026-05-19:
-              the user assigns a tracking identifier (loan #, client ID,
-              case file…) AFTER the scan completes. Value is mirrored to
-              sessionStorage so the PDF certificate picks it up, and
-              persisted to history when this result was opened from a
-              /history row (scanHistoryId present). */}
-          <ScanReferenceField />
         </div>
 
-        {showTrend
-          ? <ConfidenceTrend points={trendPoints} />
-          : <ConfidenceBadge scenario={scenario as HeroVerdict} score={sc.score} />}
+        {/* Right rail. Reference is top-aligned; the trend sparkline (when
+            this property has 2+ scans on file) drops in underneath. When
+            there's only one scan, the rail is just the Reference field —
+            the badge that used to live here was redundant with the verdict
+            copy on the left and is gone. */}
+        <div className="shrink-0 flex flex-col items-end gap-5">
+          {/* Reference — optional user-supplied identifier (loan #, case
+              file, client ID). Mirrored to sessionStorage for the PDF cert;
+              persisted to history when the result was opened from /history. */}
+          <ScanReferenceField />
+          {showTrend && <ConfidenceTrend points={trendPoints} />}
+        </div>
       </div>
 
       {/* Why this score — accordion */}
@@ -472,7 +438,7 @@ function ScanReferenceField() {
   }
 
   return (
-    <div className="mt-4 inline-flex items-center gap-2">
+    <div className="inline-flex items-center gap-2">
       <span
         className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
         style={{ color: 'var(--ink-3)' }}
