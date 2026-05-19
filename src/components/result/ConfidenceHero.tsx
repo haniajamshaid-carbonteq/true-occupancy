@@ -1,167 +1,17 @@
-/* global React, Card, Icon, Pill, SCENARIOS, PROPERTY, ReferenceCell, useAppState */
+/* global React, Card, Icon, Pill, SCENARIOS, ReferenceCell, useAppState */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
 //
-// Right-rail visual: two-mode (May-2026 redesign, client feedback that the
-// old 100-dot waffle stole attention from the verdict copy).
-//   * 2+ scans on file for this address → <ConfidenceTrend/>, a sparkline
-//     of past scores so the user sees the trajectory ("stable", "climbing",
-//     "first-time spike") rather than a static snapshot.
-//   * 0–1 scans → <ConfidenceBadge/>, a small verdict+score chip. Compact
-//     fallback so the hero never feels empty when there's no trend to draw.
+// Right rail (May-2026 redesign): just the <ScanReferenceField/>, the
+// lender's tracking identifier. The waffle grid, fallback badge, and score
+// sparkline were all removed at the client's request — the verdict + score
+// copy on the left carries the page on its own.
 
 interface ConfidenceHeroProps {
   scenario: ScenarioKey;
   /** Whether the "Why this score" accordion starts open. Default true. */
   defaultOpen?: boolean;
-}
-
-type HeroVerdict = 'low' | 'medium' | 'high';
-
-const VERDICT_STATUS: Record<HeroVerdict, 'clean' | 'warn' | 'risk'> = {
-  low: 'clean',
-  medium: 'warn',
-  high: 'risk',
-};
-const VERDICT_LABEL_SHORT: Record<HeroVerdict, string> = {
-  low: 'Not Rented',
-  medium: 'Likely Rented',
-  high: 'Rented',
-};
-
-interface TrendPoint {
-  /** Short date label rendered under the dot ("Jun '25", "Today"). */
-  label: string;
-  scorePct: number;
-  verdict: HeroVerdict;
-  /** Highlighted dot — the scan being shown. */
-  isCurrent: boolean;
-}
-
-// Sparkline of confidence scores across this property's prior scans.
-// Each dot is filled with its verdict color, connected by a soft line so
-// the rise/fall is readable at a glance. The current scan's dot is
-// enlarged and ringed. Y-axis spans 0–100; x-axis is equally spaced
-// (calendar-accurate spacing isn't worth the room).
-function ConfidenceTrend({ points }: { points: TrendPoint[] }) {
-  const W = 232;
-  const H = 110;
-  const PAD_X = 12;
-  const PAD_Y = 14;
-  const innerW = W - PAD_X * 2;
-  const innerH = H - PAD_Y * 2;
-
-  const xFor = (i: number) =>
-    points.length === 1 ? W / 2 : PAD_X + (i / (points.length - 1)) * innerW;
-  const yFor = (score: number) => PAD_Y + (1 - score / 100) * innerH;
-
-  const linePath = points
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${xFor(i)} ${yFor(p.scorePct)}`)
-    .join(' ');
-
-  function statusColor(v: HeroVerdict): string {
-    return `var(--${VERDICT_STATUS[v]})`;
-  }
-
-  return (
-    <div className="shrink-0" style={{ width: W }}>
-      <div
-        className="font-sans text-eyebrow font-semibold tracking-[0.12em] uppercase mb-1"
-        style={{ color: 'var(--ink-3)' }}
-      >
-        Score history · {points.length} {points.length === 1 ? 'scan' : 'scans'}
-      </div>
-      <svg
-        width={W}
-        height={H}
-        viewBox={`0 0 ${W} ${H}`}
-        className="block"
-        role="img"
-        aria-label={`Confidence trend across ${points.length} scans`}
-      >
-        {/* baseline + 50% gridline for context — kept faint */}
-        <line
-          x1={PAD_X} x2={W - PAD_X}
-          y1={yFor(50)} y2={yFor(50)}
-          stroke="var(--line)" strokeWidth={0.5} strokeDasharray="2 3"
-        />
-        <line
-          x1={PAD_X} x2={W - PAD_X}
-          y1={H - PAD_Y} y2={H - PAD_Y}
-          stroke="var(--line)" strokeWidth={0.5}
-        />
-        {points.length > 1 && (
-          <path d={linePath} fill="none" stroke="var(--line-strong)" strokeWidth={1.5} />
-        )}
-        {points.map((p, i) => {
-          const cx = xFor(i);
-          const cy = yFor(p.scorePct);
-          const color = statusColor(p.verdict);
-          return (
-            <g key={i}>
-              {p.isCurrent && (
-                <circle cx={cx} cy={cy} r={9} fill="none" stroke={color} strokeWidth={1.5} opacity={0.35} />
-              )}
-              <circle
-                cx={cx} cy={cy}
-                r={p.isCurrent ? 5 : 3.5}
-                fill={color}
-              />
-            </g>
-          );
-        })}
-      </svg>
-      <div className="mt-0.5 flex" style={{ width: W }}>
-        {points.map((p, i) => (
-          <div
-            key={i}
-            className="font-sans tabular-nums text-ink-3 text-center"
-            style={{
-              flex: 1,
-              fontSize: 'var(--text-eyebrow)',
-              fontWeight: p.isCurrent ? 600 : 400,
-              color: p.isCurrent ? 'var(--ink-2)' : 'var(--ink-3)',
-            }}
-          >
-            <div>{p.scorePct}%</div>
-            <div className="leading-tight" style={{ opacity: 0.85 }}>{p.label}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Compact verdict + score badge — fallback when there's no trend to plot.
-// HeroVerdict carries the status color (red / amber / teal), score sits below
-// in a smaller monospaced figure. ~120px wide; far less attention-grabbing
-// than the waffle, freeing the left column to carry the page.
-function ConfidenceBadge({ scenario, score }: { scenario: HeroVerdict; score: number }) {
-  const status = VERDICT_STATUS[scenario];
-  return (
-    <div
-      className={`shrink-0 rounded-xl px-5 py-4 text-center bg-${status}-soft`}
-      role="img"
-      aria-label={`${VERDICT_LABEL_SHORT[scenario]} · ${score}% confidence`}
-    >
-      <div
-        className={`font-sans font-semibold tracking-[0.04em] uppercase text-${status}-ink`}
-        style={{ fontSize: 'var(--text-caption)' }}
-      >
-        {VERDICT_LABEL_SHORT[scenario]}
-      </div>
-      <div
-        className={`mt-1 font-sans font-semibold tabular-nums leading-none text-${status}-ink`}
-        style={{ fontSize: 'var(--text-h2)' }}
-      >
-        {score}%
-      </div>
-      <div className="mt-1 font-sans text-ink-3" style={{ fontSize: 'var(--text-eyebrow)' }}>
-        confidence
-      </div>
-    </div>
-  );
 }
 
 // One factor row in the "Why this score" breakdown. Positive-only render:
@@ -323,77 +173,15 @@ const VERDICT_TEXT: Record<ScenarioKey, string> = {
   low:    'Not Rented',
 };
 
-// Tiny relative-string → Date parser for the trend labels. Kept inline so
-// the hero doesn't grow a cross-file dependency on CertificateSheet's
-// equivalent helper; both are ~15 lines and rot together if they ever
-// diverge.
-const HERO_UNIT_MS: Record<string, number> = {
-  min: 60_000,
-  h: 3_600_000,
-  d: 86_400_000,
-  w: 7 * 86_400_000,
-  mo: 30 * 86_400_000,
-  y: 365 * 86_400_000,
-};
-function heroParseScannedAgo(scannedAgo: string, now: Date = new Date()): Date {
-  const s = (scannedAgo || '').trim().toLowerCase();
-  if (!s || s === 'just now') return now;
-  if (s === 'yesterday') return new Date(now.getTime() - HERO_UNIT_MS.d);
-  const m = s.match(/^(\d+)\s*(min|h|d|w|mo|y)\s*ago$/);
-  if (!m) return now;
-  return new Date(now.getTime() - parseInt(m[1], 10) * (HERO_UNIT_MS[m[2]] ?? 0));
-}
-function heroDotLabel(d: Date, isMostRecent: boolean): string {
-  if (isMostRecent) return 'Today';
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${months[d.getMonth()]} '${String(d.getFullYear()).slice(-2)}`;
-}
-
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
   const animatedScore = useCountUp(sc.score, 800);
-  // Read raw history and filter inline. We don't use the
-  // getHistoryForAddress() selector because it landed on the scan-history-
-  // report branch (#48) and isn't on main yet; this PR stays decoupled.
-  const { history } = useAppState();
-
-  // Resolve which address this result page is for so we can look up its
-  // prior scans. Falls back to PROPERTY.address (the demo property), matching
-  // CertificateSheet's resolution order.
-  const resolvedAddress =
-    (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
-    PROPERTY.address;
-
-  // Build trend points from history. Seed is newest-first; sparkline reads
-  // left-to-right oldest-to-newest, so reverse. The newest entry is treated
-  // as "current" (most recent visible scan = the one the user is reading).
-  const trendPoints: TrendPoint[] = React.useMemo(() => {
-    const entries = (history ?? []).filter(
-      (h: any) => h.kind === 'single' && h.address === resolvedAddress
-    );
-    if (entries.length === 0) return [];
-    return entries
-      .slice()
-      .reverse()
-      .map((h: any, i: number, arr: any[]) => {
-        const isCurrent = i === arr.length - 1;
-        return {
-          label: heroDotLabel(heroParseScannedAgo(h.scannedAgo), isCurrent),
-          scorePct: SCENARIOS[h.scenario as HeroVerdict].score,
-          verdict: h.scenario as HeroVerdict,
-          isCurrent,
-        };
-      });
-  }, [history, resolvedAddress]);
-
-  // Trend needs at least two points to be meaningful — otherwise the
-  // sparkline degenerates to one dot, which is just the badge anyway.
-  const showTrend = trendPoints.length >= 2;
 
   return (
     <Card className="px-6 py-5">
-      {/* Hero row — verdict + supporting text on the left, trend/badge on the right */}
-      <div className="flex items-center justify-between gap-8">
+      {/* Hero row — verdict + supporting text on the left; Reference field
+          alone on the right (top-aligned with the verdict). */}
+      <div className="flex items-start justify-between gap-8">
         <div className="min-w-0">
           <div
             className="font-sans font-semibold leading-[0.95] tracking-[-0.025em]"
@@ -412,19 +200,12 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               {sc.summary}
             </div>
           </div>
-
-          {/* Reference — single-scan-only, optional. Decided 2026-05-19:
-              the user assigns a tracking identifier (loan #, client ID,
-              case file…) AFTER the scan completes. Value is mirrored to
-              sessionStorage so the PDF certificate picks it up, and
-              persisted to history when this result was opened from a
-              /history row (scanHistoryId present). */}
-          <ScanReferenceField />
         </div>
 
-        {showTrend
-          ? <ConfidenceTrend points={trendPoints} />
-          : <ConfidenceBadge scenario={scenario as HeroVerdict} score={sc.score} />}
+        {/* Reference — optional user-supplied identifier (loan #, case
+            file, client ID). Mirrored to sessionStorage for the PDF cert;
+            persisted to history when the result was opened from /history. */}
+        <ScanReferenceField />
       </div>
 
       {/* Why this score — accordion */}
@@ -472,7 +253,7 @@ function ScanReferenceField() {
   }
 
   return (
-    <div className="mt-4 inline-flex items-center gap-2">
+    <div className="inline-flex items-center gap-2">
       <span
         className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
         style={{ color: 'var(--ink-3)' }}
