@@ -232,6 +232,15 @@
 .certificate-sheet .cert-table .col-conf     { width: 50pt; text-align: right; padding-right: 0; color: var(--navy); font-weight: 600; }
 .certificate-sheet .cert-table .col-seen     { width: 80pt; text-align: right; padding-right: 0; color: var(--ink-3); }
 .certificate-sheet .cert-table .col-title    { padding-right: 12pt; }
+
+/* Scan History Report — five compact columns, one line per prior scan.
+   Designed to fit ~20 rows on one page; widths reserve space for the date
+   and verdict (the longest strings) and right-align all numerics. */
+.certificate-sheet .cert-history-table .col-hist-date     { width: 90pt; color: var(--navy); font-weight: 600; white-space: nowrap; }
+.certificate-sheet .cert-history-table .col-hist-verdict  { color: var(--ink); font-weight: 500; }
+.certificate-sheet .cert-history-table .col-hist-score    { width: 50pt; text-align: right; padding-right: 12pt; color: var(--navy); font-weight: 600; }
+.certificate-sheet .cert-history-table .col-hist-listings { width: 60pt; text-align: right; padding-right: 12pt; color: var(--ink-2); }
+.certificate-sheet .cert-history-table .col-hist-platforms{ width: 60pt; text-align: right; padding-right: 0;    color: var(--ink-2); }
 .certificate-sheet .cert-listing-title {
   font-weight: 500;
   color: var(--ink);

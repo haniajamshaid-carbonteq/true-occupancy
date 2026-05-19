@@ -1,4 +1,4 @@
-/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, AICtaButton */
+/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, AICtaButton, DropdownMenu, useAppState */
 // ScanContextBar — replaces the persistent search trigger on detail
 // pages (result + why-expanded). Shows a back button plus the address
 // currently being viewed, so the user knows what scan they're looking at
@@ -46,10 +46,27 @@ function ScanContextBar({
   aiScenario,
 }: ScanContextBarProps) {
   const history = ReactRouterDOM.useHistory();
+  const { getHistoryForAddress } = useAppState();
   const resolvedAddress =
     address ||
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
     PROPERTY.address;
+
+  // The Scan History Report is only useful with a prior scan to compare
+  // against the current one. Below two we just disable the menu item — the
+  // user still sees it (discoverability) but can't trigger an empty report.
+  const priorScanCount = getHistoryForAddress(resolvedAddress).length;
+  const historyDisabled = priorScanCount < 2;
+
+  function printCertificate(v: 'single' | 'history') {
+    if (typeof sessionStorage !== 'undefined') {
+      if (v === 'history') sessionStorage.setItem('certVariant', 'history');
+      else sessionStorage.removeItem('certVariant');
+    }
+    // Defer one tick so the CertificateSheet's beforeprint listener sees
+    // the sessionStorage write before the browser snapshots the page.
+    window.requestAnimationFrame(() => window.print());
+  }
 
   // Automate flow — encapsulated in <AutomationControl>. It looks up an
   // existing schedule for this address and either offers the create CTA
@@ -117,14 +134,43 @@ function ScanContextBar({
       )}
 
       {showDownloadPDF && (
-        <Button
-          variant="primary"
-          onClick={() => window.print()}
-          icon={<Icon name="pdf" size={14} />}
-          className="shrink-0"
-        >
-          Download PDF
-        </Button>
+        <DropdownMenu
+          align="end"
+          title="Download report"
+          menuWidth="w-64"
+          trigger={(open: boolean) => (
+            <Button
+              variant="primary"
+              icon={<Icon name="pdf" size={14} />}
+              className="shrink-0"
+            >
+              Download PDF
+              <span
+                className={`inline-flex shrink-0 ml-1 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
+                aria-hidden
+              >
+                <Icon name="chevron" size={12} />
+              </span>
+            </Button>
+          )}
+          items={[
+            {
+              label: 'Single-scan certificate',
+              icon: <Icon name="pdf" />,
+              hint: 'The current scan, full detail',
+              onClick: () => printCertificate('single'),
+            },
+            {
+              label: 'Scan history report',
+              icon: <Icon name="history" />,
+              hint: historyDisabled
+                ? 'Needs at least two scans'
+                : `${priorScanCount} scans for this property`,
+              disabled: historyDisabled,
+              onClick: () => printCertificate('history'),
+            },
+          ]}
+        />
       )}
 
       {showAI && (
