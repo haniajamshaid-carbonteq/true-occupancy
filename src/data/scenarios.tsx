@@ -267,21 +267,43 @@ const SCENARIOS: Record<ScenarioKey, Scenario> = {
   },
 };
 
-/** Build a scan-step list for a given scenario at a given progression frame. */
+/** Build a scan-step list for a given scenario at a given progression frame.
+ *
+ *  Step labels deliberately describe the *inference layer* (fingerprinting,
+ *  cross-referencing, ownership validation), not the upstream sources we
+ *  consult. Client feedback May-2026: surfacing platform names ("Searching
+ *  Airbnb") trains users to skip the product and search those sites
+ *  themselves — the proprietary work is the dedup/matching/scoring layer,
+ *  so that's what the progress UI highlights. */
+type InferenceFinding = { kind: 'ok' | 'warn'; text: string };
+type InferenceFindings = { extract: InferenceFinding; match: InferenceFinding; verify: InferenceFinding };
+
 function buildScanSteps(scenario: ScenarioKey, frame: 'start' | 'mid' | 'done'): ScanStep[] {
-  const findings: Record<PlatformId, { kind: 'ok' | 'warn'; text: string }> =
+  const findings: InferenceFindings =
     scenario === 'high'
-      ? { airbnb: { kind: 'warn', text: '2 strong matches found' }, vrbo: { kind: 'warn', text: '1 strong match found' }, fb: { kind: 'warn', text: '1 partial match found' } }
+      ? {
+          extract: { kind: 'warn', text: '4 candidate listings extracted' },
+          match:   { kind: 'warn', text: '3 address matches confirmed' },
+          verify:  { kind: 'warn', text: 'STR operator profile detected' },
+        }
       : scenario === 'medium'
-      ? { airbnb: { kind: 'warn', text: '1 partial match found' }, vrbo: { kind: 'ok', text: 'No matches found' }, fb: { kind: 'ok', text: '1 unrelated post · excluded' } }
-      : { airbnb: { kind: 'ok', text: 'No matches found' }, vrbo: { kind: 'ok', text: 'No matches found' }, fb: { kind: 'ok', text: 'No matches found' } };
+      ? {
+          extract: { kind: 'warn', text: '2 candidate listings extracted' },
+          match:   { kind: 'ok',   text: '1 partial match · low confidence' },
+          verify:  { kind: 'ok',   text: 'Mixed ownership signals' },
+        }
+      : {
+          extract: { kind: 'ok', text: 'No active candidates surfaced' },
+          match:   { kind: 'ok', text: 'No address matches' },
+          verify:  { kind: 'ok', text: 'Owner-occupied profile' },
+        };
 
   const all: Omit<ScanStep, 'status'>[] = [
-    { id: 'geo', label: 'Geocoding address', sub: '1428 Maplewood Drive · Asheville, NC', result: 'Located within 25 ft of parcel', kind: 'ok' },
-    { id: 'airbnb', label: 'Searching Airbnb', sub: 'airbnb.com · 1.0 mi radius', result: findings.airbnb.text, kind: findings.airbnb.kind },
-    { id: 'vrbo', label: 'Searching Vrbo', sub: 'vrbo.com · 1.0 mi radius', result: findings.vrbo.text, kind: findings.vrbo.kind },
-    { id: 'fb', label: 'Scanning Facebook Marketplace', sub: 'facebook.com/marketplace · 1.0 mi', result: findings.fb.text, kind: findings.fb.kind },
-    { id: 'score', label: 'Computing confidence score', sub: 'Weighing signals · cross-referencing records', result: 'Score ready', kind: 'ok' },
+    { id: 'geo',     label: 'Geocoding subject parcel',          sub: 'Locating address against assessor records',   result: 'Located within 25 ft of parcel', kind: 'ok' },
+    { id: 'extract', label: 'Profiling active listings',         sub: 'Photos · room layout · title signals',        result: findings.extract.text, kind: findings.extract.kind },
+    { id: 'match',   label: 'Matching duplicate addresses',      sub: 'Cross-referencing listing networks',          result: findings.match.text,   kind: findings.match.kind   },
+    { id: 'verify',  label: 'Validating ownership signals',      sub: 'Permits · property records · operator profiles', result: findings.verify.text, kind: findings.verify.kind },
+    { id: 'score',   label: 'Scoring confidence',                sub: 'Weighing signals · cross-referencing records', result: 'Score ready', kind: 'ok' },
   ];
 
   if (frame === 'start') {
