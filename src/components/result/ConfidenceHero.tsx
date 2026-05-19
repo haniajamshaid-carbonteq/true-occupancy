@@ -1,130 +1,17 @@
-/* global React, Card, Icon, Pill, SCENARIOS, PROPERTY, ReferenceCell, useAppState */
+/* global React, Card, Icon, Pill, SCENARIOS, ReferenceCell, useAppState */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
 //
-// Right rail (May-2026 redesign):
-//   * <ScanReferenceField/>, top-aligned — the lender's tracking identifier.
-//   * <ConfidenceTrend/> sparkline below it WHEN the property has 2+ scans
-//     on file, showing the trajectory of past scores.
-//   * Single-scan properties get just the reference; the verdict + score
-//     copy on the left carries the page (no badge — was redundant).
+// Right rail (May-2026 redesign): just the <ScanReferenceField/>, the
+// lender's tracking identifier. The waffle grid, fallback badge, and score
+// sparkline were all removed at the client's request — the verdict + score
+// copy on the left carries the page on its own.
 
 interface ConfidenceHeroProps {
   scenario: ScenarioKey;
   /** Whether the "Why this score" accordion starts open. Default true. */
   defaultOpen?: boolean;
-}
-
-type HeroVerdict = 'low' | 'medium' | 'high';
-
-const VERDICT_STATUS: Record<HeroVerdict, 'clean' | 'warn' | 'risk'> = {
-  low: 'clean',
-  medium: 'warn',
-  high: 'risk',
-};
-
-interface TrendPoint {
-  /** Short date label rendered under the dot ("Jun '25", "Today"). */
-  label: string;
-  scorePct: number;
-  verdict: HeroVerdict;
-  /** Highlighted dot — the scan being shown. */
-  isCurrent: boolean;
-}
-
-// Sparkline of confidence scores across this property's prior scans.
-// Each dot is filled with its verdict color, connected by a soft line so
-// the rise/fall is readable at a glance. The current scan's dot is
-// enlarged and ringed. Y-axis spans 0–100; x-axis is equally spaced
-// (calendar-accurate spacing isn't worth the room).
-function ConfidenceTrend({ points }: { points: TrendPoint[] }) {
-  const W = 232;
-  const H = 110;
-  const PAD_X = 12;
-  const PAD_Y = 14;
-  const innerW = W - PAD_X * 2;
-  const innerH = H - PAD_Y * 2;
-
-  const xFor = (i: number) =>
-    points.length === 1 ? W / 2 : PAD_X + (i / (points.length - 1)) * innerW;
-  const yFor = (score: number) => PAD_Y + (1 - score / 100) * innerH;
-
-  const linePath = points
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${xFor(i)} ${yFor(p.scorePct)}`)
-    .join(' ');
-
-  function statusColor(v: HeroVerdict): string {
-    return `var(--${VERDICT_STATUS[v]})`;
-  }
-
-  return (
-    <div className="shrink-0" style={{ width: W }}>
-      <div
-        className="font-sans text-eyebrow font-semibold tracking-[0.12em] uppercase mb-1"
-        style={{ color: 'var(--ink-3)' }}
-      >
-        Score history · {points.length} {points.length === 1 ? 'scan' : 'scans'}
-      </div>
-      <svg
-        width={W}
-        height={H}
-        viewBox={`0 0 ${W} ${H}`}
-        className="block"
-        role="img"
-        aria-label={`Confidence trend across ${points.length} scans`}
-      >
-        {/* baseline + 50% gridline for context — kept faint */}
-        <line
-          x1={PAD_X} x2={W - PAD_X}
-          y1={yFor(50)} y2={yFor(50)}
-          stroke="var(--line)" strokeWidth={0.5} strokeDasharray="2 3"
-        />
-        <line
-          x1={PAD_X} x2={W - PAD_X}
-          y1={H - PAD_Y} y2={H - PAD_Y}
-          stroke="var(--line)" strokeWidth={0.5}
-        />
-        {points.length > 1 && (
-          <path d={linePath} fill="none" stroke="var(--line-strong)" strokeWidth={1.5} />
-        )}
-        {points.map((p, i) => {
-          const cx = xFor(i);
-          const cy = yFor(p.scorePct);
-          const color = statusColor(p.verdict);
-          return (
-            <g key={i}>
-              {p.isCurrent && (
-                <circle cx={cx} cy={cy} r={9} fill="none" stroke={color} strokeWidth={1.5} opacity={0.35} />
-              )}
-              <circle
-                cx={cx} cy={cy}
-                r={p.isCurrent ? 5 : 3.5}
-                fill={color}
-              />
-            </g>
-          );
-        })}
-      </svg>
-      <div className="mt-0.5 flex" style={{ width: W }}>
-        {points.map((p, i) => (
-          <div
-            key={i}
-            className="font-sans tabular-nums text-ink-3 text-center"
-            style={{
-              flex: 1,
-              fontSize: 'var(--text-eyebrow)',
-              fontWeight: p.isCurrent ? 600 : 400,
-              color: p.isCurrent ? 'var(--ink-2)' : 'var(--ink-3)',
-            }}
-          >
-            <div>{p.scorePct}%</div>
-            <div className="leading-tight" style={{ opacity: 0.85 }}>{p.label}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 // One factor row in the "Why this score" breakdown. Positive-only render:
@@ -286,78 +173,14 @@ const VERDICT_TEXT: Record<ScenarioKey, string> = {
   low:    'Not Rented',
 };
 
-// Tiny relative-string → Date parser for the trend labels. Kept inline so
-// the hero doesn't grow a cross-file dependency on CertificateSheet's
-// equivalent helper; both are ~15 lines and rot together if they ever
-// diverge.
-const HERO_UNIT_MS: Record<string, number> = {
-  min: 60_000,
-  h: 3_600_000,
-  d: 86_400_000,
-  w: 7 * 86_400_000,
-  mo: 30 * 86_400_000,
-  y: 365 * 86_400_000,
-};
-function heroParseScannedAgo(scannedAgo: string, now: Date = new Date()): Date {
-  const s = (scannedAgo || '').trim().toLowerCase();
-  if (!s || s === 'just now') return now;
-  if (s === 'yesterday') return new Date(now.getTime() - HERO_UNIT_MS.d);
-  const m = s.match(/^(\d+)\s*(min|h|d|w|mo|y)\s*ago$/);
-  if (!m) return now;
-  return new Date(now.getTime() - parseInt(m[1], 10) * (HERO_UNIT_MS[m[2]] ?? 0));
-}
-function heroDotLabel(d: Date, isMostRecent: boolean): string {
-  if (isMostRecent) return 'Today';
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${months[d.getMonth()]} '${String(d.getFullYear()).slice(-2)}`;
-}
-
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
   const animatedScore = useCountUp(sc.score, 800);
-  // Read raw history and filter inline. We don't use the
-  // getHistoryForAddress() selector because it landed on the scan-history-
-  // report branch (#48) and isn't on main yet; this PR stays decoupled.
-  const { history } = useAppState();
-
-  // Resolve which address this result page is for so we can look up its
-  // prior scans. Falls back to PROPERTY.address (the demo property), matching
-  // CertificateSheet's resolution order.
-  const resolvedAddress =
-    (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
-    PROPERTY.address;
-
-  // Build trend points from history. Seed is newest-first; sparkline reads
-  // left-to-right oldest-to-newest, so reverse. The newest entry is treated
-  // as "current" (most recent visible scan = the one the user is reading).
-  const trendPoints: TrendPoint[] = React.useMemo(() => {
-    const entries = (history ?? []).filter(
-      (h: any) => h.kind === 'single' && h.address === resolvedAddress
-    );
-    if (entries.length === 0) return [];
-    return entries
-      .slice()
-      .reverse()
-      .map((h: any, i: number, arr: any[]) => {
-        const isCurrent = i === arr.length - 1;
-        return {
-          label: heroDotLabel(heroParseScannedAgo(h.scannedAgo), isCurrent),
-          scorePct: SCENARIOS[h.scenario as HeroVerdict].score,
-          verdict: h.scenario as HeroVerdict,
-          isCurrent,
-        };
-      });
-  }, [history, resolvedAddress]);
-
-  // Trend needs at least two points to be meaningful — otherwise the
-  // sparkline degenerates to one dot, which is just the badge anyway.
-  const showTrend = trendPoints.length >= 2;
 
   return (
     <Card className="px-6 py-5">
-      {/* Hero row — verdict + supporting text on the left; reference (and
-          optional trend) stacked on the right. Items align to the top so
-          the reference sits flush with the verdict's baseline corner. */}
+      {/* Hero row — verdict + supporting text on the left; Reference field
+          alone on the right (top-aligned with the verdict). */}
       <div className="flex items-start justify-between gap-8">
         <div className="min-w-0">
           <div
@@ -379,18 +202,10 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
           </div>
         </div>
 
-        {/* Right rail. Reference is top-aligned; the trend sparkline (when
-            this property has 2+ scans on file) drops in underneath. When
-            there's only one scan, the rail is just the Reference field —
-            the badge that used to live here was redundant with the verdict
-            copy on the left and is gone. */}
-        <div className="shrink-0 flex flex-col items-end gap-5">
-          {/* Reference — optional user-supplied identifier (loan #, case
-              file, client ID). Mirrored to sessionStorage for the PDF cert;
-              persisted to history when the result was opened from /history. */}
-          <ScanReferenceField />
-          {showTrend && <ConfidenceTrend points={trendPoints} />}
-        </div>
+        {/* Reference — optional user-supplied identifier (loan #, case
+            file, client ID). Mirrored to sessionStorage for the PDF cert;
+            persisted to history when the result was opened from /history. */}
+        <ScanReferenceField />
       </div>
 
       {/* Why this score — accordion */}
