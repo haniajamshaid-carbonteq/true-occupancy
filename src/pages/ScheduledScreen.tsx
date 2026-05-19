@@ -11,26 +11,29 @@ const SCOPE_STATUS_LABEL: Record<ScopeRisk, string> = {
   clean: 'Not Rented',
 };
 
-// Tiny color-keyed glyphs for the Scope column — labels-free per spec so
-// the column stays compact. Tooltip on hover surfaces the names.
+// Compact status glyphs for the Scope column — neutral gray ramp so the
+// column reads as quiet metadata rather than a status badge. Same color
+// mapping as the StatusPillSelector chips, so chips + tables share one
+// visual contract: risk → ink, warn → ink-2, clean → ink-3 (intensity
+// reinforces the shape's "filled-ness" semantic).
 function ScopeDot({ status }: { status: ScopeRisk }) {
   if (status === 'risk') {
     return (
-      <svg viewBox="0 0 16 16" className="w-3 h-3 text-risk" aria-hidden>
+      <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink" aria-hidden>
         <circle cx="8" cy="8" r="5" fill="currentColor" />
       </svg>
     );
   }
   if (status === 'warn') {
     return (
-      <svg viewBox="0 0 16 16" className="w-3 h-3 text-warn" aria-hidden>
+      <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink-2" aria-hidden>
         <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.5} />
         <path d="M8 3 A5 5 0 0 0 8 13 Z" fill="currentColor" />
       </svg>
     );
   }
   return (
-    <svg viewBox="0 0 16 16" className="w-3 h-3 text-clean" aria-hidden>
+    <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink-3" aria-hidden>
       <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.6} />
     </svg>
   );

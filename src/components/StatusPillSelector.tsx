@@ -35,29 +35,25 @@ interface StatusPillSelectorProps {
   ariaLabel?: string;
 }
 
-// Per-status visual mapping. The `dotColor` carries the SEMANTIC (which
-// status this chip represents); the chip's SELECTION state is always
-// expressed in brand colors — matching the Cadence radio cards above and
-// the rest of the app's selection language (ChipRow, filter chips, etc.).
+// Per-status visual mapping. Neutral (gray-ramp) palette — the GLYPH SHAPE
+// (●/◐/○) carries the semantic; the gray shade reinforces "how much rental
+// activity was found" without leaning on the status-color tokens. Same
+// dot treatment must appear everywhere a status dot is rendered (the
+// /scheduled Scope column, the schedule-detail Scope field, etc.) so the
+// chips and the tables stay visually in lockstep.
 //
-// Glyph basis (moon-phase / Apple-Calendar convention):
-//   ● Rented           — fully filled circle  (full risk present)
-//   ◐ Possibly Rented  — half-filled circle   (partial / unclear)
-//   ○ Not Rented       — outlined circle      (no rental detected)
+//   ● Rented           — fully filled · `text-ink`   (darkest — most present)
+//   ◐ Possibly Rented  — half-filled  · `text-ink-2`
+//   ○ Not Rented       — outlined     · `text-ink-3` (lightest — least present)
 //
-// "Filled-ness" maps to "how much rental activity was found", so the
-// glyph carries the semantic even in monochrome / for color-blind users.
+// Selection state lives on the chip itself (brand-tint fill + brand
+// border + brand-deep check); the glyph color is unchanged across states.
 const STATUS_VISUAL: Record<
   RiskStatus,
-  {
-    /** Glyph color in either state — anchors the status semantic. */
-    dotColor: string;
-    /** Inline SVG for the status glyph. */
-    dot: React.ReactNode;
-  }
+  { dotColor: string; dot: React.ReactNode }
 > = {
   risk: {
-    dotColor: 'text-risk',
+    dotColor: 'text-ink',
     dot: (
       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" aria-hidden>
         <circle cx="8" cy="8" r="5" fill="currentColor" />
@@ -65,7 +61,7 @@ const STATUS_VISUAL: Record<
     ),
   },
   warn: {
-    dotColor: 'text-warn',
+    dotColor: 'text-ink-2',
     // Half-filled: full outline + a half-disc on the left.
     dot: (
       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" aria-hidden>
@@ -75,7 +71,7 @@ const STATUS_VISUAL: Record<
     ),
   },
   clean: {
-    dotColor: 'text-clean',
+    dotColor: 'text-ink-3',
     dot: (
       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" aria-hidden>
         <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.6} />
