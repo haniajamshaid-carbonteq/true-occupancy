@@ -86,6 +86,21 @@ function certScenarioListingCount(scenario: CertScenarioKey): number {
   return total;
 }
 
+interface CertHistoryListing {
+  platform: string;
+  url: string;
+}
+function certScenarioListings(scenario: CertScenarioKey): CertHistoryListing[] {
+  const s = SCENARIOS[scenario];
+  const out: CertHistoryListing[] = [];
+  PLATFORMS.forEach((p: any) => {
+    (s.listings[p.id] || []).forEach((row: any) => {
+      out.push({ platform: p.name, url: row.url });
+    });
+  });
+  return out;
+}
+
 interface FlatListing {
   platform: string;
   platformId: string;
@@ -261,6 +276,7 @@ interface CertificateHistoryRow {
   scorePct: number;
   listingCount: number;
   platformCount: number;
+  listings: CertHistoryListing[];
 }
 
 function CertificateHistoryBody({
@@ -316,28 +332,34 @@ function CertificateHistoryBody({
         {rows.length === 0 ? (
           <div className="cert-empty">No prior scans recorded for this property.</div>
         ) : (
-          <table className="cert-table cert-history-table">
-            <thead>
-              <tr>
-                <th className="col-hist-date">Date</th>
-                <th className="col-hist-verdict">Verdict</th>
-                <th className="col-hist-score">Score</th>
-                <th className="col-hist-listings">Listings</th>
-                <th className="col-hist-platforms">Platforms</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i}>
-                  <td className="col-hist-date tabular">{r.date}</td>
-                  <td className="col-hist-verdict">{r.verdict}</td>
-                  <td className="col-hist-score tabular">{r.scorePct}%</td>
-                  <td className="col-hist-listings tabular">{r.listingCount}</td>
-                  <td className="col-hist-platforms tabular">{r.platformCount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="cert-history-list">
+            {rows.map((r, i) => (
+              <div className="cert-history-scan" key={i}>
+                <div className="cert-history-scan-head">
+                  <span className="cert-history-date tabular">{r.date}</span>
+                  <span className="cert-history-sep">·</span>
+                  <span className="cert-history-verdict">{r.verdict}</span>
+                  <span className="cert-history-sep">·</span>
+                  <span className="cert-history-score tabular">{r.scorePct}%</span>
+                  <span className="cert-history-meta">
+                    {r.listingCount === 0
+                      ? 'No listings detected'
+                      : `${r.listingCount} listing${r.listingCount === 1 ? '' : 's'} on ${r.platformCount} platform${r.platformCount === 1 ? '' : 's'}`}
+                  </span>
+                </div>
+                {r.listings.length > 0 && (
+                  <ul className="cert-history-urls">
+                    {r.listings.map((l, j) => (
+                      <li key={j}>
+                        <span className="cert-history-url-platform">{l.platform}</span>
+                        <a className="cert-history-url-link" href={l.url}>{l.url}</a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </section>
 
@@ -415,12 +437,14 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
     if (variant !== 'history') return [];
     return getHistoryForAddress(resolvedAddress).map((h: any) => {
       const sc = h.scenario as CertScenarioKey;
+      const listings = certScenarioListings(sc);
       return {
         date: certFormatHistoryDate(certParseScannedAgo(h.scannedAgo)),
         verdict: certScenarioVerdict(sc),
         scorePct: SCENARIOS[sc].score,
-        listingCount: certScenarioListingCount(sc),
+        listingCount: listings.length,
         platformCount: h.platforms,
+        listings,
       };
     });
   }, [variant, resolvedAddress, getHistoryForAddress]);
