@@ -99,7 +99,16 @@ function CertificateBody({
           </div>
         </div>
         <div className="cert-head-right">
-          <div className="cert-id" aria-label="Scan ID">{scanId}</div>
+          {/* Top-corner identifier — prefers the user-supplied reference
+              when set (lenders look for their loan number first), falls
+              back to the scan ID so the corner is never empty. Either way,
+              the internal scan ID is still printed in the footer for audit. */}
+          <div
+            className="cert-id"
+            aria-label={reference ? 'Reference' : 'Scan ID'}
+          >
+            {reference || scanId}
+          </div>
           <div className="cert-stamp">{timestamp}</div>
           <div className="cert-kind">{kind === 'batch' ? 'Batch Scan' : 'Single-Property Scan'}</div>
         </div>
@@ -108,15 +117,6 @@ function CertificateBody({
       <div className="cert-rule" />
 
       <section className="cert-property">
-        {/* Reference: user-supplied identifier. Omitted entirely when not
-            set (spec: do NOT show "Reference: —"). Sits above the subject
-            property block because lenders use it as the primary identifier. */}
-        {reference && (
-          <div className="cert-reference">
-            <span className="cert-reference-label">Reference</span>
-            <span className="cert-reference-value">{reference}</span>
-          </div>
-        )}
         <div className="cert-eyebrow">Subject property</div>
         <div className="cert-address">{address || PROPERTY.address}</div>
         <div className="cert-meta">

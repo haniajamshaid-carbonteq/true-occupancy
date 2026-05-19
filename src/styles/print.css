@@ -104,34 +104,6 @@
   opacity: 0.85;
 }
 
-/* --- Reference (optional, above property) ---
-   Rendered only when the cert receives a non-empty `reference`. Sits at
-   the top of the property block as a discreet label/value pair; mono
-   value so identifiers like LOAN-2026-0042 line up cleanly. */
-.certificate-sheet .cert-reference {
-  display: flex;
-  align-items: baseline;
-  gap: 8pt;
-  margin-bottom: 6pt;
-  padding-bottom: 6pt;
-  border-bottom: 0.5pt dashed var(--line);
-}
-.certificate-sheet .cert-reference-label {
-  text-transform: uppercase;
-  font-size: 7.5pt;
-  letter-spacing: 0.14em;
-  color: var(--ink-3);
-  font-weight: 600;
-}
-.certificate-sheet .cert-reference-value {
-  font-family: var(--mono, ui-monospace, "SF Mono", Menlo, monospace);
-  font-size: 10pt;
-  font-weight: 600;
-  color: var(--navy);
-  letter-spacing: 0;
-  word-break: break-all;
-}
-
 /* --- Property block --- */
 .certificate-sheet .cert-eyebrow {
   text-transform: uppercase;
