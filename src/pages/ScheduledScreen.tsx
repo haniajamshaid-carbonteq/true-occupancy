@@ -11,34 +11,6 @@ const SCOPE_STATUS_LABEL: Record<ScopeRisk, string> = {
   clean: 'Not Rented',
 };
 
-// Compact status glyphs for the Scope column — neutral gray ramp so the
-// column reads as quiet metadata rather than a status badge. Same color
-// mapping as the StatusPillSelector chips, so chips + tables share one
-// visual contract: risk → ink, warn → ink-2, clean → ink-3 (intensity
-// reinforces the shape's "filled-ness" semantic).
-function ScopeDot({ status }: { status: ScopeRisk }) {
-  if (status === 'risk') {
-    return (
-      <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink" aria-hidden>
-        <circle cx="8" cy="8" r="5" fill="currentColor" />
-      </svg>
-    );
-  }
-  if (status === 'warn') {
-    return (
-      <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink-2" aria-hidden>
-        <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.5} />
-        <path d="M8 3 A5 5 0 0 0 8 13 Z" fill="currentColor" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink-3" aria-hidden>
-      <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.6} />
-    </svg>
-  );
-}
-
 function ScheduledScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
   const { schedules, history, loading, error } = useAppState();
@@ -122,21 +94,22 @@ function ScheduledScreen() {
     },
     {
       // Spec (May-14, Erin): batch schedules carry a `statuses` set that
-      // narrows each rerun. We surface it as compact color-only dots + an
-      // in-scope/total fraction. Single-property schedules have implicit
-      // scope (the address itself), so the cell renders an em-dash.
+      // narrows each rerun. Surface as labelled text — count on top,
+      // filter rule beneath. The earlier ●◐ glyph treatment was glanceable
+      // for designers but cryptic for users; text wins on first-encounter
+      // discoverability and works the same in a print/CSV export.
+      // Single-property schedules have implicit scope (the address itself).
       key: 'scope',
       label: 'Scope',
-      width: '160px',
+      width: '200px',
       hideBelow: 'md' as const,
       cell: (r: any) => {
         if (r.kind !== 'batch') {
           return <span className="font-mono tabular-nums text-caption text-ink-4">—</span>;
         }
         const statuses: ScopeRisk[] = r.statuses ?? ['risk', 'warn'];
-        // Look up most recent matching batch run in history to derive live
-        // per-status counts. Fall back to a flat "of total" if no history
-        // entry exists (legacy seed with no past runs).
+        // Resolve live per-status counts from the most recent matching
+        // batch run in history. Falls back to "—" if no run yet (legacy seed).
         const recent: any = history.find(
           (h: any) => h.kind === 'batch' && h.filename === r.filename
         );
@@ -149,21 +122,24 @@ function ScheduledScreen() {
             (statuses.includes('warn')  ? counts.warn  : 0) +
             (statuses.includes('clean') ? counts.clean : 0)
           : null;
-        const tipLabels = statuses.map((s) => SCOPE_STATUS_LABEL[s]).join(', ');
+        const filterLabel = statuses.map((s) => SCOPE_STATUS_LABEL[s]).join(', ');
+        // Per-status breakdown stays in the hover tooltip — still useful
+        // when a user wants the exact "Rented: 6 · Possibly Rented: 6" split.
+        const tipBreakdown = counts
+          ? statuses.map((s) => `${SCOPE_STATUS_LABEL[s]}: ${counts[s]}`).join(' · ')
+          : '';
         return (
-          <span
-            className="inline-flex items-center gap-2 whitespace-nowrap"
-            title={`${tipLabels}${inScope !== null ? ` — ${inScope} of ${total} addresses` : ''}`}
+          <div
+            className="min-w-0"
+            title={tipBreakdown ? `Per-status: ${tipBreakdown}` : filterLabel}
           >
-            <span className="inline-flex items-center gap-1">
-              {statuses.map((s) => (
-                <ScopeDot key={s} status={s} />
-              ))}
-            </span>
-            <span className="font-mono tabular-nums text-caption text-ink-3">
-              {inScope !== null ? `${inScope} / ${total}` : `— / ${total}`}
-            </span>
-          </span>
+            <div className="font-mono tabular-nums text-caption text-ink-2 leading-tight">
+              {inScope !== null ? `${inScope} of ${total}` : `— of ${total}`}
+            </div>
+            <div className="font-sans text-caption text-ink-3 leading-tight mt-0.5 truncate">
+              {filterLabel}
+            </div>
+          </div>
         );
       },
     },
