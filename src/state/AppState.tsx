@@ -81,6 +81,11 @@ interface BatchScheduleEntry {
   createdAgo: string;
   /** History entry ids for all prior runs of this schedule, newest first. */
   runHistoryIds: string[];
+  /** Which verdict bands to re-scan each cycle. Defaults to ['risk','warn']
+   *  ("Rented" + "Possibly Rented"); see DESIGN feedback (Erin, 2026-05-14).
+   *  Scope is re-evaluated against the LATEST scan each cycle, so the set
+   *  follows the data instead of being frozen at automation time. */
+  statuses: Risk[];
 }
 
 type ScheduleEntry = SingleScheduleEntry | BatchScheduleEntry;
@@ -222,7 +227,7 @@ function formatNextRun(cadenceMonths: number): string {
 
 const SEED_SCHEDULES: ScheduleEntry[] = [
   { id: 's01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadenceMonths: 6,  nextRunLabel: formatNextRun(6),  createdAgo: '8 min ago', runHistoryIds: ['h01', 'hr01a', 'hr01b'] },
-  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadenceMonths: 3,  nextRunLabel: formatNextRun(3),  createdAgo: '2 h ago',   runHistoryIds: ['hb1', 'hr02a'] },
+  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadenceMonths: 3,  nextRunLabel: formatNextRun(3),  createdAgo: '2 h ago',   runHistoryIds: ['hb1', 'hr02a'], statuses: ['risk', 'warn'] },
   { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadenceMonths: 12, nextRunLabel: formatNextRun(12), createdAgo: '3 h ago',   runHistoryIds: ['h03', 'hr03a'] },
   { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadenceMonths: 4,  nextRunLabel: formatNextRun(4),  createdAgo: 'Yesterday', runHistoryIds: ['h07', 'hr04a'] },
 ];
@@ -307,8 +312,11 @@ interface AppStateValue {
    *  carries one optional user-supplied identifier (loan #, client ID, case
    *  file…) that travels onto its PDF certificate. */
   setSingleScanReference: (historyId: string, reference?: string) => void;
-  addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel' | 'runHistoryIds'> & { cadenceMonths: Cadence; runHistoryIds?: string[] }) => void;
+  addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel' | 'runHistoryIds'> & { cadenceMonths: Cadence; runHistoryIds?: string[]; statuses?: Risk[] }) => void;
   updateScheduleCadence: (id: string, cadenceMonths: Cadence) => void;
+  /** Update which verdict bands a batch schedule rescans each cycle. No-op
+   *  for single-property schedules (their scope is implicitly that address). */
+  updateScheduleStatuses: (id: string, statuses: Risk[]) => void;
   cancelSchedule: (id: string) => void;
   findScheduleByTarget: (target: ScheduleTarget) => ScheduleEntry | null;
   pushTransient: (message: string, durationMs?: number) => void;
@@ -433,7 +441,13 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       const id = uid('s');
       const nextRunLabel = formatNextRun(entry.cadenceMonths);
       const runHistoryIds: string[] = entry.runHistoryIds ?? [];
-      setSchedules((s) => [{ ...entry, id, nextRunLabel, createdAgo: 'Just now', runHistoryIds }, ...s]);
+      // Default scope per design feedback (Erin 2026-05-14): Rented + Possibly
+      // Rented. Only meaningful on batch schedules; harmless on single.
+      const statuses: Risk[] =
+        entry.kind === 'batch'
+          ? (entry.statuses && entry.statuses.length > 0 ? entry.statuses : ['risk', 'warn'])
+          : entry.statuses ?? undefined;
+      setSchedules((s) => [{ ...entry, id, nextRunLabel, createdAgo: 'Just now', runHistoryIds, statuses }, ...s]);
     },
     []
   );
@@ -443,6 +457,16 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       s.map((entry) =>
         entry.id === id
           ? { ...entry, cadenceMonths, nextRunLabel: formatNextRun(cadenceMonths) }
+          : entry
+      )
+    );
+  }, []);
+
+  const updateScheduleStatuses = React.useCallback((id: string, statuses: Risk[]) => {
+    setSchedules((s) =>
+      s.map((entry) =>
+        entry.id === id && entry.kind === 'batch'
+          ? { ...entry, statuses }
           : entry
       )
     );
@@ -501,6 +525,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     setSingleScanReference,
     addSchedule,
     updateScheduleCadence,
+    updateScheduleStatuses,
     cancelSchedule,
     findScheduleByTarget,
     pushTransient,

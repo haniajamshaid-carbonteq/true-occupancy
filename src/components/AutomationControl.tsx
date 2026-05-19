@@ -9,17 +9,48 @@
 // so both surfaces (single property and batch) share the same affordance.
 
 type Cadence = 3 | 4 | 6 | 12;
+type Risk = 'clean' | 'warn' | 'risk';
+
+const STATUS_HUMAN: Record<Risk, string> = {
+  risk: 'Rented',
+  warn: 'Possibly Rented',
+  clean: 'Not Rented',
+};
+
+/** Render a status-set as an Oxford-comma-joined human phrase, e.g.
+ *  ['risk','warn'] → "Rented and Possibly Rented". */
+function describeScope(statuses: Risk[]): string {
+  const labels = statuses.map((s) => STATUS_HUMAN[s]);
+  if (labels.length === 0) return 'no statuses';
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]}`;
+}
+
+interface BatchTarget {
+  kind: 'batch';
+  filename: string;
+  total: number;
+  /** Per-status counts from the latest scan. Drives the modal's status
+   *  pill counts and the live "X of Y" scope card. If omitted, the modal
+   *  falls back to "counts pending" mode (first scan still running). */
+  scopeCounts?: { risk: number; warn: number; clean: number };
+  /** Set true when the first scan hasn't completed yet, so we can't show
+   *  meaningful counts. The user can still pre-pick a scope. */
+  scopeCountsPending?: boolean;
+}
 
 interface AutomationControlProps {
   target:
     | { kind: 'single'; address: string; scenario: 'low' | 'medium' | 'high' }
-    | { kind: 'batch'; filename: string; total: number };
+    | BatchTarget;
 }
 
 function AutomationControl({ target }: AutomationControlProps) {
   const {
     addSchedule,
     updateScheduleCadence,
+    updateScheduleStatuses,
     cancelSchedule,
     findScheduleByTarget,
     pushTransient,
@@ -35,7 +66,7 @@ function AutomationControl({ target }: AutomationControlProps) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
-  function handleCreate({ cadenceMonths }: { cadenceMonths: Cadence }) {
+  function handleCreate({ cadenceMonths, statuses }: { cadenceMonths: Cadence; statuses?: Risk[] }) {
     if (target.kind === 'single') {
       addSchedule({
         kind: 'single',
@@ -43,21 +74,35 @@ function AutomationControl({ target }: AutomationControlProps) {
         scenario: target.scenario,
         cadenceMonths,
       });
+      pushTransient(`Automation scheduled · every ${cadenceMonths} months`);
     } else {
+      // Batch — statuses is required to be ≥1 by the modal's primary-disabled
+      // rule, but defensively fall back to the spec default if it's missing.
+      const finalStatuses: Risk[] = statuses && statuses.length > 0 ? statuses : ['risk', 'warn'];
       addSchedule({
         kind: 'batch',
         filename: target.filename,
         total: target.total,
         cadenceMonths,
+        statuses: finalStatuses,
       });
+      const scopeWord = describeScope(finalStatuses);
+      pushTransient(`Automation scheduled · every ${cadenceMonths} months · ${scopeWord}`);
     }
     setCreateOpen(false);
-    pushTransient(`Automation scheduled · every ${cadenceMonths} months`);
   }
 
-  function handleUpdate({ cadenceMonths }: { cadenceMonths: Cadence }) {
+  function handleUpdate({ cadenceMonths, statuses }: { cadenceMonths: Cadence; statuses?: Risk[] }) {
     if (!existing) return;
-    updateScheduleCadence(existing.id, cadenceMonths);
+    const cadenceChanged = cadenceMonths !== existing.cadenceMonths;
+    if (cadenceChanged) updateScheduleCadence(existing.id, cadenceMonths);
+    if (existing.kind === 'batch' && statuses) {
+      const prev = (existing as any).statuses ?? ['risk', 'warn'];
+      const changed =
+        prev.length !== statuses.length ||
+        !prev.every((s: Risk) => statuses.includes(s));
+      if (changed) updateScheduleStatuses(existing.id, statuses);
+    }
     setEditOpen(false);
     pushTransient(`Automation updated · every ${cadenceMonths} months`);
   }
@@ -95,6 +140,13 @@ function AutomationControl({ target }: AutomationControlProps) {
           onClose={() => setCreateOpen(false)}
           target={modalTarget}
           onConfirm={handleCreate}
+          {...(target.kind === 'batch'
+            ? {
+                scopeCounts: target.scopeCounts,
+                scopeTotal: target.total,
+                scopeCountsPending: target.scopeCountsPending,
+              }
+            : {})}
         />
       </>
     );
@@ -150,6 +202,16 @@ function AutomationControl({ target }: AutomationControlProps) {
         onConfirm={handleUpdate}
         mode="edit"
         initialCadence={cadenceMonths}
+        initialStatuses={
+          existing.kind === 'batch' ? (existing as any).statuses ?? ['risk', 'warn'] : undefined
+        }
+        {...(target.kind === 'batch'
+          ? {
+              scopeCounts: target.scopeCounts,
+              scopeTotal: target.total,
+              scopeCountsPending: target.scopeCountsPending,
+            }
+          : {})}
         onCancelAutomation={() => setConfirmOpen(true)}
       />
 

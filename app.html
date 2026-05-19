@@ -200,10 +200,16 @@
     'src/components/AppShell.tsx',
     'src/components/PageHeader.tsx',
     'src/components/ScanContextBar.tsx',
+    // Per-status scope primitives — load BEFORE AutomateModal (which uses
+    // StatusPillSelector + AutomationScopeCard) and BEFORE AutomationBanner
+    // (which mounts an AutomateModal).
+    'src/components/StatusPillSelector.tsx',
+    'src/components/AutomationScopeCard.tsx',
     'src/components/AutomateModal.tsx',
     'src/components/AutomationControl.tsx',
-    // ReferenceCell — inline-editable identifier surfaced on batch +
-    // history tables. Must load before BatchScreen / HistoryScreen pages.
+    'src/components/AutomationBanner.tsx',
+    // ReferenceCell — inline-editable identifier surfaced on the result
+    // page hero. Must load before ConfidenceHero / HistoryScreen pages.
     'src/components/ReferenceCell.tsx',
     'src/components/VerdictTiles.tsx',
     // 4. Scan

@@ -3,10 +3,17 @@
 
 type Filter = 'all' | 'single' | 'batch';
 type CadenceFilter = 'all' | '3' | '4' | '6' | '12';
+type ScopeRisk = 'risk' | 'warn' | 'clean';
+
+const SCOPE_STATUS_LABEL: Record<ScopeRisk, string> = {
+  risk: 'Rented',
+  warn: 'Possibly Rented',
+  clean: 'Not Rented',
+};
 
 function ScheduledScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
-  const { schedules, loading, error } = useAppState();
+  const { schedules, history, loading, error } = useAppState();
   const [filter, setFilter] = React.useState<Filter>('all');
   const [query, setQuery] = React.useState('');
   const [cadence, setCadence] = React.useState<CadenceFilter>('all');
@@ -84,6 +91,57 @@ function ScheduledScreen() {
           Every {r.cadenceMonths} months
         </span>
       ),
+    },
+    {
+      // Spec (May-14, Erin): batch schedules carry a `statuses` set that
+      // narrows each rerun. Surface as labelled text — count on top,
+      // filter rule beneath. The earlier ●◐ glyph treatment was glanceable
+      // for designers but cryptic for users; text wins on first-encounter
+      // discoverability and works the same in a print/CSV export.
+      // Single-property schedules have implicit scope (the address itself).
+      key: 'scope',
+      label: 'Scope',
+      width: '200px',
+      hideBelow: 'md' as const,
+      cell: (r: any) => {
+        if (r.kind !== 'batch') {
+          return <span className="font-mono tabular-nums text-caption text-ink-4">—</span>;
+        }
+        const statuses: ScopeRisk[] = r.statuses ?? ['risk', 'warn'];
+        // Resolve live per-status counts from the most recent matching
+        // batch run in history. Falls back to "—" if no run yet (legacy seed).
+        const recent: any = history.find(
+          (h: any) => h.kind === 'batch' && h.filename === r.filename
+        );
+        const counts = recent
+          ? { risk: recent.flagged, warn: recent.warn, clean: recent.clean }
+          : null;
+        const total = recent?.total ?? r.total;
+        const inScope = counts
+          ? (statuses.includes('risk')  ? counts.risk  : 0) +
+            (statuses.includes('warn')  ? counts.warn  : 0) +
+            (statuses.includes('clean') ? counts.clean : 0)
+          : null;
+        const filterLabel = statuses.map((s) => SCOPE_STATUS_LABEL[s]).join(', ');
+        // Per-status breakdown stays in the hover tooltip — still useful
+        // when a user wants the exact "Rented: 6 · Possibly Rented: 6" split.
+        const tipBreakdown = counts
+          ? statuses.map((s) => `${SCOPE_STATUS_LABEL[s]}: ${counts[s]}`).join(' · ')
+          : '';
+        return (
+          <div
+            className="min-w-0"
+            title={tipBreakdown ? `Per-status: ${tipBreakdown}` : filterLabel}
+          >
+            <div className="font-mono tabular-nums text-caption text-ink-2 leading-tight">
+              {inScope !== null ? `${inScope} of ${total}` : `— of ${total}`}
+            </div>
+            <div className="font-sans text-caption text-ink-3 leading-tight mt-0.5 truncate">
+              {filterLabel}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: 'next',
