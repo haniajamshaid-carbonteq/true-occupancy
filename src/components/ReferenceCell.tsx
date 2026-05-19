@@ -1,4 +1,4 @@
-/* global React */
+/* global React, Icon */
 // ReferenceCell — inline-editable Reference field for table rows.
 //
 // Read state:
@@ -85,17 +85,32 @@ function ReferenceCell({ value, onSave, readOnly, maxWidth = 180 }: ReferenceCel
     }
 
     return value ? (
+      // Read state with hover affordance — without the icon-on-hover the
+      // monospace value reads like static text. The `group` wrapper lets a
+      // pencil glyph reveal on hover/focus, and the subtle bg tint shifts
+      // the whole cluster into a "click target" affordance.
       <button
         type="button"
         onClick={(e: React.MouseEvent) => {
           e.stopPropagation();
           setEditing(true);
         }}
-        className="inline-block w-full text-left font-mono tabular-nums text-caption text-ink-2 truncate align-middle bg-transparent border-0 p-0 cursor-text hover:text-ink"
-        style={{ maxWidth }}
-        title={value}
+        title={`Edit reference — ${value}`}
+        className="group inline-flex items-center gap-1.5 align-middle bg-transparent border-0 cursor-pointer rounded px-1.5 -mx-1.5 py-0.5 -my-0.5 hover:bg-surface-2 focus:bg-surface-2 transition-colors"
+        style={{ maxWidth: maxWidth + 24 /* +24 to leave room for the pencil */ }}
       >
-        {value}
+        <span
+          className="font-mono tabular-nums text-caption text-ink-2 truncate group-hover:text-ink group-focus:text-ink"
+          style={{ maxWidth }}
+        >
+          {value}
+        </span>
+        <span
+          className="inline-flex shrink-0 text-ink-4 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity [&>svg]:w-3 [&>svg]:h-3"
+          aria-hidden
+        >
+          <Icon name="pencil" size={12} />
+        </span>
       </button>
     ) : (
       // Empty cell: subtle "+ Add reference" that's always visible but
