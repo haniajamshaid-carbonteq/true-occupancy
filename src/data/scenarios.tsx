@@ -300,7 +300,7 @@ function buildScanSteps(scenario: ScenarioKey, frame: 'start' | 'mid' | 'done'):
 
   const all: Omit<ScanStep, 'status'>[] = [
     { id: 'geo',     label: 'Geocoding subject parcel',          sub: 'Locating address against assessor records',   result: 'Located within 25 ft of parcel', kind: 'ok' },
-    { id: 'extract', label: 'Fingerprinting active listings',    sub: 'Visual hashes · room-layout signals',         result: findings.extract.text, kind: findings.extract.kind },
+    { id: 'extract', label: 'Profiling active listings',         sub: 'Photos · room layout · title signals',        result: findings.extract.text, kind: findings.extract.kind },
     { id: 'match',   label: 'Matching duplicate addresses',      sub: 'Cross-referencing listing networks',          result: findings.match.text,   kind: findings.match.kind   },
     { id: 'verify',  label: 'Validating ownership signals',      sub: 'Permits · property records · operator profiles', result: findings.verify.text, kind: findings.verify.kind },
     { id: 'score',   label: 'Scoring confidence',                sub: 'Weighing signals · cross-referencing records', result: 'Score ready', kind: 'ok' },
