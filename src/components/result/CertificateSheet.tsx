@@ -17,6 +17,11 @@ interface CertificateSheetProps {
   scenario: CertScenarioKey;
   address?: string;
   kind?: 'single' | 'batch';
+  /** Optional user-supplied identifier per the May-2026 lender spec.
+   *  Surfaces as a "Reference:" line at the top of the cert; omitted
+   *  entirely when undefined / empty (no dashes). The internal UUID
+   *  remains in the footer regardless. */
+  reference?: string;
 }
 
 /** djb2 — tiny deterministic hash for a believable scan ID. Kept inline
@@ -67,6 +72,7 @@ function CertificateBody({
   scenario,
   address,
   kind = 'single',
+  reference,
   scanId,
   timestamp,
 }: CertificateSheetProps & { scanId: string; timestamp: string }) {
@@ -93,7 +99,16 @@ function CertificateBody({
           </div>
         </div>
         <div className="cert-head-right">
-          <div className="cert-id" aria-label="Scan ID">{scanId}</div>
+          {/* Top-corner identifier — prefers the user-supplied reference
+              when set (lenders look for their loan number first), falls
+              back to the scan ID so the corner is never empty. Either way,
+              the internal scan ID is still printed in the footer for audit. */}
+          <div
+            className="cert-id"
+            aria-label={reference ? 'Reference' : 'Scan ID'}
+          >
+            {reference || scanId}
+          </div>
           <div className="cert-stamp">{timestamp}</div>
           <div className="cert-kind">{kind === 'batch' ? 'Batch Scan' : 'Single-Property Scan'}</div>
         </div>
@@ -172,6 +187,12 @@ function CertificateBody({
 
       <footer className="cert-foot">
         <div className="cert-foot-left">
+          {/* Internal UUID is always present per spec, regardless of whether
+              the lender attached a user-facing Reference. Serves as audit /
+              cross-reference, not primary identification. */}
+          <div className="cert-foot-line">
+            Scan ID: <span className="mono">{scanId}</span>
+          </div>
           <div className="cert-foot-line">
             Verifiable at <span className="mono">halcyon.app/verify/{scanId}</span>
           </div>
@@ -185,11 +206,19 @@ function CertificateBody({
   );
 }
 
-function CertificateSheet({ scenario, address, kind }: CertificateSheetProps) {
+function CertificateSheet({ scenario, address, kind, reference }: CertificateSheetProps) {
   const resolvedAddress =
     address ||
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
     PROPERTY.address;
+
+  // Pull reference from sessionStorage when the caller didn't pass one.
+  // HomeScreen writes `scanReference` alongside `scanAddress` on submit.
+  const resolvedReference =
+    reference ??
+    (typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem('scanReference') ?? undefined
+      : undefined);
 
   const scanId = React.useMemo(
     () => `TO-${certShortHash(resolvedAddress + ':' + scenario)}`,
@@ -211,6 +240,7 @@ function CertificateSheet({ scenario, address, kind }: CertificateSheetProps) {
       <CertificateBody
         scenario={scenario}
         address={resolvedAddress}
+        reference={resolvedReference}
         kind={kind}
         scanId={scanId}
         timestamp={timestamp}
@@ -223,11 +253,18 @@ function CertificateSheet({ scenario, address, kind }: CertificateSheetProps) {
 /** Inline preview variant for the design-spec canvas — visible on screen,
  *  unscaled, no portal. SpecApp wraps it in the same Screen frame as the
  *  other production pages. */
-function CertificatePreview({ scenario = 'high', address, kind }: Partial<CertificateSheetProps>) {
+function CertificatePreview({ scenario = 'high', address, kind, reference }: Partial<CertificateSheetProps>) {
   const resolvedAddress =
     address ||
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
     PROPERTY.address;
+  // Default to a believable sample for the design-spec canvas so reviewers
+  // see the populated state, not the omit-line variant.
+  const resolvedReference =
+    reference ??
+    (typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem('scanReference') ?? 'LOAN-2026-0042'
+      : 'LOAN-2026-0042');
   const scanId = `TO-${certShortHash(resolvedAddress + ':' + scenario)}`;
   const timestamp = certTimestamp(new Date());
   return (
@@ -235,6 +272,7 @@ function CertificatePreview({ scenario = 'high', address, kind }: Partial<Certif
       <CertificateBody
         scenario={scenario as CertScenarioKey}
         address={resolvedAddress}
+        reference={resolvedReference}
         kind={kind}
         scanId={scanId}
         timestamp={timestamp}

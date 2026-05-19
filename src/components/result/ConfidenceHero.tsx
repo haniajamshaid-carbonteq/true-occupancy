@@ -1,4 +1,4 @@
-/* global React, Card, Icon, Pill, SCENARIOS */
+/* global React, Card, Icon, Pill, SCENARIOS, ReferenceCell, useAppState */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath. Compact waffle-grid hero (10×10 dots filled to the
@@ -278,6 +278,14 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               {sc.summary}
             </div>
           </div>
+
+          {/* Reference — single-scan-only, optional. Decided 2026-05-19:
+              the user assigns a tracking identifier (loan #, client ID,
+              case file…) AFTER the scan completes. Value is mirrored to
+              sessionStorage so the PDF certificate picks it up, and
+              persisted to history when this result was opened from a
+              /history row (scanHistoryId present). */}
+          <ScanReferenceField />
         </div>
 
         <WaffleGrid score={sc.score} />
@@ -286,5 +294,56 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
       {/* Why this score — accordion */}
       <WhyThisScore scenario={scenario} defaultOpen={defaultOpen} />
     </Card>
+  );
+}
+
+// Inline-editable reference under the summary. Hidden by default when the
+// scan has no reference and the user hasn't opted in — a muted
+// "+ Add reference" affordance acts as the entry point. Once set, renders
+// as a labelled mono identifier that's still click-to-edit.
+//
+// Persistence layers:
+//   * sessionStorage.scanReference — always written, so the PDF cert and
+//     any same-session refresh pick it up.
+//   * AppState history entry — when the user arrived from /history, we
+//     also patch the persisted SingleHistoryEntry via setSingleScanReference.
+//     Fresh scans (from HomeScreen) lack a history id and are session-only.
+function ScanReferenceField() {
+  const { setSingleScanReference } = useAppState();
+
+  // Seed from sessionStorage; tick once on mount so the field reflects
+  // whichever flow brought the user here (fresh scan, History click,
+  // or the cert's session-store cache).
+  const [value, setValue] = React.useState<string | undefined>(() => {
+    if (typeof sessionStorage === 'undefined') return undefined;
+    return sessionStorage.getItem('scanReference') ?? undefined;
+  });
+
+  function handleSave(next?: string) {
+    setValue(next);
+    // 1. Session — read by CertificateSheet on print.
+    if (next) {
+      sessionStorage.setItem('scanReference', next);
+    } else {
+      sessionStorage.removeItem('scanReference');
+    }
+    // 2. Persisted — only when this result was opened from /history.
+    const historyId =
+      typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('scanHistoryId')
+        : null;
+    if (historyId) setSingleScanReference(historyId, next);
+  }
+
+  return (
+    <div className="mt-4 inline-flex items-center gap-2">
+      <span
+        className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
+        style={{ color: 'var(--ink-3)' }}
+      >
+        Reference
+      </span>
+      <ReferenceCell value={value} onSave={handleSave} maxWidth={240} />
+    </div>
   );
 }

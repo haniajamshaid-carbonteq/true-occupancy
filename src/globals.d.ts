@@ -104,6 +104,7 @@ declare function AutomationControl(props?: any): any;
 declare function AutomationBanner(props?: any): any;
 declare function AutomationScopeCard(props?: any): any;
 declare function StatusPillSelector(props?: any): any;
+declare function ReferenceCell(props?: any): any;
 declare function VerdictTiles(props?: any): any;
 declare function useAppState(): any;
 declare function ScanCard(props?: any): any;

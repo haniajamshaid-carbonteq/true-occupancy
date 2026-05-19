@@ -528,6 +528,10 @@ function HomeScreen() {
       'scanAddress',
       value || '1428 Maplewood Drive, Asheville, NC 28804'
     );
+    // Clear any reference / history-id carried over from a previous visit
+    // so the new scan starts with a blank Reference field on the result page.
+    sessionStorage.removeItem('scanReference');
+    sessionStorage.removeItem('scanHistoryId');
     history.push('/scan/start');
   }
 

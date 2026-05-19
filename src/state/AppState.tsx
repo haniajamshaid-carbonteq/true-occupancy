@@ -26,6 +26,11 @@ interface SingleHistoryEntry {
   scenario: Scenario;
   platforms: number;
   scannedAgo: string;
+  /** Optional user-supplied identifier (loan #, client ID, case file…)
+   *  set at scan-time and editable on the history page. Surfaces on the
+   *  PDF certificate header when present. Never replaces our internal UUID
+   *  — see CertificateSheet footer. */
+  reference?: string;
 }
 
 interface BatchHistoryEntry {
@@ -179,8 +184,8 @@ const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i)
 });
 
 const SEED_HISTORY: HistoryEntry[] = [
-  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago'  },
-  { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago' },
+  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago',  reference: 'LOAN-2026-0042' },
+  { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago', reference: 'CASE-FILE-7714' },
   { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAgo: '52 min ago', rows: SEED_BATCH_FAILED_ROWS },
   { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAgo: '2 h ago', rows: SEED_BATCH_Q1_ROWS },
   { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAgo: '3 h ago'    },
@@ -302,6 +307,11 @@ interface AppStateValue {
   clearBatch: () => void;
   dismissBatch: () => void;
   retryBatchRow: (id: number) => void;
+  /** Set or clear the reference on a single-scan history entry. References
+   *  are a single-scan-only concept (decided 2026-05-19): each single scan
+   *  carries one optional user-supplied identifier (loan #, client ID, case
+   *  file…) that travels onto its PDF certificate. */
+  setSingleScanReference: (historyId: string, reference?: string) => void;
   addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel' | 'runHistoryIds'> & { cadenceMonths: Cadence; runHistoryIds?: string[]; statuses?: Risk[] }) => void;
   updateScheduleCadence: (id: string, cadenceMonths: Cadence) => void;
   /** Update which verdict bands a batch schedule rescans each cycle. No-op
@@ -412,6 +422,20 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     setLiveBatch((prev) => (prev ? { ...prev, dismissed: true } : prev));
   }, []);
 
+  // Reference editing — single-scan only. Whitespace-only / empty saves are
+  // treated as a clear, matching the inline-edit semantics elsewhere.
+  const setSingleScanReference = React.useCallback(
+    (historyId: string, reference?: string) => {
+      const cleaned = reference?.trim() || undefined;
+      setHistory((prev) =>
+        prev.map((h: any) =>
+          h.id === historyId && h.kind === 'single' ? { ...h, reference: cleaned } : h
+        )
+      );
+    },
+    []
+  );
+
   const addSchedule = React.useCallback(
     (entry: any) => {
       const id = uid('s');
@@ -498,6 +522,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     clearBatch,
     dismissBatch,
     retryBatchRow,
+    setSingleScanReference,
     addSchedule,
     updateScheduleCadence,
     updateScheduleStatuses,

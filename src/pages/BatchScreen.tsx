@@ -20,6 +20,8 @@ interface BatchRow {
   risk?: Risk;
   listings?: number;
   errorReason?: string;
+  /** Optional user-supplied identifier per the May-2026 lender spec. */
+  reference?: string;
 }
 
 const SAMPLE_BATCH: BatchRow[] = [
