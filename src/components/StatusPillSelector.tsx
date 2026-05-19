@@ -35,15 +35,30 @@ interface StatusPillSelectorProps {
   ariaLabel?: string;
 }
 
-// Per-status visual mapping. `dot` is the inline SVG for the leading glyph;
-// rendered at 14px so it sits comfortably beside the label.
+// Per-status visual mapping. `dot` is the inline SVG glyph; status-soft
+// background is the *outline* hue when the chip is selected.
+//
+// Glyph basis (moon-phase / Apple-Calendar convention):
+//   ● Rented           — fully filled circle  (full risk present)
+//   ◐ Possibly Rented  — half-filled circle   (partial / unclear)
+//   ○ Not Rented       — outlined circle      (no rental detected)
+//
+// "Filled-ness" maps directly to "how much rental activity was found", so
+// the glyph carries the semantic even in monochrome or for color-blind users.
 const STATUS_VISUAL: Record<
   RiskStatus,
-  { selectedClass: string; unselectedDotClass: string; dot: React.ReactNode }
+  {
+    /** Border + dot color when the chip is SELECTED — outlined treatment. */
+    selectedBorder: string;
+    /** Glyph color in either state — anchors the status semantic. */
+    dotColor: string;
+    /** Inline SVG for the status glyph. */
+    dot: React.ReactNode;
+  }
 > = {
   risk: {
-    selectedClass: '!bg-risk-soft !border-transparent text-risk-ink',
-    unselectedDotClass: 'text-risk',
+    selectedBorder: 'border-risk',
+    dotColor: 'text-risk',
     dot: (
       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" aria-hidden>
         <circle cx="8" cy="8" r="5" fill="currentColor" />
@@ -51,9 +66,9 @@ const STATUS_VISUAL: Record<
     ),
   },
   warn: {
-    selectedClass: '!bg-warn-soft !border-transparent text-warn-ink',
-    unselectedDotClass: 'text-warn',
-    // Half-filled: full circle outline + half disc on the left.
+    selectedBorder: 'border-warn',
+    dotColor: 'text-warn',
+    // Half-filled: full outline + a half-disc on the left.
     dot: (
       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" aria-hidden>
         <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.5} />
@@ -62,8 +77,8 @@ const STATUS_VISUAL: Record<
     ),
   },
   clean: {
-    selectedClass: '!bg-clean-soft !border-transparent text-clean-ink',
-    unselectedDotClass: 'text-clean',
+    selectedBorder: 'border-clean',
+    dotColor: 'text-clean',
     dot: (
       <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" aria-hidden>
         <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.6} />
@@ -96,13 +111,19 @@ function StatusPillSelector({
         const visual = STATUS_VISUAL[opt.value];
         const countLabel = countsPending || opt.count === null ? '—' : String(opt.count);
 
+        // Outlined treatment per design pass (2026-05-19): selected chips
+        // are NOT filled — they're a 2px status-color border on the same
+        // surface bg as unselected. The colored glyph + check carry the
+        // status semantic; the border carries the selection state.
         const base =
-          'inline-flex items-center gap-2 h-9 px-3.5 rounded-md border font-sans text-label font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+          'inline-flex items-center gap-2 h-9 px-3.5 rounded-md bg-surface font-sans text-label font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
         const cls = selected
-          ? `${base} ${visual.selectedClass}`
-          : `${base} bg-surface border-line text-ink-2 hover:bg-hover-bg hover:border-line-strong`;
+          ? `${base} border-2 ${visual.selectedBorder} text-ink`
+          : `${base} border border-line text-ink-3 hover:border-line-strong hover:text-ink-2`;
 
-        const dotCls = selected ? '' : `opacity-70 ${visual.unselectedDotClass}`;
+        // Glyph color: full saturation when selected (anchors the status
+        // tone), dimmer when not (so unselected chips read as one quiet row).
+        const dotCls = selected ? visual.dotColor : `opacity-50 ${visual.dotColor}`;
 
         return (
           <button
@@ -116,9 +137,12 @@ function StatusPillSelector({
           >
             <span className={`inline-flex shrink-0 ${dotCls}`}>{visual.dot}</span>
             <span>{opt.label}</span>
-            <span className="tabular-nums text-ink-3">({countLabel})</span>
+            <span className="tabular-nums text-ink-4">({countLabel})</span>
             {selected && (
-              <span className="inline-flex shrink-0 -mr-1 opacity-80 [&>svg]:w-3 [&>svg]:h-3" aria-hidden>
+              <span
+                className={`inline-flex shrink-0 -mr-1 ${visual.dotColor} [&>svg]:w-3 [&>svg]:h-3`}
+                aria-hidden
+              >
                 <Icon name="check" size={12} />
               </span>
             )}
