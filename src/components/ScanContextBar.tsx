@@ -62,9 +62,15 @@ function ScanContextBar({
       if (v === 'history') sessionStorage.setItem('certVariant', 'history');
       else sessionStorage.removeItem('certVariant');
     }
-    // Defer one tick so the CertificateSheet's beforeprint listener sees
-    // the sessionStorage write before the browser snapshots the page.
-    window.requestAnimationFrame(() => window.print());
+    // Dispatch the variant change BEFORE calling print() so the cert's
+    // listener can setState while React's not blocked by the print dialog.
+    // Two rAFs give React one frame to commit and the browser one frame to
+    // paint before we snapshot — setting state inside beforeprint instead
+    // gets batched and never lands in the printed output.
+    window.dispatchEvent(new CustomEvent('halcyon:certvariant', { detail: v }));
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.print());
+    });
   }
 
   // Automate flow — encapsulated in <AutomationControl>. It looks up an

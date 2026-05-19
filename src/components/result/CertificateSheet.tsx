@@ -381,22 +381,26 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
   const [timestamp, setTimestamp] = React.useState(() => certTimestamp(new Date()));
   const [variant, setVariant] = React.useState<CertVariant>('single');
   React.useEffect(() => {
+    // Variant flip happens via a 'halcyon:certvariant' event dispatched by
+    // ScanContextBar *before* it calls window.print(). Listening here (not
+    // in beforeprint) gives React time to commit the state change and the
+    // browser time to paint before the print snapshot is taken.
+    const onVariant = (e: any) => {
+      const v = e?.detail === 'history' ? 'history' : 'single';
+      setVariant(v);
+    };
     const onBeforePrint = () => {
       setTimestamp(certTimestamp(new Date()));
-      const v = typeof sessionStorage !== 'undefined'
-        ? (sessionStorage.getItem('certVariant') as CertVariant | null)
-        : null;
-      setVariant(v === 'history' ? 'history' : 'single');
     };
     const onAfterPrint = () => {
-      // Reset so a subsequent ⌘P from the browser chrome falls back to the
-      // single-scan cert. Only the dropdown items opt into history.
       if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('certVariant');
       setVariant('single');
     };
+    window.addEventListener('halcyon:certvariant', onVariant as EventListener);
     window.addEventListener('beforeprint', onBeforePrint);
     window.addEventListener('afterprint', onAfterPrint);
     return () => {
+      window.removeEventListener('halcyon:certvariant', onVariant as EventListener);
       window.removeEventListener('beforeprint', onBeforePrint);
       window.removeEventListener('afterprint', onAfterPrint);
     };
