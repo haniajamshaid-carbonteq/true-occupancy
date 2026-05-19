@@ -33,16 +33,6 @@
   animation: route-fade-in var(--motion-fast) var(--ease-out) both;
 }
 
-/* === Waffle dot sequential fill ===================================== */
-@keyframes waffle-pop {
-  from { opacity: 0; transform: scale(0.55); }
-  to   { opacity: var(--final-opacity, 1); transform: scale(1); }
-}
-.waffle-dot-anim {
-  animation: waffle-pop 280ms var(--ease-out) both;
-  animation-delay: var(--waffle-delay, 0ms);
-}
-
 /* === Strongest-match ribbon drop ==================================== */
 @keyframes ribbon-drop {
   from { opacity: 0; transform: translateY(-100%); }
