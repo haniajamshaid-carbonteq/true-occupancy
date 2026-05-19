@@ -1,5 +1,5 @@
 /* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, DropdownMenu, ReactRouterDOM,
-   VERDICT_ACCENT, splitAddress, AutomationControl, VerdictTiles, useAppState */
+   VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, useAppState */
 // Batch processing — upload a CSV (or click "Try sample data") to scan
 // dozens of properties in one queue. Shows a partially-complete batch:
 // some scanned, some scanning, some queued.
@@ -116,7 +116,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
 
 function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const routerHistory = ReactRouterDOM.useHistory();
-  const { clearBatch, retryBatchRow } = useAppState();
+  const { clearBatch, retryBatchRow, findScheduleByTarget } = useAppState();
   const rows: BatchRow[] = batch.rows;
   const total = rows.length;
   const done = rows.filter((r) => r.status === 'done').length;
@@ -126,6 +126,16 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const clean = rows.filter((r) => r.risk === 'clean').length;
   const progress = Math.round((done / total) * 100);
   const isComplete = batch.status === 'complete';
+
+  // Per-status counts feed both the AutomateModal scope card and the
+  // AutomationBanner. Re-derived on every render off the latest rows so the
+  // "X of Y" follows the data after retries / new scans.
+  const scopeCounts = { risk: flagged, warn, clean };
+  const scopeCountsPending = !isComplete;
+
+  // Active schedule for this batch, if any. When present we replace the
+  // compact AutomationControl button with the verbose AutomationBanner.
+  const activeSchedule: any = findScheduleByTarget({ kind: 'batch', filename: batch.filename });
 
   const failedRows = rows.filter((r) => r.status === 'failed');
   const failedCount = failedRows.length;
@@ -152,6 +162,27 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
 
   return (
     <div className="flex flex-col gap-section-sub">
+      {/* Active automation banner — shown on BOTH the live batch view and
+          a historical detail view, because the schedule is a separate live
+          entity from the (read-only) batch run beneath it. readOnly here
+          only governs row-level actions like retry, not the automation. */}
+      {activeSchedule && activeSchedule.kind === 'batch' && (
+        <AutomationBanner
+          schedule={{
+            id: activeSchedule.id,
+            cadenceMonths: activeSchedule.cadenceMonths,
+            nextRunLabel: activeSchedule.nextRunLabel,
+            statuses: activeSchedule.statuses,
+          }}
+          batch={{
+            filename: batch.filename,
+            total,
+            counts: scopeCounts,
+            countsPending: scopeCountsPending,
+          }}
+        />
+      )}
+
       {/* Summary card */}
       <Card allowOverflow>
         <div className="px-card-loose py-card">
@@ -171,9 +202,17 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
               </h2>
             </div>
             <div className="flex gap-2 shrink-0">
-              <AutomationControl
-                target={{ kind: 'batch', filename: batch.filename, total }}
-              />
+              {!activeSchedule && (
+                <AutomationControl
+                  target={{
+                    kind: 'batch',
+                    filename: batch.filename,
+                    total,
+                    scopeCounts,
+                    scopeCountsPending,
+                  }}
+                />
+              )}
               <DropdownMenu
                 title="Download Report"
                 trigger={(open: boolean) => (

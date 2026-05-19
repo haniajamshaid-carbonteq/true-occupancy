@@ -1,4 +1,4 @@
-/* global React, AppShell, Card, Icon, Pill, Modal, Button, DataTable, ReactRouterDOM, useAppState,
+/* global React, AppShell, Card, Icon, Pill, Modal, Button, DataTable, AutomateModal, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress, ScreenError */
 // Schedule detail — full page for a scheduled automation.
 // Layout:
@@ -9,8 +9,18 @@
 function ScheduleDetailScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
   const { id } = ReactRouterDOM.useParams<{ id: string }>();
-  const { schedules, history, cancelSchedule, loading, error } = useAppState();
+  const {
+    schedules,
+    history,
+    cancelSchedule,
+    updateScheduleCadence,
+    updateScheduleStatuses,
+    pushTransient,
+    loading,
+    error,
+  } = useAppState();
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
 
   // Surface fetch errors before the redirect-on-missing guard so the user
   // sees "Couldn't load" instead of being bounced back silently.
@@ -58,6 +68,49 @@ function ScheduleDetailScreen() {
   function confirmCancel() {
     cancelSchedule(schedule.id);
     routerHistory.push('/scheduled');
+  }
+
+  // Batch scope data — most recent run in history is the source of truth for
+  // per-status counts; the saved `schedule.statuses` selects the subset.
+  type ScopeRisk = 'risk' | 'warn' | 'clean';
+  const currentStatuses: ScopeRisk[] =
+    isBatch ? (schedule?.statuses ?? ['risk', 'warn']) : [];
+  const recentBatch: any = isBatch
+    ? history.find((h: any) => h.kind === 'batch' && h.filename === schedule.filename)
+    : null;
+  const scopeCounts = recentBatch
+    ? { risk: recentBatch.flagged, warn: recentBatch.warn, clean: recentBatch.clean }
+    : { risk: 0, warn: 0, clean: 0 };
+  const scopeTotal = recentBatch?.total ?? schedule?.total ?? 0;
+  const scopeCountsPending = isBatch && !recentBatch;
+  const inScope = scopeCountsPending
+    ? null
+    : (currentStatuses.includes('risk')  ? scopeCounts.risk  : 0) +
+      (currentStatuses.includes('warn')  ? scopeCounts.warn  : 0) +
+      (currentStatuses.includes('clean') ? scopeCounts.clean : 0);
+
+  function handleUpdate({ cadenceMonths, statuses }: { cadenceMonths: 3 | 4 | 6 | 12; statuses?: ScopeRisk[] }) {
+    if (!schedule) return;
+    const cadenceChanged = cadenceMonths !== schedule.cadenceMonths;
+    if (cadenceChanged) updateScheduleCadence(schedule.id, cadenceMonths);
+    if (isBatch && statuses) {
+      const prev = currentStatuses;
+      const changed =
+        prev.length !== statuses.length || !prev.every((s) => statuses.includes(s));
+      if (changed) {
+        updateScheduleStatuses(schedule.id, statuses);
+        const newCount =
+          (statuses.includes('risk')  ? scopeCounts.risk  : 0) +
+          (statuses.includes('warn')  ? scopeCounts.warn  : 0) +
+          (statuses.includes('clean') ? scopeCounts.clean : 0);
+        pushTransient(`Scope updated · next run ${inScope ?? 0} → ${newCount} addresses`);
+      } else if (cadenceChanged) {
+        pushTransient(`Cadence updated · every ${cadenceMonths} months`);
+      }
+    } else if (cadenceChanged) {
+      pushTransient(`Cadence updated · every ${cadenceMonths} months`);
+    }
+    setEditOpen(false);
   }
 
   const [street, locality] = !schedule
@@ -133,14 +186,25 @@ function ScheduleDetailScreen() {
           <span>Back to Scheduled</span>
         </ReactRouterDOM.Link>
 
-        <button
-          type="button"
-          onClick={() => setConfirmOpen(true)}
-          className="inline-flex items-center gap-stack-tight h-9 px-control-x rounded-md bg-transparent border border-transparent font-sans text-label font-medium text-error-ink hover:bg-error-soft transition-colors cursor-pointer"
-        >
-          <Icon name="x" size={14} />
-          <span>Cancel automation</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {schedule && (
+            <Button
+              variant="ghost"
+              onClick={() => setEditOpen(true)}
+              icon={<Icon name="cal" size={14} />}
+            >
+              Edit schedule
+            </Button>
+          )}
+          <button
+            type="button"
+            onClick={() => setConfirmOpen(true)}
+            className="inline-flex items-center gap-stack-tight h-9 px-control-x rounded-md bg-transparent border border-transparent font-sans text-label font-medium text-error-ink hover:bg-error-soft transition-colors cursor-pointer"
+          >
+            <Icon name="x" size={14} />
+            <span>Cancel automation</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-section-sub">
@@ -212,6 +276,13 @@ function ScheduleDetailScreen() {
                     consistent section gap. Cadence is omitted here because it's
                     already featured above. */}
                 <dl className="flex flex-wrap gap-x-section-sub gap-y-stack m-0">
+                  {isBatch && (
+                    <ScopeRuleField
+                      statuses={currentStatuses}
+                      inScope={inScope}
+                      total={scopeTotal}
+                    />
+                  )}
                   <RuleField label="Next run" value={schedule.nextRunLabel} />
                   <RuleField label="Created" value={schedule.createdAgo} />
                   <RuleField label="Runs to date" value={String(runs.length)} />
@@ -291,7 +362,102 @@ function ScheduleDetailScreen() {
           </p>
         </div>
       </Modal>
+
+      {/* Edit-schedule modal. For batch schedules this carries the full
+          status-scope selector + live "X of Y" card; for single schedules
+          only cadence is editable (statuses prop ignored). */}
+      {schedule && (
+        <AutomateModal
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          target={
+            isBatch
+              ? { kind: 'batch', filename: schedule.filename, total: schedule.total }
+              : { kind: 'single', address: schedule.address, scenario: schedule.scenario }
+          }
+          onConfirm={handleUpdate}
+          mode="edit"
+          initialCadence={schedule.cadenceMonths}
+          initialStatuses={isBatch ? currentStatuses : undefined}
+          scopeCounts={isBatch ? scopeCounts : undefined}
+          scopeTotal={isBatch ? scopeTotal : undefined}
+          scopeCountsPending={scopeCountsPending}
+          onCancelAutomation={() => {
+            setEditOpen(false);
+            setConfirmOpen(true);
+          }}
+        />
+      )}
     </AppShell>
+  );
+}
+
+// Scope field for batch schedules — color-keyed status dots + in-scope/total.
+// Single-property schedules don't render this (their scope is implicit).
+function ScopeRuleField({
+  statuses,
+  inScope,
+  total,
+}: {
+  statuses: Array<'risk' | 'warn' | 'clean'>;
+  inScope: number | null;
+  total: number;
+}) {
+  const labelByStatus: Record<'risk' | 'warn' | 'clean', string> = {
+    risk: 'Rented',
+    warn: 'Possibly Rented',
+    clean: 'Not Rented',
+  };
+  const tip = statuses.map((s) => labelByStatus[s]).join(', ');
+
+  return (
+    <div className="min-w-0">
+      <dt
+        className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase mb-stack-tight"
+        style={{ color: 'var(--ink-3)' }}
+      >
+        Scope
+      </dt>
+      <dd className="font-sans m-0 inline-flex items-center gap-2" title={tip}>
+        <span className="inline-flex items-center gap-1">
+          {statuses.map((s) => (
+            <DetailScopeDot key={s} status={s} />
+          ))}
+        </span>
+        <span
+          className="font-semibold text-body-sm tabular-nums"
+          style={{ color: 'var(--navy)' }}
+        >
+          {inScope !== null ? `${inScope} / ${total}` : `— / ${total}`}
+        </span>
+      </dd>
+    </div>
+  );
+}
+
+// Compact status glyph shared by ScopeRuleField. Neutral gray ramp,
+// matching StatusPillSelector + ScheduledScreen's ScopeDot so the
+// meta strip dots feel identical to the chip dots across surfaces.
+function DetailScopeDot({ status }: { status: 'risk' | 'warn' | 'clean' }) {
+  if (status === 'risk') {
+    return (
+      <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink" aria-hidden>
+        <circle cx="8" cy="8" r="5" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (status === 'warn') {
+    return (
+      <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink-2" aria-hidden>
+        <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.5} />
+        <path d="M8 3 A5 5 0 0 0 8 13 Z" fill="currentColor" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink-3" aria-hidden>
+      <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.6} />
+    </svg>
   );
 }
 
