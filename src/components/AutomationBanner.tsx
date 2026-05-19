@@ -1,4 +1,4 @@
-/* global React, Icon, Button, Modal, AutomateModal, useAppState */
+/* global React, Card, Icon, Button, Modal, AutomateModal, useAppState */
 // AutomationBanner — full-width banner shown on the BatchScreen when a
 // batch has an active automation. Replaces the compact "Automated · every
 // Nmo" pill from AutomationControl on this surface (per spec May-14).
@@ -100,9 +100,14 @@ function AutomationBanner({ schedule, batch }: AutomationBannerProps) {
   }
 
   return (
-    <div
+    // Card primitive carries border + radius + shadow + overflow — matches
+    // every other surface in the app. We override the default surface bg
+    // with `!bg-brand-soft/40` (still the intentional "active automation"
+    // tint), and add asymmetric padding via the semantic tokens
+    // (`px-card py-card-tight`) instead of raw `px-4 py-3`.
+    <Card
       role="status"
-      className="rounded-lg border border-line bg-brand-soft/40 px-4 py-3 flex items-start gap-3 flex-wrap"
+      className="!bg-brand-soft/40 px-card py-card-tight flex items-start gap-3 flex-wrap"
     >
       <span
         className="inline-flex shrink-0 mt-0.5 w-7 h-7 rounded-full bg-brand-soft text-brand-deep grid place-items-center [&>svg]:w-3.5 [&>svg]:h-3.5"
@@ -112,10 +117,7 @@ function AutomationBanner({ schedule, batch }: AutomationBannerProps) {
       </span>
 
       <div className="min-w-0 flex-1">
-        <p
-          className="m-0 font-sans text-body-sm leading-relaxed"
-          style={{ color: 'var(--ink)' }}
-        >
+        <p className="m-0 font-sans text-body-sm leading-relaxed text-ink">
           <span className="font-semibold">Auto-rerun:</span>{' '}
           every {schedule.cadenceMonths} months ·{' '}
           {batch.countsPending ? (
@@ -202,6 +204,6 @@ function AutomationBanner({ schedule, batch }: AutomationBannerProps) {
           </p>
         </div>
       </Modal>
-    </div>
+    </Card>
   );
 }
