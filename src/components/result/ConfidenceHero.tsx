@@ -352,7 +352,10 @@ function heroDotLabel(d: Date, isMostRecent: boolean): string {
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
   const animatedScore = useCountUp(sc.score, 800);
-  const { getHistoryForAddress } = useAppState();
+  // Read raw history and filter inline. We don't use the
+  // getHistoryForAddress() selector because it landed on the scan-history-
+  // report branch (#48) and isn't on main yet; this PR stays decoupled.
+  const { history } = useAppState();
 
   // Resolve which address this result page is for so we can look up its
   // prior scans. Falls back to PROPERTY.address (the demo property), matching
@@ -361,11 +364,13 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
     PROPERTY.address;
 
-  // Build trend points from history. seed is newest-first; sparkline reads
+  // Build trend points from history. Seed is newest-first; sparkline reads
   // left-to-right oldest-to-newest, so reverse. The newest entry is treated
   // as "current" (most recent visible scan = the one the user is reading).
   const trendPoints: TrendPoint[] = React.useMemo(() => {
-    const entries = getHistoryForAddress(resolvedAddress);
+    const entries = (history ?? []).filter(
+      (h: any) => h.kind === 'single' && h.address === resolvedAddress
+    );
     if (entries.length === 0) return [];
     return entries
       .slice()
@@ -379,7 +384,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
           isCurrent,
         };
       });
-  }, [getHistoryForAddress, resolvedAddress]);
+  }, [history, resolvedAddress]);
 
   // Trend needs at least two points to be meaningful — otherwise the
   // sparkline degenerates to one dot, which is just the badge anyway.
