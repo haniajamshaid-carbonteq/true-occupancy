@@ -142,6 +142,15 @@ function HistoryScreen() {
     }
     sessionStorage.setItem('scanScenario', row.scenario);
     sessionStorage.setItem('scanAddress', row.address);
+    // Thread the entry's id + reference so the result page can show the
+    // saved reference (if any) and route inline edits back to this entry
+    // via setSingleScanReference(historyId, ref).
+    sessionStorage.setItem('scanHistoryId', row.id);
+    if (row.reference) {
+      sessionStorage.setItem('scanReference', row.reference);
+    } else {
+      sessionStorage.removeItem('scanReference');
+    }
     const path =
       row.scenario === 'low'  ? '/result/clean'
       : row.scenario === 'medium' ? '/result/medium'
