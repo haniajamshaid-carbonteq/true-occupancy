@@ -52,11 +52,10 @@ function ScanContextBar({
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
     PROPERTY.address;
 
-  // The Scan History Report is only useful with a prior scan to compare
-  // against the current one. Below two we just disable the menu item — the
-  // user still sees it (discoverability) but can't trigger an empty report.
+  // The history report stays clickable even when only one scan is on file —
+  // a single-row report is still a useful audit record. The hint just
+  // surfaces the count so the user knows what they're about to download.
   const priorScanCount = getHistoryForAddress(resolvedAddress).length;
-  const historyDisabled = priorScanCount < 2;
 
   function printCertificate(v: 'single' | 'history') {
     if (typeof sessionStorage !== 'undefined') {
@@ -163,10 +162,10 @@ function ScanContextBar({
             {
               label: 'Scan history report',
               icon: <Icon name="history" />,
-              hint: historyDisabled
-                ? 'Needs at least two scans'
-                : `${priorScanCount} scans for this property`,
-              disabled: historyDisabled,
+              hint:
+                priorScanCount === 0
+                  ? 'No prior scans on record yet'
+                  : `${priorScanCount} ${priorScanCount === 1 ? 'scan' : 'scans'} for this property`,
               onClick: () => printCertificate('history'),
             },
           ]}
