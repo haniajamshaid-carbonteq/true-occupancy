@@ -1,5 +1,5 @@
 /* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, DropdownMenu, ReactRouterDOM,
-   VERDICT_ACCENT, splitAddress, AutomationControl, VerdictTiles, ReferenceCell, useAppState */
+   VERDICT_ACCENT, splitAddress, AutomationControl, VerdictTiles, useAppState */
 // Batch processing — upload a CSV (or click "Try sample data") to scan
 // dozens of properties in one queue. Shows a partially-complete batch:
 // some scanned, some scanning, some queued.
@@ -176,7 +176,7 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
 
 function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const routerHistory = ReactRouterDOM.useHistory();
-  const { clearBatch, retryBatchRow, setBatchRowReference, pushTransient } = useAppState();
+  const { clearBatch, retryBatchRow } = useAppState();
   const rows: BatchRow[] = batch.rows;
   const total = rows.length;
   const done = rows.filter((r) => r.status === 'done').length;
@@ -196,38 +196,19 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
       };
 
   type VerdictFilter = 'all' | 'risk' | 'warn' | 'clean';
-  type ReferenceFilter = 'all' | 'has' | 'missing';
   const [query, setQuery] = React.useState('');
   const [verdictFilter, setVerdictFilter] = React.useState<VerdictFilter>('all');
-  const [referenceFilter, setReferenceFilter] = React.useState<ReferenceFilter>('all');
 
   const filteredRows = rows.filter((r) => {
     if (verdictFilter !== 'all') {
       if (r.status !== 'done' || r.risk !== verdictFilter) return false;
     }
-    if (referenceFilter === 'has' && !r.reference) return false;
-    if (referenceFilter === 'missing' && r.reference) return false;
-    // Search matches address OR reference, per spec.
-    if (query) {
-      const q = query.toLowerCase();
-      const hitAddress = r.address.toLowerCase().includes(q);
-      const hitRef = (r.reference ?? '').toLowerCase().includes(q);
-      if (!hitAddress && !hitRef) return false;
-    }
+    if (query && !r.address.toLowerCase().includes(query.toLowerCase())) return false;
     return true;
   });
 
   const toggleVerdict = (v: 'risk' | 'warn' | 'clean') =>
     setVerdictFilter((cur) => (cur === v ? 'all' : v));
-
-  // Inline-edit handler. Optimistic update happens inside AppState; we just
-  // surface the toast per the design spec ("Reference saved").
-  const onSaveReference = readOnly
-    ? undefined
-    : (rowId: number, next?: string) => {
-        setBatchRowReference(batch.id, rowId, next);
-        pushTransient(next ? 'Reference saved' : 'Reference cleared');
-      };
 
   return (
     <div className="flex flex-col gap-section-sub">
@@ -362,36 +343,20 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
                 type="search"
                 value={query}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-                placeholder="Filter by address or reference"
+                placeholder="Filter by address"
                 className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4"
               />
             </div>
-            <ReferenceFilterChip value={referenceFilter} onChange={setReferenceFilter} />
           </div>
         </div>
-        <BatchTable rows={filteredRows} onSaveReference={onSaveReference} />
-        {/* Footer hint — clarifies that empty cells can be filled in. Only
-            visible when at least one row in scope is missing a reference. */}
-        {!readOnly && filteredRows.some((r) => !r.reference) && (
-          <p className="mt-2 m-0 font-sans text-caption text-ink-4">
-            Hover an empty cell in the Reference column to add a loan number,
-            order ID, or case file.
-          </p>
-        )}
+        <BatchTable rows={filteredRows} />
       </div>
 
     </div>
   );
 }
 
-function BatchTable({
-  rows,
-  onSaveReference,
-}: {
-  rows: BatchRow[];
-  /** Inline-edit handler for the Reference column. Omit for read-only views. */
-  onSaveReference?: (rowId: number, next?: string) => void;
-}) {
+function BatchTable({ rows }: { rows: BatchRow[] }) {
   const history = ReactRouterDOM.useHistory();
 
   function openIfDone(row: BatchRow) {
@@ -400,7 +365,7 @@ function BatchTable({
     }
   }
 
-  const columns = React.useMemo(() => buildBatchColumns(onSaveReference), [onSaveReference]);
+  const columns = React.useMemo(() => buildBatchColumns(), []);
 
   return (
     <DataTable
@@ -417,52 +382,6 @@ function BatchTable({
           : undefined
       }
     />
-  );
-}
-
-// Chip-style two-state filter that lives next to the search input.
-// "Any" = no filter; "Has reference" / "Missing reference" restrict the
-// visible rows. Mirrors the visual contract of the ChipRow primitive but
-// inline (no label, just toggle buttons).
-function ReferenceFilterChip({
-  value,
-  onChange,
-}: {
-  value: 'all' | 'has' | 'missing';
-  onChange: (next: 'all' | 'has' | 'missing') => void;
-}) {
-  const options: { id: 'all' | 'has' | 'missing'; label: string; ariaLabel: string }[] = [
-    { id: 'all',     label: 'Any',     ariaLabel: 'Any reference' },
-    { id: 'has',     label: 'Has ref', ariaLabel: 'Rows with a reference' },
-    { id: 'missing', label: 'No ref',  ariaLabel: 'Rows missing a reference' },
-  ];
-  return (
-    <div
-      role="group"
-      aria-label="Filter by reference"
-      className="inline-flex items-center gap-0 rounded-md border border-line bg-surface overflow-hidden shrink-0"
-    >
-      {options.map((opt) => {
-        const active = value === opt.id;
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={() => onChange(opt.id)}
-            aria-label={opt.ariaLabel}
-            aria-pressed={active}
-            className={`h-8 px-2.5 text-caption font-medium transition-colors ${
-              active
-                ? '!bg-brand-tint'
-                : 'bg-transparent hover:bg-hover-bg'
-            }`}
-            style={{ color: active ? 'var(--brand-deep)' : 'var(--ink-2)' }}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
@@ -485,9 +404,7 @@ const ROUTE_FOR_RISK: Record<Risk, string> = {
 // Column definitions for the BatchTable. Mirrors the SCAN_COLUMNS shape
 // from HomeScreen so both data tables share rhythm, hover treatment, and
 // the table↔card switch via the global DataTable primitive.
-function buildBatchColumns(
-  onSaveReference?: (rowId: number, next?: string) => void
-): any[] {
+function buildBatchColumns(): any[] {
   const cols: any[] = [
   {
     key: 'index',
@@ -498,28 +415,6 @@ function buildBatchColumns(
       <span className="font-mono text-micro text-ink-4 tabular-nums">
         {String(i + 1).padStart(2, '0')}
       </span>
-    ),
-  },
-  // Reference — placed to the LEFT of Address per spec; lenders treat it
-  // as a primary identifier. Inline editable when onSaveReference is
-  // provided (live batch or completed batch view), read-only otherwise
-  // (snapshot views with no edit hook).
-  {
-    key: 'reference',
-    label: 'Reference',
-    width: '200px',
-    hideBelow: 'sm' as const,
-    cell: (row: BatchRow) => (
-      <ReferenceCell
-        value={row.reference}
-        onSave={
-          onSaveReference
-            ? (next?: string) => onSaveReference(row.id, next)
-            : () => {}
-        }
-        readOnly={!onSaveReference}
-        maxWidth={180}
-      />
     ),
   },
   {

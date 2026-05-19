@@ -1,7 +1,7 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, DropdownMenu, Drawer, Tabs, ReactRouterDOM, SCENARIOS,
    HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
    SCAN_COLUMNS, scanLeadingAccent, useAppState, splitAddress, ChipRow, DateRangePicker, parseAgoHours,
-   ReferenceCell, ScreenError, ScreenEmpty */
+   ScreenError, ScreenEmpty */
 
 function scannedAgoToHours(label: string): number {
   if (!label) return NaN;
@@ -56,7 +56,7 @@ function scannedIso(row: any): string {
 
 function HistoryScreen() {
   const history = ReactRouterDOM.useHistory();
-  const { history: rows, setSingleScanReference, pushTransient, loading, error } = useAppState();
+  const { history: rows, loading, error } = useAppState();
   const [kind, setKind] = React.useState<Kind>('single');
   const [verdict, setVerdict] = React.useState<Verdict>('all');
   const [batchStatus, setBatchStatus] = React.useState<BatchStatus>('all');
@@ -107,20 +107,8 @@ function HistoryScreen() {
       if (scoreRange.max !== undefined && s > scoreRange.max) return false;
     }
     if (query) {
-      // Spec: unified search matches against address (or batch file),
-      // batch name, AND the user-supplied reference. For a batch row, also
-      // peek at the per-address references in the snapshot — that lets a
-      // lender find the batch containing loan #ABC-123 by typing it.
-      const q = query.toLowerCase();
-      const primary = r.kind === 'batch' ? r.filename : r.address;
-      const refHit = (r.reference ?? '').toLowerCase().includes(q);
-      let primaryHit = primary.toLowerCase().includes(q);
-      if (!primaryHit && !refHit && r.kind === 'batch') {
-        primaryHit = (r.rows ?? []).some((bRow: any) =>
-          (bRow.reference ?? '').toLowerCase().includes(q)
-        );
-      }
-      if (!primaryHit && !refHit) return false;
+      const target = r.kind === 'batch' ? r.filename : r.address;
+      if (!target.toLowerCase().includes(query.toLowerCase())) return false;
     }
     return true;
   });
@@ -199,7 +187,7 @@ function HistoryScreen() {
               type="search"
               value={query}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-              placeholder="Search by address, reference, or batch name"
+              placeholder="Filter by address or file"
               className="w-full h-8 pl-8 pr-3 rounded-md bg-surface border border-line text-label outline-none focus:border-brand placeholder:text-ink-4"
             />
           </div>
@@ -304,16 +292,7 @@ function HistoryScreen() {
         />
       ) : (
         <DataTable
-          columns={
-            kind === 'single'
-              ? buildHistorySingleColumns({
-                  onSaveReference: (id: string, next?: string) => {
-                    setSingleScanReference(id, next);
-                    pushTransient(next ? 'Reference saved' : 'Reference cleared');
-                  },
-                })
-              : HISTORY_BATCH_COLUMNS
-          }
+          columns={kind === 'single' ? HISTORY_SINGLE_COLUMNS : HISTORY_BATCH_COLUMNS}
           rows={filtered}
           rowKey={(r: any) => r.id}
           onRowClick={openRow}
@@ -345,26 +324,7 @@ function HistoryScreen() {
 // Rows are split by tab, so single and batch carry their own column sets —
 // no "Type" pill since the tab already conveys kind.
 
-// Built inside the component because the Reference column needs access to
-// the save handler + transient pusher. Keeping the other columns inline
-// here so the entire single-tab column set is co-located.
-function buildHistorySingleColumns(opts: { onSaveReference: (id: string, next?: string) => void }): any[] {
-  return [
-  // Reference — placed first per spec; lenders use it as the primary
-  // identifier when scanning the table to find a loan.
-  {
-    key: 'reference',
-    label: 'Reference',
-    width: '200px',
-    hideBelow: 'sm' as const,
-    cell: (r: any) => (
-      <ReferenceCell
-        value={r.reference}
-        onSave={(next?: string) => opts.onSaveReference(r.id, next)}
-        maxWidth={180}
-      />
-    ),
-  },
+const HISTORY_SINGLE_COLUMNS: any[] = [
   {
     key: 'target',
     label: 'Address',
@@ -452,8 +412,7 @@ function buildHistorySingleColumns(opts: { onSaveReference: (id: string, next?: 
       </span>
     ),
   },
-  ];
-}
+];
 
 const HISTORY_BATCH_COLUMNS: any[] = [
   {
