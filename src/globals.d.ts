@@ -102,6 +102,7 @@ declare function ScanContextBar(props?: any): any;
 declare function AutomateModal(props?: any): any;
 declare function AutomationControl(props?: any): any;
 declare function AutomationBanner(props?: any): any;
+declare function BatchRerunBanner(props?: any): any;
 declare function AutomationScopeCard(props?: any): any;
 declare function StatusPillSelector(props?: any): any;
 declare function ReferenceCell(props?: any): any;

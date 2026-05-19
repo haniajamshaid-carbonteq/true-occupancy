@@ -319,6 +319,10 @@ interface AppStateValue {
   updateScheduleStatuses: (id: string, statuses: Risk[]) => void;
   cancelSchedule: (id: string) => void;
   findScheduleByTarget: (target: ScheduleTarget) => ScheduleEntry | null;
+  /** Find the schedule a given history entry belongs to (i.e. the schedule
+   *  whose runHistoryIds contains the id), or null if the run isn't part of
+   *  any automation. Drives the re-run context banner on BatchDetailScreen. */
+  findScheduleByRunId: (historyId: string) => ScheduleEntry | null;
   pushTransient: (message: string, durationMs?: number) => void;
   dismissTransient: (id: string) => void;
 }
@@ -511,6 +515,12 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     [schedules]
   );
 
+  const findScheduleByRunId = React.useCallback(
+    (historyId: string): ScheduleEntry | null =>
+      schedules.find((s) => s.runHistoryIds.includes(historyId)) ?? null,
+    [schedules]
+  );
+
   const value: AppStateValue = {
     liveBatch,
     schedules,
@@ -528,6 +538,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     updateScheduleStatuses,
     cancelSchedule,
     findScheduleByTarget,
+    findScheduleByRunId,
     pushTransient,
     dismissTransient,
   };
