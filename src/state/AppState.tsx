@@ -319,6 +319,10 @@ interface AppStateValue {
   updateScheduleStatuses: (id: string, statuses: Risk[]) => void;
   cancelSchedule: (id: string) => void;
   findScheduleByTarget: (target: ScheduleTarget) => ScheduleEntry | null;
+  /** Return every prior single-scan history entry for the given address,
+   *  sorted newest-first. Drives the Scan History Report (PDF download)
+   *  reached from the result-page download dropdown. */
+  getHistoryForAddress: (address: string) => SingleHistoryEntry[];
   pushTransient: (message: string, durationMs?: number) => void;
   dismissTransient: (id: string) => void;
 }
@@ -511,6 +515,16 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     [schedules]
   );
 
+  // Seed history is authored newest-first and we prepend on every new scan,
+  // so the filtered slice is already in the right order — no further sort.
+  const getHistoryForAddress = React.useCallback(
+    (address: string): SingleHistoryEntry[] =>
+      history.filter(
+        (h): h is SingleHistoryEntry => h.kind === 'single' && h.address === address
+      ),
+    [history]
+  );
+
   const value: AppStateValue = {
     liveBatch,
     schedules,
@@ -528,6 +542,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     updateScheduleStatuses,
     cancelSchedule,
     findScheduleByTarget,
+    getHistoryForAddress,
     pushTransient,
     dismissTransient,
   };

@@ -1,4 +1,4 @@
-/* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS */
+/* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -12,6 +12,13 @@
 // clickable in the saved file.
 
 type CertScenarioKey = 'low' | 'medium' | 'high';
+
+/** Cert can render either as the single-scan certificate (default) or as a
+ *  multi-row "Scan history report" that lists every prior single-property
+ *  scan for the same address. The variant is picked by the caller right
+ *  before triggering window.print() (sessionStorage.certVariant), so the
+ *  two share one cert chrome and one print path. */
+type CertVariant = 'single' | 'history';
 
 interface CertificateSheetProps {
   scenario: CertScenarioKey;
@@ -35,6 +42,63 @@ function certShortHash(input: string): string {
 function certTimestamp(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())} local`;
+}
+
+// Convert the human-relative `scannedAgo` strings the seed data uses
+// ('8 min ago', '6 mo ago', 'Yesterday', …) into an approximate absolute
+// Date. Used only by the history report so each prior run shows a concrete
+// calendar date instead of "8 min ago" — lenders archive these PDFs years
+// later, when "8 min ago" loses meaning.
+const CERT_HISTORY_UNIT_MS: Record<string, number> = {
+  min: 60_000,
+  h: 3_600_000,
+  d: 86_400_000,
+  w: 7 * 86_400_000,
+  mo: 30 * 86_400_000,
+  y: 365 * 86_400_000,
+};
+function certParseScannedAgo(scannedAgo: string, now: Date = new Date()): Date {
+  const s = scannedAgo.trim().toLowerCase();
+  if (s === 'just now') return now;
+  if (s === 'yesterday') return new Date(now.getTime() - CERT_HISTORY_UNIT_MS.d);
+  const m = s.match(/^(\d+)\s*(min|h|d|w|mo|y)\s*ago$/);
+  if (!m) return now;
+  const n = parseInt(m[1], 10);
+  const unit = m[2];
+  return new Date(now.getTime() - n * (CERT_HISTORY_UNIT_MS[unit] ?? 0));
+}
+
+function certFormatHistoryDate(d: Date): string {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function certScenarioVerdict(scenario: CertScenarioKey): string {
+  return scenario === 'high' ? 'Rented' : scenario === 'medium' ? 'Likely Rented' : 'Not Rented';
+}
+
+function certScenarioListingCount(scenario: CertScenarioKey): number {
+  const s = SCENARIOS[scenario];
+  let total = 0;
+  PLATFORMS.forEach((p: any) => {
+    total += (s.listings[p.id] || []).length;
+  });
+  return total;
+}
+
+interface CertHistoryListing {
+  platform: string;
+  url: string;
+}
+function certScenarioListings(scenario: CertScenarioKey): CertHistoryListing[] {
+  const s = SCENARIOS[scenario];
+  const out: CertHistoryListing[] = [];
+  PLATFORMS.forEach((p: any) => {
+    (s.listings[p.id] || []).forEach((row: any) => {
+      out.push({ platform: p.name, url: row.url });
+    });
+  });
+  return out;
 }
 
 interface FlatListing {
@@ -206,6 +270,114 @@ function CertificateBody({
   );
 }
 
+interface CertificateHistoryRow {
+  date: string;
+  verdict: string;
+  scorePct: number;
+  listingCount: number;
+  platformCount: number;
+  listings: CertHistoryListing[];
+}
+
+function CertificateHistoryBody({
+  address,
+  reference,
+  scanId,
+  timestamp,
+  rows,
+}: {
+  address: string;
+  reference?: string;
+  scanId: string;
+  timestamp: string;
+  rows: CertificateHistoryRow[];
+}) {
+  return (
+    <article className="certificate-sheet">
+      <header className="cert-head">
+        <div className="cert-head-left">
+          <img src="docs/brand/halcyon-mark-v2.png" alt="" className="cert-mark" />
+          <div className="cert-wordmark">
+            <div className="cert-brand">Halcyon</div>
+            <div className="cert-product">TrueOccupancy Scan History</div>
+          </div>
+        </div>
+        <div className="cert-head-right">
+          <div className="cert-id" aria-label={reference ? 'Reference' : 'Scan ID'}>
+            {reference || scanId}
+          </div>
+          <div className="cert-stamp">{timestamp}</div>
+          <div className="cert-kind">Scan History Report</div>
+        </div>
+      </header>
+
+      <div className="cert-rule" />
+
+      <section className="cert-property">
+        <div className="cert-eyebrow">Subject property</div>
+        <div className="cert-address">{address}</div>
+        <div className="cert-meta">
+          Parcel {PROPERTY.parcel} · {PROPERTY.zoning} · {PROPERTY.permitStatus}
+        </div>
+      </section>
+
+      <section className="cert-listings">
+        <div className="cert-section-title">
+          Scan history
+          <span className="cert-section-count">
+            {rows.length} {rows.length === 1 ? 'scan' : 'scans'}
+          </span>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="cert-empty">No prior scans recorded for this property.</div>
+        ) : (
+          <div className="cert-history-list">
+            {rows.map((r, i) => (
+              <div className="cert-history-scan" key={i}>
+                <div className="cert-history-scan-head">
+                  <span className="cert-history-date tabular">{r.date}</span>
+                  <span className="cert-history-sep">·</span>
+                  <span className="cert-history-verdict">{r.verdict}</span>
+                  <span className="cert-history-sep">·</span>
+                  <span className="cert-history-score tabular">{r.scorePct}%</span>
+                  <span className="cert-history-meta">
+                    {r.listingCount === 0
+                      ? 'No listings detected'
+                      : `${r.listingCount} listing${r.listingCount === 1 ? '' : 's'} on ${r.platformCount} platform${r.platformCount === 1 ? '' : 's'}`}
+                  </span>
+                </div>
+                {r.listings.length > 0 && (
+                  <ul className="cert-history-urls">
+                    {r.listings.map((l, j) => (
+                      <li key={j}>
+                        <span className="cert-history-url-platform">{l.platform}</span>
+                        <a className="cert-history-url-link" href={l.url}>{l.url}</a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <footer className="cert-foot">
+        <div className="cert-foot-left">
+          <div className="cert-foot-line">
+            Report ID: <span className="mono">{scanId}</span>
+          </div>
+          <div className="cert-foot-line muted">
+            Generated {timestamp} · Halcyon TrueOccupancy · halcyon.app
+          </div>
+        </div>
+        <div className="cert-foot-right">Page 1 of 1</div>
+      </footer>
+    </article>
+  );
+}
+
 function CertificateSheet({ scenario, address, kind, reference }: CertificateSheetProps) {
   const resolvedAddress =
     address ||
@@ -225,26 +397,80 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
     [resolvedAddress, scenario],
   );
   // Recompute on every print so the stamp reflects "when this PDF was saved",
-  // not when the page was first mounted.
+  // not when the page was first mounted. Variant flips at the same moment:
+  // ScanContextBar writes sessionStorage.certVariant just before window.print(),
+  // so the cert can swap bodies before the browser snapshots the page.
   const [timestamp, setTimestamp] = React.useState(() => certTimestamp(new Date()));
+  const [variant, setVariant] = React.useState<CertVariant>('single');
   React.useEffect(() => {
-    const onBeforePrint = () => setTimestamp(certTimestamp(new Date()));
+    // Variant flip happens via a 'halcyon:certvariant' event dispatched by
+    // ScanContextBar *before* it calls window.print(). Listening here (not
+    // in beforeprint) gives React time to commit the state change and the
+    // browser time to paint before the print snapshot is taken.
+    const onVariant = (e: any) => {
+      const v = e?.detail === 'history' ? 'history' : 'single';
+      setVariant(v);
+    };
+    const onBeforePrint = () => {
+      setTimestamp(certTimestamp(new Date()));
+    };
+    const onAfterPrint = () => {
+      if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('certVariant');
+      setVariant('single');
+    };
+    window.addEventListener('halcyon:certvariant', onVariant as EventListener);
     window.addEventListener('beforeprint', onBeforePrint);
-    return () => window.removeEventListener('beforeprint', onBeforePrint);
+    window.addEventListener('afterprint', onAfterPrint);
+    return () => {
+      window.removeEventListener('halcyon:certvariant', onVariant as EventListener);
+      window.removeEventListener('beforeprint', onBeforePrint);
+      window.removeEventListener('afterprint', onAfterPrint);
+    };
   }, []);
+
+  // History rows are derived from AppState so they reflect any scans added
+  // during this session, not just the seed. The selector returns an empty
+  // array for unknown addresses; the dropdown disables the menu item in
+  // that case, so we just render the empty-state row server-side.
+  const { getHistoryForAddress } = useAppState();
+  const historyRows: CertificateHistoryRow[] = React.useMemo(() => {
+    if (variant !== 'history') return [];
+    return getHistoryForAddress(resolvedAddress).map((h: any) => {
+      const sc = h.scenario as CertScenarioKey;
+      const listings = certScenarioListings(sc);
+      return {
+        date: certFormatHistoryDate(certParseScannedAgo(h.scannedAgo)),
+        verdict: certScenarioVerdict(sc),
+        scorePct: SCENARIOS[sc].score,
+        listingCount: listings.length,
+        platformCount: h.platforms,
+        listings,
+      };
+    });
+  }, [variant, resolvedAddress, getHistoryForAddress]);
 
   if (typeof document === 'undefined') return null;
 
   return ReactDOM.createPortal(
     <div className="cert-print-root">
-      <CertificateBody
-        scenario={scenario}
-        address={resolvedAddress}
-        reference={resolvedReference}
-        kind={kind}
-        scanId={scanId}
-        timestamp={timestamp}
-      />
+      {variant === 'history' ? (
+        <CertificateHistoryBody
+          address={resolvedAddress}
+          reference={resolvedReference}
+          scanId={scanId}
+          timestamp={timestamp}
+          rows={historyRows}
+        />
+      ) : (
+        <CertificateBody
+          scenario={scenario}
+          address={resolvedAddress}
+          reference={resolvedReference}
+          kind={kind}
+          scanId={scanId}
+          timestamp={timestamp}
+        />
+      )}
     </div>,
     document.body,
   );

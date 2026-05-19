@@ -1,4 +1,4 @@
-/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, AICtaButton */
+/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, AICtaButton, DropdownMenu, useAppState */
 // ScanContextBar — replaces the persistent search trigger on detail
 // pages (result + why-expanded). Shows a back button plus the address
 // currently being viewed, so the user knows what scan they're looking at
@@ -46,10 +46,32 @@ function ScanContextBar({
   aiScenario,
 }: ScanContextBarProps) {
   const history = ReactRouterDOM.useHistory();
+  const { getHistoryForAddress } = useAppState();
   const resolvedAddress =
     address ||
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
     PROPERTY.address;
+
+  // The history report stays clickable even when only one scan is on file —
+  // a single-row report is still a useful audit record. The hint just
+  // surfaces the count so the user knows what they're about to download.
+  const priorScanCount = getHistoryForAddress(resolvedAddress).length;
+
+  function printCertificate(v: 'single' | 'history') {
+    if (typeof sessionStorage !== 'undefined') {
+      if (v === 'history') sessionStorage.setItem('certVariant', 'history');
+      else sessionStorage.removeItem('certVariant');
+    }
+    // Dispatch the variant change BEFORE calling print() so the cert's
+    // listener can setState while React's not blocked by the print dialog.
+    // Two rAFs give React one frame to commit and the browser one frame to
+    // paint before we snapshot — setting state inside beforeprint instead
+    // gets batched and never lands in the printed output.
+    window.dispatchEvent(new CustomEvent('halcyon:certvariant', { detail: v }));
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.print());
+    });
+  }
 
   // Automate flow — encapsulated in <AutomationControl>. It looks up an
   // existing schedule for this address and either offers the create CTA
@@ -117,14 +139,43 @@ function ScanContextBar({
       )}
 
       {showDownloadPDF && (
-        <Button
-          variant="primary"
-          onClick={() => window.print()}
-          icon={<Icon name="pdf" size={14} />}
-          className="shrink-0"
-        >
-          Download PDF
-        </Button>
+        <DropdownMenu
+          align="end"
+          title="Download report"
+          menuWidth="w-64"
+          trigger={(open: boolean) => (
+            <Button
+              variant="primary"
+              icon={<Icon name="pdf" size={14} />}
+              className="shrink-0"
+            >
+              Download PDF
+              <span
+                className={`inline-flex shrink-0 ml-1 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
+                aria-hidden
+              >
+                <Icon name="chevron" size={12} />
+              </span>
+            </Button>
+          )}
+          items={[
+            {
+              label: 'Single-scan certificate',
+              icon: <Icon name="pdf" />,
+              hint: 'The current scan, full detail',
+              onClick: () => printCertificate('single'),
+            },
+            {
+              label: 'Scan history report',
+              icon: <Icon name="history" />,
+              hint:
+                priorScanCount === 0
+                  ? 'No prior scans on record yet'
+                  : `${priorScanCount} ${priorScanCount === 1 ? 'scan' : 'scans'} for this property`,
+              onClick: () => printCertificate('history'),
+            },
+          ]}
+        />
       )}
 
       {showAI && (
