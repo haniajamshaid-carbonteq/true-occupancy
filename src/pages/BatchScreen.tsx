@@ -1,8 +1,12 @@
-/* global React, AppShell, PageHeader, Card, Button, Pill, Icon, DataTable, DropdownMenu, ReactRouterDOM,
-   VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, useAppState */
-// Batch processing — upload a CSV (or click "Try sample data") to scan
-// dozens of properties in one queue. Shows a partially-complete batch:
-// some scanned, some scanning, some queued.
+/* global React, AppShell, Card, Button, Pill, Icon, Input, DataTable, DropdownMenu, ReactRouterDOM,
+   VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
+   deriveTitleFromFilename, useAppState */
+// Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
+// dozens of properties in one queue. The empty state is a configuration
+// form (title, description, repeat cadence, optional advanced options);
+// the live / completed state replaces it with an editable batch header,
+// the AutomationBanner if a schedule exists, a progress summary, KPI tiles,
+// and the per-row DataTable.
 //
 // NB: do NOT destructure `useHistory` at module top level — HomeScreen.tsx
 // already does that, and a second top-level `const { useHistory }` in shared
@@ -41,76 +45,325 @@ const SAMPLE_BATCH: BatchRow[] = [
   { id: 14, address: '720 Haywood Rd, Asheville, NC 28806',       status: 'queued' },
 ];
 
+// "Just now" within a minute, "N min ago" / "N h ago" / "N d ago" after.
+// Matches the relative-label voice used by history's `scannedAgo` so the
+// live identity-strip caption reads identically once the batch lands in
+// history.
+function formatStartedAgo(startedAt: number): string {
+  const elapsedMs = Date.now() - startedAt;
+  const min = Math.floor(elapsedMs / 60000);
+  if (min < 1) return 'Just now';
+  if (min < 60) return `${min} min ago`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} d ago`;
+}
+
 function BatchScreen() {
-  const { liveBatch, startSampleBatch } = useAppState();
+  const { liveBatch } = useAppState();
+
+  // The page header is owned by whichever sub-tree is mounted:
+  //   - BatchUpload renders the static "Batch Upload" h1 above the form.
+  //   - BatchResults renders the editable batch title + identity strip.
+  // Keeping it inside each branch lets the loaded state replace the page
+  // header copy entirely instead of stacking two headings.
+  return <AppShell>{liveBatch ? <BatchResults batch={liveBatch} /> : <BatchUpload />}</AppShell>;
+}
+
+// ---------- Empty state: upload form ----------
+
+// Cadence is "optional" — only materialises into a schedule on scan
+// completion (see AppState.startBatch + the tick-forward effect). Verdict-
+// band scope is deliberately deferred to the results page where counts
+// exist, per docs spec §13.7 (decide on real data, not assumed data).
+const CADENCE_OPTIONS: Array<{ value: 0 | 3 | 4 | 6 | 12; label: string }> = [
+  { value: 0,  label: 'No repeat' },
+  { value: 3,  label: 'Every 3 months' },
+  { value: 4,  label: 'Every 4 months' },
+  { value: 6,  label: 'Every 6 months' },
+  { value: 12, label: 'Every 12 months' },
+];
+
+function BatchUpload() {
+  const { startBatch, startSampleBatch } = useAppState();
+
+  // File state is just the filename for now — the no-build prototype doesn't
+  // actually parse CSVs. Real wiring would expose row count + header
+  // detection from here and feed them into the form.
+  const [filename, setFilename] = React.useState<string>('');
+  const [title, setTitle] = React.useState<string>('');
+  // Track whether the user has hand-edited the title since the last file
+  // drop. We auto-fill from the filename on drop, but never clobber a
+  // title the user explicitly typed.
+  const [titleTouched, setTitleTouched] = React.useState<boolean>(false);
+  const [description, setDescription] = React.useState<string>('');
+  const [cadence, setCadence] = React.useState<0 | 3 | 4 | 6 | 12>(0);
+  const [addressColumn, setAddressColumn] = React.useState<string>('');
+  const [advancedOpen, setAdvancedOpen] = React.useState<boolean>(false);
+
+  function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFilename(file.name);
+    if (!titleTouched) setTitle(deriveTitleFromFilename(file.name));
+  }
+
+  function onSubmit() {
+    if (!filename) return;
+    startBatch({
+      filename,
+      title: title.trim() || undefined,
+      description: description.trim() || undefined,
+      cadenceMonths: cadence === 0 ? undefined : cadence,
+      addressColumn: addressColumn.trim() || undefined,
+    });
+  }
+
+  const canSubmit = filename.length > 0;
 
   return (
-    <AppShell>
-      {/* Page header — consistent across empty + loaded states */}
-      <header className="flex items-end justify-between gap-6 mb-section-sub">
-        <div>
-          <h1
-            className="font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0"
-            style={{ color: 'var(--navy)' }}
-          >
-            Batch Upload
-          </h1>
-          <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
-            Upload a CSV of addresses to scan against Airbnb, Vrbo, and Facebook Marketplace.
-          </p>
-        </div>
+    <>
+      {/* Static page header — only the empty state shows it. Once a batch
+          is live, BatchResults takes over with the editable batch title. */}
+      <header className="mb-section-sub">
+        <h1
+          className="font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0"
+          style={{ color: 'var(--navy)' }}
+        >
+          Batch Upload
+        </h1>
+        <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2">
+          Upload a CSV of addresses to scan against Airbnb, Vrbo, and Facebook Marketplace.
+        </p>
       </header>
 
-      {liveBatch ? (
-        <BatchResults batch={liveBatch} />
-      ) : (
-        <BatchUpload onSample={startSampleBatch} />
-      )}
-    </AppShell>
+      <Card>
+        <div className="px-card-loose py-card-loose flex flex-col items-center">
+          {/* Hero icon + sentence-case h2 + sub copy, per DESIGN §4.2. */}
+          <div className="w-14 h-14 rounded-full bg-brand-soft text-brand grid place-items-center mb-stack">
+            <Icon name="upload" size={24} />
+          </div>
+          <h2
+            className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 mb-stack-tight text-center"
+            style={{ color: 'var(--navy)' }}
+          >
+            Scan many properties at once.
+          </h2>
+          <p className="text-ink-3 text-body-sm leading-relaxed max-w-[60ch] m-0 mb-section-sub text-center">
+            Drop a CSV with one address per row. We&rsquo;ll cross-check every entry against
+            Airbnb, Vrbo, and Facebook Marketplace, then surface the matches in one reviewable queue.
+          </p>
+
+          {/* ----- Drop zone ----- */}
+          <label
+            htmlFor="batch-csv"
+            className={`w-full max-w-[560px] cursor-pointer block rounded-lg border-2 border-dashed transition-colors px-card py-section-sub text-center ${
+              filename
+                ? 'border-brand bg-brand-soft/40'
+                : 'border-line bg-surface hover:bg-brand-soft hover:border-brand'
+            }`}
+          >
+            {filename ? (
+              <>
+                <div className="font-medium text-ink-2 mb-stack-tight">
+                  <span className="inline-flex items-center gap-2">
+                    <Icon name="check" size={14} />
+                    {filename}
+                  </span>
+                </div>
+                <div className="font-sans text-micro uppercase tracking-widest text-ink-3">
+                  Click to swap file
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="font-medium text-ink-2 mb-stack-tight">
+                  Drop a CSV here, or <span className="text-brand">browse</span>
+                </div>
+                <div className="font-sans text-micro uppercase tracking-widest text-ink-4">
+                  Required column: address · Up to 500 rows
+                </div>
+              </>
+            )}
+            <input
+              id="batch-csv"
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={onFilePicked}
+            />
+          </label>
+
+          {/* ----- About this batch ----- */}
+          <FormSection label="About this batch" className="mt-section-sub w-full max-w-[560px]">
+            <Input
+              label="Title"
+              value={title}
+              placeholder="Asheville Q2 2026"
+              maxLength={80}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setTitle(e.target.value);
+                setTitleTouched(true);
+              }}
+            />
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="batch-description"
+                className="font-sans text-caption font-semibold"
+                style={{ color: 'var(--ink-2)' }}
+              >
+                Description <span className="text-ink-3 font-normal">(optional)</span>
+              </label>
+              <textarea
+                id="batch-description"
+                value={description}
+                maxLength={280}
+                rows={3}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setDescription(e.target.value)
+                }
+                placeholder="Add context that&rsquo;ll appear on the batch detail page."
+                className="w-full bg-surface border border-line rounded-lg px-4 py-2.5 text-body-sm font-sans outline-none focus:border-brand focus:shadow-[0_0_0_3px_var(--brand-soft)] placeholder:text-ink-4 resize-none transition-shadow"
+                style={{ color: 'var(--ink)' }}
+              />
+              <div className="font-sans text-micro" style={{ color: 'var(--ink-3)' }}>
+                Up to 280 characters · shown on the batch detail page.
+              </div>
+            </div>
+          </FormSection>
+
+          {/* ----- Repeat this job ----- */}
+          <FormSection label="Repeat this job" className="mt-section-sub w-full max-w-[560px]">
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="batch-cadence"
+                className="font-sans text-caption font-semibold"
+                style={{ color: 'var(--ink-2)' }}
+              >
+                Cadence <span className="text-ink-3 font-normal">(optional)</span>
+              </label>
+              <select
+                id="batch-cadence"
+                value={cadence}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setCadence(Number(e.target.value) as 0 | 3 | 4 | 6 | 12)
+                }
+                className="w-full h-11 bg-surface border border-line rounded-lg px-3.5 text-body-sm font-sans outline-none focus:border-brand focus:shadow-[0_0_0_3px_var(--brand-soft)] transition-shadow"
+                style={{ color: 'var(--ink)' }}
+              >
+                {CADENCE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <div className="font-sans text-micro" style={{ color: 'var(--ink-3)' }}>
+                You&rsquo;ll choose which verdict bands to re-scan once results are in.
+              </div>
+            </div>
+          </FormSection>
+
+          {/* ----- Advanced (collapsed) ----- */}
+          <div className="mt-section-sub w-full max-w-[560px]">
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((v) => !v)}
+              aria-expanded={advancedOpen}
+              className="inline-flex items-center gap-stack-tight font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase rounded-md -mx-1 px-1 py-0.5 transition-colors hover:bg-hover-bg"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              <span
+                className={`inline-flex shrink-0 transition-transform ${
+                  advancedOpen ? 'rotate-90' : ''
+                } [&>svg]:w-3 [&>svg]:h-3`}
+                aria-hidden
+              >
+                <Icon name="chevron" size={12} />
+              </span>
+              Advanced
+              <span
+                className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line normal-case tracking-normal"
+                style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}
+              >
+                1 option
+              </span>
+            </button>
+            {advancedOpen && (
+              <div className="mt-stack-md flex flex-col gap-stack">
+                <Input
+                  label="Address column name"
+                  value={addressColumn}
+                  placeholder='e.g. "address" or "fulladdress"'
+                  hint="We auto-detect a column named 'address' by default."
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setAddressColumn(e.target.value)
+                  }
+                />
+              </div>
+            )}
+          </div>
+
+          {/* ----- Submit + escape hatch ----- */}
+          <div className="mt-section w-full max-w-[560px] flex flex-col items-center gap-stack-tight">
+            <Button
+              variant="primary"
+              icon={<Icon name="layers" />}
+              onClick={onSubmit}
+              disabled={!canSubmit}
+              className="w-full justify-center"
+            >
+              Start batch scan
+            </Button>
+            {!canSubmit && (
+              <div className="font-sans text-micro" style={{ color: 'var(--ink-3)' }}>
+                Drop a CSV to continue.
+              </div>
+            )}
+            <div
+              className="mt-stack-tight inline-flex items-center gap-stack-tight font-sans text-caption"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              <span>or</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Icon name="layers" />}
+                onClick={startSampleBatch}
+              >
+                Try a sample batch
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </>
   );
 }
 
-// ---------- Empty state: upload zone ----------
-
-function BatchUpload({ onSample }: { onSample: () => void }) {
+// FormSection — eyebrow-label group used inside BatchUpload. Keeps the form
+// readable by grouping logically-related fields under a one-line label,
+// matching the "About this batch" / "Repeat this job" / "Advanced" rhythm
+// in the locked design without introducing a new heavyweight primitive.
+function FormSection({
+  label,
+  children,
+  className = '',
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <Card>
-      <div className="px-card py-section flex flex-col items-center text-center">
-        <div className="w-14 h-14 rounded-full bg-brand-soft text-brand grid place-items-center mb-stack">
-          <Icon name="upload" size={24} />
-        </div>
-        <h2 className="font-sans font-semibold text-h3 sm:text-h3 tracking-[-0.005em] m-0 mb-stack-tight" style={{ color: 'var(--navy)' }}>
-          Scan Many Properties at Once.
-        </h2>
-        <p className="text-ink-3 text-body-sm leading-relaxed max-w-[68ch] m-0 mb-section-sub">
-          Drop a CSV with one address per row. We&rsquo;ll cross-check every entry against Airbnb, Vrbo, and Facebook Marketplace, then surface the matches in one reviewable queue.
-        </p>
-
-        {/* Drop-zone with hover affordance */}
-        <label
-          htmlFor="batch-csv"
-          className="w-full max-w-[520px] cursor-pointer block rounded-lg border-2 border-dashed border-line bg-surface hover:bg-brand-soft hover:border-brand transition-colors px-card py-section-sub mb-stack"
-        >
-          <div className="font-medium text-ink-2 mb-stack-tight">
-            Drop a CSV here, or <span className="text-brand">browse</span>
-          </div>
-          <div className="font-sans text-micro uppercase tracking-widest text-ink-4">
-            Required column: address · Up to 500 rows
-          </div>
-          <input
-            id="batch-csv"
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={onSample}
-          />
-        </label>
-
-        <Button variant="ghost" onClick={onSample} icon={<Icon name="layers" />}>
-          Or Try a Sample Batch
-        </Button>
+    <div className={className}>
+      <div
+        className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase mb-stack-md"
+        style={{ color: 'var(--ink-3)' }}
+      >
+        {label}
       </div>
-    </Card>
+      <div className="flex flex-col gap-stack">{children}</div>
+    </div>
   );
 }
 
@@ -118,7 +371,13 @@ function BatchUpload({ onSample }: { onSample: () => void }) {
 
 function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const routerHistory = ReactRouterDOM.useHistory();
-  const { clearBatch, retryBatchRow, findScheduleByTarget } = useAppState();
+  const {
+    clearBatch,
+    retryBatchRow,
+    findScheduleByTarget,
+    renameBatch,
+    setBatchDescription,
+  } = useAppState();
   const rows: BatchRow[] = batch.rows;
   const total = rows.length;
   const done = rows.filter((r) => r.status === 'done').length;
@@ -162,8 +421,121 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const toggleVerdict = (v: 'risk' | 'warn' | 'clean') =>
     setVerdictFilter((cur) => (cur === v ? 'all' : v));
 
+  // Identity-strip "uploaded" label. Live batches carry `startedAt` (epoch);
+  // history entries carry `scannedAgo` (pre-formatted). Falling back to
+  // "Just now" preserves the column on freshly-completed batches.
+  const uploadedLabel: string =
+    batch.scannedAgo ?? (batch.startedAt ? formatStartedAgo(batch.startedAt) : 'Just now');
+
+  // Resolved display title — user-chosen, falling back to a derived label so
+  // legacy seeds and unnamed batches still read as a name, not a filename.
+  const displayTitle = batch.title?.trim() || deriveTitleFromFilename(batch.filename);
+
   return (
     <div className="flex flex-col gap-section-sub">
+      {/* Page header — editable batch title + description + identity strip
+          on the left; action buttons (automation, download, new batch) on
+          the right. Replaces the static "Batch Upload" h1 used in the
+          upload state. */}
+      <header className="flex items-start justify-between gap-6 flex-wrap">
+        <div className="min-w-0 flex-1 flex flex-col gap-stack-tight">
+          <EditableTitle
+            value={displayTitle}
+            onSave={(next) => renameBatch(batch.id, next)}
+            placeholder="Untitled batch"
+            maxLength={80}
+            variant="h1"
+            ariaLabel="Batch title"
+            readOnly={readOnly}
+          />
+          <EditableTitle
+            value={batch.description}
+            onSave={(next) => setBatchDescription(batch.id, next)}
+            placeholder="Add a description"
+            maxLength={280}
+            variant="body-sm"
+            multiline
+            ariaLabel="Batch description"
+            readOnly={readOnly}
+            // On the read-only (historical) view, omit the row entirely
+            // when empty so we don't pollute the page with a ghost field
+            // the user can't fill in anyway.
+            hideWhenEmpty={readOnly}
+          />
+          {/* Identity strip — audit fact, never editable. Mono caption so it
+              reads as a tag line of facts rather than user-facing copy. */}
+          <div
+            className="font-mono text-caption tabular-nums truncate"
+            style={{ color: 'var(--ink-3)' }}
+          >
+            {batch.filename} · {total} {total === 1 ? 'property' : 'properties'} · Uploaded {uploadedLabel}
+          </div>
+        </div>
+        <div className="flex gap-2 shrink-0 mt-1">
+          {!activeSchedule && !readOnly && (
+            <AutomationControl
+              target={{
+                kind: 'batch',
+                filename: batch.filename,
+                total,
+                scopeCounts,
+                scopeCountsPending,
+              }}
+            />
+          )}
+          <DropdownMenu
+            title="Download Report"
+            trigger={(open: boolean) => (
+              <Button
+                icon={<Icon name="pdf" />}
+                iconRight={
+                  <span
+                    className={`inline-flex shrink-0 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
+                    aria-hidden
+                  >
+                    <Icon name="chevron" size={12} />
+                  </span>
+                }
+              >
+                Download
+              </Button>
+            )}
+            items={[
+              {
+                label: 'PDF report',
+                hint: 'Lender-ready certificate with live evidence links',
+                icon: <Icon name="pdf" />,
+                onClick: () => window.print(),
+              },
+              {
+                label: 'CSV',
+                hint: 'Tabular data for spreadsheets',
+                icon: <Icon name="layers" />,
+                onClick: () => {},
+              },
+              {
+                label: 'ZIP archive',
+                hint: 'PDF + CSV + per-listing screenshots',
+                icon: <Icon name="layers" />,
+                onClick: () => {},
+              },
+            ]}
+          />
+          {!readOnly && (
+            <Button
+              variant="primary"
+              icon={<Icon name="upload" />}
+              onClick={() => {
+                clearBatch();
+                routerHistory.push('/batch');
+              }}
+            >
+              New Batch
+            </Button>
+          )}
+        </div>
+      </header>
+
       {/* Active automation banner — shown on BOTH the live batch view and
           a historical detail view, because the schedule is a separate live
           entity from the (read-only) batch run beneath it. readOnly here
@@ -185,89 +557,29 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         />
       )}
 
-      {/* Summary card */}
+      {/* Summary card — now just the progress headline + bar. Action
+          buttons moved up to the page header so the card stays focused
+          on the actual "what's happening to my scan" signal. */}
       <Card allowOverflow>
         <div className="px-card-loose py-card">
-          <div className="flex items-start justify-between gap-6 mb-section-tight">
-            <div className="min-w-0">
-              <h2 className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 leading-tight" style={{ color: 'var(--navy)' }}>
-                {isComplete ? (
-                  <span className="status-text-in">{total} properties scanned</span>
-                ) : (
-                  <span className="status-text-pulse">
-                    Scanning {done} of {total}
-                    <span className="status-dots" aria-hidden="true">
-                      <span>.</span><span>.</span><span>.</span>
-                    </span>
-                  </span>
-                )}
-              </h2>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              {!activeSchedule && (
-                <AutomationControl
-                  target={{
-                    kind: 'batch',
-                    filename: batch.filename,
-                    total,
-                    scopeCounts,
-                    scopeCountsPending,
-                  }}
-                />
-              )}
-              <DropdownMenu
-                title="Download Report"
-                trigger={(open: boolean) => (
-                  <Button
-                    icon={<Icon name="pdf" />}
-                    iconRight={
-                      <span
-                        className={`inline-flex shrink-0 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
-                        aria-hidden
-                      >
-                        <Icon name="chevron" size={12} />
-                      </span>
-                    }
-                  >
-                    Download
-                  </Button>
-                )}
-                items={[
-                  {
-                    label: 'PDF report',
-                    hint: 'Lender-ready certificate with live evidence links',
-                    icon: <Icon name="pdf" />,
-                    onClick: () => window.print(),
-                  },
-                  {
-                    label: 'CSV',
-                    hint: 'Tabular data for spreadsheets',
-                    icon: <Icon name="layers" />,
-                    onClick: () => {},
-                  },
-                  {
-                    label: 'ZIP archive',
-                    hint: 'PDF + CSV + per-listing screenshots',
-                    icon: <Icon name="layers" />,
-                    onClick: () => {},
-                  },
-                ]}
-              />
-              <Button
-                variant="primary"
-                icon={<Icon name="upload" />}
-                onClick={() => {
-                  clearBatch();
-                  routerHistory.push('/batch');
-                }}
-              >
-                New Batch
-              </Button>
-            </div>
-          </div>
+          <h2
+            className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 mb-section-tight leading-tight"
+            style={{ color: 'var(--navy)' }}
+          >
+            {isComplete ? (
+              <span className="status-text-in">{total} properties scanned</span>
+            ) : (
+              <span className="status-text-pulse">
+                Scanning {done} of {total}
+                <span className="status-dots" aria-hidden="true">
+                  <span>.</span><span>.</span><span>.</span>
+                </span>
+              </span>
+            )}
+          </h2>
 
           {/* Progress */}
-          <div className="flex items-center gap-stack-md mb-section-tight">
+          <div className="flex items-center gap-stack-md">
             <div className="flex-1 h-1.5 bg-line rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
@@ -278,7 +590,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
               {done}/{total} scanned{!isComplete && running > 0 ? ` · ${running} in progress` : ''}
             </div>
           </div>
-
         </div>
       </Card>
 

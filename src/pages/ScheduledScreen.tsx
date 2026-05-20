@@ -1,5 +1,5 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, Drawer, ChipRow, ReactRouterDOM, useAppState,
-   HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress, ScreenError, ScreenEmpty */
+   HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress, deriveTitleFromFilename, ScreenError, ScreenEmpty */
 
 type Filter = 'all' | 'single' | 'batch';
 type CadenceFilter = 'all' | '3' | '4' | '6' | '12';
@@ -18,8 +18,14 @@ function ScheduledScreen() {
     if (filter !== 'all' && s.kind !== filter) return false;
     if (cadence !== 'all' && String(s.cadenceMonths) !== cadence) return false;
     if (query) {
-      const target = s.kind === 'batch' ? s.filename : s.address;
-      if (!target.toLowerCase().includes(query.toLowerCase())) return false;
+      // Match against title (primary cell) + filename (caption) for batches,
+      // so users can search by either since both are visible in the row.
+      const haystacks: string[] =
+        s.kind === 'batch'
+          ? [s.title || deriveTitleFromFilename(s.filename), s.filename]
+          : [s.address];
+      const q = query.toLowerCase();
+      if (!haystacks.some((h: string) => h.toLowerCase().includes(q))) return false;
     }
     return true;
   });
@@ -42,16 +48,17 @@ function ScheduledScreen() {
       primary: true,
       cell: (r: any) => {
         if (r.kind === 'batch') {
+          const title = r.title?.trim() || deriveTitleFromFilename(r.filename);
           return (
             <div className="min-w-0">
               <div
                 className="font-sans font-semibold text-body-sm leading-tight truncate"
                 style={{ color: 'var(--navy)' }}
               >
-                {r.filename}
+                {title}
               </div>
               <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
-                {r.total} properties
+                {r.filename} · {r.total} properties
               </div>
             </div>
           );

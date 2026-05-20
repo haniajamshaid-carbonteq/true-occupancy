@@ -51,6 +51,13 @@ interface BatchHistoryEntry {
   /** Snapshot of the per-address scan rows so the batch-detail page can
    *  render the full table without keeping the LiveBatch around in state. */
   rows: LiveBatchRow[];
+  /** User-chosen display name. Defaults to deriveTitleFromFilename(filename)
+   *  in the UI when omitted, so older seed entries render naturally without
+   *  a migration. Editable inline from the batch results header. */
+  title?: string;
+  /** Optional free-text description, surfaced on the batch detail page only
+   *  (not in list rows). Up to 280 chars; editable inline. */
+  description?: string;
 }
 
 type HistoryEntry = SingleHistoryEntry | BatchHistoryEntry;
@@ -86,6 +93,11 @@ interface BatchScheduleEntry {
    *  Scope is re-evaluated against the LATEST scan each cycle, so the set
    *  follows the data instead of being frozen at automation time. */
   statuses: Risk[];
+  /** Mirrored from the parent batch so list rows and the schedule-detail
+   *  header read the user-chosen name instead of the raw filename. The
+   *  description does NOT mirror here — it only surfaces on the batch
+   *  detail page per the locked design. */
+  title?: string;
 }
 
 type ScheduleEntry = SingleScheduleEntry | BatchScheduleEntry;
@@ -113,6 +125,17 @@ interface LiveBatch {
   /** ID of the history entry emitted on completion. Lets the banner CTA
    *  deep-link straight to /batch/{id}. */
   historyId?: string;
+  /** User-chosen display name, captured at upload time (and editable from
+   *  the results header). Falls back to deriveTitleFromFilename(filename)
+   *  in the UI when omitted. */
+  title?: string;
+  /** Optional free-text description captured at upload (and editable from
+   *  the results header). Shown only on the batch detail page. */
+  description?: string;
+  /** If the user picked a cadence on the upload form, we stash it here and
+   *  materialize a schedule once the scan completes — at which point we
+   *  know counts and can attach the default verdict-band scope. */
+  pendingScheduleCadence?: Cadence;
 }
 
 // ---- seed data ----------------------------------------------------------
@@ -187,7 +210,7 @@ const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago',  reference: 'LOAN-2026-0042' },
   { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago', reference: 'CASE-FILE-7714' },
   { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAgo: '52 min ago', rows: SEED_BATCH_FAILED_ROWS },
-  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAgo: '2 h ago', rows: SEED_BATCH_Q1_ROWS },
+  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAgo: '2 h ago', rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', description: 'Quarterly compliance scan for the spring 2026 lender portfolio.' },
   { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAgo: '3 h ago'    },
   { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAgo: '4 h ago'    },
   { id: 'h05', kind: 'single', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAgo: '5 h ago'    },
@@ -225,9 +248,30 @@ function formatNextRun(cadenceMonths: number): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// "asheville-q2-2026.csv" → "Asheville Q2 2026". Used everywhere a batch
+// renders without a user-chosen title, so legacy seeds and not-yet-named
+// batches still read as a human name instead of a raw filename.
+//   - Strip the trailing extension (handles .csv / .CSV / .tsv).
+//   - Replace separators (- _ .) with spaces.
+//   - Title-case each word, but preserve all-uppercase chunks (Q2, NC).
+function deriveTitleFromFilename(filename: string): string {
+  if (!filename) return 'Untitled batch';
+  const stem = filename.replace(/\.[a-z0-9]+$/i, '');
+  const words = stem.split(/[\s._-]+/).filter(Boolean);
+  return words
+    .map((w) => {
+      if (/^[A-Z0-9]{2,}$/.test(w)) return w; // already an acronym
+      const upper = w.toUpperCase();
+      // Treat short letter+digit tokens as labels (q2, q4, h1) and uppercase.
+      if (/^[a-z]\d+$/i.test(w)) return upper;
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
 const SEED_SCHEDULES: ScheduleEntry[] = [
   { id: 's01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadenceMonths: 6,  nextRunLabel: formatNextRun(6),  createdAgo: '8 min ago', runHistoryIds: ['h01', 'hr01a', 'hr01b'] },
-  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadenceMonths: 3,  nextRunLabel: formatNextRun(3),  createdAgo: '2 h ago',   runHistoryIds: ['hb1', 'hr02a'], statuses: ['risk', 'warn'] },
+  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadenceMonths: 3,  nextRunLabel: formatNextRun(3),  createdAgo: '2 h ago',   runHistoryIds: ['hb1', 'hr02a'], statuses: ['risk', 'warn'], title: 'Asheville Spring Sweep' },
   { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadenceMonths: 12, nextRunLabel: formatNextRun(12), createdAgo: '3 h ago',   runHistoryIds: ['h03', 'hr03a'] },
   { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadenceMonths: 4,  nextRunLabel: formatNextRun(4),  createdAgo: 'Yesterday', runHistoryIds: ['h07', 'hr04a'] },
 ];
@@ -304,9 +348,27 @@ interface AppStateValue {
    *  states-spec injection and ready for a backend later. */
   error?: string | null;
   startSampleBatch: () => void;
+  /** Real-flow upload — takes the form values captured on the upload page.
+   *  `cadenceMonths` is the "Repeat this job" choice; it's stashed on the
+   *  LiveBatch and materializes into a schedule when the scan completes
+   *  (verdict-band scope picked then, because counts only exist post-scan). */
+  startBatch: (config: {
+    filename: string;
+    title?: string;
+    description?: string;
+    cadenceMonths?: Cadence;
+    addressColumn?: string;
+  }) => void;
   clearBatch: () => void;
   dismissBatch: () => void;
   retryBatchRow: (id: number) => void;
+  /** Rename a batch by id. Propagates to the live batch (if matching),
+   *  every history entry sharing the same filename, and any schedule that
+   *  targets it, so list rows stay in sync with the detail page. */
+  renameBatch: (batchId: string, title: string) => void;
+  /** Description is detail-page-only, so this only touches the live batch
+   *  + matching history entries (no schedule mirror). */
+  setBatchDescription: (batchId: string, description: string) => void;
   /** Set or clear the reference on a single-scan history entry. References
    *  are a single-scan-only concept (decided 2026-05-19): each single scan
    *  carries one optional user-supplied identifier (loan #, client ID, case
@@ -387,9 +449,32 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
               status: batchStatus,
               scannedAgo: 'Just now',
               rows: rows.slice(),
+              title: prev.title,
+              description: prev.description,
             },
             ...h,
           ]);
+          // If the user chose a cadence on the upload form, materialize the
+          // schedule now — we deliberately wait until completion so the
+          // schedule's `total` reflects what actually ran and the default
+          // verdict-band scope can attach to real counts.
+          if (prev.pendingScheduleCadence) {
+            const cadence = prev.pendingScheduleCadence;
+            const scheduleId = uid('s');
+            const newSchedule: BatchScheduleEntry = {
+              id: scheduleId,
+              kind: 'batch',
+              filename: prev.filename,
+              total: rows.length,
+              cadenceMonths: cadence,
+              nextRunLabel: formatNextRun(cadence),
+              createdAgo: 'Just now',
+              runHistoryIds: [historyId],
+              statuses: ['risk', 'warn'],
+              title: prev.title,
+            };
+            setSchedules((s) => [newSchedule, ...s]);
+          }
           return { ...prev, rows, status: 'complete', historyId };
         }
         return { ...prev, rows };
@@ -405,8 +490,38 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       rows: SAMPLE_BATCH_ROWS.map((r) => ({ ...r, status: 'queued' as const })),
       status: 'running',
       startedAt: Date.now(),
+      // Sample flow bypasses the form, so the title is derived (not user-set)
+      // and there's no description or cadence. The header still reads cleanly
+      // because BatchResults falls back to deriveTitleFromFilename().
     });
   }, []);
+
+  // Real upload — accepts the upload-form payload, drops the address-column
+  // override (parser concern, not state's), and stashes the cadence so a
+  // schedule can materialize on completion. Sample-batch rows are still
+  // used as the row scaffold while we don't yet parse the user's CSV; the
+  // shape mirrors `startSampleBatch` so the tick-forward sim works unchanged.
+  const startBatch = React.useCallback(
+    (config: {
+      filename: string;
+      title?: string;
+      description?: string;
+      cadenceMonths?: Cadence;
+      addressColumn?: string;
+    }) => {
+      setLiveBatch({
+        id: uid('lb'),
+        filename: config.filename,
+        rows: SAMPLE_BATCH_ROWS.map((r) => ({ ...r, status: 'queued' as const })),
+        status: 'running',
+        startedAt: Date.now(),
+        title: config.title?.trim() || undefined,
+        description: config.description?.trim() || undefined,
+        pendingScheduleCadence: config.cadenceMonths,
+      });
+    },
+    []
+  );
 
   const clearBatch = React.useCallback(() => setLiveBatch(null), []);
 
@@ -424,6 +539,60 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const dismissBatch = React.useCallback(() => {
     setLiveBatch((prev) => (prev ? { ...prev, dismissed: true } : prev));
+  }, []);
+
+  // Title is the join key across surfaces — a batch is identified by its
+  // filename (immutable), so a rename updates every entry that references
+  // that filename: the live batch, every history snapshot of past runs,
+  // and any schedule targeting it. Description is detail-only and never
+  // mirrors onto the schedule (see `BatchScheduleEntry.title` JSDoc).
+  const renameBatch = React.useCallback((batchId: string, title: string) => {
+    const cleaned = title.trim();
+    if (!cleaned) return;
+    let filenameHit: string | null = null;
+    setLiveBatch((prev) => {
+      if (!prev || prev.id !== batchId) return prev;
+      filenameHit = prev.filename;
+      return { ...prev, title: cleaned };
+    });
+    setHistory((prev) =>
+      prev.map((h) => {
+        if (h.kind !== 'batch') return h;
+        if (h.id === batchId || (filenameHit && h.filename === filenameHit)) {
+          if (!filenameHit) filenameHit = h.filename;
+          return { ...h, title: cleaned };
+        }
+        return h;
+      })
+    );
+    if (filenameHit) {
+      const fname = filenameHit;
+      setSchedules((prev) =>
+        prev.map((s) =>
+          s.kind === 'batch' && s.filename === fname ? { ...s, title: cleaned } : s
+        )
+      );
+    }
+  }, []);
+
+  const setBatchDescription = React.useCallback((batchId: string, description: string) => {
+    const cleaned = description.trim() || undefined;
+    let filenameHit: string | null = null;
+    setLiveBatch((prev) => {
+      if (!prev || prev.id !== batchId) return prev;
+      filenameHit = prev.filename;
+      return { ...prev, description: cleaned };
+    });
+    setHistory((prev) =>
+      prev.map((h) => {
+        if (h.kind !== 'batch') return h;
+        if (h.id === batchId || (filenameHit && h.filename === filenameHit)) {
+          if (!filenameHit) filenameHit = h.filename;
+          return { ...h, description: cleaned };
+        }
+        return h;
+      })
+    );
   }, []);
 
   // Reference editing — single-scan only. Whitespace-only / empty saves are
@@ -533,9 +702,12 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     loading: false,
     error: null,
     startSampleBatch,
+    startBatch,
     clearBatch,
     dismissBatch,
     retryBatchRow,
+    renameBatch,
+    setBatchDescription,
     setSingleScanReference,
     addSchedule,
     updateScheduleCadence,

@@ -12,10 +12,12 @@ function BatchDetailScreen() {
     return <ReactRouterDOM.Redirect to="/history" />;
   }
 
+  // Spread the full history entry so BatchResults' new header has access to
+  // title, description, and scannedAgo for the identity strip. We force
+  // status: 'complete' so the read-only view never animates "Scanning…" —
+  // historical batches are always settled.
   const batch = {
-    id: entry.id,
-    filename: entry.filename,
-    rows: entry.rows,
+    ...entry,
     status: 'complete' as const,
   };
 

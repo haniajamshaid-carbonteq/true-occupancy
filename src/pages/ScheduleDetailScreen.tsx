@@ -1,5 +1,5 @@
 /* global React, AppShell, Card, Icon, Pill, Modal, Button, DataTable, AutomateModal, ReactRouterDOM, useAppState,
-   HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress, ScreenError */
+   HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress, deriveTitleFromFilename, ScreenError */
 // Schedule detail — full page for a scheduled automation.
 // Layout:
 //   1. Header bar  — back link (left) + Cancel automation (right, destructive)
@@ -113,10 +113,16 @@ function ScheduleDetailScreen() {
     setEditOpen(false);
   }
 
+  // Batch schedules: title is primary, filename + count get demoted to the
+  // locality slot beneath. Falls back to the derived label for legacy seeds
+  // that pre-date the rename feature.
   const [street, locality] = !schedule
     ? ['', '']
     : isBatch
-    ? [schedule.filename, `${schedule.total} properties`]
+    ? [
+        schedule.title?.trim() || deriveTitleFromFilename(schedule.filename),
+        `${schedule.filename} · ${schedule.total} properties`,
+      ]
     : splitAddress(schedule.address);
 
   const RUN_COLUMNS: any[] = [

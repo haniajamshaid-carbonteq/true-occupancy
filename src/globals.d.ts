@@ -40,6 +40,26 @@ declare namespace React {
   type DetailedHTMLProps<P = any, T = any> = any;
   type Dispatch<A = any> = (action: A) => void;
   type SetStateAction<S = any> = S | ((prev: S) => S);
+  // Synthetic-event stubs — peer files (ReferenceCell, DateRangePicker,
+  // CommandSearch, EditableTitle) annotate handler args as React.ChangeEvent
+  // / React.KeyboardEvent / etc. Resolving them to `any` keeps the IDE quiet
+  // without us having to import @types/react. MutableRefObject is needed for
+  // any code that types its own polymorphic ref casts.
+  type SyntheticEvent<T = any, E = any> = any;
+  type ChangeEvent<T = any> = any;
+  type KeyboardEvent<T = any> = any;
+  type FocusEvent<T = any> = any;
+  type MouseEvent<T = any, E = any> = any;
+  type FormEvent<T = any> = any;
+  type DragEvent<T = any> = any;
+  type ClipboardEvent<T = any> = any;
+  type MutableRefObject<T = any> = { current: T };
+  type RefObject<T = any> = { readonly current: T | null };
+  function useId(): string;
+  function useContext<T = any>(ctx: any): T;
+  function createContext<T = any>(defaultValue: T): any;
+  function useReducer<S = any, A = any>(reducer: (s: S, a: A) => S, init: S): [S, (a: A) => void];
+  function useLayoutEffect(effect: () => void | (() => void), deps?: any[]): void;
   const Fragment: any;
   function useState<S = any>(initial?: S | (() => S)): [S, Dispatch<SetStateAction<S>>];
   function useEffect(effect: () => void | (() => void), deps?: any[]): void;
@@ -93,6 +113,8 @@ declare function DataTable(props?: any): any;
 declare function MetricCard(props?: any): any;
 declare function DropdownMenu(props?: any): any;
 declare function Icon(props?: any): any;
+declare function EditableTitle(props?: any): any;
+declare function deriveTitleFromFilename(filename: string): string;
 
 // === Compositions ===
 declare function AppShell(props?: any): any;

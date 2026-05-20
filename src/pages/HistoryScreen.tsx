@@ -1,7 +1,7 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, DropdownMenu, Drawer, Tabs, ReactRouterDOM, SCENARIOS,
    HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
    SCAN_COLUMNS, scanLeadingAccent, useAppState, splitAddress, ChipRow, DateRangePicker, parseAgoHours,
-   ScreenError, ScreenEmpty */
+   deriveTitleFromFilename, ScreenError, ScreenEmpty */
 
 function scannedAgoToHours(label: string): number {
   if (!label) return NaN;
@@ -107,8 +107,15 @@ function HistoryScreen() {
       if (scoreRange.max !== undefined && s > scoreRange.max) return false;
     }
     if (query) {
-      const target = r.kind === 'batch' ? r.filename : r.address;
-      if (!target.toLowerCase().includes(query.toLowerCase())) return false;
+      // Batch rows now show title as primary — match against title OR the
+      // original filename so users can search by either, since both are
+      // still visible in the cell.
+      const haystacks: string[] =
+        r.kind === 'batch'
+          ? [r.title || deriveTitleFromFilename(r.filename), r.filename]
+          : [r.address];
+      const q = query.toLowerCase();
+      if (!haystacks.some((h: string) => h.toLowerCase().includes(q))) return false;
     }
     return true;
   });
@@ -428,19 +435,24 @@ const HISTORY_BATCH_COLUMNS: any[] = [
     key: 'target',
     label: 'File',
     primary: true,
-    cell: (r: any) => (
-      <div className="min-w-0">
-        <div
-          className="font-sans font-semibold text-body-sm leading-tight truncate"
-          style={{ color: 'var(--navy)' }}
-        >
-          {r.filename}
+    cell: (r: any) => {
+      // Title is now the primary cell; filename + counts get demoted to a
+      // caption so the row reads as a named entity, not a CSV path.
+      const title = r.title?.trim() || deriveTitleFromFilename(r.filename);
+      return (
+        <div className="min-w-0">
+          <div
+            className="font-sans font-semibold text-body-sm leading-tight truncate"
+            style={{ color: 'var(--navy)' }}
+          >
+            {title}
+          </div>
+          <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+            {r.filename} · {r.total} properties · {r.flagged} flagged
+          </div>
         </div>
-        <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
-          {r.total} properties · {r.flagged} flagged
-        </div>
-      </div>
-    ),
+      );
+    },
   },
   {
     key: 'status',
