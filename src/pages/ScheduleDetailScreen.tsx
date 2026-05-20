@@ -392,7 +392,7 @@ function ScheduleDetailScreen() {
   );
 }
 
-// Scope field for batch schedules — color-keyed status dots + in-scope/total.
+// Scope field for batch schedules — in-scope/total of the latest run.
 // Single-property schedules don't render this (their scope is implicit).
 function ScopeRuleField({
   statuses,
@@ -418,12 +418,7 @@ function ScopeRuleField({
       >
         Scope
       </dt>
-      <dd className="font-sans m-0 inline-flex items-center gap-2" title={tip}>
-        <span className="inline-flex items-center gap-1">
-          {statuses.map((s) => (
-            <DetailScopeDot key={s} status={s} />
-          ))}
-        </span>
+      <dd className="font-sans m-0" title={tip}>
         <span
           className="font-semibold text-body-sm tabular-nums"
           style={{ color: 'var(--navy)' }}
@@ -432,32 +427,6 @@ function ScopeRuleField({
         </span>
       </dd>
     </div>
-  );
-}
-
-// Compact status glyph shared by ScopeRuleField. Neutral gray ramp,
-// matching StatusPillSelector + ScheduledScreen's ScopeDot so the
-// meta strip dots feel identical to the chip dots across surfaces.
-function DetailScopeDot({ status }: { status: 'risk' | 'warn' | 'clean' }) {
-  if (status === 'risk') {
-    return (
-      <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink" aria-hidden>
-        <circle cx="8" cy="8" r="5" fill="currentColor" />
-      </svg>
-    );
-  }
-  if (status === 'warn') {
-    return (
-      <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink-2" aria-hidden>
-        <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.5} />
-        <path d="M8 3 A5 5 0 0 0 8 13 Z" fill="currentColor" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink-3" aria-hidden>
-      <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth={1.6} />
-    </svg>
   );
 }
 
