@@ -4,6 +4,15 @@
 type Filter = 'all' | 'single' | 'batch';
 type CadenceFilter = 'all' | '3' | '4' | '6' | '12';
 
+// Parse a next-run label like "Aug 13, 2026" into an epoch ms for sorting.
+// Missing / unparseable labels return Infinity so they fall to the bottom
+// of an ascending sort (e.g. cancelled rows that retain a `—` placeholder).
+function nextRunTime(label: string | undefined | null): number {
+  if (!label) return Infinity;
+  const t = Date.parse(label);
+  return Number.isNaN(t) ? Infinity : t;
+}
+
 function ScheduledScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
   const { schedules, loading, error } = useAppState();
@@ -14,21 +23,33 @@ function ScheduledScreen() {
 
   const advancedCount = (filter !== 'all' ? 1 : 0) + (cadence !== 'all' ? 1 : 0);
 
-  const rows = schedules.filter((s: any) => {
-    if (filter !== 'all' && s.kind !== filter) return false;
-    if (cadence !== 'all' && String(s.cadenceMonths) !== cadence) return false;
-    if (query) {
-      // Match against title (primary cell) + filename (caption) for batches,
-      // so users can search by either since both are visible in the row.
-      const haystacks: string[] =
-        s.kind === 'batch'
-          ? [s.title || deriveTitleFromFilename(s.filename), s.filename]
-          : [s.address];
-      const q = query.toLowerCase();
-      if (!haystacks.some((h: string) => h.toLowerCase().includes(q))) return false;
-    }
-    return true;
-  });
+  const rows = schedules
+    .filter((s: any) => {
+      if (filter !== 'all' && s.kind !== filter) return false;
+      if (cadence !== 'all' && String(s.cadenceMonths) !== cadence) return false;
+      if (query) {
+        // Match against title (primary cell) + filename (caption) for batches,
+        // so users can search by either since both are visible in the row.
+        const haystacks: string[] =
+          s.kind === 'batch'
+            ? [s.title || deriveTitleFromFilename(s.filename), s.filename]
+            : [s.address];
+        const q = query.toLowerCase();
+        if (!haystacks.some((h: string) => h.toLowerCase().includes(q))) return false;
+      }
+      return true;
+    })
+    // Default sort: next run ascending — answers the question a user is
+    // actually asking when they open /scheduled ("what runs next?") and
+    // matches the convention used by calendar apps and cron-job dashboards.
+    // Rows with an unparseable / missing next-run label (e.g. cancelled
+    // entries that retain a row but no schedule) fall to the bottom; JS's
+    // stable sort preserves their relative order from the filter pass.
+    .sort((a: any, b: any) => {
+      const ta = nextRunTime(a.nextRunLabel);
+      const tb = nextRunTime(b.nextRunLabel);
+      return ta - tb;
+    });
 
   function clearAdvanced() {
     setFilter('all');
