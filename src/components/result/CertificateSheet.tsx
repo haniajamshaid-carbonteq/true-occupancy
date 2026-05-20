@@ -39,9 +39,44 @@ function certShortHash(input: string): string {
   return Math.abs(h).toString(16).toUpperCase().padStart(8, '0').slice(0, 8);
 }
 
+// Stamp format: `2026-05-20 14:17 MDT (UTC-6)`. We drop the older "local"
+// suffix because compliance PDFs outlive the session they were generated in
+// — a lender opening this six months later in another timezone has no way
+// to know what "local" referred to. The abbreviation + UTC offset is
+// self-translating: any reader anywhere can re-derive the absolute moment.
+//
+// Half-hour and 45-minute offsets (Asia/Kolkata = UTC+5:30, Pacific/Chatham
+// = UTC+12:45, …) are handled — `:MM` is appended only when non-zero so
+// the common case stays compact.
 function certTimestamp(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())} local`;
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+  // Timezone abbreviation via formatToParts — empty string if the runtime
+  // can't resolve a short name, in which case we fall back to the offset
+  // alone (still unambiguous, just less friendly).
+  let tzAbbrev = '';
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(d);
+    tzAbbrev = parts.find((p) => p.type === 'timeZoneName')?.value ?? '';
+  } catch {
+    /* runtime without full Intl — leave abbrev blank */
+  }
+
+  // getTimezoneOffset() returns minutes WEST of UTC (positive for Americas),
+  // i.e. the opposite sign convention to ISO 8601. Negate it so UTC-6 reads
+  // as "-6" rather than "+360".
+  const offsetMin = -d.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const absMin = Math.abs(offsetMin);
+  const hh = Math.floor(absMin / 60);
+  const mm = absMin % 60;
+  const offset = mm === 0 ? `UTC${sign}${hh}` : `UTC${sign}${hh}:${pad(mm)}`;
+
+  return tzAbbrev
+    ? `${date} ${time} ${tzAbbrev} (${offset})`
+    : `${date} ${time} ${offset}`;
 }
 
 // Convert the human-relative `scannedAgo` strings the seed data uses
