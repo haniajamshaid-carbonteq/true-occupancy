@@ -471,18 +471,20 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
               },
             ]}
           />
-          {!readOnly && (
-            <Button
-              variant="primary"
-              icon={<Icon name="upload" />}
-              onClick={() => {
-                clearBatch();
-                routerHistory.push('/batch');
-              }}
-            >
-              New Batch
-            </Button>
-          )}
+          {/* "New Batch" is always available, including on the read-only
+              historical view — "go start another scan" is a navigation
+              affordance, not an edit action, so there's no reason to hide
+              it when the user is reviewing a past batch. */}
+          <Button
+            variant="primary"
+            icon={<Icon name="upload" />}
+            onClick={() => {
+              clearBatch();
+              routerHistory.push('/batch');
+            }}
+          >
+            New Batch
+          </Button>
         </div>
       </header>
 
