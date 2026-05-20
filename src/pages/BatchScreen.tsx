@@ -73,17 +73,11 @@ function BatchScreen() {
 
 // ---------- Empty state: upload form ----------
 
-// Cadence is "optional" — only materialises into a schedule on scan
-// completion (see AppState.startBatch + the tick-forward effect). Verdict-
-// band scope is deliberately deferred to the results page where counts
-// exist, per docs spec §13.7 (decide on real data, not assumed data).
-const CADENCE_OPTIONS: Array<{ value: 0 | 3 | 4 | 6 | 12; label: string }> = [
-  { value: 0,  label: 'No repeat' },
-  { value: 3,  label: 'Every 3 months' },
-  { value: 4,  label: 'Every 4 months' },
-  { value: 6,  label: 'Every 6 months' },
-  { value: 12, label: 'Every 12 months' },
-];
+// Automation (cadence + verdict-band scope) is deliberately NOT collected
+// here — both decisions belong on the results page where counts exist,
+// and surfacing only "cadence" up front made the form heavier without
+// completing the decision. Users opt into a recurring job via the
+// post-results AutomationControl / AutomationBanner.
 
 function BatchUpload() {
   const { startBatch, startSampleBatch } = useAppState();
@@ -98,7 +92,6 @@ function BatchUpload() {
   // title the user explicitly typed.
   const [titleTouched, setTitleTouched] = React.useState<boolean>(false);
   const [description, setDescription] = React.useState<string>('');
-  const [cadence, setCadence] = React.useState<0 | 3 | 4 | 6 | 12>(0);
   const [addressColumn, setAddressColumn] = React.useState<string>('');
   const [advancedOpen, setAdvancedOpen] = React.useState<boolean>(false);
 
@@ -115,7 +108,6 @@ function BatchUpload() {
       filename,
       title: title.trim() || undefined,
       description: description.trim() || undefined,
-      cadenceMonths: cadence === 0 ? undefined : cadence,
       addressColumn: addressColumn.trim() || undefined,
     });
   }
@@ -139,22 +131,11 @@ function BatchUpload() {
       </header>
 
       <Card>
-        <div className="px-card-loose py-card-loose flex flex-col items-center">
-          {/* Hero icon + sentence-case h2 + sub copy, per DESIGN §4.2. */}
-          <div className="w-14 h-14 rounded-full bg-brand-soft text-brand grid place-items-center mb-stack">
-            <Icon name="upload" size={24} />
-          </div>
-          <h2
-            className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 mb-stack-tight text-center"
-            style={{ color: 'var(--navy)' }}
-          >
-            Scan many properties at once.
-          </h2>
-          <p className="text-ink-3 text-body-sm leading-relaxed max-w-[60ch] m-0 mb-section-sub text-center">
-            Drop a CSV with one address per row. We&rsquo;ll cross-check every entry against
-            Airbnb, Vrbo, and Facebook Marketplace, then surface the matches in one reviewable queue.
-          </p>
-
+        {/* The page-header h1 + subtitle does the welcome job already, so
+            the card skips its own hero band and opens straight onto the
+            drop zone. Saves ~240 px of vertical real estate, putting the
+            primary CTA at or near the fold on a standard viewport. */}
+        <div className="px-card-loose py-card flex flex-col items-center">
           {/* ----- Drop zone ----- */}
           <label
             htmlFor="batch-csv"
@@ -229,37 +210,6 @@ function BatchUpload() {
               />
               <div className="font-sans text-micro" style={{ color: 'var(--ink-3)' }}>
                 Up to 280 characters · shown on the batch detail page.
-              </div>
-            </div>
-          </FormSection>
-
-          {/* ----- Repeat this job ----- */}
-          <FormSection label="Repeat this job" className="mt-section-sub w-full max-w-[560px]">
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="batch-cadence"
-                className="font-sans text-caption font-semibold"
-                style={{ color: 'var(--ink-2)' }}
-              >
-                Cadence <span className="text-ink-3 font-normal">(optional)</span>
-              </label>
-              <select
-                id="batch-cadence"
-                value={cadence}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setCadence(Number(e.target.value) as 0 | 3 | 4 | 6 | 12)
-                }
-                className="w-full h-11 bg-surface border border-line rounded-lg px-3.5 text-body-sm font-sans outline-none focus:border-brand focus:shadow-[0_0_0_3px_var(--brand-soft)] transition-shadow"
-                style={{ color: 'var(--ink)' }}
-              >
-                {CADENCE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <div className="font-sans text-micro" style={{ color: 'var(--ink-3)' }}>
-                You&rsquo;ll choose which verdict bands to re-scan once results are in.
               </div>
             </div>
           </FormSection>

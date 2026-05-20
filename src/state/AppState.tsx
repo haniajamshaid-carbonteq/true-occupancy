@@ -132,10 +132,6 @@ interface LiveBatch {
   /** Optional free-text description captured at upload (and editable from
    *  the results header). Shown only on the batch detail page. */
   description?: string;
-  /** If the user picked a cadence on the upload form, we stash it here and
-   *  materialize a schedule once the scan completes — at which point we
-   *  know counts and can attach the default verdict-band scope. */
-  pendingScheduleCadence?: Cadence;
 }
 
 // ---- seed data ----------------------------------------------------------
@@ -349,14 +345,12 @@ interface AppStateValue {
   error?: string | null;
   startSampleBatch: () => void;
   /** Real-flow upload — takes the form values captured on the upload page.
-   *  `cadenceMonths` is the "Repeat this job" choice; it's stashed on the
-   *  LiveBatch and materializes into a schedule when the scan completes
-   *  (verdict-band scope picked then, because counts only exist post-scan). */
+   *  Automation lives on the results page (post-scan, where counts exist),
+   *  so this signature carries naming + parser hints only. */
   startBatch: (config: {
     filename: string;
     title?: string;
     description?: string;
-    cadenceMonths?: Cadence;
     addressColumn?: string;
   }) => void;
   clearBatch: () => void;
@@ -454,27 +448,6 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
             },
             ...h,
           ]);
-          // If the user chose a cadence on the upload form, materialize the
-          // schedule now — we deliberately wait until completion so the
-          // schedule's `total` reflects what actually ran and the default
-          // verdict-band scope can attach to real counts.
-          if (prev.pendingScheduleCadence) {
-            const cadence = prev.pendingScheduleCadence;
-            const scheduleId = uid('s');
-            const newSchedule: BatchScheduleEntry = {
-              id: scheduleId,
-              kind: 'batch',
-              filename: prev.filename,
-              total: rows.length,
-              cadenceMonths: cadence,
-              nextRunLabel: formatNextRun(cadence),
-              createdAgo: 'Just now',
-              runHistoryIds: [historyId],
-              statuses: ['risk', 'warn'],
-              title: prev.title,
-            };
-            setSchedules((s) => [newSchedule, ...s]);
-          }
           return { ...prev, rows, status: 'complete', historyId };
         }
         return { ...prev, rows };
@@ -501,12 +474,14 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   // schedule can materialize on completion. Sample-batch rows are still
   // used as the row scaffold while we don't yet parse the user's CSV; the
   // shape mirrors `startSampleBatch` so the tick-forward sim works unchanged.
+  // Automation (cadence + verdict-band scope) is created post-results via
+  // AutomationControl / AutomationBanner — NOT collected here, because the
+  // scope decision needs counts that only exist once the scan completes.
   const startBatch = React.useCallback(
     (config: {
       filename: string;
       title?: string;
       description?: string;
-      cadenceMonths?: Cadence;
       addressColumn?: string;
     }) => {
       setLiveBatch({
@@ -517,7 +492,6 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         startedAt: Date.now(),
         title: config.title?.trim() || undefined,
         description: config.description?.trim() || undefined,
-        pendingScheduleCadence: config.cadenceMonths,
       });
     },
     []
