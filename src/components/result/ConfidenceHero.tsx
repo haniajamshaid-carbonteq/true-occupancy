@@ -179,10 +179,18 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
 
   return (
     <Card className="px-6 py-5">
-      {/* Hero row — verdict + supporting text on the left; Reference field
-          alone on the right (top-aligned with the verdict). */}
-      <div className="flex items-start justify-between gap-8">
-        <div className="min-w-0">
+      {/* Two-column hero. Left column owns the scan identity stack
+          (verdict → score → reference pinned to the bottom). Right column
+          carries the descriptive copy (headline + summary). A 1 px
+          --line divider separates the two so each side reads as its own
+          block — matches DESIGN.md §13.3 hairline rhythm. Collapses to a
+          stacked layout below md so the verdict stays the lead read on
+          narrow viewports. */}
+      <div className="flex flex-col md:flex-row md:items-stretch gap-6 md:gap-8">
+        {/* Left — identity stack (narrower 1:2 column ratio shifts the
+            divider left of geometric centre so the divider feels balanced
+            against the dense right-side description). */}
+        <div className="flex flex-col md:flex-[1] md:min-w-0">
           <div
             className="font-sans font-semibold leading-[0.95] tracking-[-0.025em]"
             style={{ fontSize: "var(--text-h1)", color: 'var(--navy)' }}
@@ -192,20 +200,28 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
           <div className="mt-3 font-sans text-label text-ink-3 tabular-nums">
             <span className="font-semibold text-ink-2">{animatedScore}%</span> confidence
           </div>
-          <div className="mt-3 max-w-[44ch]">
-            <div className="font-sans text-body font-medium text-ink-2 leading-snug">
-              {sc.headline}
-            </div>
-            <div className="mt-1.5 font-sans text-label text-ink-3 leading-relaxed">
-              {sc.summary}
-            </div>
+
+          {/* Reference pinned to the bottom-left corner. `mt-auto` floats
+              it down to the bottom of the stretched flex column so it
+              aligns with the bottom of the description block on the right. */}
+          <div className="mt-auto pt-6">
+            <ScanReferenceField />
           </div>
         </div>
 
-        {/* Reference — optional user-supplied identifier (loan #, case
-            file, client ID). Mirrored to sessionStorage for the PDF cert;
-            persisted to history when the result was opened from /history. */}
-        <ScanReferenceField />
+        {/* Vertical divider — hairline matching --line. Hidden on stacked
+            mobile layout because the columns no longer face each other. */}
+        <div className="hidden md:block w-px bg-line shrink-0" aria-hidden />
+
+        {/* Right — descriptive copy (2× the left column's width) */}
+        <div className="md:flex-[2] md:min-w-0">
+          <div className="font-sans text-body font-medium text-ink-2 leading-snug">
+            {sc.headline}
+          </div>
+          <div className="mt-1.5 font-sans text-label text-ink-3 leading-relaxed">
+            {sc.summary}
+          </div>
+        </div>
       </div>
 
       {/* Why this score — accordion */}
