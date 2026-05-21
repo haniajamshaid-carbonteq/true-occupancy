@@ -126,7 +126,7 @@ function BatchUpload() {
           Batch Upload
         </h1>
         <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2">
-          Upload a CSV of addresses to scan against Airbnb, Vrbo, and Facebook Marketplace.
+          Upload a CSV to screen an entire list of addresses in one pass.
         </p>
       </header>
 
@@ -137,9 +137,13 @@ function BatchUpload() {
             primary CTA at or near the fold on a standard viewport. */}
         <div className="px-card-loose py-card flex flex-col items-center">
           {/* ----- Drop zone ----- */}
+          {/* Tall, centered drop target — min-h gives it real presence as
+              the primary affordance on the page; content is vertically
+              centered so the box reads as a deliberate "drop here" surface
+              rather than a thin bar. */}
           <label
             htmlFor="batch-csv"
-            className={`w-full max-w-[560px] cursor-pointer block rounded-lg border-2 border-dashed transition-colors px-card py-section-sub text-center ${
+            className={`w-full max-w-[560px] min-h-[220px] cursor-pointer flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors px-card py-section text-center ${
               filename
                 ? 'border-brand bg-brand-soft/40'
                 : 'border-line bg-surface hover:bg-brand-soft hover:border-brand'
@@ -389,6 +393,12 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           upload state. */}
       <header className="flex items-start justify-between gap-6 flex-wrap">
         <div className="min-w-0 flex-1 flex flex-col gap-stack-tight">
+          {/* Title + description are metadata annotation, not run data, so
+              they stay editable on every view — including the historical
+              detail page and when empty (the placeholder lets the user add
+              one later). `renameBatch`/`setBatchDescription` propagate the
+              edit into the stored history entry by filename. The `readOnly`
+              flag below governs re-execution only (retry / automation). */}
           <EditableTitle
             value={displayTitle}
             onSave={(next) => renameBatch(batch.id, next)}
@@ -396,7 +406,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             maxLength={80}
             variant="h1"
             ariaLabel="Batch title"
-            readOnly={readOnly}
           />
           <EditableTitle
             value={batch.description}
@@ -406,11 +415,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             variant="body-sm"
             multiline
             ariaLabel="Batch description"
-            readOnly={readOnly}
-            // On the read-only (historical) view, omit the row entirely
-            // when empty so we don't pollute the page with a ghost field
-            // the user can't fill in anyway.
-            hideWhenEmpty={readOnly}
           />
           {/* Identity strip — audit fact, never editable. Mono caption so it
               reads as a tag line of facts rather than user-facing copy. */}

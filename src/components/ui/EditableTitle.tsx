@@ -32,12 +32,13 @@ interface EditableTitleProps {
   variant?: Variant;
   /** Accessible label for the underlying input when no visible label exists. */
   ariaLabel?: string;
-  /** Disables the click-to-edit affordance — used on BatchDetailScreen's
-   *  historical view so past runs read as immutable records. */
+  /** Disables the click-to-edit affordance so the text reads as an
+   *  immutable record. (Batch title/description are editable everywhere, so
+   *  they no longer set this — kept as a generic capability of the primitive.) */
   readOnly?: boolean;
   /** When true and `value` is empty, hide the field entirely instead of
-   *  showing the placeholder ghost. Used for descriptions on the public
-   *  batch view where empty = "no description, omit the row". */
+   *  showing the placeholder ghost — for surfaces where empty means "omit
+   *  the row" rather than "invite an edit". */
   hideWhenEmpty?: boolean;
 }
 

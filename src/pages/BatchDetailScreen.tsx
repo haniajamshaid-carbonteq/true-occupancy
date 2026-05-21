@@ -1,7 +1,10 @@
 /* global React, AppShell, BatchResults, ReactRouterDOM, useAppState */
-// BatchDetailScreen — read-only view of a completed batch from history.
+// BatchDetailScreen — historical view of a completed batch from history.
 // Reuses BatchResults so the page reads exactly like the live-completed
-// state, just sourced from the snapshot stored in AppState.history.
+// state, just sourced from the snapshot stored in AppState.history. Passes
+// `readOnly` to freeze re-execution (retry / automation) — the run is a
+// settled record — but the title/description remain editable so the user
+// can name or annotate a past batch later (BatchResults handles that split).
 
 function BatchDetailScreen() {
   const { id } = ReactRouterDOM.useParams<{ id: string }>();
