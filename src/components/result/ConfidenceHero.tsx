@@ -34,7 +34,7 @@ function FactorRow({
 
   return (
     <div
-      className="py-3.5 card-rise"
+      className="py-4 card-rise"
       style={{ '--rise-delay': `${80 + index * 60}ms` } as React.CSSProperties}
     >
       <div className="flex items-baseline justify-between gap-3">
@@ -45,7 +45,7 @@ function FactorRow({
           {abs}%
         </Pill>
       </div>
-      <div className="mt-1.5 font-sans text-caption text-ink-3 leading-snug">
+      <div className="mt-2 font-sans text-caption text-ink-3 leading-snug">
         {desc}
       </div>
     </div>
@@ -192,7 +192,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
             against the dense right-side description). */}
         <div className="flex flex-col md:flex-[1] md:min-w-0">
           <div
-            className="font-sans font-semibold leading-[0.95] tracking-[-0.025em]"
+            className="font-sans font-semibold leading-[0.95] tracking-[-0.012em]"
             style={{ fontSize: "var(--text-h1)", color: 'var(--navy)' }}
           >
             {VERDICT_TEXT[scenario]}
@@ -218,7 +218,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
           <div className="font-sans text-body font-medium text-ink-2 leading-snug">
             {sc.headline}
           </div>
-          <div className="mt-1.5 font-sans text-label text-ink-3 leading-relaxed">
+          <div className="mt-2 font-sans text-label text-ink-3 leading-relaxed">
             {sc.summary}
           </div>
         </div>
