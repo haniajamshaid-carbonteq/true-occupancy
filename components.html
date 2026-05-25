@@ -22,12 +22,21 @@
         colors: {
           bg: 'var(--bg)',
           surface: { DEFAULT: 'var(--surface)', 2: 'var(--surface-2)' },
+          'pill-neutral': 'var(--pill-neutral-bg)',
           line:    { DEFAULT: 'var(--line)',    strong: 'var(--line-strong)' },
+          'hover-bg': 'var(--hover-bg)',
           ink:     { DEFAULT: 'var(--ink)', 2: 'var(--ink-2)', 3: 'var(--ink-3)', 4: 'var(--ink-4)' },
+          navy:    'var(--navy)',
           brand:   { DEFAULT: 'var(--brand)', 2: 'var(--brand-2)', soft: 'var(--brand-soft)', tint: 'var(--brand-tint)', deep: 'var(--brand-deep)' },
           clean:   { DEFAULT: 'var(--clean)', soft: 'var(--clean-soft)', ink: 'var(--clean-ink)' },
           warn:    { DEFAULT: 'var(--warn)',  soft: 'var(--warn-soft)',  ink: 'var(--warn-ink)' },
           risk:    { DEFAULT: 'var(--risk)',  soft: 'var(--risk-soft)',  ink: 'var(--risk-ink)' },
+          success: { DEFAULT: 'var(--success)', soft: 'var(--success-soft)', ink: 'var(--success-ink)' },
+          warning: { DEFAULT: 'var(--warning)', soft: 'var(--warning-soft)', ink: 'var(--warning-ink)' },
+          error:   { DEFAULT: 'var(--error)',   soft: 'var(--error-soft)',   ink: 'var(--error-ink)' },
+          'verdict-high': { DEFAULT: 'var(--verdict-high)', soft: 'var(--verdict-high-soft)', ink: 'var(--verdict-high-ink)' },
+          'verdict-med':  { DEFAULT: 'var(--verdict-med)',  soft: 'var(--verdict-med-soft)',  ink: 'var(--verdict-med-ink)' },
+          'verdict-low':  { DEFAULT: 'var(--verdict-low)',  soft: 'var(--verdict-low-soft)',  ink: 'var(--verdict-low-ink)' },
           airbnb:  'var(--airbnb)',
           vrbo:    'var(--vrbo)',
           fb:      'var(--fb)',
@@ -35,6 +44,38 @@
         borderRadius: { sm: 'var(--r-sm)', md: 'var(--r-md)', lg: 'var(--r-lg)', xl: 'var(--r-xl)' },
         boxShadow:    { sm: 'var(--shadow-sm)', md: 'var(--shadow-md)', lg: 'var(--shadow-lg)' },
         fontFamily:   { serif: 'var(--serif)', sans: 'var(--sans)', mono: 'var(--mono)' },
+        fontSize: {
+          display:  ['var(--text-display)',  { lineHeight: '1' }],
+          h1:       ['var(--text-h1)',       { lineHeight: '1.1' }],
+          h2:       ['var(--text-h2)',       { lineHeight: '1.15' }],
+          h3:       ['var(--text-h3)',       { lineHeight: '1.25' }],
+          h4:       ['var(--text-h4)',       { lineHeight: '1.3' }],
+          body:     ['var(--text-body)',     { lineHeight: '1.5' }],
+          'body-sm':['var(--text-body-sm)',  { lineHeight: '1.5' }],
+          label:    ['var(--text-label)',    { lineHeight: '1.4' }],
+          caption:  ['var(--text-caption)',  { lineHeight: '1.4' }],
+          micro:    ['var(--text-micro)',    { lineHeight: '1.4' }],
+          eyebrow:  ['var(--text-eyebrow)',  { lineHeight: '1.4', letterSpacing: '0.08em' }],
+        },
+        spacing: {
+          'inline-tight': 'var(--pad-inline-tight)',
+          'inline':       'var(--pad-inline)',
+          'inline-loose': 'var(--pad-inline-loose)',
+          'control-x':    'var(--pad-control-x)',
+          'control-y':    'var(--pad-control-y)',
+          'cell-x':       'var(--pad-cell-x)',
+          'cell-y':       'var(--pad-cell-y)',
+          'card':         'var(--pad-card)',
+          'card-tight':   'var(--pad-card-tight)',
+          'surface-x':    'var(--pad-surface-x)',
+          'surface-y-h':  'var(--pad-surface-y-header)',
+          'surface-y-b':  'var(--pad-surface-y-body)',
+          'surface-y-f':  'var(--pad-surface-y-footer)',
+          'stack-tight':  'var(--gap-stack-tight)',
+          'stack':        'var(--gap-stack)',
+          'section-sub':  'var(--gap-section-sub)',
+          'section':      'var(--gap-section)',
+        },
       },
     },
   };
@@ -59,9 +100,13 @@
 <div id="root"></div>
 <div id="boot-status">Loading…</div>
 
-<!-- React 18 + Babel Standalone (TypeScript + React presets used explicitly below) -->
+<!-- React 18 + React Router v5 (UMD) + Babel Standalone.
+     React Router is loaded so CommandPalette (which calls ReactRouterDOM.useHistory)
+     works inside the gallery — the ComponentsPage wraps itself in a HashRouter. -->
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-router@5.3.4/umd/react-router.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-router-dom@5.3.4/umd/react-router-dom.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
 
 <script>
@@ -75,13 +120,31 @@
 (async () => {
   const status = document.getElementById('boot-status');
   const files = [
+    // Primitives (order mirrors app.html — dependencies before dependents)
+    'src/components/ui/Icons.tsx',
     'src/components/ui/Button.tsx',
     'src/components/ui/Pill.tsx',
     'src/components/ui/Card.tsx',
+    'src/components/ui/Modal.tsx',
+    'src/components/ui/Drawer.tsx',
+    'src/components/ui/ChipRow.tsx',
+    'src/components/ui/DateRangePicker.tsx',
+    'src/components/ui/Tabs.tsx',
+    'src/components/ui/Input.tsx',
+    'src/components/ui/Checkbox.tsx',
     'src/components/ui/RiskBadge.tsx',
     'src/components/ui/SearchBar.tsx',
     'src/components/ui/CommandSearch.tsx',
+    'src/components/ui/CommandPalette.tsx',
     'src/components/ui/Avatar.tsx',
+    'src/components/ui/Keycap.tsx',
+    'src/components/ui/TableSkeleton.tsx',
+    'src/components/ui/DataTable.tsx',
+    'src/components/ui/ScreenEmpty.tsx',
+    'src/components/ui/ScreenError.tsx',
+    'src/components/ui/MetricCard.tsx',
+    'src/components/ui/DropdownMenu.tsx',
+    'src/components/ui/BatchHugCard.tsx',
     'src/pages/Components.tsx',
   ];
 
@@ -114,8 +177,20 @@
       inject(code, path);
     }
     status.textContent = 'Mounting…';
+    // HashRouter so CommandPalette's useHistory() resolves and the ⌘K
+    // demo can navigate without hijacking the gallery URL.
+    const { HashRouter } = ReactRouterDOM;
     ReactDOM.createRoot(document.getElementById('root')).render(
-      React.createElement(ComponentsPage)
+      React.createElement(
+        HashRouter,
+        null,
+        React.createElement(
+          React.Fragment,
+          null,
+          React.createElement(ComponentsPage),
+          React.createElement(CommandPalette)
+        )
+      )
     );
     status.remove();
   } catch (err) {

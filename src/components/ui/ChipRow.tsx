@@ -48,7 +48,9 @@ function ChipRow({ label, value, onChange, options }: ChipRowProps) {
                 <span
                   className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line transition-colors duration-200"
                   style={{
-                    background: active ? 'rgba(2,146,190,0.12)' : 'var(--surface-2)',
+                    background: active
+                      ? 'color-mix(in srgb, var(--brand-link) 12%, transparent)'
+                      : 'var(--surface-2)',
                     color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
                   }}
                 >

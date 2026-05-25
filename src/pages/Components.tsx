@@ -1,4 +1,4 @@
-/* global React, Button, Pill, Card, RiskBadge, SearchBar, CommandSearch, Avatar, BatchHugCard, openCommandPalette */
+/* global React, Icon, Button, Pill, Card, RiskBadge, SearchBar, CommandSearch, Avatar, BatchHugCard, openCommandPalette, Checkbox, Input, Tabs, ChipRow, DateRangePicker, DataTable, TableSkeleton, MetricCard, Modal, Drawer, DropdownMenu, ScreenEmpty, ScreenError */
 // Visual QA showcase. Renders every variant of every primitive so a
 // designer / engineer can scan the whole UI library on one page.
 
@@ -154,9 +154,49 @@ function TypeRampPreview() {
   );
 }
 
+// ---- icon roster — kept in lock-step with src/components/ui/Icons.tsx.
+//      If you add an icon there, append its name here so the gallery shows it.
+const ICON_NAMES: string[] = [
+  'search', 'history', 'flag', 'globe', 'pdf', 'settings',
+  'check', 'x', 'alert', 'info', 'chevron',
+  'pin', 'bed', 'bath', 'square', 'shield', 'cal', 'price', 'star',
+  'spark', 'ai-star', 'replay', 'share', 'trend-up', 'trend-down', 'external',
+  'arrow-right', 'upload', 'layers', 'sliders', 'mail', 'lock', 'eye', 'eye-off', 'google', 'user',
+];
+
+// ---- demo data for the DataTable section ----
+interface DemoScan {
+  id: string;
+  address: string;
+  city: string;
+  status: 'clean' | 'warn' | 'risk';
+  scanned: string;
+  score: number;
+}
+
+const DEMO_ROWS: DemoScan[] = [
+  { id: 'TO-7C57', address: '1428 Maplewood Drive',  city: 'Asheville, NC',  status: 'clean', scanned: '2 h ago',  score: 87 },
+  { id: 'TO-4A92', address: '305 Walnut Court',      city: 'Asheville, NC',  status: 'warn',  scanned: 'Yesterday', score: 64 },
+  { id: 'TO-1F3E', address: '210 Silver Creek Drive', city: 'Asheville, NC', status: 'risk',  scanned: '2 d ago',  score: 22 },
+  { id: 'TO-8D11', address: '88 Oakridge Lane',      city: 'Asheville, NC',  status: 'clean', scanned: '3 d ago',  score: 91 },
+];
+
+const STATUS_ACCENT: Record<DemoScan['status'], string> = {
+  clean: 'var(--clean)',
+  warn:  'var(--warn)',
+  risk:  'var(--risk)',
+};
+
 // ---- the page ----
 function ComponentsPage() {
   const [query, setQuery] = React.useState('');
+  const [checks, setChecks] = React.useState({ on: true, off: false, label: true });
+  const [input, setInput] = React.useState('');
+  const [tab, setTab] = React.useState<'recent' | 'scheduled' | 'archived'>('recent');
+  const [chip, setChip] = React.useState('all');
+  const [range, setRange] = React.useState<{ from?: string; to?: string }>({});
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   return (
     <div className="min-h-screen bg-bg text-ink font-sans">
@@ -401,6 +441,397 @@ function ComponentsPage() {
                 total={14}
                 stoppedAt={8}
               />
+            </Row>
+          </Stage>
+        </Section>
+
+        {/* === Icon set === */}
+        <Section num="09" title="Icon" desc="Single Icon component, name prop. 16px default, currentColor stroke. Sized via the size prop or the surrounding text color.">
+          <Stage>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3">
+              {ICON_NAMES.map((n) => (
+                <div
+                  key={n}
+                  className="flex flex-col items-center justify-center gap-2 p-3 rounded-md border border-line bg-surface"
+                >
+                  <span style={{ color: 'var(--ink-2)' }} className="[&>svg]:w-5 [&>svg]:h-5">
+                    <Icon name={n} size={20} />
+                  </span>
+                  <code className="font-mono text-micro text-ink-4">{n}</code>
+                </div>
+              ))}
+            </div>
+          </Stage>
+        </Section>
+
+        {/* === Checkbox === */}
+        <Section num="10" title="Checkbox" desc="Square check, brand-teal fill when checked. Hidden native input drives a11y + keyboard.">
+          <Stage>
+            <Row label="States">
+              <Checkbox
+                checked={checks.on}
+                onChange={(e) => setChecks({ ...checks, on: e.currentTarget.checked })}
+              />
+              <Checkbox
+                checked={checks.off}
+                onChange={(e) => setChecks({ ...checks, off: e.currentTarget.checked })}
+              />
+              <Checkbox checked disabled />
+              <Checkbox checked={false} disabled />
+            </Row>
+            <Row label="With label">
+              <Checkbox
+                checked={checks.label}
+                onChange={(e) => setChecks({ ...checks, label: e.currentTarget.checked })}
+                label="Include archived scans"
+              />
+            </Row>
+          </Stage>
+        </Section>
+
+        {/* === Input === */}
+        <Section num="11" title="Input" desc="44px tracked input. Optional label, leading icon, trailing slot, hint. Focus paints a brand-soft ring; error swaps to risk.">
+          <Stage>
+            <div className="grid grid-cols-2 gap-6 max-w-[640px]">
+              <Input
+                label="Property address"
+                placeholder="1428 Maplewood Drive, Asheville, NC"
+                value={input}
+                onChange={(e) => setInput(e.currentTarget.value)}
+              />
+              <Input
+                label="Search"
+                placeholder="Search scans, addresses, IDs"
+                leadingIcon={<Icon name="search" size={16} />}
+              />
+              <Input
+                label="Email"
+                placeholder="you@example.com"
+                leadingIcon={<Icon name="mail" size={16} />}
+                hint="We'll send the report here."
+              />
+              <Input
+                label="Password"
+                type="password"
+                placeholder="••••••••"
+                leadingIcon={<Icon name="lock" size={16} />}
+                trailing={
+                  <button type="button" aria-label="Show password" className="grid w-10 h-11 place-items-center" style={{ color: 'var(--ink-3)' }}>
+                    <Icon name="eye" size={16} />
+                  </button>
+                }
+              />
+              <Input
+                label="ZIP"
+                value="2880"
+                error
+                hint="ZIP must be 5 digits."
+                onChange={() => {}}
+              />
+              <Input
+                label="Unlabeled / plain"
+                placeholder="Generic field"
+              />
+            </div>
+          </Stage>
+        </Section>
+
+        {/* === Tabs === */}
+        <Section num="12" title="Tabs" desc="Segmented strip on a bottom hairline. 2px brand underline animates between active tabs. Optional count badges and a right-aligned slot.">
+          <Stage>
+            <Tabs
+              value={tab}
+              onChange={setTab}
+              items={[
+                { value: 'recent',    label: 'Recent',    count: 14 },
+                { value: 'scheduled', label: 'Scheduled', count: 3 },
+                { value: 'archived',  label: 'Archived' },
+              ]}
+              rightSlot={<Button variant="ghost" icon={Glyph.download}>Export</Button>}
+            />
+            <div className="mt-4 text-caption text-ink-3">
+              Active: <code className="font-mono text-micro">{tab}</code>
+            </div>
+          </Stage>
+        </Section>
+
+        {/* === ChipRow === */}
+        <Section num="13" title="ChipRow" desc="Labelled row of single-select chips. Same visual contract as the filter drawer chips on History / Scheduled (h-8, brand-tint when active). Optional count badge.">
+          <Stage>
+            <ChipRow
+              label="Verdict"
+              value={chip}
+              onChange={setChip}
+              options={[
+                { value: 'all',    label: 'All',             count: 24 },
+                { value: 'clean',  label: 'Not rented',      count: 9 },
+                { value: 'warn',   label: 'Possibly rented', count: 6 },
+                { value: 'risk',   label: 'Rented',          count: 9 },
+              ]}
+            />
+          </Stage>
+        </Section>
+
+        {/* === DateRangePicker === */}
+        <Section num="14" title="DateRangePicker" desc="From / To date inputs with optional preset chips. Drops into a filter drawer with eyebrow label, or inline with the form label style.">
+          <Stage>
+            <div className="max-w-[420px]">
+              <DateRangePicker
+                label="Scanned between"
+                value={range}
+                onChange={setRange}
+                presets={[
+                  { id: '7d',  label: '7 d',  range: { from: '2026-05-18', to: '2026-05-25' } },
+                  { id: '30d', label: '30 d', range: { from: '2026-04-25', to: '2026-05-25' } },
+                  { id: '90d', label: '90 d', range: { from: '2026-02-24', to: '2026-05-25' } },
+                ]}
+              />
+            </div>
+          </Stage>
+        </Section>
+
+        {/* === DropdownMenu === */}
+        <Section num="15" title="DropdownMenu" desc="Click-to-open menu of actions. Floating popover on desktop, bottom sheet on mobile. Items may include icons, hints, disabled or destructive flags.">
+          <Stage>
+            <Row label="Default · end">
+              <DropdownMenu
+                trigger={<Button icon={Glyph.download} iconRight={Glyph.arrowRight}>Export</Button>}
+                title="Export report"
+                items={[
+                  { label: 'PDF certificate',  icon: <Icon name="pdf" size={16} />,    onClick: () => {}, hint: 'Stamped, downloadable' },
+                  { label: 'CSV (filtered)',   icon: <Icon name="layers" size={16} />, onClick: () => {} },
+                  { label: 'Share via email',  icon: <Icon name="mail" size={16} />,   onClick: () => {} },
+                  { label: 'Delete scan',      icon: <Icon name="x" size={16} />,      onClick: () => {}, destructive: true },
+                  { label: 'Coming soon',      onClick: () => {}, disabled: true },
+                ]}
+              />
+            </Row>
+            <Row label="Aligned · start">
+              <DropdownMenu
+                align="start"
+                trigger={<Button variant="ghost">Filter ▾</Button>}
+                items={[
+                  { label: 'Verified',    onClick: () => {} },
+                  { label: 'Unverified',  onClick: () => {} },
+                ]}
+              />
+            </Row>
+          </Stage>
+        </Section>
+
+        {/* === TableSkeleton === */}
+        <Section num="16" title="TableSkeleton" desc="Loading placeholder used inside DataTable when loading=true. Stand-alone here for reference.">
+          <Stage>
+            <TableSkeleton
+              columns={[
+                { key: 'id',      width: '120px' },
+                { key: 'address', width: '1fr' },
+                { key: 'score',   width: '80px', align: 'right' },
+                { key: 'when',    width: '120px', align: 'right' },
+              ]}
+              count={4}
+            />
+          </Stage>
+        </Section>
+
+        {/* === DataTable === */}
+        <Section num="17" title="DataTable" desc="Single primitive behind every tabular surface. Quiet header, optional 2px leading-edge accent per row, table↔card switch at md. Loading and empty states built in.">
+          <Stage>
+            <div className="space-y-6">
+              <div>
+                <div className="text-micro text-ink-3 uppercase tracking-[0.14em] font-semibold mb-2">Default</div>
+                <DataTable
+                  rows={DEMO_ROWS}
+                  rowKey={(r) => r.id}
+                  leadingAccent={(r) => STATUS_ACCENT[r.status]}
+                  onRowClick={() => {}}
+                  columns={[
+                    { key: 'id',      label: 'ID',       width: '110px', cell: (r) => <span className="font-mono text-micro text-ink-3">{r.id}</span> },
+                    { key: 'address', label: 'Address',  width: '1fr',   primary: true, cell: (r) => (
+                      <div>
+                        <div className="text-body-sm" style={{ color: 'var(--ink-2)' }}>{r.address}</div>
+                        <div className="text-caption text-ink-3">{r.city}</div>
+                      </div>
+                    ) },
+                    { key: 'status',  label: 'Status',   width: '160px', cell: (r) => (
+                      <Pill variant={r.status} dot>
+                        {r.status === 'clean' ? 'Not rented' : r.status === 'warn' ? 'Possibly' : 'Rented'}
+                      </Pill>
+                    ) },
+                    { key: 'score',   label: 'Score',    width: '80px',  align: 'right', cell: (r) => <span className="font-mono tabular-nums">{r.score}</span> },
+                    { key: 'when',    label: 'Scanned',  width: '120px', align: 'right', hideBelow: 'md', cell: (r) => <span className="text-ink-3">{r.scanned}</span> },
+                  ]}
+                />
+              </div>
+              <div>
+                <div className="text-micro text-ink-3 uppercase tracking-[0.14em] font-semibold mb-2">Loading</div>
+                <DataTable
+                  loading
+                  rows={[]}
+                  rowKey={(_r, i) => String(i)}
+                  columns={[
+                    { key: 'id',      label: 'ID',      width: '110px', cell: () => null },
+                    { key: 'address', label: 'Address', width: '1fr',   primary: true, cell: () => null },
+                    { key: 'status',  label: 'Status',  width: '160px', cell: () => null },
+                    { key: 'score',   label: 'Score',   width: '80px',  align: 'right', cell: () => null },
+                  ]}
+                />
+              </div>
+              <div>
+                <div className="text-micro text-ink-3 uppercase tracking-[0.14em] font-semibold mb-2">Empty</div>
+                <DataTable
+                  rows={[]}
+                  rowKey={(_r, i) => String(i)}
+                  empty={
+                    <div className="py-12 text-center text-ink-3 text-body-sm">
+                      No scans match the current filter.
+                    </div>
+                  }
+                  columns={[
+                    { key: 'id',      label: 'ID',      width: '110px', cell: () => null },
+                    { key: 'address', label: 'Address', width: '1fr',   primary: true, cell: () => null },
+                    { key: 'status',  label: 'Status',  width: '160px', cell: () => null },
+                    { key: 'score',   label: 'Score',   width: '80px',  align: 'right', cell: () => null },
+                  ]}
+                />
+              </div>
+            </div>
+          </Stage>
+        </Section>
+
+        {/* === MetricCard === */}
+        <Section num="18" title="MetricCard" desc="One primitive for every KPI tile. Eyebrow label, dominant tabular numeral, optional sparkline + delta footer. `primary` paints the brand gradient; `accent` adds a verdict-tone dot.">
+          <Stage>
+            <div className="grid grid-cols-4 gap-4">
+              <MetricCard
+                label="Scans this week"
+                value="14"
+                delta={{ dir: 'up', value: '+3' }}
+                hint="vs last week"
+                sparkline={[3, 5, 4, 6, 5, 7, 8]}
+              />
+              <MetricCard
+                label="Avg confidence"
+                value="0.87"
+                delta={{ dir: 'down', value: '-0.04' }}
+                hint="vs last week"
+                sparkline={[0.9, 0.88, 0.85, 0.86, 0.87]}
+                sparklineTone="down"
+              />
+              <MetricCard
+                primary
+                label="Compliance rate"
+                value="92%"
+                hint="last 30 days"
+                icon={<Icon name="shield" size={14} />}
+                sparkline={[88, 90, 89, 91, 92]}
+              />
+              <MetricCard
+                label="Rented"
+                value="9"
+                accent="verdict-high"
+                hint="of 24 scans"
+                size="sm"
+              />
+            </div>
+          </Stage>
+        </Section>
+
+        {/* === Modal === */}
+        <Section num="19" title="Modal" desc="Portal-rendered dialog. Backdrop blur, ESC + outside-click close, focus trap, body-scroll lock. Header + body + footer slots.">
+          <Stage>
+            <Row label="Trigger">
+              <Button variant="primary" onClick={() => setModalOpen(true)}>Open modal</Button>
+            </Row>
+            <Modal
+              open={modalOpen}
+              onClose={() => setModalOpen(false)}
+              title="Confirm scan"
+              footer={
+                <>
+                  <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>
+                  <Button variant="primary" onClick={() => setModalOpen(false)}>Run scan</Button>
+                </>
+              }
+            >
+              <p className="font-sans text-body-sm text-ink-3 leading-relaxed m-0">
+                We'll search every public short-term-rental listing within one mile of
+                this address. Results typically take 8–12 seconds.
+              </p>
+            </Modal>
+          </Stage>
+        </Section>
+
+        {/* === Drawer === */}
+        <Section num="20" title="Drawer" desc="Right-anchored slide-in. Same chrome contract as Modal. 380px on desktop, full viewport below sm.">
+          <Stage>
+            <Row label="Trigger">
+              <Button onClick={() => setDrawerOpen(true)}>Open drawer</Button>
+            </Row>
+            <Drawer
+              open={drawerOpen}
+              onClose={() => setDrawerOpen(false)}
+              title="Filters"
+              footer={
+                <>
+                  <Button variant="ghost" onClick={() => setDrawerOpen(false)}>Clear</Button>
+                  <Button variant="primary" onClick={() => setDrawerOpen(false)}>Done</Button>
+                </>
+              }
+            >
+              <div className="space-y-6">
+                <ChipRow
+                  label="Verdict"
+                  value={chip}
+                  onChange={setChip}
+                  options={[
+                    { value: 'all',   label: 'All',             count: 24 },
+                    { value: 'clean', label: 'Not rented',      count: 9 },
+                    { value: 'warn',  label: 'Possibly rented', count: 6 },
+                    { value: 'risk',  label: 'Rented',          count: 9 },
+                  ]}
+                />
+                <DateRangePicker
+                  label="Scanned between"
+                  value={range}
+                  onChange={setRange}
+                />
+              </div>
+            </Drawer>
+          </Stage>
+        </Section>
+
+        {/* === ScreenEmpty === */}
+        <Section num="21" title="ScreenEmpty" desc="Full-surface 'never had any data' block. Brand-soft icon badge, navy title, optional CTA. Distinct from DataTable.empty (filter returned zero).">
+          <Stage>
+            <ScreenEmpty
+              icon="history"
+              title="No scans yet"
+              message="Run your first property scan from the home screen to see results here."
+              actionLabel="Run a scan"
+              onAction={() => {}}
+            />
+          </Stage>
+        </Section>
+
+        {/* === ScreenError === */}
+        <Section num="22" title="ScreenError" desc="Full-surface failure block. Sibling anatomy to ScreenEmpty with error-soft badge and primary Retry.">
+          <Stage>
+            <ScreenError
+              onRetry={() => {}}
+              onBack={() => {}}
+            />
+          </Stage>
+        </Section>
+
+        {/* === CommandPalette === */}
+        <Section num="23" title="CommandPalette" desc="Global ⌘K overlay, mounted once at the app root. Pub/sub store means any component can trigger it without prop-drilling. Body is CommandSearch in overlay mode (see §05).">
+          <Stage>
+            <Row label="Trigger">
+              <Button onClick={() => openCommandPalette()}>Open ⌘K palette</Button>
+              <span className="text-caption text-ink-3">
+                Also bound to <code className="font-mono text-micro">⌘K</code> / <code className="font-mono text-micro">Ctrl+K</code> globally.
+              </span>
             </Row>
           </Stage>
         </Section>

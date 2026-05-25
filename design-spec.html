@@ -179,25 +179,46 @@
     // 1. Domain
     'src/data/scenarios.tsx',
     'src/data/aiInvestigation.tsx',
+    // 1b. State (provides useAppState consumed by AppShell + notification dock)
+    'src/state/AppState.tsx',
     // 2. Primitives
     'src/components/ui/Icons.tsx',
     'src/components/ui/Button.tsx',
     'src/components/ui/Pill.tsx',
     'src/components/ui/Card.tsx',
+    'src/components/ui/Modal.tsx',
+    'src/components/ui/Drawer.tsx',
+    'src/components/ui/ChipRow.tsx',
+    'src/components/ui/DateRangePicker.tsx',
+    'src/components/ui/Tabs.tsx',
+    'src/components/ui/Input.tsx',
+    'src/components/ui/Checkbox.tsx',
     'src/components/ui/RiskBadge.tsx',
     'src/components/ui/SearchBar.tsx',
     'src/components/ui/CommandSearch.tsx',
     'src/components/ui/CommandPalette.tsx',
     'src/components/ui/Avatar.tsx',
     'src/components/ui/Keycap.tsx',
+    'src/components/ui/TableSkeleton.tsx',
     'src/components/ui/DataTable.tsx',
+    'src/components/ui/ScreenEmpty.tsx',
+    'src/components/ui/ScreenError.tsx',
     'src/components/ui/MetricCard.tsx',
     'src/components/ui/DropdownMenu.tsx',
+    'src/components/ui/BatchHugCard.tsx',
+    // 2b. Notification Dock
+    'src/components/notification/NotificationRow.tsx',
+    'src/components/notification/NotificationStack.tsx',
+    'src/components/notification/NotificationPill.tsx',
+    'src/components/notification/NotificationDock.tsx',
     // 3. Structural
     'src/components/SideNav.tsx',
     'src/components/AppShell.tsx',
     'src/components/PageHeader.tsx',
     'src/components/ScanContextBar.tsx',
+    'src/components/AutomateModal.tsx',
+    'src/components/AutomationControl.tsx',
+    'src/components/VerdictTiles.tsx',
     // 4. Scan
     'src/components/scan/ScanCard.tsx',
     'src/components/scan/ScanStage.tsx',
@@ -252,7 +273,14 @@
       inject(code, path);
     }
     status.textContent = 'Mounting…';
-    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(SpecApp));
+    // Production screens (HomeScreen, HistoryScreen, ...) consume the
+    // AppState context. The spec canvas isn't itself an app, so wrap the
+    // whole tree in AppStateProvider with its default values — gives the
+    // hooks something real to read without coupling the canvas to a
+    // specific story.
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      React.createElement(AppStateProvider, null, React.createElement(SpecApp))
+    );
     status.remove();
   } catch (err) {
     status.className = 'error';

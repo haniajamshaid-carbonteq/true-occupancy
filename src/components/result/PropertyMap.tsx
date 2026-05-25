@@ -36,7 +36,10 @@ function PropertyMap() {
           <path d="M 560 0 L 555 480" />
         </g>
         {/* Selection box */}
-        <rect x="58" y="186" width="324" height="186" fill="rgba(10,183,163,.08)" stroke="#0AB7A3" strokeWidth="1.5" />
+        <rect
+          x="58" y="186" width="324" height="186" strokeWidth="1.5"
+          style={{ fill: 'color-mix(in srgb, var(--brand) 8%, transparent)', stroke: 'var(--brand)' }}
+        />
         {/* Water */}
         <ellipse cx="540" cy="170" rx="34" ry="22" fill="#CFE0EE" />
         {/* Street labels */}
@@ -59,8 +62,8 @@ function PropertyMap() {
         <svg viewBox="0 0 24 32" width="36" height="48">
           <defs>
             <linearGradient id="pinGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#0498C6" />
-              <stop offset="1" stopColor="#0AB7A3" />
+              <stop offset="0" style={{ stopColor: 'var(--brand-2)' }} />
+              <stop offset="1" style={{ stopColor: 'var(--brand)' }} />
             </linearGradient>
           </defs>
           <path d="M 12 0 C 5 0 0 5 0 12 C 0 22 12 32 12 32 C 12 32 24 22 24 12 C 24 5 19 0 12 0 Z" fill="url(#pinGrad)" />

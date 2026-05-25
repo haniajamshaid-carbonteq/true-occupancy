@@ -22,7 +22,7 @@ const ThumbIcon = {
     <span
       className="block w-7 h-7 rounded-full animate-spin"
       style={{
-        border: '2.5px solid rgba(10,183,163,.22)',
+        border: '2.5px solid color-mix(in srgb, var(--brand) 22%, transparent)',
         borderTopColor: 'var(--brand)',
         borderRightColor: 'var(--brand-2)',
       }}
