@@ -269,7 +269,7 @@ function ScanReferenceField() {
   }
 
   return (
-    <div className="inline-flex items-center gap-2">
+    <div className="inline-flex items-baseline gap-2">
       <span
         className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
         style={{ color: 'var(--ink-3)' }}

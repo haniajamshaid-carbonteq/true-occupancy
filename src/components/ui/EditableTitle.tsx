@@ -144,7 +144,7 @@ function EditableTitle({
         onClick={beginEdit}
         disabled={readOnly}
         aria-label={ariaLabel ?? (isEmpty ? `Add ${placeholder.toLowerCase()}` : 'Edit')}
-        className={`group inline-flex items-baseline gap-2 max-w-full text-left rounded-md -mx-1 px-1 transition-colors hover:bg-hover-bg disabled:cursor-default disabled:hover:bg-transparent`}
+        className={`group inline-flex items-baseline gap-2 max-w-full text-left rounded-md -mx-2 -my-1 px-2 py-1 transition-colors hover:bg-hover-bg disabled:cursor-default disabled:hover:bg-transparent`}
       >
         <span className={`${VARIANT_CLASS[variant]} truncate`} style={ink}>
           {isEmpty ? placeholder : value}

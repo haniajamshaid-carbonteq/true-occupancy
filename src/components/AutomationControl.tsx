@@ -130,6 +130,10 @@ function AutomationControl({ target }: AutomationControlProps) {
 
   // ---- Not yet automated -> classic Automate button ---------------------
   if (!existing) {
+    // Batch scope is unknown until the first scan finishes — without per-status
+    // counts the user can't pick a meaningful re-scan set, so the entry CTA is
+    // disabled until the scan completes.
+    const scanPending = target.kind === 'batch' && target.scopeCountsPending === true;
     return (
       <>
         <Button
@@ -137,6 +141,8 @@ function AutomationControl({ target }: AutomationControlProps) {
           onClick={() => setCreateOpen(true)}
           icon={<Icon name="cal" size={14} />}
           className="shrink-0"
+          disabled={scanPending}
+          title={scanPending ? 'Available once the scan completes' : undefined}
         >
           Automate
         </Button>

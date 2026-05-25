@@ -229,7 +229,7 @@ function BatchUpload() {
             >
               <span
                 className={`inline-flex shrink-0 transition-transform ${
-                  advancedOpen ? 'rotate-90' : ''
+                  advancedOpen ? 'rotate-180' : ''
                 } [&>svg]:w-3 [&>svg]:h-3`}
                 aria-hidden
               >

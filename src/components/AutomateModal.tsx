@@ -236,7 +236,7 @@ function AutomateModal({
           so we don't double up here. */}
       {target?.kind === 'single' && target.address && (
         <div className="mb-5 px-4 py-3 rounded-md border border-line bg-surface-2/50">
-          <div className="font-sans text-eyebrow uppercase tracking-[0.16em] font-semibold text-ink-3 mb-1">
+          <div className="font-sans text-eyebrow uppercase tracking-[0.14em] font-semibold text-ink-3 mb-1">
             Address
           </div>
           <div className="font-sans font-semibold text-body-sm" style={{ color: 'var(--navy)' }}>
@@ -269,7 +269,7 @@ function AutomateModal({
               onClick={() => setCadence(opt.value)}
               className={`text-left flex items-start gap-inline-loose px-control-x py-3 rounded-md border transition-colors ${
                 active
-                  ? '!bg-brand-tint !border-brand/50'
+                  ? '!bg-brand-tint !border-brand/40'
                   : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
               }`}
             >
@@ -297,7 +297,7 @@ function AutomateModal({
 
       {/* ---- Section: Status scope (BATCH ONLY) ----------------------- */}
       {isBatch && (
-        <div className="mt-5">
+        <div className="mt-section-sub">
           {/* Step 1 — the status bands that seed the re-scan set. */}
           <div className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase text-ink-3 mb-2">
             Which properties to re-scan?
@@ -318,7 +318,7 @@ function AutomateModal({
               is moot. */}
           {!allStatusesSelected && (
           <>
-          <div className="mt-5 font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase text-ink-3 mb-2">
+          <div className="mt-section-sub font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase text-ink-3 mb-2">
             If a property no longer matches these statuses
           </div>
           <div role="radiogroup" aria-label="When a property no longer matches" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -333,7 +333,7 @@ function AutomateModal({
                   onClick={() => setRetention(opt.value)}
                   className={`text-left flex items-start gap-inline-loose px-control-x py-3 rounded-md border transition-colors ${
                     active
-                      ? '!bg-brand-tint !border-brand/50'
+                      ? '!bg-brand-tint !border-brand/40'
                       : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
                   }`}
                 >

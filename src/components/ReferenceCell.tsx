@@ -96,7 +96,7 @@ function ReferenceCell({ value, onSave, readOnly, maxWidth = 180 }: ReferenceCel
           setEditing(true);
         }}
         title={`Edit reference — ${value}`}
-        className="group inline-flex items-center gap-1.5 align-middle bg-transparent border-0 cursor-pointer rounded px-1.5 -mx-1.5 py-0.5 -my-0.5 hover:bg-surface-2 focus:bg-surface-2 transition-colors"
+        className="group inline-flex items-center gap-1.5 align-middle bg-transparent border-0 cursor-pointer rounded px-1.5 -mx-1.5 py-0.5 -my-0.5 hover:bg-hover-bg focus:bg-hover-bg transition-colors"
         style={{ maxWidth: maxWidth + 24 /* +24 to leave room for the pencil */ }}
       >
         <span

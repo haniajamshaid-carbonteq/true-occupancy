@@ -49,8 +49,8 @@ const STATUS_LABEL: Record<'risk' | 'warn' | 'clean', string> = {
 // Note line under the count — phrased on the consequence of the retention
 // rule, mirroring the locked modal copy.
 const RETENTION_NOTE: Record<ScopeRetention, string> = {
-  monitor: 'Properties remain monitored even if statuses change.',
-  remove: 'Properties drop out once they no longer match the selected statuses.',
+  monitor: 'Properties stay monitored even if statuses change.',
+  remove: 'Properties drop out when statuses change.',
 };
 
 function AutomationScopeCard({
@@ -112,24 +112,23 @@ function AutomationScopeCard({
   return (
     <div className="rounded-md border border-line bg-surface-2 px-4 py-3">
       <p className="m-0 font-sans text-body-sm text-ink-2 leading-relaxed">
-        Will re-scan{' '}
         <span
           className="font-semibold text-ink underline decoration-dotted underline-offset-2 cursor-help"
           title={tip}
           aria-label={tip?.replace(/\n/g, ' · ')}
         >
-          {inScope} of {total}
-        </span>{' '}
-        addresses {cadenceLabel(cadence)}.
+          {inScope} of {total} properties
+        </span>
+        <span className="text-ink-3"> · </span>
+        <span className="font-semibold text-ink">{cadenceLabel(cadence)}</span>
+        <span className="text-ink-3"> · next </span>
+        <span className="font-semibold text-ink">{nextRunLabel}</span>
       </p>
       {!hideRetentionNote && (
         <p className="m-0 mt-1 font-sans text-caption text-ink-3 leading-snug">
           {RETENTION_NOTE[retention]}
         </p>
       )}
-      <p className="m-0 mt-1 font-mono tabular-nums text-caption text-ink-3">
-        Next run ~ {nextRunLabel}.
-      </p>
     </div>
   );
 }
