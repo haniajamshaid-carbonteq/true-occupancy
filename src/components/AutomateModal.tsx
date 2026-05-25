@@ -136,6 +136,13 @@ function AutomateModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // When every status is selected, a property can never STOP matching — so the
+  // retention choice is moot (the whole batch is always re-scanned). We hide
+  // the section and treat retention as 'monitor', while leaving the user's
+  // underlying `retention` pick intact so it returns if they deselect a status.
+  const allStatusesSelected = isBatch && statuses.length === STATUS_OPTIONS_BASE.length;
+  const effectiveRetention: ScopeRetention = allStatusesSelected ? 'monitor' : retention;
+
   // Primary CTA enablement.
   //   create (single): always enabled
   //   create (batch):  enabled only when ≥1 status selected
@@ -151,7 +158,7 @@ function AutomateModal({
       ? sameSet(statuses, initialStatuses ?? DEFAULT_STATUSES)
       : true;
     const retentionUnchanged = isBatch
-      ? retention === (initialRetention ?? DEFAULT_RETENTION)
+      ? effectiveRetention === (initialRetention ?? DEFAULT_RETENTION)
       : true;
     primaryDisabled = cadenceUnchanged && statusesUnchanged && retentionUnchanged;
   }
@@ -213,7 +220,7 @@ function AutomateModal({
               onConfirm({
                 cadence,
                 statuses: isBatch ? statuses : undefined,
-                retention: isBatch ? retention : undefined,
+                retention: isBatch ? effectiveRetention : undefined,
               })
             }
             icon={<Icon name="cal" size={14} />}
@@ -305,7 +312,12 @@ function AutomateModal({
             countsPending={scopeCountsPending}
           />
 
-          {/* Step 2 — retention rule for a property that later stops matching. */}
+          {/* Step 2 — retention rule for a property that later stops matching.
+              Hidden when ALL statuses are selected: a property can never stop
+              matching, so the whole batch is always re-scanned and the choice
+              is moot. */}
+          {!allStatusesSelected && (
+          <>
           <div className="mt-5 font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase text-ink-3 mb-2">
             If a property no longer matches these statuses
           </div>
@@ -346,6 +358,8 @@ function AutomateModal({
               );
             })}
           </div>
+          </>
+          )}
 
           {/* Live scope summary */}
           <div className="mt-3">
@@ -354,7 +368,8 @@ function AutomateModal({
               counts={counts}
               total={total}
               cadence={cadence}
-              retention={retention}
+              retention={effectiveRetention}
+              hideRetentionNote={allStatusesSelected}
               nextRunLabel={nextRunLabel}
               countsPending={scopeCountsPending}
             />

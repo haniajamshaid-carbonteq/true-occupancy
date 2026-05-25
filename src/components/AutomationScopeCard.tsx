@@ -31,6 +31,9 @@ interface AutomationScopeCardProps {
   cadence: Cadence;
   /** Retention rule — drives the note line ("stays monitored" vs "drops out"). */
   retention: ScopeRetention;
+  /** Suppress the retention note line. Set when all statuses are selected, so
+   *  retention is moot (the whole batch is always re-scanned). */
+  hideRetentionNote?: boolean;
   /** Pre-formatted next-run date label (e.g. "Aug 18, 2026"). */
   nextRunLabel: string;
   /** First scan still running — counts not known yet. */
@@ -56,6 +59,7 @@ function AutomationScopeCard({
   total,
   cadence,
   retention,
+  hideRetentionNote = false,
   nextRunLabel,
   countsPending = false,
 }: AutomationScopeCardProps) {
@@ -118,9 +122,11 @@ function AutomationScopeCard({
         </span>{' '}
         addresses {cadenceLabel(cadence)}.
       </p>
-      <p className="m-0 mt-1 font-sans text-caption text-ink-3 leading-snug">
-        {RETENTION_NOTE[retention]}
-      </p>
+      {!hideRetentionNote && (
+        <p className="m-0 mt-1 font-sans text-caption text-ink-3 leading-snug">
+          {RETENTION_NOTE[retention]}
+        </p>
+      )}
       <p className="m-0 mt-1 font-mono tabular-nums text-caption text-ink-3">
         Next run ~ {nextRunLabel}.
       </p>
