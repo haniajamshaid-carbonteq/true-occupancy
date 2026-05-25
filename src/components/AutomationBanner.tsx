@@ -1,4 +1,5 @@
-/* global React, Card, Icon, Button, Modal, AutomateModal, useAppState */
+/* global React, Card, Icon, Button, Modal, AutomateModal, useAppState,
+   Cadence, ScopeRetention, cadenceLabel, sameCadence */
 // AutomationBanner — full-width banner shown on the BatchScreen when a
 // batch has an active automation. Replaces the compact "Automated · every
 // Nmo" pill from AutomationControl on this surface (per spec May-14).
@@ -11,16 +12,17 @@
 // scope card uses. Edit opens AutomateModal preseeded with cadence + statuses.
 // Cancel opens the same destructive-confirm dialog AutomationControl uses.
 
-type Cadence = 3 | 4 | 6 | 12;
+// Cadence + ScopeRetention come from AppState (shared global script scope).
 type Risk = 'clean' | 'warn' | 'risk';
 
 interface AutomationBannerProps {
   /** The active schedule the banner reflects. */
   schedule: {
     id: string;
-    cadenceMonths: Cadence;
+    cadence: Cadence;
     nextRunLabel: string;
     statuses?: Risk[];
+    retention?: ScopeRetention;
   };
   /** Batch context — drives the modal + scope tooltip. */
   batch: {
@@ -48,8 +50,13 @@ function describeStatusList(statuses: Risk[]): string {
 }
 
 function AutomationBanner({ schedule, batch }: AutomationBannerProps) {
-  const { updateScheduleCadence, updateScheduleStatuses, cancelSchedule, pushTransient } =
-    useAppState();
+  const {
+    updateScheduleCadence,
+    updateScheduleStatuses,
+    updateScheduleRetention,
+    cancelSchedule,
+    pushTransient,
+  } = useAppState();
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
@@ -68,9 +75,12 @@ function AutomationBanner({ schedule, batch }: AutomationBannerProps) {
     .join('\n');
   const tip = `Per-status breakdown:\n${tipLines}`;
 
-  function handleUpdate({ cadenceMonths, statuses: nextStatuses }: { cadenceMonths: Cadence; statuses?: Risk[] }) {
-    if (cadenceMonths !== schedule.cadenceMonths) {
-      updateScheduleCadence(schedule.id, cadenceMonths);
+  function handleUpdate({ cadence, statuses: nextStatuses, retention: nextRetention }: { cadence: Cadence; statuses?: Risk[]; retention?: ScopeRetention }) {
+    if (!sameCadence(cadence, schedule.cadence)) {
+      updateScheduleCadence(schedule.id, cadence);
+    }
+    if (nextRetention && nextRetention !== (schedule.retention ?? 'monitor')) {
+      updateScheduleRetention(schedule.id, nextRetention);
     }
     if (nextStatuses) {
       const changed =
@@ -85,10 +95,10 @@ function AutomationBanner({ schedule, batch }: AutomationBannerProps) {
           (nextStatuses.includes('clean') ? batch.counts.clean : 0);
         pushTransient(`Scope updated · next run ${oldCount} → ${newCount} addresses`);
       } else {
-        pushTransient(`Automation updated · every ${cadenceMonths} months`);
+        pushTransient(`Automation updated · ${cadenceLabel(cadence)}`);
       }
     } else {
-      pushTransient(`Automation updated · every ${cadenceMonths} months`);
+      pushTransient(`Automation updated · ${cadenceLabel(cadence)}`);
     }
     setEditOpen(false);
   }
@@ -119,7 +129,7 @@ function AutomationBanner({ schedule, batch }: AutomationBannerProps) {
       <div className="min-w-0 flex-1">
         <p className="m-0 font-sans text-body-sm leading-relaxed text-ink">
           <span className="font-semibold">Auto-rerun:</span>{' '}
-          every {schedule.cadenceMonths} months ·{' '}
+          {cadenceLabel(schedule.cadence)} ·{' '}
           {batch.countsPending ? (
             <span className="text-ink-3">counts pending</span>
           ) : (
@@ -158,8 +168,9 @@ function AutomationBanner({ schedule, batch }: AutomationBannerProps) {
         target={{ kind: 'batch', filename: batch.filename, total: batch.total }}
         onConfirm={handleUpdate}
         mode="edit"
-        initialCadence={schedule.cadenceMonths}
+        initialCadence={schedule.cadence}
         initialStatuses={statuses}
+        initialRetention={schedule.retention ?? 'monitor'}
         scopeCounts={batch.counts}
         scopeTotal={batch.total}
         scopeCountsPending={batch.countsPending}

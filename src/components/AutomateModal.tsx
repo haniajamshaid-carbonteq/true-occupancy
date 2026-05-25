@@ -1,9 +1,10 @@
-/* global React, Modal, Button, Icon, StatusPillSelector, AutomationScopeCard */
+/* global React, Modal, Button, Icon, StatusPillSelector, AutomationScopeCard,
+   Cadence, ScopeRetention, sameCadence, cadenceLabel, formatNextRun */
 // AutomateModal — shared dialog for creating OR editing an automation.
 //
 // Create mode: shows the cadence radio cards (and, for batches, the new
-// status-scope selector + live scope card). Calls onConfirm({ cadenceMonths,
-// statuses? }) on submit.
+// status-scope selector + retention cards + live scope card). Calls
+// onConfirm({ cadence, statuses?, retention? }) on submit.
 // Edit mode: preselects initialCadence + initialStatuses. Primary CTA is
 // disabled until the user changes one OR the other. An optional
 // "Cancel automation" destructive button renders on the left of the footer.
@@ -12,7 +13,7 @@
 // per-status section per the May-14 design feedback (Erin). Single-property
 // automations keep the simpler one-section layout.
 
-type Cadence = 3 | 4 | 6 | 12;
+// Cadence + ScopeRetention come from AppState (shared global script scope).
 type Risk = 'clean' | 'warn' | 'risk';
 
 interface AutomateTarget {
@@ -29,15 +30,19 @@ interface AutomateModalProps {
   open: boolean;
   onClose: () => void;
   target: AutomateTarget | null;
-  onConfirm: (payload: { cadenceMonths: Cadence; statuses?: Risk[] }) => void;
+  onConfirm: (payload: { cadence: Cadence; statuses?: Risk[]; retention?: ScopeRetention }) => void;
   /** 'create' (default) opens with defaults. 'edit' preselects initial values
    *  and disables the primary CTA until something changes. */
   mode?: 'create' | 'edit';
-  /** Used in edit mode to seed the radio selection. Create mode defaults to 6. */
+  /** Used in edit mode to seed the radio selection. Create mode defaults to
+   *  6 months. */
   initialCadence?: Cadence;
   /** BATCH-only. Edit mode: initial selected statuses. Create mode: ignored,
    *  defaults to ['risk','warn'] (Rented + Possibly Rented). */
   initialStatuses?: Risk[];
+  /** BATCH-only. Edit mode: initial retention rule. Create mode: ignored,
+   *  defaults to 'monitor' (keep re-scanning when a status stops matching). */
+  initialRetention?: ScopeRetention;
   /** BATCH-only. Per-status counts from the latest scan; drives the live
    *  scope card + the "(N)" suffix on each status pill. */
   scopeCounts?: { risk: number; warn: number; clean: number };
@@ -51,29 +56,37 @@ interface AutomateModalProps {
 }
 
 const OPTIONS: { value: Cadence; label: string; hint: string }[] = [
-  { value: 3,  label: '3 Months',  hint: 'Quarterly compliance sweeps' },
-  { value: 4,  label: '4 Months',  hint: 'Tri-annual cadence' },
-  { value: 6,  label: '6 Months',  hint: 'Recommended for most portfolios' },
-  { value: 12, label: '12 Months', hint: 'Annual recheck' },
+  { value: { every: 1, unit: 'week' },  label: 'Weekly',   hint: 'Close watch on active cases' },
+  { value: { every: 1, unit: 'month' }, label: 'Monthly',  hint: 'Steady month-to-month checks' },
+  { value: { every: 3, unit: 'month' }, label: '3 Months', hint: 'Quarterly compliance sweeps' },
+  { value: { every: 6, unit: 'month' }, label: '6 Months', hint: 'Recommended for most portfolios' },
 ];
 
+const DEFAULT_CADENCE: Cadence = { every: 6, unit: 'month' };
+const DEFAULT_RETENTION: ScopeRetention = 'monitor';
 const DEFAULT_STATUSES: Risk[] = ['risk', 'warn'];
+
+// Retention rule cards — what happens to a property once its status no longer
+// matches the selected bands. Plain-language, consequence-first copy (locked
+// with design): never "static / dynamic / scope".
+const RETENTION_OPTIONS: { value: ScopeRetention; label: string; hint: string }[] = [
+  {
+    value: 'monitor',
+    label: 'Continue monitoring it',
+    hint: 'Once added, the property stays in the automation — even if its status changes later.',
+  },
+  {
+    value: 'remove',
+    label: 'Remove it from automation',
+    hint: 'The property is removed once it no longer matches the selected statuses.',
+  },
+];
 
 const STATUS_OPTIONS_BASE: { value: Risk; label: string }[] = [
   { value: 'risk',  label: 'Rented' },
   { value: 'warn',  label: 'Possibly Rented' },
   { value: 'clean', label: 'Not Rented' },
 ];
-
-// Same calc as AppState.formatNextRun — duplicated here under a different
-// name so the modal doesn't have to pull the date back through props on
-// every cadence flip. (Both files share global script scope at runtime, so
-// the names must not collide.)
-function nextRunLabelFor(cadenceMonths: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + cadenceMonths);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
 
 function sameSet(a: Risk[], b: Risk[]): boolean {
   if (a.length !== b.length) return false;
@@ -89,6 +102,7 @@ function AutomateModal({
   mode = 'create',
   initialCadence,
   initialStatuses,
+  initialRetention,
   scopeCounts,
   scopeTotal,
   scopeCountsPending = false,
@@ -97,45 +111,54 @@ function AutomateModal({
   const isEdit = mode === 'edit';
   const isBatch = target?.kind === 'batch';
 
-  const seedCadence: Cadence = isEdit && initialCadence ? initialCadence : 6;
+  const seedCadence: Cadence = isEdit && initialCadence ? initialCadence : DEFAULT_CADENCE;
   const seedStatuses: Risk[] =
     isEdit && initialStatuses && initialStatuses.length > 0
       ? initialStatuses
       : DEFAULT_STATUSES;
+  const seedRetention: ScopeRetention =
+    isEdit && initialRetention ? initialRetention : DEFAULT_RETENTION;
 
   const [cadence, setCadence] = React.useState<Cadence>(seedCadence);
   const [statuses, setStatuses] = React.useState<Risk[]>(seedStatuses);
+  const [retention, setRetention] = React.useState<ScopeRetention>(seedRetention);
 
   // Reset selection each time the modal reopens so it reflects fresh seeds.
+  // Keyed on `open` only — the seed values are recomputed every render
+  // (cadence/statuses are objects/arrays whose identity churns), so we read
+  // the latest seeds inside the effect rather than tracking them as deps.
   React.useEffect(() => {
     if (open) {
       setCadence(seedCadence);
       setStatuses(seedStatuses);
+      setRetention(seedRetention);
     }
-    // We deliberately omit seedStatuses from the dep list — the array
-    // identity changes every render but its contents are what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, seedCadence]);
+  }, [open]);
 
   // Primary CTA enablement.
   //   create (single): always enabled
   //   create (batch):  enabled only when ≥1 status selected
   //   edit   (single): enabled when cadence changed
-  //   edit   (batch):  enabled when cadence OR statuses changed, AND ≥1 status
+  //   edit   (batch):  enabled when cadence OR statuses OR retention changed,
+  //                    AND ≥1 status
   let primaryDisabled = false;
   if (isBatch && statuses.length === 0) {
     primaryDisabled = true;
   } else if (isEdit) {
-    const cadenceUnchanged = cadence === initialCadence;
+    const cadenceUnchanged = initialCadence ? sameCadence(cadence, initialCadence) : false;
     const statusesUnchanged = isBatch
       ? sameSet(statuses, initialStatuses ?? DEFAULT_STATUSES)
       : true;
-    primaryDisabled = cadenceUnchanged && statusesUnchanged;
+    const retentionUnchanged = isBatch
+      ? retention === (initialRetention ?? DEFAULT_RETENTION)
+      : true;
+    primaryDisabled = cadenceUnchanged && statusesUnchanged && retentionUnchanged;
   }
 
   const counts = scopeCounts ?? { risk: 0, warn: 0, clean: 0 };
   const total = scopeTotal ?? 0;
-  const nextRunLabel = nextRunLabelFor(cadence);
+  const nextRunLabel = formatNextRun(cadence);
 
   // Edit-mode scope diff — only meaningful for batches when the user has
   // actually changed the status selection from the initial.
@@ -188,8 +211,9 @@ function AutomateModal({
             variant="primary"
             onClick={() =>
               onConfirm({
-                cadenceMonths: cadence,
+                cadence,
                 statuses: isBatch ? statuses : undefined,
+                retention: isBatch ? retention : undefined,
               })
             }
             icon={<Icon name="cal" size={14} />}
@@ -228,10 +252,10 @@ function AutomateModal({
       )}
       <div role="radiogroup" aria-label="Cadence" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {OPTIONS.map((opt) => {
-          const active = cadence === opt.value;
+          const active = sameCadence(cadence, opt.value);
           return (
             <button
-              key={opt.value}
+              key={`${opt.value.every}-${opt.value.unit}`}
               type="button"
               role="radio"
               aria-checked={active}
@@ -267,8 +291,9 @@ function AutomateModal({
       {/* ---- Section: Status scope (BATCH ONLY) ----------------------- */}
       {isBatch && (
         <div className="mt-5">
+          {/* Step 1 — the status bands that seed the re-scan set. */}
           <div className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase text-ink-3 mb-2">
-            Re-scan which properties?
+            Which properties to re-scan?
           </div>
           <StatusPillSelector
             options={STATUS_OPTIONS_BASE.map((opt) => ({
@@ -280,13 +305,56 @@ function AutomateModal({
             countsPending={scopeCountsPending}
           />
 
+          {/* Step 2 — retention rule for a property that later stops matching. */}
+          <div className="mt-5 font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase text-ink-3 mb-2">
+            If a property no longer matches these statuses
+          </div>
+          <div role="radiogroup" aria-label="When a property no longer matches" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {RETENTION_OPTIONS.map((opt) => {
+              const active = retention === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setRetention(opt.value)}
+                  className={`text-left flex items-start gap-inline-loose px-control-x py-3 rounded-md border transition-colors ${
+                    active
+                      ? '!bg-brand-tint !border-brand/50'
+                      : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
+                  }`}
+                >
+                  <span
+                    className={`mt-0.5 w-4 h-4 rounded-full border-2 grid place-items-center shrink-0 transition-colors ${
+                      active ? 'border-brand' : 'border-line-strong'
+                    }`}
+                    aria-hidden
+                  >
+                    {active && <span className="w-1.5 h-1.5 rounded-full bg-brand" />}
+                  </span>
+                  <span className="min-w-0">
+                    <span
+                      className="block font-sans font-semibold text-label"
+                      style={{ color: active ? 'var(--brand-deep)' : 'var(--navy)' }}
+                    >
+                      {opt.label}
+                    </span>
+                    <span className="block text-caption text-ink-3 mt-0.5 leading-snug">{opt.hint}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* Live scope summary */}
           <div className="mt-3">
             <AutomationScopeCard
               selected={statuses}
               counts={counts}
               total={total}
-              cadenceMonths={cadence}
+              cadence={cadence}
+              retention={retention}
               nextRunLabel={nextRunLabel}
               countsPending={scopeCountsPending}
             />

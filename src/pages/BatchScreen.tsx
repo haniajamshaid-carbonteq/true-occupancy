@@ -500,9 +500,10 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         <AutomationBanner
           schedule={{
             id: activeSchedule.id,
-            cadenceMonths: activeSchedule.cadenceMonths,
+            cadence: activeSchedule.cadence,
             nextRunLabel: activeSchedule.nextRunLabel,
             statuses: activeSchedule.statuses,
+            retention: activeSchedule.retention,
           }}
           batch={{
             filename: batch.filename,

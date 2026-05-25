@@ -38,6 +38,8 @@ function MockAppStateProvider({
     retryBatchRow: noop,
     addSchedule: noop,
     updateScheduleCadence: noop,
+    updateScheduleStatuses: noop,
+    updateScheduleRetention: noop,
     cancelSchedule: noop,
     findScheduleByTarget: () => null,
   }), [value]);

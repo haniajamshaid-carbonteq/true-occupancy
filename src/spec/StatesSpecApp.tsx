@@ -30,8 +30,8 @@ const SAMPLE_HISTORY: any[] = [
 ];
 
 const SAMPLE_SCHEDULES: any[] = [
-  { id: 'sp1', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadenceMonths: 6,  nextRunLabel: 'Nov 12, 2026', createdAgo: '8 min ago', runHistoryIds: ['p1'] },
-  { id: 'sp2', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadenceMonths: 3, nextRunLabel: 'Aug 12, 2026', createdAgo: '2 h ago',   runHistoryIds: [] },
+  { id: 'sp1', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadence: { every: 6, unit: 'month' }, nextRunLabel: 'Nov 12, 2026', createdAgo: '8 min ago', runHistoryIds: ['p1'] },
+  { id: 'sp2', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadence: { every: 3, unit: 'month' }, nextRunLabel: 'Aug 12, 2026', createdAgo: '2 h ago',   runHistoryIds: [], statuses: ['risk', 'warn'], retention: 'monitor' },
 ];
 
 function StatesSpecApp() {

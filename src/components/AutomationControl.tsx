@@ -1,4 +1,5 @@
-/* global React, Button, Icon, Modal, DropdownMenu, AutomateModal, useAppState */
+/* global React, Button, Icon, Modal, DropdownMenu, AutomateModal, useAppState,
+   Cadence, ScopeRetention, cadenceLabel, cadenceShort, sameCadence */
 // AutomationControl — single point of truth for the Automate CTA. Looks up
 // the active schedule for a target via AppState; renders either:
 //   - Automate button (no active schedule), or
@@ -8,7 +9,7 @@
 // Confirmation feedback is pushed to the notification dock (AppState.pushTransient)
 // so both surfaces (single property and batch) share the same affordance.
 
-type Cadence = 3 | 4 | 6 | 12;
+// Cadence + ScopeRetention come from AppState (shared global script scope).
 type Risk = 'clean' | 'warn' | 'risk';
 
 const STATUS_HUMAN: Record<Risk, string> = {
@@ -51,6 +52,7 @@ function AutomationControl({ target }: AutomationControlProps) {
     addSchedule,
     updateScheduleCadence,
     updateScheduleStatuses,
+    updateScheduleRetention,
     cancelSchedule,
     findScheduleByTarget,
     pushTransient,
@@ -66,15 +68,15 @@ function AutomationControl({ target }: AutomationControlProps) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
-  function handleCreate({ cadenceMonths, statuses }: { cadenceMonths: Cadence; statuses?: Risk[] }) {
+  function handleCreate({ cadence, statuses, retention }: { cadence: Cadence; statuses?: Risk[]; retention?: ScopeRetention }) {
     if (target.kind === 'single') {
       addSchedule({
         kind: 'single',
         address: target.address,
         scenario: target.scenario,
-        cadenceMonths,
+        cadence,
       });
-      pushTransient(`Automation scheduled · every ${cadenceMonths} months`);
+      pushTransient(`Automation scheduled · ${cadenceLabel(cadence)}`);
     } else {
       // Batch — statuses is required to be ≥1 by the modal's primary-disabled
       // rule, but defensively fall back to the spec default if it's missing.
@@ -83,28 +85,32 @@ function AutomationControl({ target }: AutomationControlProps) {
         kind: 'batch',
         filename: target.filename,
         total: target.total,
-        cadenceMonths,
+        cadence,
         statuses: finalStatuses,
+        retention: retention ?? 'monitor',
       });
       const scopeWord = describeScope(finalStatuses);
-      pushTransient(`Automation scheduled · every ${cadenceMonths} months · ${scopeWord}`);
+      pushTransient(`Automation scheduled · ${cadenceLabel(cadence)} · ${scopeWord}`);
     }
     setCreateOpen(false);
   }
 
-  function handleUpdate({ cadenceMonths, statuses }: { cadenceMonths: Cadence; statuses?: Risk[] }) {
+  function handleUpdate({ cadence, statuses, retention }: { cadence: Cadence; statuses?: Risk[]; retention?: ScopeRetention }) {
     if (!existing) return;
-    const cadenceChanged = cadenceMonths !== existing.cadenceMonths;
-    if (cadenceChanged) updateScheduleCadence(existing.id, cadenceMonths);
+    const cadenceChanged = !sameCadence(cadence, existing.cadence);
+    if (cadenceChanged) updateScheduleCadence(existing.id, cadence);
     if (existing.kind === 'batch' && statuses) {
       const prev = (existing as any).statuses ?? ['risk', 'warn'];
       const changed =
         prev.length !== statuses.length ||
         !prev.every((s: Risk) => statuses.includes(s));
       if (changed) updateScheduleStatuses(existing.id, statuses);
+      if (retention && retention !== (existing as any).retention) {
+        updateScheduleRetention(existing.id, retention);
+      }
     }
     setEditOpen(false);
-    pushTransient(`Automation updated · every ${cadenceMonths} months`);
+    pushTransient(`Automation updated · ${cadenceLabel(cadence)}`);
   }
 
   function handleCancel() {
@@ -153,7 +159,7 @@ function AutomationControl({ target }: AutomationControlProps) {
   }
 
   // ---- Automated -> pill-style menu trigger -----------------------------
-  const cadenceMonths = existing.cadenceMonths;
+  const cadence = existing.cadence;
 
   return (
     <>
@@ -163,14 +169,14 @@ function AutomationControl({ target }: AutomationControlProps) {
         trigger={(open: boolean) => (
           <button
             type="button"
-            aria-label={`Automated every ${cadenceMonths} months — open menu`}
+            aria-label={`Automated ${cadenceLabel(cadence)} — open menu`}
             className="shrink-0 inline-flex items-center gap-inline h-9 px-control-x rounded-lg border bg-surface text-ink-2 border-line-strong hover:bg-hover-bg transition-colors cursor-pointer font-sans text-label font-medium"
           >
             <span className="inline-flex shrink-0 text-brand [&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
               <Icon name="cal" size={14} />
             </span>
             <span>
-              Automated · every {cadenceMonths}mo
+              Automated · every {cadenceShort(cadence)}
             </span>
             <span
               className={`inline-flex shrink-0 text-ink-3 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
@@ -201,9 +207,12 @@ function AutomationControl({ target }: AutomationControlProps) {
         target={modalTarget}
         onConfirm={handleUpdate}
         mode="edit"
-        initialCadence={cadenceMonths}
+        initialCadence={cadence}
         initialStatuses={
           existing.kind === 'batch' ? (existing as any).statuses ?? ['risk', 'warn'] : undefined
+        }
+        initialRetention={
+          existing.kind === 'batch' ? (existing as any).retention ?? 'monitor' : undefined
         }
         {...(target.kind === 'batch'
           ? {

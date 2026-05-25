@@ -1,8 +1,10 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, Drawer, ChipRow, ReactRouterDOM, useAppState,
-   HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress, deriveTitleFromFilename, ScreenError, ScreenEmpty */
+   HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress, deriveTitleFromFilename, ScreenError, ScreenEmpty,
+   cadenceLabel, cadenceShort */
 
 type Filter = 'all' | 'single' | 'batch';
-type CadenceFilter = 'all' | '3' | '4' | '6' | '12';
+// Cadence filter values match cadenceShort() output ("1wk", "3mo", …).
+type CadenceFilter = 'all' | '1wk' | '1mo' | '3mo' | '6mo';
 
 // Parse a next-run label like "Aug 13, 2026" into an epoch ms for sorting.
 // Missing / unparseable labels return Infinity so they fall to the bottom
@@ -26,7 +28,7 @@ function ScheduledScreen() {
   const rows = schedules
     .filter((s: any) => {
       if (filter !== 'all' && s.kind !== filter) return false;
-      if (cadence !== 'all' && String(s.cadenceMonths) !== cadence) return false;
+      if (cadence !== 'all' && cadenceShort(s.cadence) !== cadence) return false;
       if (query) {
         // Match against title (primary cell) + filename (caption) for batches,
         // so users can search by either since both are visible in the row.
@@ -108,8 +110,8 @@ function ScheduledScreen() {
       width: '140px',
       hideBelow: 'sm' as const,
       cell: (r: any) => (
-        <span className="font-sans text-label text-ink-2 whitespace-nowrap">
-          Every {r.cadenceMonths} months
+        <span className="font-sans text-label text-ink-2 whitespace-nowrap capitalize">
+          {cadenceLabel(r.cadence)}
         </span>
       ),
     },
@@ -226,10 +228,10 @@ function ScheduledScreen() {
             onChange={(v: string) => setCadence(v as CadenceFilter)}
             options={[
               { value: 'all', label: 'Any Cadence' },
-              { value: '3',   label: 'Every 3 months' },
-              { value: '4',   label: 'Every 4 months' },
-              { value: '6',   label: 'Every 6 months' },
-              { value: '12',  label: 'Every 12 months' },
+              { value: '1wk', label: 'Weekly' },
+              { value: '1mo', label: 'Monthly' },
+              { value: '3mo', label: 'Every 3 months' },
+              { value: '6mo', label: 'Every 6 months' },
             ]}
           />
         </div>

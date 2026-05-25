@@ -1,5 +1,6 @@
 /* global React, AppShell, Card, Icon, Pill, Modal, Button, DataTable, AutomateModal, ReactRouterDOM, useAppState,
-   HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress, deriveTitleFromFilename, ScreenError */
+   HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress, deriveTitleFromFilename, ScreenError,
+   Cadence, ScopeRetention, cadenceLabel, sameCadence */
 // Schedule detail — full page for a scheduled automation.
 // Layout:
 //   1. Header bar  — back link (left) + Cancel automation (right, destructive)
@@ -15,6 +16,7 @@ function ScheduleDetailScreen() {
     cancelSchedule,
     updateScheduleCadence,
     updateScheduleStatuses,
+    updateScheduleRetention,
     pushTransient,
     loading,
     error,
@@ -75,6 +77,8 @@ function ScheduleDetailScreen() {
   type ScopeRisk = 'risk' | 'warn' | 'clean';
   const currentStatuses: ScopeRisk[] =
     isBatch ? (schedule?.statuses ?? ['risk', 'warn']) : [];
+  const currentRetention: ScopeRetention =
+    isBatch ? (schedule?.retention ?? 'monitor') : 'monitor';
   const recentBatch: any = isBatch
     ? history.find((h: any) => h.kind === 'batch' && h.filename === schedule.filename)
     : null;
@@ -89,10 +93,12 @@ function ScheduleDetailScreen() {
       (currentStatuses.includes('warn')  ? scopeCounts.warn  : 0) +
       (currentStatuses.includes('clean') ? scopeCounts.clean : 0);
 
-  function handleUpdate({ cadenceMonths, statuses }: { cadenceMonths: 3 | 4 | 6 | 12; statuses?: ScopeRisk[] }) {
+  function handleUpdate({ cadence, statuses, retention }: { cadence: Cadence; statuses?: ScopeRisk[]; retention?: ScopeRetention }) {
     if (!schedule) return;
-    const cadenceChanged = cadenceMonths !== schedule.cadenceMonths;
-    if (cadenceChanged) updateScheduleCadence(schedule.id, cadenceMonths);
+    const cadenceChanged = !sameCadence(cadence, schedule.cadence);
+    if (cadenceChanged) updateScheduleCadence(schedule.id, cadence);
+    const retentionChanged = isBatch && retention && retention !== currentRetention;
+    if (retentionChanged) updateScheduleRetention(schedule.id, retention!);
     if (isBatch && statuses) {
       const prev = currentStatuses;
       const changed =
@@ -105,10 +111,12 @@ function ScheduleDetailScreen() {
           (statuses.includes('clean') ? scopeCounts.clean : 0);
         pushTransient(`Scope updated · next run ${inScope ?? 0} → ${newCount} addresses`);
       } else if (cadenceChanged) {
-        pushTransient(`Cadence updated · every ${cadenceMonths} months`);
+        pushTransient(`Cadence updated · ${cadenceLabel(cadence)}`);
+      } else if (retentionChanged) {
+        pushTransient(retention === 'monitor' ? 'Will keep monitoring matched properties' : 'Will drop properties when they stop matching');
       }
     } else if (cadenceChanged) {
-      pushTransient(`Cadence updated · every ${cadenceMonths} months`);
+      pushTransient(`Cadence updated · ${cadenceLabel(cadence)}`);
     }
     setEditOpen(false);
   }
@@ -268,8 +276,8 @@ function ScheduleDetailScreen() {
                     summary copy, not a stylistic tag. */}
                 <div className="mt-stack-tight inline-flex items-center gap-stack-tight text-ink-2">
                   <Icon name="cal" size={14} />
-                  <span className="font-sans text-body-sm font-medium">
-                    Every {schedule.cadenceMonths} months
+                  <span className="font-sans text-body-sm font-medium capitalize">
+                    {cadenceLabel(schedule.cadence)}
                   </span>
                 </div>
 
@@ -287,6 +295,12 @@ function ScheduleDetailScreen() {
                       statuses={currentStatuses}
                       inScope={inScope}
                       total={scopeTotal}
+                    />
+                  )}
+                  {isBatch && (
+                    <RuleField
+                      label="When status changes"
+                      value={currentRetention === 'monitor' ? 'Keep monitoring' : 'Remove from automation'}
                     />
                   )}
                   <RuleField label="Next run" value={schedule.nextRunLabel} />
@@ -383,8 +397,9 @@ function ScheduleDetailScreen() {
           }
           onConfirm={handleUpdate}
           mode="edit"
-          initialCadence={schedule.cadenceMonths}
+          initialCadence={schedule.cadence}
           initialStatuses={isBatch ? currentStatuses : undefined}
+          initialRetention={isBatch ? currentRetention : undefined}
           scopeCounts={isBatch ? scopeCounts : undefined}
           scopeTotal={isBatch ? scopeTotal : undefined}
           scopeCountsPending={scopeCountsPending}

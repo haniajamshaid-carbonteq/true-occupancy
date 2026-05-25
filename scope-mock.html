@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light" />
+<title>Mock — Re-scan scope (static vs. dynamic)</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+<!-- Real design tokens — same source the app loads. -->
+<link rel="stylesheet" href="src/styles/tokens.css" />
+
+<!-- Tailwind Play CDN — config mirrors the app so utilities resolve to tokens. -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          bg: 'var(--bg)',
+          surface: { DEFAULT: 'var(--surface)', 2: 'var(--surface-2)' },
+          line: { DEFAULT: 'var(--line)', strong: 'var(--line-strong)' },
+          'hover-bg': 'var(--hover-bg)',
+          ink: { DEFAULT: 'var(--ink)', 2: 'var(--ink-2)', 3: 'var(--ink-3)', 4: 'var(--ink-4)' },
+          brand: { DEFAULT: 'var(--brand)', 2: 'var(--brand-2)', soft: 'var(--brand-soft)', tint: 'var(--brand-tint)', deep: 'var(--brand-deep)' },
+          warn: { DEFAULT: 'var(--warn)', soft: 'var(--warn-soft)', ink: 'var(--warn-ink)' },
+        },
+        borderRadius: { sm: 'var(--r-sm)', md: 'var(--r-md)', lg: 'var(--r-lg)', xl: 'var(--r-xl)' },
+        boxShadow: { sm: 'var(--shadow-sm)', md: 'var(--shadow-md)', lg: 'var(--shadow-lg)' },
+        fontFamily: { serif: 'var(--serif)', sans: 'var(--sans)', mono: 'var(--mono)' },
+        fontSize: {
+          h3: ['var(--text-h3)', { lineHeight: '1.25' }],
+          h4: ['var(--text-h4)', { lineHeight: '1.3' }],
+          body: ['var(--text-body)', { lineHeight: '1.55' }],
+          'body-sm': ['var(--text-body-sm)', { lineHeight: '1.5' }],
+          label: ['var(--text-label)', { lineHeight: '1.4' }],
+          caption: ['var(--text-caption)', { lineHeight: '1.4' }],
+          eyebrow: ['var(--text-eyebrow)', { lineHeight: '1.2' }],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { font-family: var(--sans); color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+  .mock-note { font-family: var(--mono); }
+</style>
+</head>
+
+<body data-type-pairing="halcyon">
+
+<!-- Page chrome: just a heading + the modal floated on a dimmed canvas, so the
+     reviewer sees the dialog the way it appears over the Batch page. -->
+<div class="min-h-screen w-full flex flex-col items-center gap-6 py-12 px-4" style="background:linear-gradient(180deg,#E8EBF0,#F4F6F8 40%);">
+
+  <div class="text-center max-w-[620px]">
+    <div class="mock-note text-caption uppercase tracking-[0.16em] text-ink-3 mb-2">Review mock · not wired into the app</div>
+    <h1 class="font-sans font-semibold text-h3 m-0" style="color:var(--navy)">Batch automation — re-scan scope</h1>
+    <p class="text-body-sm text-ink-3 mt-2 mb-0">Pick the statuses, then toggle the two cards under <em>“If a property’s status changes later”</em> to compare keeping the set fixed (static) vs. letting it shrink as properties clear (dynamic).</p>
+  </div>
+
+  <!-- ===== MODAL ===== -->
+  <div class="relative w-full bg-surface border border-line rounded-lg shadow-md" style="max-width:600px">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between gap-4 px-6 py-5 border-b border-line">
+      <h2 class="font-sans font-semibold text-h4 leading-tight tracking-[-0.005em] m-0" style="color:var(--navy)">Automate this batch</h2>
+      <button type="button" aria-label="Close" class="w-8 h-8 -mr-1.5 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors shrink-0">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="px-6 py-6">
+      <p class="text-body-sm text-ink-2 leading-relaxed m-0 mb-4">
+        We’ll re-scan the properties you pick below on the cadence you choose and surface new matches in your queue.
+      </p>
+
+      <!-- Cadence (unchanged from today, shown for context) -->
+      <div class="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase text-ink-3 mb-2">Cadence</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div class="text-left flex items-start gap-3 px-3 py-3 rounded-md border bg-surface border-line">
+          <span class="mt-0.5 w-4 h-4 rounded-full border-2 border-line-strong grid place-items-center shrink-0"></span>
+          <span class="min-w-0"><span class="block font-sans font-semibold text-label" style="color:var(--navy)">Weekly</span><span class="block text-caption text-ink-3 mt-0.5">Close watch on active cases</span></span>
+        </div>
+        <div class="text-left flex items-start gap-3 px-3 py-3 rounded-md border bg-surface border-line">
+          <span class="mt-0.5 w-4 h-4 rounded-full border-2 border-line-strong grid place-items-center shrink-0"></span>
+          <span class="min-w-0"><span class="block font-sans font-semibold text-label" style="color:var(--navy)">Monthly</span><span class="block text-caption text-ink-3 mt-0.5">Steady month-to-month checks</span></span>
+        </div>
+        <div class="text-left flex items-start gap-3 px-3 py-3 rounded-md border bg-surface border-line">
+          <span class="mt-0.5 w-4 h-4 rounded-full border-2 border-line-strong grid place-items-center shrink-0"></span>
+          <span class="min-w-0"><span class="block font-sans font-semibold text-label" style="color:var(--navy)">3 Months</span><span class="block text-caption text-ink-3 mt-0.5">Quarterly compliance sweeps</span></span>
+        </div>
+        <div class="text-left flex items-start gap-3 px-3 py-3 rounded-md border" style="background:var(--brand-tint);border-color:color-mix(in srgb,var(--brand) 50%,transparent)">
+          <span class="mt-0.5 w-4 h-4 rounded-full border-2 grid place-items-center shrink-0" style="border-color:var(--brand)"><span class="w-1.5 h-1.5 rounded-full" style="background:var(--brand)"></span></span>
+          <span class="min-w-0"><span class="block font-sans font-semibold text-label" style="color:var(--brand-deep)">6 Months</span><span class="block text-caption text-ink-3 mt-0.5">Recommended for most portfolios</span></span>
+        </div>
+      </div>
+
+      <!-- ===== NEW: scope chooser ===== -->
+      <div class="mt-5">
+        <!-- Step 1: status pills define the STARTING set. -->
+        <div class="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase text-ink-3 mb-2">Which properties to re-scan?</div>
+        <div role="group" class="flex flex-wrap items-center gap-2">
+          <button type="button" class="pill inline-flex items-center gap-2 h-9 px-3.5 rounded-md font-sans text-label font-medium border" data-on="true">
+            <span class="inline-flex shrink-0 text-ink"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="5" fill="currentColor"/></svg></span>
+            <span>Rented</span><span class="tabular-nums text-ink-4">(47)</span>
+            <span class="check inline-flex shrink-0 -mr-1" style="color:var(--brand-deep)"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg></span>
+          </button>
+          <button type="button" class="pill inline-flex items-center gap-2 h-9 px-3.5 rounded-md font-sans text-label font-medium border" data-on="true">
+            <span class="inline-flex shrink-0 text-ink-2"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 3 A5 5 0 0 0 8 13 Z" fill="currentColor"/></svg></span>
+            <span>Possibly Rented</span><span class="tabular-nums text-ink-4">(88)</span>
+            <span class="check inline-flex shrink-0 -mr-1" style="color:var(--brand-deep)"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg></span>
+          </button>
+          <button type="button" class="pill inline-flex items-center gap-2 h-9 px-3.5 rounded-md font-sans text-label font-medium border" data-on="false">
+            <span class="inline-flex shrink-0 text-ink-3 opacity-50"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>
+            <span>Not Rented</span><span class="tabular-nums text-ink-4">(177)</span>
+          </button>
+        </div>
+        <!-- Step 2: what to do when a property no longer matches. -->
+        <div class="mt-5 font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase text-ink-3 mb-2">If a property no longer matches these statuses</div>
+        <div role="radiogroup" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <!-- Static: keep the original set forever (recommended default) -->
+          <button id="card-subset" type="button" role="radio" aria-checked="true" onclick="setMode('subset')"
+            class="scope-card text-left flex items-start gap-3 px-3 py-3 rounded-md border transition-colors">
+            <span class="radio mt-0.5 w-4 h-4 rounded-full border-2 grid place-items-center shrink-0"><span class="dot w-1.5 h-1.5 rounded-full"></span></span>
+            <span class="min-w-0">
+              <span class="title block font-sans font-semibold text-label">Continue monitoring it</span>
+              <span class="block text-caption text-ink-3 mt-1 leading-snug">Once added, the property stays in the automation — even if its status changes later.</span>
+            </span>
+          </button>
+
+          <!-- Dynamic: drop properties once they no longer match -->
+          <button id="card-full" type="button" role="radio" aria-checked="false" onclick="setMode('full')"
+            class="scope-card text-left flex items-start gap-3 px-3 py-3 rounded-md border transition-colors">
+            <span class="radio mt-0.5 w-4 h-4 rounded-full border-2 grid place-items-center shrink-0"><span class="dot w-1.5 h-1.5 rounded-full"></span></span>
+            <span class="min-w-0">
+              <span class="title block font-sans font-semibold text-label">Remove it from automation</span>
+              <span class="block text-caption text-ink-3 mt-1 leading-snug">The property is removed once it no longer matches the selected statuses.</span>
+            </span>
+          </button>
+        </div>
+
+        <!-- Live scope summary -->
+        <div class="mt-3 rounded-md border border-line bg-surface-2 px-4 py-3">
+          <p id="scope-line" class="m-0 font-sans text-body-sm text-ink-2 leading-relaxed">
+            Will re-scan <span class="font-semibold text-ink">135 of 312</span> addresses every 6 months.
+          </p>
+          <p id="scope-note" class="m-0 mt-1 font-sans text-caption text-ink-3 leading-snug">
+            Properties remain monitored even if statuses change.
+          </p>
+          <p id="scope-sub" class="m-0 mt-1 font-mono tabular-nums text-caption text-ink-3">
+            Next run ~ Nov 22, 2026
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-line" style="background:color-mix(in srgb,var(--surface-2) 40%,transparent)">
+      <button class="inline-flex items-center h-9 px-3 rounded-lg font-sans text-label font-medium text-ink-2 hover:bg-hover-bg transition-colors">Close</button>
+      <button class="inline-flex items-center gap-2 h-9 px-3 rounded-lg font-sans text-label font-medium text-white" style="background:var(--brand)">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
+        Automate
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Card selection visuals + the consequence-driven copy swap. This is the
+  // whole point of the mock: prove the static<->dynamic distinction reads in
+  // plain language and that the status pills change role between modes.
+  function paintCard(el, active) {
+    el.setAttribute('aria-checked', active ? 'true' : 'false');
+    el.querySelector('.radio').style.borderColor = active ? 'var(--brand)' : 'var(--line-strong)';
+    el.querySelector('.dot').style.background = active ? 'var(--brand)' : 'transparent';
+    el.querySelector('.title').style.color = active ? 'var(--brand-deep)' : 'var(--navy)';
+    el.style.background = active ? 'var(--brand-tint)' : 'var(--surface)';
+    el.style.borderColor = active ? 'color-mix(in srgb,var(--brand) 50%,transparent)' : 'var(--line)';
+  }
+
+  function setMode(mode) {
+    const subset = mode === 'subset';
+    paintCard(document.getElementById('card-subset'), subset);
+    paintCard(document.getElementById('card-full'), !subset);
+
+    // Both modes start from the same status-selected set; the cards only
+    // decide what happens to a property once its status changes on a later
+    // run. Static keeps the set fixed; dynamic lets it shrink.
+    const line = document.getElementById('scope-line');
+    const note = document.getElementById('scope-note');
+    const sub = document.getElementById('scope-sub');
+    if (subset) {
+      line.innerHTML = 'Will re-scan <span class="font-semibold text-ink">135 of 312</span> addresses every 6 months.';
+      note.textContent = 'Properties remain monitored even if statuses change.';
+      sub.textContent = 'Next run ~ Nov 22, 2026';
+    } else {
+      line.innerHTML = 'Will re-scan <span class="font-semibold text-ink">up to 135 of 312</span> addresses every 6 months.';
+      note.textContent = 'Properties drop out once they no longer match the selected statuses.';
+      sub.textContent = 'Next run ~ Nov 22, 2026';
+    }
+  }
+
+  // Pill toggle (cosmetic, for feel).
+  document.querySelectorAll('.pill').forEach((p) => {
+    p.addEventListener('click', () => {
+      const on = p.getAttribute('data-on') !== 'true';
+      p.setAttribute('data-on', on ? 'true' : 'false');
+      paintPill(p, on);
+    });
+  });
+  function paintPill(p, on) {
+    const glyph = p.querySelector('span'); // first glyph wrapper
+    const check = p.querySelector('.check');
+    if (on) {
+      p.style.background = 'var(--brand-tint)';
+      p.style.borderColor = 'color-mix(in srgb,var(--brand) 50%,transparent)';
+      p.style.color = 'var(--ink)';
+      glyph.style.opacity = '1';
+      if (check) check.style.display = '';
+    } else {
+      p.style.background = 'var(--surface)';
+      p.style.borderColor = 'var(--line)';
+      p.style.color = 'var(--ink-3)';
+      glyph.style.opacity = '0.5';
+      if (check) check.style.display = 'none';
+    }
+  }
+  // Initial paint
+  document.querySelectorAll('.pill').forEach((p) => paintPill(p, p.getAttribute('data-on') === 'true'));
+  setMode('subset');
+</script>
+
+</body>
+</html>

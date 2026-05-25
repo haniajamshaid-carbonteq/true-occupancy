@@ -1,4 +1,4 @@
-/* global React, Icon */
+/* global React, Icon, Cadence, ScopeRetention, cadenceLabel */
 // AutomationScopeCard — live summary of what the user just chose in the
 // Automate modal. Sits directly under StatusPillSelector + cadence inputs
 // and re-renders on every toggle.
@@ -27,8 +27,10 @@ interface AutomationScopeCardProps {
   counts: ScopeBreakdown;
   /** Number of address rows in the batch's most recent scan. */
   total: number;
-  /** Cadence in months (3/4/6/12). Used in the "every {cadence}" copy. */
-  cadenceMonths: number;
+  /** Cadence (count + unit). Formatted via cadenceLabel for the "every X" copy. */
+  cadence: Cadence;
+  /** Retention rule — drives the note line ("stays monitored" vs "drops out"). */
+  retention: ScopeRetention;
   /** Pre-formatted next-run date label (e.g. "Aug 18, 2026"). */
   nextRunLabel: string;
   /** First scan still running — counts not known yet. */
@@ -41,17 +43,19 @@ const STATUS_LABEL: Record<'risk' | 'warn' | 'clean', string> = {
   clean: 'Not Rented',
 };
 
-function cadenceCopy(months: number): string {
-  if (months === 12) return 'every year';
-  if (months === 1) return 'every month';
-  return `every ${months} months`;
-}
+// Note line under the count — phrased on the consequence of the retention
+// rule, mirroring the locked modal copy.
+const RETENTION_NOTE: Record<ScopeRetention, string> = {
+  monitor: 'Properties remain monitored even if statuses change.',
+  remove: 'Properties drop out once they no longer match the selected statuses.',
+};
 
 function AutomationScopeCard({
   selected,
   counts,
   total,
-  cadenceMonths,
+  cadence,
+  retention,
   nextRunLabel,
   countsPending = false,
 }: AutomationScopeCardProps) {
@@ -94,7 +98,7 @@ function AutomationScopeCard({
         </span>
         <p className="m-0 font-sans text-body-sm text-ink-2 leading-relaxed">
           Address counts pending — first scan is still running. We'll apply this scope
-          when it completes (cadence: {cadenceCopy(cadenceMonths)}).
+          when it completes (cadence: {cadenceLabel(cadence)}).
         </p>
       </div>
     );
@@ -112,7 +116,10 @@ function AutomationScopeCard({
         >
           {inScope} of {total}
         </span>{' '}
-        addresses {cadenceCopy(cadenceMonths)}.
+        addresses {cadenceLabel(cadence)}.
+      </p>
+      <p className="m-0 mt-1 font-sans text-caption text-ink-3 leading-snug">
+        {RETENTION_NOTE[retention]}
       </p>
       <p className="m-0 mt-1 font-mono tabular-nums text-caption text-ink-3">
         Next run ~ {nextRunLabel}.

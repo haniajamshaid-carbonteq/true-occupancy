@@ -62,14 +62,31 @@ interface BatchHistoryEntry {
 
 type HistoryEntry = SingleHistoryEntry | BatchHistoryEntry;
 
-type Cadence = 3 | 4 | 6 | 12;
+// Cadence is structured (count + unit) so the modal can offer weekly and
+// monthly alongside the original 3/4/6/12-month options. Helpers below
+// (formatNextRun / cadenceLabel / cadenceShort / sameCadence) are the only
+// places that interpret the shape, so display sites stay unit-agnostic.
+type CadenceUnit = 'week' | 'month';
+interface Cadence {
+  every: number;
+  unit: CadenceUnit;
+}
+
+// Batch retention rule — what happens to a property on a later run once its
+// status no longer matches the selected scope.
+//   'monitor' — keep re-scanning it anyway (the property stays in the
+//               automation; catches cases that go quiet then come back).
+//   'remove'  — drop it from future runs once it no longer matches.
+// Default is 'monitor'. Single-property schedules don't carry this (their
+// scope is implicitly that one address).
+type ScopeRetention = 'monitor' | 'remove';
 
 interface SingleScheduleEntry {
   id: string;
   kind: 'single';
   address: string;
   scenario: Scenario;
-  cadenceMonths: Cadence;
+  cadence: Cadence;
   nextRunLabel: string;
   createdAgo: string;
   /** History entry ids for all prior runs of this schedule, newest first.
@@ -83,16 +100,18 @@ interface BatchScheduleEntry {
   kind: 'batch';
   filename: string;
   total: number;
-  cadenceMonths: Cadence;
+  cadence: Cadence;
   nextRunLabel: string;
   createdAgo: string;
   /** History entry ids for all prior runs of this schedule, newest first. */
   runHistoryIds: string[];
-  /** Which verdict bands to re-scan each cycle. Defaults to ['risk','warn']
-   *  ("Rented" + "Possibly Rented"); see DESIGN feedback (Erin, 2026-05-14).
-   *  Scope is re-evaluated against the LATEST scan each cycle, so the set
-   *  follows the data instead of being frozen at automation time. */
+  /** Which verdict bands seed the re-scan set. Defaults to ['risk','warn']
+   *  ("Rented" + "Possibly Rented"); see DESIGN feedback (Erin, 2026-05-14). */
   statuses: Risk[];
+  /** What happens to a property when its status later stops matching the
+   *  selected bands. 'monitor' keeps it in the automation; 'remove' drops
+   *  it from future runs. Defaults to 'monitor'. */
+  retention: ScopeRetention;
   /** Mirrored from the parent batch so list rows and the schedule-detail
    *  header read the user-chosen name instead of the raw filename. The
    *  description does NOT mirror here — it only surfaces on the batch
@@ -236,12 +255,43 @@ const SEED_HISTORY: HistoryEntry[] = [
   { id: 'hr04a', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'medium', platforms: 1, scannedAgo: '4 mo ago' },
 ];
 
+// ---- cadence helpers ----------------------------------------------------
+// The only code that interprets the Cadence shape. Top-level (global script
+// scope) so every host file can format a cadence the same way; consumers
+// list these in their /* global */ header.
+
+// Advance a date by a cadence (weeks add days, months add months).
+function addCadence(base: Date, c: Cadence): Date {
+  const d = new Date(base);
+  if (c.unit === 'week') d.setDate(d.getDate() + c.every * 7);
+  else d.setMonth(d.getMonth() + c.every);
+  return d;
+}
+
 // Renders an absolute calendar date — readable label that doesn't decay over
 // time the way "In 6 months" does once a row is a few weeks old.
-function formatNextRun(cadenceMonths: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + cadenceMonths);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function formatNextRun(cadence: Cadence): string {
+  return addCadence(new Date(), cadence).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+// Long human label: "weekly", "monthly", "every 3 months", "every 2 weeks".
+function cadenceLabel(c: Cadence): string {
+  if (c.unit === 'week') return c.every === 1 ? 'weekly' : `every ${c.every} weeks`;
+  return c.every === 1 ? 'monthly' : `every ${c.every} months`;
+}
+
+// Compact chip label: "1wk", "3mo", "12mo".
+function cadenceShort(c: Cadence): string {
+  return `${c.every}${c.unit === 'week' ? 'wk' : 'mo'}`;
+}
+
+// Structural equality — cadences are plain objects, so `===` won't do.
+function sameCadence(a: Cadence, b: Cadence): boolean {
+  return a.every === b.every && a.unit === b.unit;
 }
 
 // "asheville-q2-2026.csv" → "Asheville Q2 2026". Used everywhere a batch
@@ -265,11 +315,16 @@ function deriveTitleFromFilename(filename: string): string {
     .join(' ');
 }
 
+const CAD_WEEKLY: Cadence = { every: 1, unit: 'week' };
+const CAD_MONTHLY: Cadence = { every: 1, unit: 'month' };
+const CAD_3MO: Cadence = { every: 3, unit: 'month' };
+const CAD_6MO: Cadence = { every: 6, unit: 'month' };
+
 const SEED_SCHEDULES: ScheduleEntry[] = [
-  { id: 's01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadenceMonths: 6,  nextRunLabel: formatNextRun(6),  createdAgo: '8 min ago', runHistoryIds: ['h01', 'hr01a', 'hr01b'] },
-  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadenceMonths: 3,  nextRunLabel: formatNextRun(3),  createdAgo: '2 h ago',   runHistoryIds: ['hb1', 'hr02a'], statuses: ['risk', 'warn'], title: 'Asheville Spring Sweep' },
-  { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadenceMonths: 12, nextRunLabel: formatNextRun(12), createdAgo: '3 h ago',   runHistoryIds: ['h03', 'hr03a'] },
-  { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadenceMonths: 4,  nextRunLabel: formatNextRun(4),  createdAgo: 'Yesterday', runHistoryIds: ['h07', 'hr04a'] },
+  { id: 's01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadence: CAD_6MO,     nextRunLabel: formatNextRun(CAD_6MO),     createdAgo: '8 min ago', runHistoryIds: ['h01', 'hr01a', 'hr01b'] },
+  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadence: CAD_3MO,     nextRunLabel: formatNextRun(CAD_3MO),     createdAgo: '2 h ago',   runHistoryIds: ['hb1', 'hr02a'], statuses: ['risk', 'warn'], retention: 'monitor', title: 'Asheville Spring Sweep' },
+  { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadence: CAD_MONTHLY, nextRunLabel: formatNextRun(CAD_MONTHLY), createdAgo: '3 h ago',   runHistoryIds: ['h03', 'hr03a'] },
+  { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadence: CAD_WEEKLY,  nextRunLabel: formatNextRun(CAD_WEEKLY),  createdAgo: 'Yesterday', runHistoryIds: ['h07', 'hr04a'] },
 ];
 
 // Batch sample addresses — kept identical to the previous BatchScreen mock
@@ -368,11 +423,14 @@ interface AppStateValue {
    *  carries one optional user-supplied identifier (loan #, client ID, case
    *  file…) that travels onto its PDF certificate. */
   setSingleScanReference: (historyId: string, reference?: string) => void;
-  addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel' | 'runHistoryIds'> & { cadenceMonths: Cadence; runHistoryIds?: string[]; statuses?: Risk[] }) => void;
-  updateScheduleCadence: (id: string, cadenceMonths: Cadence) => void;
+  addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel' | 'runHistoryIds'> & { cadence: Cadence; runHistoryIds?: string[]; statuses?: Risk[]; retention?: ScopeRetention }) => void;
+  updateScheduleCadence: (id: string, cadence: Cadence) => void;
   /** Update which verdict bands a batch schedule rescans each cycle. No-op
    *  for single-property schedules (their scope is implicitly that address). */
   updateScheduleStatuses: (id: string, statuses: Risk[]) => void;
+  /** Update the batch retention rule ('monitor' | 'remove'). No-op for
+   *  single-property schedules. */
+  updateScheduleRetention: (id: string, retention: ScopeRetention) => void;
   cancelSchedule: (id: string) => void;
   findScheduleByTarget: (target: ScheduleTarget) => ScheduleEntry | null;
   /** Return every prior single-scan history entry for the given address,
@@ -586,7 +644,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   const addSchedule = React.useCallback(
     (entry: any) => {
       const id = uid('s');
-      const nextRunLabel = formatNextRun(entry.cadenceMonths);
+      const nextRunLabel = formatNextRun(entry.cadence);
       const runHistoryIds: string[] = entry.runHistoryIds ?? [];
       // Default scope per design feedback (Erin 2026-05-14): Rented + Possibly
       // Rented. Only meaningful on batch schedules; harmless on single.
@@ -594,16 +652,19 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         entry.kind === 'batch'
           ? (entry.statuses && entry.statuses.length > 0 ? entry.statuses : ['risk', 'warn'])
           : entry.statuses ?? undefined;
-      setSchedules((s) => [{ ...entry, id, nextRunLabel, createdAgo: 'Just now', runHistoryIds, statuses }, ...s]);
+      // Retention defaults to 'monitor' (keep re-scanning) for batches.
+      const retention: ScopeRetention | undefined =
+        entry.kind === 'batch' ? (entry.retention ?? 'monitor') : undefined;
+      setSchedules((s) => [{ ...entry, id, nextRunLabel, createdAgo: 'Just now', runHistoryIds, statuses, retention }, ...s]);
     },
     []
   );
 
-  const updateScheduleCadence = React.useCallback((id: string, cadenceMonths: Cadence) => {
+  const updateScheduleCadence = React.useCallback((id: string, cadence: Cadence) => {
     setSchedules((s) =>
       s.map((entry) =>
         entry.id === id
-          ? { ...entry, cadenceMonths, nextRunLabel: formatNextRun(cadenceMonths) }
+          ? { ...entry, cadence, nextRunLabel: formatNextRun(cadence) }
           : entry
       )
     );
@@ -614,6 +675,16 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       s.map((entry) =>
         entry.id === id && entry.kind === 'batch'
           ? { ...entry, statuses }
+          : entry
+      )
+    );
+  }, []);
+
+  const updateScheduleRetention = React.useCallback((id: string, retention: ScopeRetention) => {
+    setSchedules((s) =>
+      s.map((entry) =>
+        entry.id === id && entry.kind === 'batch'
+          ? { ...entry, retention }
           : entry
       )
     );
@@ -686,6 +757,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     addSchedule,
     updateScheduleCadence,
     updateScheduleStatuses,
+    updateScheduleRetention,
     cancelSchedule,
     findScheduleByTarget,
     getHistoryForAddress,
