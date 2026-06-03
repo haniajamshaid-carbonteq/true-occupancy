@@ -7,7 +7,7 @@ type IconName =
   | 'check' | 'x' | 'alert' | 'info' | 'chevron'
   | 'pin' | 'bed' | 'bath' | 'square' | 'shield' | 'cal' | 'price' | 'star'
   | 'spark' | 'ai-star' | 'replay' | 'share' | 'trend-up' | 'trend-down' | 'external'
-  | 'arrow-right' | 'upload' | 'layers'
+  | 'arrow-right' | 'upload' | 'layers' | 'sliders' | 'download' | 'folder'
   | 'mail' | 'lock' | 'eye' | 'eye-off' | 'google' | 'user'
   | 'pencil';
 
@@ -61,6 +61,8 @@ function Icon({ name, size = 16, className = '', ...rest }: IconProps) {
     case 'upload':     return <svg {...common}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>;
     case 'layers':     return <svg {...common}><path d="m12 2 10 5-10 5L2 7l10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>;
     case 'sliders':    return <svg {...common}><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>;
+    case 'folder':     return <svg {...common}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>;
+    case 'download':   return <svg {...common}><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/></svg>;
     case 'mail':       return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>;
     case 'lock':       return <svg {...common}><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>;
     case 'eye':        return <svg {...common}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>;

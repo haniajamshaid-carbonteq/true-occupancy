@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light" />
+<title>Mock — Archived listing snapshot</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+<!-- Real design tokens — same source the app loads. -->
+<link rel="stylesheet" href="src/styles/tokens.css" />
+
+<!-- Tailwind Play CDN — mirrors app config so utilities resolve to tokens. -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          bg: 'var(--bg)',
+          surface: { DEFAULT: 'var(--surface)', 2: 'var(--surface-2)' },
+          line: { DEFAULT: 'var(--line)', strong: 'var(--line-strong)' },
+          'hover-bg': 'var(--hover-bg)',
+          ink: { DEFAULT: 'var(--ink)', 2: 'var(--ink-2)', 3: 'var(--ink-3)', 4: 'var(--ink-4)' },
+          brand: { DEFAULT: 'var(--brand)', 2: 'var(--brand-2)', soft: 'var(--brand-soft)', tint: 'var(--brand-tint)', deep: 'var(--brand-deep)' },
+          warn: { DEFAULT: 'var(--warn)', soft: 'var(--warn-soft)', ink: 'var(--warn-ink)' },
+          airbnb: 'var(--airbnb)', vrbo: 'var(--vrbo)', fb: 'var(--fb)',
+        },
+        borderRadius: { sm: 'var(--r-sm)', md: 'var(--r-md)', lg: 'var(--r-lg)', xl: 'var(--r-xl)' },
+        boxShadow: { sm: 'var(--shadow-sm)', md: 'var(--shadow-md)', lg: 'var(--shadow-lg)' },
+        fontFamily: { serif: 'var(--serif)', sans: 'var(--sans)', mono: 'var(--mono)' },
+        fontSize: {
+          h2: ['var(--text-h2)', { lineHeight: '1.15' }],
+          h3: ['var(--text-h3)', { lineHeight: '1.25' }],
+          h4: ['var(--text-h4)', { lineHeight: '1.3' }],
+          body: ['var(--text-body)', { lineHeight: '1.55' }],
+          'body-sm': ['var(--text-body-sm)', { lineHeight: '1.5' }],
+          label: ['var(--text-label)', { lineHeight: '1.4' }],
+          caption: ['var(--text-caption)', { lineHeight: '1.4' }],
+          eyebrow: ['var(--text-eyebrow)', { lineHeight: '1.2' }],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { font-family: var(--sans); color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+  .mock-note { font-family: var(--mono); }
+  .ph-stripe { background: repeating-linear-gradient(135deg, #EEF2F6, #EEF2F6 8px, #F6F8FA 8px, #F6F8FA 16px); }
+  /* Halcyon PDF paper — spec'd as white (#FFFFFF) with navy-tinted shadow.
+     Mirrors src/components/result/CertificateSheet.tsx + docs/pdf-certificate-spec.md. */
+  .pdf-paper {
+    background: #FFFFFF;
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgba(20,45,85,.06), 0 8px 24px -12px rgba(20,45,85,.20);
+    border: 1px solid var(--line);
+  }
+  .cert-mock-rule {
+    height: 1px;
+    background: var(--navy);
+    opacity: 0.85;
+    margin-top: -4px;
+  }
+  .cert-mock-eyebrow {
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+</style>
+</head>
+
+<body data-type-pairing="halcyon">
+
+<div class="min-h-screen w-full flex flex-col items-center gap-8 py-12 px-4" style="background:linear-gradient(180deg,#E8EBF0,#F4F6F8 40%);">
+
+  <div class="text-center max-w-[680px]">
+    <div class="mock-note text-caption uppercase tracking-[0.16em] text-ink-3 mb-2">Review mock · not wired into the app</div>
+    <h1 class="font-sans font-semibold text-h3 m-0" style="color:var(--navy)">Archived listing snapshot</h1>
+    <p class="text-body-sm text-ink-3 mt-2 mb-0">Each scan stores <strong>one screenshot per listing</strong>. The table is the chooser — every row has a folder icon next to <em>Open</em>, so the saved snapshot sits as a peer of the live link. Opening the drawer always shows one listing's snapshot; the rail lets the user pivot between listings without closing and reopening.</p>
+  </div>
+
+  <!-- ============================================================
+       1. Result-page header — matches prod chrome (Back · address ·
+            action group). The archived-snapshot entry is an icon-only
+            ghost button so the two existing primary CTAs stay loud.
+       ============================================================ -->
+  <section class="w-full max-w-[1180px]">
+    <div class="mock-note text-eyebrow uppercase tracking-[0.16em] text-ink-3 mb-2">① Result page — header stays as-is; archive entry moves down beside the “Discovered listings” heading</div>
+    <div class="px-1 py-2 flex items-center justify-between gap-6">
+      <!-- Left cluster: Back link + address -->
+      <div class="flex items-center gap-5 min-w-0">
+        <a href="#" class="inline-flex items-center gap-1.5 text-label font-medium text-ink-2 hover:text-ink transition-colors shrink-0">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="m10 4-4 4 4 4"/></svg>
+          <span>Back</span>
+        </a>
+        <h2 class="font-sans font-semibold text-h2 m-0 leading-tight truncate" style="color:var(--navy)">9904 Blanda Ct NW, Albuquerque</h2>
+      </div>
+
+      <!-- Right cluster: Download PDF + Run AI Investigator (unchanged from prod) -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Existing: Download PDF (primary brand-mid) -->
+        <button type="button" class="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-white font-sans text-label font-semibold shadow-sm" style="background:var(--brand)">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M8 2v8m0 0l-3-3m3 3 3-3M3 12.5h10"/></svg>
+          Download PDF
+          <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden><path d="M4 6l4 4 4-4"/></svg>
+        </button>
+
+        <!-- Existing: Run AI Investigator (darker brand-deep) -->
+        <button type="button" class="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-white font-sans text-label font-semibold shadow-sm" style="background:var(--brand-deep)">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden><path d="M8 1.5l1.9 4 4.4.5-3.2 3 .8 4.3L8 11.4l-3.9 1.9.8-4.3-3.2-3 4.4-.5z"/></svg>
+          Run AI Investigator
+        </button>
+      </div>
+    </div>
+
+    <!-- Slim band stands in for the Rented hero so the reviewer can tell the
+         new affordance sits BELOW it, beside the Discovered listings heading. -->
+    <div class="mt-3 bg-surface border border-line rounded-lg px-6 py-5">
+      <div class="flex items-baseline gap-3">
+        <span class="font-sans font-bold leading-none" style="font-size:38px;color:var(--navy)">Rented</span>
+        <span class="font-sans text-body-sm text-ink-3"><span class="font-semibold text-ink-2">100%</span> rental confidence</span>
+      </div>
+    </div>
+
+    <!-- Discovered listings section — clean heading. The per-row folder
+         icon in each row's actions column is the only entry point on this
+         surface; a separate heading button would just duplicate the table
+         as a chooser. -->
+    <div class="mt-6">
+      <h3 class="font-sans font-bold text-h3 m-0" style="color:var(--navy)">Discovered listings</h3>
+      <p class="m-0 mt-1 font-mono text-caption text-ink-3">2 listings found</p>
+    </div>
+
+    <!-- Listings table — matches the prod chrome the reviewer shared.
+         The actions column now carries TWO peer affordances:
+           📁  Saved snapshot  (this listing's archive — opens the drawer)
+           Open ↗              (existing live platform link) -->
+    <div class="mt-3 bg-surface border border-line rounded-lg overflow-hidden">
+      <!-- header strip -->
+      <div class="grid items-center bg-surface-2/40 text-eyebrow uppercase tracking-[0.16em] text-ink-3 font-semibold"
+           style="grid-template-columns: 110px minmax(0,1fr) 140px 130px 170px 120px;">
+        <div class="px-4 py-3">Platform</div>
+        <div class="px-4 py-3">Listing</div>
+        <div class="px-4 py-3">Match</div>
+        <div class="px-4 py-3">Rental confidence</div>
+        <div class="px-4 py-3">Layout</div>
+        <div class="px-4 py-3 text-right">Actions</div>
+      </div>
+      <!-- row 1 -->
+      <div class="grid items-center border-t border-line hover:bg-hover-bg/30 transition-colors"
+           style="grid-template-columns: 110px minmax(0,1fr) 140px 130px 170px 120px;">
+        <div class="px-4 py-3">
+          <span class="inline-flex items-center h-6 px-2.5 rounded-full border border-line text-caption font-semibold uppercase tracking-wide" style="color:var(--ink-2);background:var(--pill-neutral-bg)">Airbnb</span>
+        </div>
+        <div class="px-4 py-3 min-w-0">
+          <div class="flex items-center gap-2 min-w-0">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" style="color:var(--brand)" aria-hidden><path d="M8 1.5l1.9 4 4.4.5-3.2 3 .8 4.3L8 11.4l-3.9 1.9.8-4.3-3.2-3 4.4-.5z"/></svg>
+            <span class="font-sans text-body-sm font-semibold truncate" style="color:var(--navy)">Tucked away in a private and very quiet cul-de-sac, Casa D…</span>
+          </div>
+        </div>
+        <div class="px-4 py-3">
+          <span class="inline-flex items-center h-6 px-2.5 rounded-full text-caption font-semibold uppercase tracking-wide" style="background:var(--verdict-high-soft);color:var(--verdict-high-ink)">Strong match</span>
+        </div>
+        <div class="px-4 py-3 font-sans text-body-sm font-bold" style="color:var(--ink)">100%</div>
+        <div class="px-4 py-3 font-sans text-caption text-ink-3">3 bd · 2 ba · 6 guests</div>
+        <!-- ACTION COLUMN — NEW folder peer + existing Open -->
+        <div class="px-4 py-3 flex items-center justify-end gap-2">
+          <button type="button"
+            aria-label="View saved snapshot for this listing"
+            title="View saved snapshot"
+            class="w-8 h-8 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+              <path d="M2 5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>
+            </svg>
+          </button>
+          <a href="#" class="inline-flex items-center gap-1 text-label font-medium" style="color:var(--brand-deep)">
+            <span>Open</span>
+            <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M4 12 12 4M6 4h6v6"/></svg>
+          </a>
+        </div>
+      </div>
+      <!-- row 2 -->
+      <div class="grid items-center border-t border-line hover:bg-hover-bg/30 transition-colors"
+           style="grid-template-columns: 110px minmax(0,1fr) 140px 130px 170px 120px;">
+        <div class="px-4 py-3">
+          <span class="inline-flex items-center h-6 px-2.5 rounded-full border border-line text-caption font-semibold uppercase tracking-wide" style="color:var(--ink-2);background:var(--pill-neutral-bg)">Vrbo</span>
+        </div>
+        <div class="px-4 py-3 min-w-0">
+          <span class="font-sans text-body-sm font-semibold truncate block" style="color:var(--navy)">Casa De Paradise Hills · House · Sleeps 6 · 3 bedrooms · 2 b…</span>
+        </div>
+        <div class="px-4 py-3">
+          <span class="inline-flex items-center h-6 px-2.5 rounded-full text-caption font-semibold uppercase tracking-wide" style="background:var(--verdict-high-soft);color:var(--verdict-high-ink)">Strong match</span>
+        </div>
+        <div class="px-4 py-3 font-sans text-body-sm font-bold" style="color:var(--ink)">100%</div>
+        <div class="px-4 py-3 font-sans text-caption text-ink-3">3 bd · 2 ba · 6 guests</div>
+        <div class="px-4 py-3 flex items-center justify-end gap-2">
+          <button type="button"
+            aria-label="View saved snapshot for this listing"
+            title="View saved snapshot"
+            class="w-8 h-8 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+              <path d="M2 5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>
+            </svg>
+          </button>
+          <a href="#" class="inline-flex items-center gap-1 text-label font-medium" style="color:var(--brand-deep)">
+            <span>Open</span>
+            <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M4 12 12 4M6 4h6v6"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       2. History page row — small camera icon in the trailing
+            action column, peers with the existing PDF download.
+       ============================================================ -->
+  <section class="w-full max-w-[1080px]">
+    <div class="mock-note text-eyebrow uppercase tracking-[0.16em] text-ink-3 mb-2">② History row — trailing icon, peer of the PDF download</div>
+    <div class="bg-surface border border-line rounded-lg shadow-sm overflow-hidden">
+      <!-- header strip -->
+      <div class="grid border-b border-line text-eyebrow uppercase tracking-[0.16em] text-ink-3 font-semibold" style="grid-template-columns: 130px 1fr 110px 110px 110px;">
+        <div class="px-4 py-3">When</div>
+        <div class="px-4 py-3">Address</div>
+        <div class="px-4 py-3 text-right">Verdict</div>
+        <div class="px-4 py-3 text-right">Platforms</div>
+        <div class="px-4 py-3 text-right">Actions</div>
+      </div>
+      <!-- row 1 — the one we're highlighting -->
+      <div class="grid items-center hover:bg-hover-bg/40 transition-colors" style="grid-template-columns: 130px 1fr 110px 110px 110px;">
+        <div class="px-4 py-3 font-mono tabular-nums text-caption text-ink-3">May 12, 2026</div>
+        <div class="px-4 py-3">
+          <div class="font-sans font-semibold text-body-sm" style="color:var(--navy)">1428 Maplewood Drive</div>
+          <div class="font-sans text-caption text-ink-3 mt-0.5">Asheville, NC 28804</div>
+        </div>
+        <div class="px-4 py-3 text-right">
+          <span class="inline-flex items-center h-6 px-2 rounded-full text-caption font-medium" style="background:var(--verdict-high-soft);color:var(--verdict-high-ink)">Rented</span>
+        </div>
+        <div class="px-4 py-3 text-right font-mono tabular-nums text-caption text-ink-3">3 / 3</div>
+        <div class="px-4 py-3 flex items-center justify-end gap-1">
+          <!-- NEW archive icon button -->
+          <button type="button" aria-label="View saved snapshots"
+            class="grid place-items-center w-8 h-8 rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+              <rect x="2.5" y="4.5" width="11" height="8" rx="1.5"/>
+              <circle cx="8" cy="8.5" r="2"/>
+              <path d="M6 4.5l1-1.5h2l1 1.5"/>
+            </svg>
+          </button>
+          <!-- existing PDF download (peer) -->
+          <button type="button" aria-label="Download PDF"
+            class="grid place-items-center w-8 h-8 rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+              <path d="M4 1.5h5l3 3V13a1.5 1.5 0 0 1-1.5 1.5h-6.5A1.5 1.5 0 0 1 2.5 13V3a1.5 1.5 0 0 1 1.5-1.5z"/>
+              <path d="M9 1.5V4.5h3"/>
+              <path d="M5 9.5h6M5 11.5h4"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <!-- row 2 — same property, prior re-scan, to show per-scan archive granularity -->
+      <div class="grid items-center border-t border-line hover:bg-hover-bg/40 transition-colors" style="grid-template-columns: 130px 1fr 110px 110px 110px;">
+        <div class="px-4 py-3 font-mono tabular-nums text-caption text-ink-3">Nov 12, 2025</div>
+        <div class="px-4 py-3">
+          <div class="font-sans font-semibold text-body-sm" style="color:var(--navy)">1428 Maplewood Drive</div>
+          <div class="font-sans text-caption text-ink-3 mt-0.5">Asheville, NC 28804</div>
+        </div>
+        <div class="px-4 py-3 text-right">
+          <span class="inline-flex items-center h-6 px-2 rounded-full text-caption font-medium" style="background:var(--verdict-med-soft);color:var(--verdict-med-ink)">Possibly Rented</span>
+        </div>
+        <div class="px-4 py-3 text-right font-mono tabular-nums text-caption text-ink-3">2 / 3</div>
+        <div class="px-4 py-3 flex items-center justify-end gap-1">
+          <button type="button" aria-label="View saved snapshots" class="grid place-items-center w-8 h-8 rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M2 5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/></svg>
+          </button>
+          <button type="button" aria-label="Download PDF" class="grid place-items-center w-8 h-8 rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden><path d="M4 1.5h5l3 3V13a1.5 1.5 0 0 1-1.5 1.5h-6.5A1.5 1.5 0 0 1 2.5 13V3a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M9 1.5V4.5h3"/><path d="M5 9.5h6M5 11.5h4"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <p class="mt-2 text-caption text-ink-3">Each re-scan gets its own archive — the two rows above are the same property, different captures, independently retrievable.</p>
+  </section>
+
+  <!-- ============================================================
+       3. The Drawer — two panes: left rail lists captured listings,
+            right pane shows the selected listing's snapshot. The user
+            chooses which listing to view; the rail makes the choice
+            the primary action. Opened from either entry point.
+       ============================================================ -->
+  <section class="w-full max-w-[1180px]">
+    <div class="mock-note text-eyebrow uppercase tracking-[0.16em] text-ink-3 mb-2">③ Snapshot chooser (Drawer, slides in from the right)</div>
+
+    <div class="relative bg-ink/5 rounded-lg p-6">
+      <div class="text-caption text-ink-4 italic">…page content behind the drawer…</div>
+
+      <div class="ml-auto mt-4 bg-surface border border-line rounded-lg shadow-lg max-w-[760px] overflow-hidden">
+        <!-- Drawer header -->
+        <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-line">
+          <div class="min-w-0">
+            <div class="text-eyebrow uppercase tracking-[0.16em] text-ink-3 font-semibold mb-1">Saved snapshots</div>
+            <h3 class="font-sans font-semibold text-h4 m-0 leading-tight truncate" style="color:var(--navy)">9904 Blanda Ct NW, Albuquerque</h3>
+          </div>
+          <button type="button" aria-label="Close" class="w-8 h-8 -mr-1.5 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors shrink-0">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+        </div>
+
+        <!-- Two-pane body: rail (chooser) + selected snapshot -->
+        <div class="grid" style="grid-template-columns: 240px 1fr; min-height: 380px;">
+          <!-- Left rail: pick a listing -->
+          <nav class="border-r border-line bg-surface-2/30 py-2 px-1.5" aria-label="Choose a listing">
+            <div class="px-2.5 py-1.5 text-eyebrow uppercase tracking-[0.16em] text-ink-3 font-semibold">4 listings captured</div>
+            <!-- Active: Airbnb #1 -->
+            <button type="button" class="w-full flex items-start gap-2 px-2.5 py-2 rounded-md text-left mt-1" style="background:var(--brand-tint);border-left:2px solid var(--brand)">
+              <span class="mt-1 w-2 h-2 rounded-full shrink-0" style="background:var(--airbnb)"></span>
+              <span class="min-w-0 flex-1">
+                <span class="block font-sans text-label font-semibold truncate" style="color:var(--brand-deep)">Airbnb · Cozy 3BR Mountain View</span>
+                <span class="block text-caption text-ink-3 truncate font-mono">rooms/example-12848319</span>
+              </span>
+            </button>
+            <button type="button" class="w-full flex items-start gap-2 px-2.5 py-2 rounded-md text-left hover:bg-hover-bg mt-0.5">
+              <span class="mt-1 w-2 h-2 rounded-full shrink-0" style="background:var(--airbnb)"></span>
+              <span class="min-w-0 flex-1">
+                <span class="block font-sans text-label font-medium truncate" style="color:var(--ink)">Airbnb · Quiet Studio + Loft</span>
+                <span class="block text-caption text-ink-3 truncate font-mono">rooms/example-99102271</span>
+              </span>
+            </button>
+            <button type="button" class="w-full flex items-start gap-2 px-2.5 py-2 rounded-md text-left hover:bg-hover-bg mt-0.5">
+              <span class="mt-1 w-2 h-2 rounded-full shrink-0" style="background:var(--vrbo)"></span>
+              <span class="min-w-0 flex-1">
+                <span class="block font-sans text-label font-medium truncate" style="color:var(--ink)">Vrbo · Maplewood Retreat</span>
+                <span class="block text-caption text-ink-3 truncate font-mono">listing/example-2010932</span>
+              </span>
+            </button>
+            <button type="button" class="w-full flex items-start gap-2 px-2.5 py-2 rounded-md text-left hover:bg-hover-bg mt-0.5">
+              <span class="mt-1 w-2 h-2 rounded-full shrink-0" style="background:var(--fb)"></span>
+              <span class="min-w-0 flex-1">
+                <span class="block font-sans text-label font-medium truncate" style="color:var(--ink)">FB · Marketplace post</span>
+                <span class="block text-caption text-ink-3 truncate font-mono">item/example-770223</span>
+              </span>
+            </button>
+          </nav>
+
+          <!-- Right pane: selected listing's snapshot + metadata.
+               Download icon sits at the top-right of this pane so it
+               visually pairs with the snapshot it exports. -->
+          <div class="px-6 py-5 flex flex-col min-w-0">
+            <!-- Metadata strip for the selected listing — download is the
+                 trailing affordance on the title row. -->
+            <div class="mb-3">
+              <div class="flex items-start justify-between gap-3 mb-1">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="inline-flex items-center h-5 px-1.5 rounded-sm text-caption font-semibold text-white" style="background:var(--airbnb)">Airbnb</span>
+                  <span class="font-sans text-body-sm font-semibold truncate" style="color:var(--navy)">Cozy 3BR Mountain View</span>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Download PDF"
+                  title="Download PDF"
+                  class="shrink-0 w-8 h-8 grid place-items-center rounded-md border border-line bg-surface text-ink-2 hover:bg-hover-bg hover:border-line-strong transition-colors"
+                >
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+                    <path d="M8 2v8m0 0l-3-3m3 3 3-3M3 12.5h10"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="text-caption text-ink-3 font-mono truncate">https://airbnb.com/rooms/example-12848319</div>
+              <div class="text-caption text-ink-3 mt-0.5">Captured by TrueOccupancy on May 12, 2026.</div>
+            </div>
+
+            <!-- Snapshot placeholder -->
+            <div class="ph-stripe rounded-md border border-line flex-1 grid place-items-center min-h-[260px]">
+              <div class="text-center">
+                <svg viewBox="0 0 16 16" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-ink-3" aria-hidden>
+                  <path d="M2 5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>
+                </svg>
+                <p class="m-0 mt-2 font-sans text-caption text-ink-3">Listing screenshot · May 12, 2026</p>
+                <p class="m-0 mt-0.5 font-mono text-caption text-ink-4">1440 × 2240 · 412 KB</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drawer footer — Close stays as the explicit dismissal action,
+             paired with the header X. Download moved up into the right
+             pane so it sits with the snapshot it exports. -->
+        <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-line" style="background:color-mix(in srgb,var(--surface-2) 40%,transparent)">
+          <button class="inline-flex items-center h-9 px-3 rounded-lg font-sans text-label font-medium text-white" style="background:var(--brand)">Close</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       3b. ALTERNATE drawer — focused single pane.
+            User only sees the snapshot they explicitly chose. No rail.
+            No in-drawer switching. To view another listing they close
+            and click a different row. Narrower (~600px) so the snapshot
+            takes the full width.
+       ============================================================ -->
+  <section class="w-full max-w-[1080px]">
+    <div class="mock-note text-eyebrow uppercase tracking-[0.16em] text-ink-3 mb-2">③ Alternate — focused single-pane drawer (no rail; only the selected listing's snapshot)</div>
+
+    <div class="relative bg-ink/5 rounded-lg p-6">
+      <div class="text-caption text-ink-4 italic">…page content behind the drawer…</div>
+
+      <div class="ml-auto mt-4 bg-surface border border-line rounded-lg shadow-lg max-w-[600px] overflow-hidden">
+        <!-- Drawer header -->
+        <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-line">
+          <div class="min-w-0">
+            <div class="text-eyebrow uppercase tracking-[0.16em] text-ink-3 font-semibold mb-1">Saved snapshot</div>
+            <h3 class="font-sans font-semibold text-h4 m-0 leading-tight truncate" style="color:var(--navy)">9904 Blanda Ct NW, Albuquerque</h3>
+          </div>
+          <button type="button" aria-label="Close" class="w-8 h-8 -mr-1.5 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors shrink-0">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+        </div>
+
+        <!-- Single pane: metadata strip (with download top-right) + snapshot -->
+        <div class="px-6 py-5">
+          <div class="mb-3">
+            <div class="flex items-start justify-between gap-3 mb-1">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="inline-flex items-center h-5 px-1.5 rounded-sm text-caption font-semibold text-white" style="background:var(--airbnb)">Airbnb</span>
+                <span class="font-sans text-body-sm font-semibold truncate" style="color:var(--navy)">Cozy 3BR Mountain View</span>
+              </div>
+              <button
+                type="button"
+                aria-label="Download PDF"
+                title="Download PDF"
+                class="shrink-0 w-8 h-8 grid place-items-center rounded-md border border-line bg-surface text-ink-2 hover:bg-hover-bg hover:border-line-strong transition-colors"
+              >
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden>
+                  <path d="M8 2v8m0 0l-3-3m3 3 3-3M3 12.5h10"/>
+                </svg>
+              </button>
+            </div>
+            <div class="text-caption text-ink-3 font-mono truncate">https://airbnb.com/rooms/example-12848319</div>
+            <div class="text-caption text-ink-3 mt-0.5">Captured by TrueOccupancy on May 12, 2026.</div>
+          </div>
+
+          <!-- Snapshot placeholder — taller now that it has the full pane width -->
+          <div class="ph-stripe rounded-md border border-line grid place-items-center" style="min-height:360px">
+            <div class="text-center">
+              <svg viewBox="0 0 16 16" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-ink-3" aria-hidden>
+                <path d="M2 5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>
+              </svg>
+              <p class="m-0 mt-2 font-sans text-caption text-ink-3">Listing screenshot · May 12, 2026</p>
+              <p class="m-0 mt-0.5 font-mono text-caption text-ink-4">1440 × 2240 · 412 KB</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drawer footer -->
+        <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-line" style="background:color-mix(in srgb,var(--surface-2) 40%,transparent)">
+          <button class="inline-flex items-center h-9 px-3 rounded-lg font-sans text-label font-medium text-white" style="background:var(--brand)">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="mt-3 text-caption text-ink-3 leading-snug max-w-[600px] ml-auto">
+      <strong>Trade-off:</strong> to view another listing's snapshot, the user closes this drawer and clicks the folder icon on a different row in the listings table. One extra click for the rare "compare across listings" case, in exchange for a focused viewer where the screenshot gets full pane width.
+    </p>
+  </section>
+
+  <!-- ============================================================
+       4. The PDF footnote — what gets printed near the listings
+            table so a future reader who clicks a dead link knows
+            where to find the archive.
+       ============================================================ -->
+  <section class="w-full max-w-[1080px]">
+    <div class="mock-note text-eyebrow uppercase tracking-[0.16em] text-ink-3 mb-2">④ PDF certificate — footnote under the listings table</div>
+    <div class="pdf-paper rounded-md p-6 max-w-[680px] mx-auto">
+      <div class="cert-mock-eyebrow">Discoverable properties</div>
+      <ol class="m-0 p-0 list-none flex flex-col gap-2" style="font-size:12px;color:var(--ink)">
+        <li><span class="font-medium">1.</span> Airbnb · "Cozy 3BR Asheville Mountain View" — <span class="font-mono" style="color:var(--brand-link)">airbnb.com/rooms/example-12848319</span></li>
+        <li><span class="font-medium">2.</span> Vrbo · "Maplewood Retreat" — <span class="font-mono" style="color:var(--brand-link)">vrbo.com/listing/example-2010932</span></li>
+        <li><span class="font-medium">3.</span> Facebook Marketplace — <span class="font-mono" style="color:var(--brand-link)">facebook.com/marketplace/item/example-770223</span></li>
+      </ol>
+
+      <div class="mt-5 pt-4" style="border-top:1px solid var(--line)">
+        <p class="m-0 leading-relaxed" style="font-size:10.5px;color:var(--ink-3)">
+          <strong style="color:var(--navy)">Listings may expire.</strong>
+          Platform pages are operated by third parties and may be edited or removed at any time.
+          To view the archived screenshot captured at scan time, sign in to Halcyon → TrueOccupancy →
+          <strong style="color:var(--navy)">History</strong> and open the May 12, 2026 scan for this property.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       5. Downloaded snapshot PDF — what the user gets as a file
+            when they click the download icon in the drawer. One
+            listing per PDF: header + metadata block + screenshot
+            with watermark strip + chain-of-custody footer.
+       ============================================================ -->
+  <section class="w-full max-w-[1080px]">
+    <div class="mock-note text-eyebrow uppercase tracking-[0.16em] text-ink-3 mb-2">⑤ Downloaded snapshot PDF — one listing per file, evidence-grade artifact</div>
+
+    <div class="pdf-paper rounded-md mx-auto" style="max-width:680px;padding:40px 48px 28px;">
+      <!-- HEADER — Halcyon mark + wordmark on the left, scan ID + timestamp
+           + kind on the right. Mirrors CertificateSheet.tsx (`cert-head`). -->
+      <div class="flex items-start justify-between gap-6">
+        <div class="flex items-center gap-3 min-w-0">
+          <img src="docs/brand/halcyon-mark-v2.png" alt="" style="width:40px;height:40px;object-fit:contain" />
+          <div style="line-height:1.1">
+            <div class="font-sans font-bold" style="font-size:20px;color:var(--navy);letter-spacing:-0.01em">Halcyon</div>
+            <div class="font-sans" style="font-size:11px;font-weight:500;color:var(--brand-deep);letter-spacing:0.02em;margin-top:2px">TrueOccupancy</div>
+          </div>
+        </div>
+        <div class="text-right" style="line-height:1.45">
+          <div class="font-mono" style="font-size:12px;font-weight:600;color:var(--navy);letter-spacing:0.04em">TO-9KP2MX38</div>
+          <div class="font-mono tabular-nums" style="font-size:10px;color:var(--ink-3);margin-top:2px">2026-05-12 14:32 local</div>
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-3);font-weight:600;margin-top:2px">Listing Snapshot</div>
+        </div>
+      </div>
+
+      <!-- Navy 1pt rule — same as cert-rule -->
+      <div class="cert-mock-rule mt-3"></div>
+
+      <!-- SUBJECT PROPERTY -->
+      <section class="mt-5">
+        <div class="cert-mock-eyebrow">Subject property</div>
+        <div class="font-sans font-semibold leading-tight" style="font-size:18px;color:var(--navy);letter-spacing:-0.005em">9904 Blanda Ct NW</div>
+        <div class="font-sans mt-1" style="font-size:11px;color:var(--ink-3)">Albuquerque, NM</div>
+      </section>
+
+      <!-- LISTING — definition list of platform / title / URL / capture -->
+      <section class="mt-5">
+        <div class="cert-mock-eyebrow">Listing</div>
+        <dl class="grid gap-y-1.5" style="grid-template-columns:110px 1fr;font-size:12px;line-height:1.45;color:var(--ink)">
+          <dt style="color:var(--ink-3)">Platform</dt>
+          <dd class="m-0 font-medium">Airbnb</dd>
+          <dt style="color:var(--ink-3)">Title</dt>
+          <dd class="m-0 font-medium">Cozy 3BR Mountain View</dd>
+          <dt style="color:var(--ink-3)">Original URL</dt>
+          <dd class="m-0 font-mono" style="color:var(--brand-link);word-break:break-all">https://airbnb.com/rooms/example-12848319</dd>
+          <dt style="color:var(--ink-3)">Captured by</dt>
+          <dd class="m-0 font-medium">TrueOccupancy automated scan</dd>
+        </dl>
+      </section>
+
+      <!-- SCREENSHOT — small eyebrow above; brand-deep left accent matches
+           the verdict-band convention from the certificate. -->
+      <section class="mt-5">
+        <div class="cert-mock-eyebrow">Snapshot</div>
+        <div class="overflow-hidden" style="border:1px solid var(--line);border-left:3px solid var(--brand-deep);border-radius:4px">
+          <div class="ph-stripe grid place-items-center" style="min-height:340px">
+            <div class="text-center">
+              <svg viewBox="0 0 16 16" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="mx-auto" style="color:var(--ink-3)" aria-hidden>
+                <path d="M2 5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>
+              </svg>
+              <p class="m-0 mt-2 font-sans" style="font-size:10px;color:var(--ink-3)">Listing screenshot — captured May 12, 2026</p>
+            </div>
+          </div>
+          <!-- Brand watermark strip — uses brand-tint (light teal) so the
+               snapshot stays self-identifying if cropped or shared separately. -->
+          <div class="flex items-center justify-between" style="background:var(--brand-tint);border-top:1px solid var(--line);padding:6px 12px;font-size:9.5px;line-height:1.3">
+            <span class="font-sans font-bold" style="color:var(--navy);letter-spacing:0.06em">HALCYON · TRUEOCCUPANCY</span>
+            <span class="font-mono tabular-nums" style="color:var(--brand-deep)">airbnb.com/rooms/example-12848319 · 2026-05-12</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- FOOTER — scan ID already shown in the header, so it's omitted
+           here. The verify URL is kept because it serves as the live
+           verification handle, not a duplicate display of the ID. -->
+      <footer class="mt-6 pt-3 flex items-end justify-between gap-4" style="border-top:1px solid var(--line);line-height:1.4">
+        <div style="font-size:10px;color:var(--ink-3)">
+          <div>Verifiable at <span class="font-mono" style="color:var(--navy);font-weight:600;letter-spacing:0.04em">halcyon.app/verify/TO-9KP2MX38</span></div>
+          <div class="mt-1" style="color:var(--ink-4)">Generated 2026-06-02 09:14 local · Halcyon TrueOccupancy · halcyon.app</div>
+        </div>
+        <div class="font-mono tabular-nums" style="font-size:10px;color:var(--ink-3);letter-spacing:0.04em">Page 1 of 1</div>
+      </footer>
+    </div>
+
+    <p class="mt-3 text-caption text-ink-3 leading-snug max-w-[680px] mx-auto text-center">
+      Variant of <span class="font-mono">CertificateSheet</span> (per <span class="font-mono">docs/pdf-certificate-spec.md</span>): same header / navy rule / footer chrome as the existing certificate, listing-snapshot body in between. One PDF per listing.
+    </p>
+  </section>
+
+</div>
+</body>
+</html>

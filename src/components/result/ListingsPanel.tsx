@@ -1,4 +1,4 @@
-/* global React, SCENARIOS, PROPERTY, Tabs, Pill, DataTable */
+/* global React, SCENARIOS, PROPERTY, Tabs, Pill, DataTable, Icon, SavedSnapshotDrawer */
 // ListingsPanel — diff-matrix evidence view.
 //
 // Reframes the matched listings as a comparison table: the property's
@@ -313,10 +313,12 @@ function DesktopMatrix({
   listings,
   rows,
   strongestId,
+  onViewSnapshot,
 }: {
   listings: ListingFlat[];
   rows: DiffRow[];
   strongestId: string | null;
+  onViewSnapshot: (listing: ListingFlat) => void;
 }) {
   const cols = `200px repeat(${listings.length}, minmax(180px, 1fr))`;
 
@@ -462,28 +464,39 @@ function DesktopMatrix({
                 background: isStrong(i) ? 'var(--brand-tint)' : undefined,
               }}
             >
-              <a
-                href={l.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group inline-flex items-center gap-1 h-7 px-2 -ml-2 rounded-md text-caption font-semibold no-underline transition-colors hover:bg-hover-bg"
-                style={{ color: 'var(--brand-deep)' }}
-              >
-                Open
-                <svg
-                  viewBox="0 0 16 16"
-                  className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
+              <div className="flex items-center gap-0.5 -ml-1.5">
+                <button
+                  type="button"
+                  aria-label="View saved snapshot"
+                  title="View saved snapshot"
+                  onClick={() => onViewSnapshot(l)}
+                  className="w-7 h-7 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors shrink-0"
                 >
-                  <path d="M5 11 11 5" />
-                  <path d="M6 5h5v5" />
-                </svg>
-              </a>
+                  <Icon name="folder" size={13} />
+                </button>
+                <a
+                  href={l.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex items-center gap-1 h-7 px-1.5 rounded-md text-caption font-semibold no-underline transition-colors hover:bg-hover-bg"
+                  style={{ color: 'var(--brand-deep)' }}
+                >
+                  Open
+                  <svg
+                    viewBox="0 0 16 16"
+                    className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M5 11 11 5" />
+                    <path d="M6 5h5v5" />
+                  </svg>
+                </a>
+              </div>
             </div>
           ))}
         </div>
@@ -598,10 +611,12 @@ function MobileStack({
   listings,
   rows,
   strongestId,
+  onViewSnapshot,
 }: {
   listings: ListingFlat[];
   rows: DiffRow[];
   strongestId: string | null;
+  onViewSnapshot: (listing: ListingFlat) => void;
 }) {
   const [openId, setOpenId] = React.useState<string | null>(
     listings[0]?.url || null
@@ -691,7 +706,16 @@ function MobileStack({
                     />
                   );
                 })}
-                <div className="pt-3 mt-3 border-t border-line text-right">
+                <div className="pt-3 mt-3 border-t border-line flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    aria-label="View saved snapshot"
+                    title="View saved snapshot"
+                    onClick={() => onViewSnapshot(l)}
+                    className="w-8 h-8 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors"
+                  >
+                    <Icon name="folder" size={14} />
+                  </button>
                   <a
                     href={l.url}
                     target="_blank"
@@ -723,6 +747,35 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
     listings.length > 0 ? listings[0].url : null;
   const rows = buildRows(listings);
   const [view, setView] = React.useState<'comparison' | 'table'>('comparison');
+
+  // Saved-snapshot drawer state — the explicit listing the user clicked.
+  // Null when the drawer is closed; setting it opens the drawer.
+  const [snapshotListing, setSnapshotListing] =
+    React.useState<ListingFlat | null>(null);
+
+  // Capture date stub. The real backend stores a per-snapshot timestamp;
+  // until that's wired through the listing record we display today's date
+  // so the metadata strip reads correctly. Memoized so it doesn't shift
+  // mid-session if the user opens the drawer twice.
+  const capturedAt = React.useMemo(
+    () =>
+      new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+    []
+  );
+
+  // Subject address — prefer the per-scan address stashed in sessionStorage
+  // by the scan-start flow, fall back to the static seed property.
+  const address = React.useMemo<string>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.sessionStorage?.getItem('scanAddress');
+      if (stored) return stored;
+    }
+    return PROPERTY.address;
+  }, []);
 
   return (
     <div>
@@ -770,6 +823,7 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
               listings={listings}
               rows={rows}
               strongestId={strongestId}
+              onViewSnapshot={setSnapshotListing}
             />
           </div>
           {/* Mobile: accordion stack */}
@@ -778,12 +832,36 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
               listings={listings}
               rows={rows}
               strongestId={strongestId}
+              onViewSnapshot={setSnapshotListing}
             />
           </div>
         </>
       ) : (
-        <TableView listings={listings} strongestId={strongestId} />
+        <TableView
+          listings={listings}
+          strongestId={strongestId}
+          onViewSnapshot={setSnapshotListing}
+        />
       )}
+
+      {/* Saved-snapshot viewer — one instance per result page. The folder
+          icon in any row sets `snapshotListing`, which opens the drawer
+          focused on that listing's archived screenshot. */}
+      <SavedSnapshotDrawer
+        open={snapshotListing !== null}
+        onClose={() => setSnapshotListing(null)}
+        address={address}
+        listing={
+          snapshotListing
+            ? {
+                platformId: snapshotListing.platformId,
+                title: snapshotListing.title,
+                url: snapshotListing.url,
+                capturedAt,
+              }
+            : null
+        }
+      />
     </div>
   );
 }
@@ -884,7 +962,7 @@ const MATCH_TIER_VARIANT: Record<'high' | 'med' | 'low', any> = {
   low:  'verdict-low',
 };
 
-function TableView({ listings, strongestId }: { listings: ListingFlat[]; strongestId: string | null }) {
+function TableView({ listings, strongestId, onViewSnapshot }: { listings: ListingFlat[]; strongestId: string | null; onViewSnapshot: (listing: ListingFlat) => void }) {
   const COLUMNS: any[] = [
     {
       key: 'platform',
@@ -967,36 +1045,50 @@ function TableView({ listings, strongestId }: { listings: ListingFlat[]; stronge
       ),
     },
     {
-      key: 'open',
+      key: 'actions',
       label: '',
-      width: '72px',
+      width: '112px',
       align: 'right' as const,
       hideBelow: 'sm' as const,
       cell: (r: ListingFlat) => (
-        <a
-          href={r.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e: any) => e.stopPropagation()}
-          className="group inline-flex items-center gap-1 h-7 px-2 -mr-2 rounded-md text-caption font-semibold no-underline transition-colors hover:bg-hover-bg"
-          style={{ color: 'var(--brand-deep)' }}
-          aria-label={`Open ${r.title} on ${PLATFORM_PILL_LABEL[r.platformId]}`}
-        >
-          Open
-          <svg
-            viewBox="0 0 16 16"
-            className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
+        <div className="flex items-center justify-end gap-0.5 -mr-1.5">
+          <button
+            type="button"
+            aria-label={`View saved snapshot of ${r.title}`}
+            title="View saved snapshot"
+            onClick={(e: any) => {
+              e.stopPropagation();
+              onViewSnapshot(r);
+            }}
+            className="w-7 h-7 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors"
           >
-            <path d="M5 11 11 5" />
-            <path d="M6 5h5v5" />
-          </svg>
-        </a>
+            <Icon name="folder" size={13} />
+          </button>
+          <a
+            href={r.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e: any) => e.stopPropagation()}
+            className="group inline-flex items-center gap-1 h-7 px-1.5 rounded-md text-caption font-semibold no-underline transition-colors hover:bg-hover-bg"
+            style={{ color: 'var(--brand-deep)' }}
+            aria-label={`Open ${r.title} on ${PLATFORM_PILL_LABEL[r.platformId]}`}
+          >
+            Open
+            <svg
+              viewBox="0 0 16 16"
+              className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M5 11 11 5" />
+              <path d="M6 5h5v5" />
+            </svg>
+          </a>
+        </div>
       ),
     },
   ];
