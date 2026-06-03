@@ -501,17 +501,22 @@
   </section>
 
   <!-- ============================================================
-       5. Downloaded snapshot PDF — what the user gets as a file
-            when they click the download icon in the drawer. One
-            listing per PDF: header + metadata block + screenshot
-            with watermark strip + chain-of-custody footer.
+       5. Downloaded snapshot PDF — multi-page artifact. One PDF
+            per scan, one PAGE per captured listing. Backend stores
+            a single screenshot file for the scan, so the download
+            bundles every page into one file.
        ============================================================ -->
   <section class="w-full max-w-[1080px]">
-    <div class="mock-note text-eyebrow uppercase tracking-[0.16em] text-ink-3 mb-2">⑤ Downloaded snapshot PDF — one listing per file, evidence-grade artifact</div>
+    <div class="mock-note text-eyebrow uppercase tracking-[0.16em] text-ink-3 mb-2">⑤ Downloaded snapshot PDF — one file per scan, one page per listing</div>
 
+    <p class="mb-4 text-caption text-ink-3 leading-snug max-w-[680px] mx-auto text-center">
+      The download produces a single multi-page PDF. Halcyon chrome (mark + wordmark, scan ID, navy rule, verifiable footer) repeats on every page so a single sheet still stands alone as evidence if it's extracted from the bundle. The subject property and the platform vary per page.
+    </p>
+
+    <!-- ===== PAGE 1 (Airbnb · Cozy 3BR) ===== -->
     <div class="pdf-paper rounded-md mx-auto" style="max-width:680px;padding:40px 48px 28px;">
-      <!-- HEADER — Halcyon mark + wordmark on the left, scan ID + timestamp
-           + kind on the right. Mirrors CertificateSheet.tsx (`cert-head`). -->
+      <!-- HEADER — Halcyon mark + wordmark on the left; scan ID + timestamp
+           + document kind on the right. Mirrors CertificateSheet `cert-head`. -->
       <div class="flex items-start justify-between gap-6">
         <div class="flex items-center gap-3 min-w-0">
           <img src="docs/brand/halcyon-mark-v2.png" alt="" style="width:40px;height:40px;object-fit:contain" />
@@ -523,26 +528,31 @@
         <div class="text-right" style="line-height:1.45">
           <div class="font-mono" style="font-size:12px;font-weight:600;color:var(--navy);letter-spacing:0.04em">TO-9KP2MX38</div>
           <div class="font-mono tabular-nums" style="font-size:10px;color:var(--ink-3);margin-top:2px">2026-05-12 14:32 local</div>
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-3);font-weight:600;margin-top:2px">Listing Snapshot</div>
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-3);font-weight:600;margin-top:2px">Listings Snapshot</div>
         </div>
       </div>
 
       <!-- Navy 1pt rule — same as cert-rule -->
       <div class="cert-mock-rule mt-3"></div>
 
-      <!-- SUBJECT PROPERTY -->
+      <!-- SUBJECT PROPERTY — the address repeats on every page so any
+           single sheet identifies its property even when extracted. -->
       <section class="mt-5">
         <div class="cert-mock-eyebrow">Subject property</div>
         <div class="font-sans font-semibold leading-tight" style="font-size:18px;color:var(--navy);letter-spacing:-0.005em">9904 Blanda Ct NW</div>
         <div class="font-sans mt-1" style="font-size:11px;color:var(--ink-3)">Albuquerque, NM</div>
       </section>
 
-      <!-- LISTING — definition list of platform / title / URL / capture -->
+      <!-- LISTING — eyebrow names the page's position (1 of 4) and
+           displays the platform inline so the relevant platform is the
+           first thing the eye finds. -->
       <section class="mt-5">
-        <div class="cert-mock-eyebrow">Listing</div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="cert-mock-eyebrow" style="margin-bottom:0">Listing 1 of 4</span>
+          <span style="font-size:9px;color:var(--ink-3)">·</span>
+          <span class="inline-flex items-center h-5 px-1.5 rounded-sm font-sans font-semibold text-white" style="background:var(--airbnb);font-size:9.5px;letter-spacing:0.04em">AIRBNB</span>
+        </div>
         <dl class="grid gap-y-1.5" style="grid-template-columns:110px 1fr;font-size:12px;line-height:1.45;color:var(--ink)">
-          <dt style="color:var(--ink-3)">Platform</dt>
-          <dd class="m-0 font-medium">Airbnb</dd>
           <dt style="color:var(--ink-3)">Title</dt>
           <dd class="m-0 font-medium">Cozy 3BR Mountain View</dd>
           <dt style="color:var(--ink-3)">Original URL</dt>
@@ -552,12 +562,12 @@
         </dl>
       </section>
 
-      <!-- SCREENSHOT — small eyebrow above; brand-deep left accent matches
-           the verdict-band convention from the certificate. -->
+      <!-- SCREENSHOT — same brand-deep left accent as the certificate's
+           verdict-band; watermark strip baked into the frame. -->
       <section class="mt-5">
         <div class="cert-mock-eyebrow">Snapshot</div>
         <div class="overflow-hidden" style="border:1px solid var(--line);border-left:3px solid var(--brand-deep);border-radius:4px">
-          <div class="ph-stripe grid place-items-center" style="min-height:340px">
+          <div class="ph-stripe grid place-items-center" style="min-height:280px">
             <div class="text-center">
               <svg viewBox="0 0 16 16" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="mx-auto" style="color:var(--ink-3)" aria-hidden>
                 <path d="M2 5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>
@@ -565,8 +575,6 @@
               <p class="m-0 mt-2 font-sans" style="font-size:10px;color:var(--ink-3)">Listing screenshot — captured May 12, 2026</p>
             </div>
           </div>
-          <!-- Brand watermark strip — uses brand-tint (light teal) so the
-               snapshot stays self-identifying if cropped or shared separately. -->
           <div class="flex items-center justify-between" style="background:var(--brand-tint);border-top:1px solid var(--line);padding:6px 12px;font-size:9.5px;line-height:1.3">
             <span class="font-sans font-bold" style="color:var(--navy);letter-spacing:0.06em">HALCYON · TRUEOCCUPANCY</span>
             <span class="font-mono tabular-nums" style="color:var(--brand-deep)">airbnb.com/rooms/example-12848319 · 2026-05-12</span>
@@ -574,20 +582,94 @@
         </div>
       </section>
 
-      <!-- FOOTER — scan ID already shown in the header, so it's omitted
-           here. The verify URL is kept because it serves as the live
-           verification handle, not a duplicate display of the ID. -->
       <footer class="mt-6 pt-3 flex items-end justify-between gap-4" style="border-top:1px solid var(--line);line-height:1.4">
         <div style="font-size:10px;color:var(--ink-3)">
           <div>Verifiable at <span class="font-mono" style="color:var(--navy);font-weight:600;letter-spacing:0.04em">halcyon.app/verify/TO-9KP2MX38</span></div>
-          <div class="mt-1" style="color:var(--ink-4)">Generated 2026-06-02 09:14 local · Halcyon TrueOccupancy · halcyon.app</div>
+          <div class="mt-1" style="color:var(--ink-4)">Generated 2026-06-03 09:14 local · Halcyon TrueOccupancy · halcyon.app</div>
         </div>
-        <div class="font-mono tabular-nums" style="font-size:10px;color:var(--ink-3);letter-spacing:0.04em">Page 1 of 1</div>
+        <div class="font-mono tabular-nums" style="font-size:10px;color:var(--ink-3);letter-spacing:0.04em">Page 1 of 4</div>
+      </footer>
+    </div>
+
+    <!-- Page-break indicator — pure presentation, just to make the
+         multi-page nature obvious in the stacked mock. -->
+    <div class="mx-auto mt-4 mb-4 max-w-[680px] flex items-center gap-2">
+      <div class="h-px flex-1" style="background:var(--line)"></div>
+      <span class="font-mono text-caption text-ink-4" style="letter-spacing:0.08em">PAGE BREAK</span>
+      <div class="h-px flex-1" style="background:var(--line)"></div>
+    </div>
+
+    <!-- ===== PAGE 3 (Vrbo · Maplewood Retreat) — skipping page 2 in the
+              mock; identical chrome, different listing/platform. ===== -->
+    <div class="pdf-paper rounded-md mx-auto" style="max-width:680px;padding:40px 48px 28px;">
+      <div class="flex items-start justify-between gap-6">
+        <div class="flex items-center gap-3 min-w-0">
+          <img src="docs/brand/halcyon-mark-v2.png" alt="" style="width:40px;height:40px;object-fit:contain" />
+          <div style="line-height:1.1">
+            <div class="font-sans font-bold" style="font-size:20px;color:var(--navy);letter-spacing:-0.01em">Halcyon</div>
+            <div class="font-sans" style="font-size:11px;font-weight:500;color:var(--brand-deep);letter-spacing:0.02em;margin-top:2px">TrueOccupancy</div>
+          </div>
+        </div>
+        <div class="text-right" style="line-height:1.45">
+          <div class="font-mono" style="font-size:12px;font-weight:600;color:var(--navy);letter-spacing:0.04em">TO-9KP2MX38</div>
+          <div class="font-mono tabular-nums" style="font-size:10px;color:var(--ink-3);margin-top:2px">2026-05-12 14:32 local</div>
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-3);font-weight:600;margin-top:2px">Listings Snapshot</div>
+        </div>
+      </div>
+
+      <div class="cert-mock-rule mt-3"></div>
+
+      <section class="mt-5">
+        <div class="cert-mock-eyebrow">Subject property</div>
+        <div class="font-sans font-semibold leading-tight" style="font-size:18px;color:var(--navy);letter-spacing:-0.005em">9904 Blanda Ct NW</div>
+        <div class="font-sans mt-1" style="font-size:11px;color:var(--ink-3)">Albuquerque, NM</div>
+      </section>
+
+      <section class="mt-5">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="cert-mock-eyebrow" style="margin-bottom:0">Listing 3 of 4</span>
+          <span style="font-size:9px;color:var(--ink-3)">·</span>
+          <span class="inline-flex items-center h-5 px-1.5 rounded-sm font-sans font-semibold text-white" style="background:var(--vrbo);font-size:9.5px;letter-spacing:0.04em">VRBO</span>
+        </div>
+        <dl class="grid gap-y-1.5" style="grid-template-columns:110px 1fr;font-size:12px;line-height:1.45;color:var(--ink)">
+          <dt style="color:var(--ink-3)">Title</dt>
+          <dd class="m-0 font-medium">Maplewood Retreat</dd>
+          <dt style="color:var(--ink-3)">Original URL</dt>
+          <dd class="m-0 font-mono" style="color:var(--brand-link);word-break:break-all">https://vrbo.com/listing/example-2010932</dd>
+          <dt style="color:var(--ink-3)">Captured by</dt>
+          <dd class="m-0 font-medium">TrueOccupancy automated scan</dd>
+        </dl>
+      </section>
+
+      <section class="mt-5">
+        <div class="cert-mock-eyebrow">Snapshot</div>
+        <div class="overflow-hidden" style="border:1px solid var(--line);border-left:3px solid var(--brand-deep);border-radius:4px">
+          <div class="ph-stripe grid place-items-center" style="min-height:280px">
+            <div class="text-center">
+              <svg viewBox="0 0 16 16" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="mx-auto" style="color:var(--ink-3)" aria-hidden>
+                <path d="M2 5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>
+              </svg>
+              <p class="m-0 mt-2 font-sans" style="font-size:10px;color:var(--ink-3)">Listing screenshot — captured May 12, 2026</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between" style="background:var(--brand-tint);border-top:1px solid var(--line);padding:6px 12px;font-size:9.5px;line-height:1.3">
+            <span class="font-sans font-bold" style="color:var(--navy);letter-spacing:0.06em">HALCYON · TRUEOCCUPANCY</span>
+            <span class="font-mono tabular-nums" style="color:var(--brand-deep)">vrbo.com/listing/example-2010932 · 2026-05-12</span>
+          </div>
+        </div>
+      </section>
+
+      <footer class="mt-6 pt-3 flex items-end justify-between gap-4" style="border-top:1px solid var(--line);line-height:1.4">
+        <div style="font-size:10px;color:var(--ink-3)">
+          <div>Verifiable at <span class="font-mono" style="color:var(--navy);font-weight:600;letter-spacing:0.04em">halcyon.app/verify/TO-9KP2MX38</span></div>
+          <div class="mt-1" style="color:var(--ink-4)">Generated 2026-06-03 09:14 local · Halcyon TrueOccupancy · halcyon.app</div>
+        </div>
+        <div class="font-mono tabular-nums" style="font-size:10px;color:var(--ink-3);letter-spacing:0.04em">Page 3 of 4</div>
       </footer>
     </div>
 
     <p class="mt-3 text-caption text-ink-3 leading-snug max-w-[680px] mx-auto text-center">
-      Variant of <span class="font-mono">CertificateSheet</span> (per <span class="font-mono">docs/pdf-certificate-spec.md</span>): same header / navy rule / footer chrome as the existing certificate, listing-snapshot body in between. One PDF per listing.
+      Variant of <span class="font-mono">CertificateSheet</span> (per <span class="font-mono">docs/pdf-certificate-spec.md</span>) — shared header / navy rule / footer chrome with the existing certificate, multi-page snapshot body in between. The one-page rule in the spec is necessarily relaxed for this variant; the page count tracks the captured-listing count.
     </p>
   </section>
 
