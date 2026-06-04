@@ -1,17 +1,18 @@
 /* global React, Drawer, Button, Icon */
-// SavedSnapshotDrawer — rail-style viewer for the archived snapshot file
-// captured at scan time.
+// SavedSnapshotDrawer — single-listing snapshot viewer.
 //
-// Backend reality (locked Jun 3, 2026): one screenshot file per scan,
-// containing every listing. The drawer is opened from a single global
-// "Saved snapshots" entry above the Discovered listings — there is no
-// per-listing affordance. The left rail lets the user navigate within
-// the file by listing; the right pane previews whichever one is selected.
+// Opened from a per-row icon on the listings table (in ListingsPanel).
+// Each click drives the drawer with ONE listing — the row that was
+// clicked. There's no left rail, no cross-listing navigation: if the user
+// wants another snapshot, they close and click another row. The drawer
+// surface stays focused on one thing.
 //
-// Download is global (exports the whole file) and lives in the footer's
-// left slot, paired with Close on the right. Click is a no-op for now —
-// the PDF artifact extends CertificateSheet per
-// docs/pdf-certificate-spec.md and that variant lands in a follow-up.
+// Download lives inline next to the listing title (small icon button),
+// not in the footer, so the action sits adjacent to the artifact it acts
+// on. Hooks the existing CertificateSheet "snapshot" PDF variant as a
+// stand-in in the prototype. In production it should fetch the single
+// screenshot file for this listing from the backend — the drawer
+// signature won't change.
 
 type SnapshotPlatformId = 'airbnb' | 'vrbo' | 'fb';
 
@@ -20,16 +21,27 @@ interface SnapshotListing {
   title: string;
   /** Original platform URL — the live link that may have expired. */
   url: string;
+  /** Captured screenshot pixel dimensions; surface as "1440 × 2240" in
+   *  the placeholder caption when both are present. Optional so callers
+   *  without real metadata can omit and let the caption hide the line. */
+  width?: number;
+  height?: number;
+  /** Captured screenshot file size in bytes; rendered as KB/MB in the
+   *  caption. Optional for the same reason as the dimensions above. */
+  fileSizeBytes?: number;
 }
 
 interface SavedSnapshotDrawerProps {
   open: boolean;
   onClose: () => void;
-  /** Subject property's address; shown in the drawer header. */
+  /** Subject property's address; shown in the drawer header eyebrow. */
   address: string;
-  /** All listings captured in this scan. The first is selected on open. */
-  listings: SnapshotListing[];
-  /** Pre-formatted capture date label (e.g. "Jun 3, 2026"). */
+  /** The listing this drawer is showing. Caller sets it to the row that
+   *  was clicked; null while closed. Drawer renders nothing when null
+   *  even if `open` is true (defensive — shouldn't happen). */
+  listing: SnapshotListing | null;
+  /** Pre-formatted capture date label (e.g. "Jun 3, 2026"). Used in the
+   *  "Captured by TrueOccupancy on …" line and on the screenshot caption. */
   capturedAt: string;
 }
 
@@ -39,164 +51,191 @@ const PLATFORM_LABEL: Record<SnapshotPlatformId, string> = {
   fb: 'Facebook',
 };
 
-// Brand colors live in tokens.css (--airbnb / --vrbo / --fb).
+// Brand colors live in tokens.css (--airbnb / --vrbo / --fb). Matches the
+// per-row platform pill styling so the drawer reads as a continuation of
+// the listings table the user just clicked from.
 const PLATFORM_COLOR: Record<SnapshotPlatformId, string> = {
   airbnb: 'var(--airbnb)',
   vrbo: 'var(--vrbo)',
   fb: 'var(--fb)',
 };
 
-// Strip protocol + host so the rail's secondary line stays compact.
-function urlPath(url: string): string {
-  try {
-    const u = new URL(url);
-    return u.pathname.replace(/^\/+/, '');
-  } catch {
-    return url;
-  }
+// "412 KB" / "1.4 MB" — keep it short because the caption line is dense
+// already (dimensions sit on the same row). Anything under 1024 KB stays
+// in KB; above that we step to MB with one decimal place.
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${Math.round(kb)} KB`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(1)} MB`;
 }
 
 function SavedSnapshotDrawer({
   open,
   onClose,
   address,
-  listings,
+  listing,
   capturedAt,
 }: SavedSnapshotDrawerProps) {
-  const [selectedIdx, setSelectedIdx] = React.useState(0);
+  // Download — package this one listing into the cert "snapshot" variant
+  // and trigger the browser's print/save-as-PDF dialog. Single listing
+  // means a single-page PDF (the cert variant renders one page per item
+  // in the payload). Matches the dance in ScanContextBar.printCertificate:
+  // stash payload → dispatch variant flip event → two rAFs → window.print().
+  // CertificateSheet listens for the event and swaps to the snapshot
+  // body before the print snapshot is taken.
+  function downloadSnapshot() {
+    if (!listing) return;
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('certVariant', 'snapshot');
+      sessionStorage.setItem('certSnapshotAddress', address);
+      sessionStorage.setItem('certSnapshotCapturedAt', capturedAt);
+      sessionStorage.setItem(
+        'certSnapshotListings',
+        JSON.stringify([
+          {
+            platformId: listing.platformId,
+            platform: PLATFORM_LABEL[listing.platformId],
+            title: listing.title,
+            url: listing.url,
+          },
+        ]),
+      );
+    }
+    window.dispatchEvent(
+      new CustomEvent('halcyon:certvariant', { detail: 'snapshot' }),
+    );
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.print());
+    });
+  }
 
-  // Reset selection each time the drawer reopens so it starts at the top
-  // of the rail, matching the "fresh open" mental model.
-  React.useEffect(() => {
-    if (open) setSelectedIdx(0);
-  }, [open]);
+  // Defensive: `open` and `listing` track together at the call site, but
+  // belt-and-suspenders here means a transient mismatch can't render a
+  // broken drawer with no data.
+  if (!open || !listing) return null;
 
-  if (!open || listings.length === 0) return null;
-  const selected = listings[Math.min(selectedIdx, listings.length - 1)];
+  // Build the placeholder caption's meta line. Both halves are optional;
+  // when neither is present the line hides entirely so the placeholder
+  // doesn't read as half-filled.
+  const dims =
+    listing.width && listing.height
+      ? `${listing.width.toLocaleString()} × ${listing.height.toLocaleString()}`
+      : '';
+  const size =
+    typeof listing.fileSizeBytes === 'number'
+      ? formatFileSize(listing.fileSizeBytes)
+      : '';
+  const metaLine = [dims, size].filter(Boolean).join(' · ');
 
   return (
     <Drawer
       open={open}
       onClose={onClose}
-      width={760}
-      title={address}
-      footer={
+      width={680}
+      title={
+        // Eyebrow + address stacked. The Drawer wraps `title` in an h2, so
+        // both spans render inside the same heading — visually two lines
+        // but semantically one title for assistive tech.
         <>
-          <Button
-            variant="ghost"
-            icon={<Icon name="download" size={14} />}
-            aria-label="Download all snapshots"
-            title="Download all snapshots"
-            // No-op until the CertificateSheet "snapshot" variant ships
-            // (docs/pdf-certificate-spec.md — "Don't fork the template").
-            onClick={() => {}}
-          >
-            Download
-          </Button>
-          <Button variant="primary" onClick={onClose}>Close</Button>
-        </>
-      }
-    >
-      {/* Two-pane body — negative-margin out of the Drawer's body padding so
-          the rail can run edge-to-edge with a clean dividing line. */}
-      <div
-        className="grid -mx-surface-x -my-surface-y-b"
-        style={{ gridTemplateColumns: '220px 1fr', minHeight: 380 }}
-      >
-        {/* Left rail — listings */}
-        <nav
-          className="border-r border-line bg-surface-2/30 py-2 px-1.5"
-          aria-label="Choose a listing"
-        >
-          <div className="px-2.5 py-1.5 text-eyebrow uppercase tracking-[0.16em] text-ink-3 font-semibold">
-            {listings.length} {listings.length === 1 ? 'listing' : 'listings'} captured
-          </div>
-          {listings.map((l, i) => {
-            const active = i === selectedIdx;
-            return (
-              <button
-                key={l.url}
-                type="button"
-                onClick={() => setSelectedIdx(i)}
-                className="w-full flex items-start gap-2 px-2.5 py-2 rounded-md text-left mt-0.5 transition-colors hover:bg-hover-bg"
-                style={
-                  active
-                    ? {
-                        background: 'var(--brand-tint)',
-                        borderLeft: '2px solid var(--brand)',
-                      }
-                    : undefined
-                }
-              >
-                <span
-                  className="mt-1 w-2 h-2 rounded-full shrink-0"
-                  style={{ background: PLATFORM_COLOR[l.platformId] }}
-                  aria-hidden
-                />
-                <span className="min-w-0 flex-1">
-                  <span
-                    className="block font-sans text-label font-medium truncate"
-                    style={{ color: active ? 'var(--brand-deep)' : 'var(--ink)' }}
-                  >
-                    {PLATFORM_LABEL[l.platformId]} · {l.title}
-                  </span>
-                  <span className="block text-caption text-ink-3 truncate font-mono">
-                    {urlPath(l.url)}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Right pane — selected listing's metadata + screenshot */}
-        <div className="px-6 py-5 flex flex-col min-w-0">
-          {/* Metadata strip — no download here anymore; it's global in the
-              footer. */}
-          <div className="mb-stack-md">
-            <div className="flex items-center gap-2 min-w-0 mb-1">
-              <span
-                className="inline-flex items-center h-5 px-1.5 rounded-sm font-sans text-caption font-semibold text-white shrink-0"
-                style={{ background: PLATFORM_COLOR[selected.platformId] }}
-              >
-                {PLATFORM_LABEL[selected.platformId]}
-              </span>
-              <span
-                className="font-sans text-body-sm font-semibold truncate"
-                style={{ color: 'var(--navy)' }}
-              >
-                {selected.title}
-              </span>
-            </div>
-            <div className="font-mono text-caption text-ink-3 truncate" title={selected.url}>
-              {selected.url}
-            </div>
-            <div className="text-caption text-ink-3 mt-0.5">
-              Captured by TrueOccupancy on {capturedAt}.
-            </div>
-          </div>
-
-          {/* Screenshot placeholder — the real backend file lands here once
-              the per-scan screenshot URL is wired through. */}
-          <div
-            role="img"
-            aria-label={`Listing screenshot — captured ${capturedAt}`}
-            className="rounded-md border border-line grid place-items-center text-center flex-1"
+          <span
+            className="block font-sans uppercase tracking-[0.16em] font-semibold"
             style={{
-              minHeight: 280,
-              background:
-                'repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 8px, var(--surface) 8px, var(--surface) 16px)',
+              fontSize: 'var(--text-eyebrow)',
+              color: 'var(--ink-3)',
+              letterSpacing: '0.16em',
             }}
           >
-            <div>
-              <span className="inline-block text-ink-3 [&>svg]:w-7 [&>svg]:h-7" aria-hidden>
-                <Icon name="folder" size={28} />
-              </span>
-              <p className="m-0 mt-2 font-sans text-caption text-ink-3">
-                Listing screenshot · captured {capturedAt}
-              </p>
-            </div>
-          </div>
+            Saved snapshot
+          </span>
+          <span
+            className="block mt-1"
+            style={{ color: 'var(--navy)' }}
+          >
+            {address}
+          </span>
+        </>
+      }
+      footer={<Button variant="primary" onClick={onClose}>Close</Button>}
+    >
+      {/* Listing title row — platform pill + listing title on the left,
+          single-click download icon on the right. Adjacent to the
+          artifact it acts on, so the relationship is unambiguous. */}
+      <div className="flex items-start justify-between gap-3 mb-stack-md">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span
+            className="inline-flex items-center h-6 px-2 rounded-sm font-sans text-caption font-semibold text-white shrink-0"
+            style={{ background: PLATFORM_COLOR[listing.platformId] }}
+          >
+            {PLATFORM_LABEL[listing.platformId]}
+          </span>
+          <span
+            className="font-sans text-body font-semibold truncate"
+            style={{ color: 'var(--navy)' }}
+          >
+            {listing.title}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={downloadSnapshot}
+          aria-label="Download this snapshot"
+          title="Download this snapshot"
+          className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-md border border-line bg-surface text-ink-2 hover:bg-hover-bg hover:text-ink transition-colors cursor-pointer"
+        >
+          <Icon name="download" size={16} />
+        </button>
+      </div>
+
+      {/* URL + capture-source lines — quiet metadata, not competing with
+          the title row above. */}
+      <div className="mb-stack-md">
+        <div
+          className="font-mono text-caption text-ink-3 break-all"
+          title={listing.url}
+        >
+          {listing.url}
+        </div>
+        <div className="text-caption text-ink-3 mt-0.5">
+          Captured by TrueOccupancy on {capturedAt}.
+        </div>
+      </div>
+
+      {/* Screenshot placeholder — diagonal-stripe pattern + folder icon
+          stands in for the real <img> until the backend per-scan
+          screenshot URL is wired through the listing record. Aspect ratio
+          favors tall captures (most platform listing pages are scroll-
+          length screenshots), but the box also has a generous min-height
+          so short captures don't read as cramped. */}
+      <div
+        role="img"
+        aria-label={`Listing screenshot — captured ${capturedAt}`}
+        className="rounded-md border border-line grid place-items-center text-center"
+        style={{
+          minHeight: 420,
+          background:
+            'repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 8px, var(--surface) 8px, var(--surface) 16px)',
+        }}
+      >
+        <div className="px-4">
+          <span className="inline-block text-ink-3 [&>svg]:w-8 [&>svg]:h-8" aria-hidden>
+            <Icon name="folder" size={32} />
+          </span>
+          <p
+            className="m-0 mt-3 font-sans text-caption"
+            style={{ color: 'var(--ink-3)' }}
+          >
+            Listing screenshot · {capturedAt}
+          </p>
+          {metaLine && (
+            <p
+              className="m-0 mt-1 font-mono text-caption tabular-nums"
+              style={{ color: 'var(--ink-4)' }}
+            >
+              {metaLine}
+            </p>
+          )}
         </div>
       </div>
     </Drawer>

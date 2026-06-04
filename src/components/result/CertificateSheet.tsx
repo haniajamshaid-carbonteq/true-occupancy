@@ -13,12 +13,18 @@
 
 type CertScenarioKey = 'low' | 'medium' | 'high';
 
-/** Cert can render either as the single-scan certificate (default) or as a
- *  multi-row "Scan history report" that lists every prior single-property
- *  scan for the same address. The variant is picked by the caller right
- *  before triggering window.print() (sessionStorage.certVariant), so the
- *  two share one cert chrome and one print path. */
-type CertVariant = 'single' | 'history';
+/** Cert can render as:
+ *   - 'single'   — the single-scan certificate (default).
+ *   - 'history'  — a multi-row "Scan history report" of every prior
+ *                  single-property scan for the same address.
+ *   - 'snapshot' — the saved-snapshots archive: one row per listing
+ *                  captured at scan time, with the platform URL preserved
+ *                  as a clickable <a href>. Triggered by the Download
+ *                  button in SavedSnapshotDrawer.
+ *  The variant is picked by the caller right before triggering
+ *  window.print() (sessionStorage.certVariant), so all three share one
+ *  cert chrome and one print path. */
+type CertVariant = 'single' | 'history' | 'snapshot';
 
 interface CertificateSheetProps {
   scenario: CertScenarioKey;
@@ -413,6 +419,250 @@ function CertificateHistoryBody({
   );
 }
 
+type CertSnapshotPlatformId = 'airbnb' | 'vrbo' | 'fb';
+
+interface CertSnapshotListing {
+  /** Stable platform key — drives the tag color (airbnb red / vrbo blue /
+   *  fb blue). Falls back to a neutral chip if missing or unknown. */
+  platformId?: CertSnapshotPlatformId;
+  /** Display name of the platform: "Airbnb" / "Vrbo" / "Facebook". */
+  platform: string;
+  /** Listing title as shown in the drawer rail. */
+  title: string;
+  /** Original platform URL — preserved as <a href> so it survives the
+   *  browser's "Save as PDF" pipeline. */
+  url: string;
+}
+
+// "https://airbnb.com/rooms/example-12848319" → "airbnb.com/rooms/example-12848319"
+// Used by the per-listing strip footer where the prefix would push the URL
+// off the right edge of the page.
+function certSnapshotStripUrl(url: string): string {
+  return url.replace(/^https?:\/\//, '');
+}
+
+// Split a flat address on the first comma so the snapshot page can render
+// the street line large and the locality below it. Falls back to the whole
+// string when there's no comma so single-token addresses still print.
+function certSnapshotSplitAddress(addr: string): { street: string; locality: string } {
+  const idx = addr.indexOf(',');
+  if (idx < 0) return { street: addr.trim(), locality: '' };
+  return { street: addr.slice(0, idx).trim(), locality: addr.slice(idx + 1).trim() };
+}
+
+// "2026-05-12" — short ISO date for the per-listing strip footer. Derived
+// from `capturedAt` when it parses; falls back to the raw label so the
+// strip is never empty.
+function certSnapshotStripDate(capturedAt: string): string {
+  const d = new Date(capturedAt);
+  if (isNaN(d.getTime())) return capturedAt;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Snapshot variant — one full page per captured listing. Each page
+ *  carries the listing's platform tag, title, original URL (as a clickable
+ *  <a href> so it survives the browser's "Save as PDF" pipeline), capture
+ *  source line, the screenshot placeholder, and a per-listing footer strip.
+ *  When real screenshot URLs are wired through the backend, swap the
+ *  placeholder for an <img>. */
+function CertificateSnapshotBody({
+  address,
+  reference,
+  scanId,
+  timestamp,
+  capturedAt,
+  listings,
+}: {
+  address: string;
+  reference?: string;
+  scanId: string;
+  timestamp: string;
+  capturedAt: string;
+  listings: CertSnapshotListing[];
+}) {
+  const total = listings.length;
+  const { street, locality } = certSnapshotSplitAddress(address);
+  const stripDate = certSnapshotStripDate(capturedAt);
+
+  // Empty-state — render a single page so the PDF isn't blank if a scan
+  // happened to capture no listings. Matches the existing cert-empty copy.
+  if (total === 0) {
+    return (
+      <CertificateSnapshotPage
+        pageIndex={0}
+        total={1}
+        scanId={scanId}
+        reference={reference}
+        timestamp={timestamp}
+        street={street}
+        locality={locality}
+      >
+        <div className="cert-empty">
+          No listings were archived for this scan.
+        </div>
+      </CertificateSnapshotPage>
+    );
+  }
+
+  return (
+    <>
+      {listings.map((l, i) => (
+        <CertificateSnapshotPage
+          key={i}
+          pageIndex={i}
+          total={total}
+          scanId={scanId}
+          reference={reference}
+          timestamp={timestamp}
+          street={street}
+          locality={locality}
+        >
+          <div className="cert-snapshot-listing-head">
+            <span className="cert-snapshot-eyebrow">
+              Listing {i + 1} of {total}
+            </span>
+            <span className="cert-snapshot-sep">·</span>
+            <span
+              className={`cert-snapshot-tag${
+                l.platformId ? ` cert-snapshot-tag--${l.platformId}` : ''
+              }`}
+            >
+              {l.platform}
+            </span>
+          </div>
+
+          <dl className="cert-snapshot-fields">
+            <div className="cert-snapshot-field">
+              <dt>Title</dt>
+              <dd className="cert-snapshot-field-strong">{l.title}</dd>
+            </div>
+            <div className="cert-snapshot-field">
+              <dt>Original URL</dt>
+              <dd>
+                <a className="cert-snapshot-link" href={l.url}>{l.url}</a>
+              </dd>
+            </div>
+            <div className="cert-snapshot-field">
+              <dt>Captured by</dt>
+              <dd className="cert-snapshot-field-strong">
+                TrueOccupancy automated scan
+              </dd>
+            </div>
+          </dl>
+
+          <div className="cert-snapshot-shot-label">Snapshot</div>
+          <div
+            className="cert-snapshot-shot"
+            role="img"
+            aria-label={`Listing screenshot — captured ${capturedAt}`}
+          >
+            <svg
+              className="cert-snapshot-shot-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+            </svg>
+            <div className="cert-snapshot-shot-caption">
+              Listing screenshot — captured {capturedAt}
+            </div>
+          </div>
+
+          <div className="cert-snapshot-strip">
+            <span className="cert-snapshot-strip-brand">
+              Halcyon · TrueOccupancy
+            </span>
+            <span className="cert-snapshot-strip-meta">
+              {certSnapshotStripUrl(l.url)} · {stripDate}
+            </span>
+          </div>
+        </CertificateSnapshotPage>
+      ))}
+    </>
+  );
+}
+
+/** Single page in the snapshot archive — chrome (head + rule + property +
+ *  foot) is identical across every listing, so it lives here and the body
+ *  takes the per-listing content as children. The trailing page-break
+ *  class is what splits one .certificate-sheet per page when the browser
+ *  prints. */
+function CertificateSnapshotPage({
+  pageIndex,
+  total,
+  scanId,
+  reference,
+  timestamp,
+  street,
+  locality,
+  children,
+}: {
+  pageIndex: number;
+  total: number;
+  scanId: string;
+  reference?: string;
+  timestamp: string;
+  street: string;
+  locality: string;
+  children: React.ReactNode;
+}) {
+  const isLast = pageIndex === total - 1;
+  return (
+    <article
+      className={`certificate-sheet cert-snapshot-sheet${
+        isLast ? '' : ' cert-snapshot-sheet--break'
+      }`}
+    >
+      <header className="cert-head">
+        <div className="cert-head-left">
+          <img src="docs/brand/halcyon-mark-v2.png" alt="" className="cert-mark" />
+          <div className="cert-wordmark">
+            <div className="cert-brand">Halcyon</div>
+            <div className="cert-product">TrueOccupancy</div>
+          </div>
+        </div>
+        <div className="cert-head-right">
+          <div className="cert-id" aria-label={reference ? 'Reference' : 'Scan ID'}>
+            {reference || scanId}
+          </div>
+          <div className="cert-stamp">{timestamp}</div>
+          <div className="cert-kind">Listings Snapshot</div>
+        </div>
+      </header>
+
+      <div className="cert-rule" />
+
+      <section className="cert-property">
+        <div className="cert-eyebrow">Subject property</div>
+        <div className="cert-address">{street}</div>
+        {locality && <div className="cert-snapshot-locality">{locality}</div>}
+      </section>
+
+      {children}
+
+      <footer className="cert-foot">
+        <div className="cert-foot-left">
+          <div className="cert-foot-line">
+            Verifiable at <span className="mono">halcyon.app/verify/{scanId}</span>
+          </div>
+          <div className="cert-foot-line muted">
+            Generated {timestamp} · Halcyon TrueOccupancy · halcyon.app
+          </div>
+        </div>
+        <div className="cert-foot-right">
+          Page {pageIndex + 1} of {total}
+        </div>
+      </footer>
+    </article>
+  );
+}
+
 function CertificateSheet({ scenario, address, kind, reference }: CertificateSheetProps) {
   const resolvedAddress =
     address ||
@@ -443,14 +693,22 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
     // in beforeprint) gives React time to commit the state change and the
     // browser time to paint before the print snapshot is taken.
     const onVariant = (e: any) => {
-      const v = e?.detail === 'history' ? 'history' : 'single';
+      const d = e?.detail;
+      const v: CertVariant = d === 'history' ? 'history' : d === 'snapshot' ? 'snapshot' : 'single';
       setVariant(v);
     };
     const onBeforePrint = () => {
       setTimestamp(certTimestamp(new Date()));
     };
     const onAfterPrint = () => {
-      if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('certVariant');
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('certVariant');
+        // Snapshot payload is single-shot — drop it after print so the next
+        // download doesn't pick up a stale listing set.
+        sessionStorage.removeItem('certSnapshotAddress');
+        sessionStorage.removeItem('certSnapshotListings');
+        sessionStorage.removeItem('certSnapshotCapturedAt');
+      }
       setVariant('single');
     };
     window.addEventListener('halcyon:certvariant', onVariant as EventListener);
@@ -484,6 +742,26 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
     });
   }, [variant, resolvedAddress, getHistoryForAddress]);
 
+  // Snapshot payload — listings + capture date come through sessionStorage,
+  // written by SavedSnapshotDrawer immediately before the variant flip.
+  // Parsed lazily so an empty/invalid payload renders an empty-state row
+  // rather than throwing on print.
+  const snapshotPayload = React.useMemo(() => {
+    if (variant !== 'snapshot' || typeof sessionStorage === 'undefined') {
+      return { address: resolvedAddress, capturedAt: '', listings: [] as CertSnapshotListing[] };
+    }
+    const addr = sessionStorage.getItem('certSnapshotAddress') || resolvedAddress;
+    const capturedAt = sessionStorage.getItem('certSnapshotCapturedAt') || '';
+    let listings: CertSnapshotListing[] = [];
+    try {
+      const raw = sessionStorage.getItem('certSnapshotListings');
+      if (raw) listings = JSON.parse(raw) as CertSnapshotListing[];
+    } catch {
+      /* malformed payload — render empty-state */
+    }
+    return { address: addr, capturedAt, listings };
+  }, [variant, resolvedAddress]);
+
   if (typeof document === 'undefined') return null;
 
   return ReactDOM.createPortal(
@@ -495,6 +773,15 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
           scanId={scanId}
           timestamp={timestamp}
           rows={historyRows}
+        />
+      ) : variant === 'snapshot' ? (
+        <CertificateSnapshotBody
+          address={snapshotPayload.address}
+          reference={resolvedReference}
+          scanId={scanId}
+          timestamp={timestamp}
+          capturedAt={snapshotPayload.capturedAt}
+          listings={snapshotPayload.listings}
         />
       ) : (
         <CertificateBody

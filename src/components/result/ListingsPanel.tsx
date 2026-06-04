@@ -45,6 +45,78 @@ interface ListingsPanelProps {
   scenario: 'low' | 'medium' | 'high';
 }
 
+// --- snapshot payload type -----------------------------------------------
+// Mirrors SnapshotListing in SavedSnapshotDrawer. Declared here so the
+// drawer state can hold a single item without `typeof someLocalConst`
+// gymnastics, and so the per-row callbacks can pass a fully-typed payload
+// instead of just a URL string.
+
+interface SnapshotPayloadItem {
+  platformId: 'airbnb' | 'vrbo' | 'fb';
+  title: string;
+  url: string;
+  /** Synthesized in the prototype (deterministic per URL); real values
+   *  flow in from the backend once per-snapshot metadata is wired. */
+  width: number;
+  height: number;
+  fileSizeBytes: number;
+}
+
+// djb2-style hash, kept inline. Used to derive plausible — and stable
+// across renders — pixel dimensions / file sizes for the prototype's
+// snapshot placeholder caption ("1440 × 2240 · 412 KB"). Same listing
+// URL ⇒ same numbers every time, so the design reads consistently.
+function snapshotHash(input: string): number {
+  let h = 5381;
+  for (let i = 0; i < input.length; i++) h = ((h << 5) + h) ^ input.charCodeAt(i);
+  return Math.abs(h);
+}
+
+function synthesizeSnapshotMeta(url: string): {
+  width: number;
+  height: number;
+  fileSizeBytes: number;
+} {
+  // Width: pin to a small set of plausible viewport widths so the captions
+  // read like real screenshots rather than random numbers.
+  const widths = [1280, 1366, 1440, 1512];
+  const h = snapshotHash(url);
+  const width = widths[h % widths.length];
+  // Height: scroll-length capture, 1.4–1.9× width (most listing pages).
+  const heightMul = 1.4 + ((h >> 4) % 60) / 100;
+  const height = Math.round((width * heightMul) / 8) * 8;
+  // File size: 200 KB – 900 KB (PNG of a tall page compresses about there).
+  const fileSizeBytes = (200 + ((h >> 8) % 700)) * 1024;
+  return { width, height, fileSizeBytes };
+}
+
+// --- per-row snapshot affordance -----------------------------------------
+// Quiet eye icon used in three places: Table view row, Desktop matrix
+// action row, and Mobile accordion footer. Stays low-saturation on purpose
+// so the table's primary read (match + confidence) keeps priority — the
+// icon should say "evidence available, click if you want it" without
+// competing with the actual finding data.
+
+function SnapshotIconButton({
+  onClick,
+  label = 'View snapshot',
+}: {
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors bg-transparent border-0 cursor-pointer"
+    >
+      <Icon name="eye" size={15} />
+    </button>
+  );
+}
+
 // --- match-tier label ----------------------------------------------------
 
 const MATCH_LABEL: Record<'high' | 'med' | 'low', string> = {
@@ -313,10 +385,12 @@ function DesktopMatrix({
   listings,
   rows,
   strongestId,
+  onSnapshot,
 }: {
   listings: ListingFlat[];
   rows: DiffRow[];
   strongestId: string | null;
+  onSnapshot: (url: string) => void;
 }) {
   const cols = `200px repeat(${listings.length}, minmax(180px, 1fr))`;
 
@@ -452,21 +526,31 @@ function DesktopMatrix({
             </React.Fragment>
           ))}
 
-          {/* Action row */}
+          {/* Action row — Open (external) on the right, snapshot eye icon
+              tucked just to its left so the two evidence verbs ("view
+              listing on platform" / "view captured snapshot") stay
+              adjacent without competing for visual weight. */}
           <div className="px-4 py-3 border-t border-line sticky left-0 z-10 bg-surface" />
           {listings.map((l, i) => (
             <div
               key={`a-${i}`}
-              className="border-t border-l border-line px-3 py-3"
+              className="border-t border-l border-line px-3 py-3 flex items-center gap-1"
               style={{
                 background: isStrong(i) ? 'var(--brand-tint)' : undefined,
               }}
             >
+              <SnapshotIconButton
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSnapshot(l.url);
+                }}
+                label={`View snapshot — ${l.title}`}
+              />
               <a
                 href={l.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center gap-1 h-7 px-2 -ml-2 rounded-md text-caption font-semibold no-underline transition-colors hover:bg-hover-bg"
+                className="group inline-flex items-center gap-1 h-7 px-2 rounded-md text-caption font-semibold no-underline transition-colors hover:bg-hover-bg"
                 style={{ color: 'var(--brand-deep)' }}
               >
                 Open
@@ -598,10 +682,12 @@ function MobileStack({
   listings,
   rows,
   strongestId,
+  onSnapshot,
 }: {
   listings: ListingFlat[];
   rows: DiffRow[];
   strongestId: string | null;
+  onSnapshot: (url: string) => void;
 }) {
   const [openId, setOpenId] = React.useState<string | null>(
     listings[0]?.url || null
@@ -691,7 +777,14 @@ function MobileStack({
                     />
                   );
                 })}
-                <div className="pt-3 mt-3 border-t border-line text-right">
+                <div className="pt-3 mt-3 border-t border-line flex items-center justify-between gap-2">
+                  <SnapshotIconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSnapshot(l.url);
+                    }}
+                    label={`View snapshot — ${l.title}`}
+                  />
                   <a
                     href={l.url}
                     target="_blank"
@@ -724,12 +817,6 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
   const rows = buildRows(listings);
   const [view, setView] = React.useState<'comparison' | 'table'>('comparison');
 
-  // Saved-snapshot drawer state. The backend stores ONE screenshot file
-  // per scan (containing all listings), so the drawer is opened from a
-  // single global entry above the table — not per-listing — and shows the
-  // whole set inside via a left rail.
-  const [snapshotOpen, setSnapshotOpen] = React.useState(false);
-
   // Capture date stub. The real backend stores a per-snapshot timestamp;
   // until that's wired through the listing record we display today's date
   // so the metadata strip reads correctly. Memoized so it doesn't shift
@@ -754,39 +841,49 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
     return PROPERTY.address;
   }, []);
 
-  // Snapshot drawer payload — derived once from the current listings, then
-  // passed wholesale to the drawer (the backend stores one screenshot file
-  // per scan, so all listings travel together).
-  const snapshotPayload = listings.map((l) => ({
-    platformId: l.platformId,
-    title: l.title,
-    url: l.url,
-  }));
+  // Snapshot payload — one entry per captured listing, carrying the
+  // synthesized image metadata the drawer caption needs ("1440 × 2240 ·
+  // 412 KB"). Memoized so the snapshotHash-derived numbers don't shift on
+  // every render and so the drawer's `listing` prop has a stable identity
+  // while the drawer is open.
+  const snapshotPayload = React.useMemo<SnapshotPayloadItem[]>(
+    () =>
+      listings.map((l) => ({
+        platformId: l.platformId,
+        title: l.title,
+        url: l.url,
+        ...synthesizeSnapshotMeta(l.url),
+      })),
+    [listings],
+  );
+
+  // Saved-snapshot drawer state. Entry points are per-listing — every
+  // row / matrix column / mobile accordion carries an eye icon. Clicking
+  // it sets `activeSnapshot` to that listing's snapshot payload; the
+  // drawer renders it standalone (no rail, no cross-navigation). null
+  // doubles as the closed state.
+  const [activeSnapshot, setActiveSnapshot] = React.useState<SnapshotPayloadItem | null>(null);
+  const openSnapshotFor = React.useCallback(
+    (url: string) => {
+      const found = snapshotPayload.find((l) => l.url === url) || null;
+      setActiveSnapshot(found);
+    },
+    [snapshotPayload],
+  );
+  const closeSnapshot = React.useCallback(() => setActiveSnapshot(null), []);
 
   return (
     <div>
-      {/* Section heading + view tabs + global "Saved snapshots" entry.
-          The button only shows when there's at least one captured listing
-          to view (mirrors the Tabs visibility). */}
+      {/* Section heading + view tabs. Snapshot entry is per-row, on each
+          listing row / matrix column / mobile card — not a section-level
+          affordance — so the heading stays clean. */}
       <div className="mt-7 sm:mt-9 mb-4">
-        <div className="flex items-start justify-between gap-3">
-          <h2
-            className="font-sans font-semibold text-h4 sm:text-h3 tracking-[-0.005em] m-0"
-            style={{ color: 'var(--navy)' }}
-          >
-            Property Listings
-          </h2>
-          {listings.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setSnapshotOpen(true)}
-              className="shrink-0 inline-flex items-center gap-2 h-9 px-3 rounded-md text-label font-medium text-ink-2 hover:bg-hover-bg hover:text-ink transition-colors"
-            >
-              <Icon name="folder" size={14} />
-              <span>View listings snapshot</span>
-            </button>
-          )}
-        </div>
+        <h2
+          className="font-sans font-semibold text-h4 sm:text-h3 tracking-[-0.005em] m-0"
+          style={{ color: 'var(--navy)' }}
+        >
+          Property Listings
+        </h2>
         {listings.length > 0 && (
           <div className="mt-3">
             <Tabs
@@ -825,6 +922,7 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
               listings={listings}
               rows={rows}
               strongestId={strongestId}
+              onSnapshot={openSnapshotFor}
             />
           </div>
           {/* Mobile: accordion stack */}
@@ -833,6 +931,7 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
               listings={listings}
               rows={rows}
               strongestId={strongestId}
+              onSnapshot={openSnapshotFor}
             />
           </div>
         </>
@@ -840,17 +939,20 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
         <TableView
           listings={listings}
           strongestId={strongestId}
+          onSnapshot={openSnapshotFor}
         />
       )}
 
-      {/* Saved-snapshot viewer — one instance per result page. The global
-          entry above sets `snapshotOpen`; the drawer's left rail then
-          navigates within the one screenshot file the backend captured. */}
+      {/* Saved-snapshot viewer — one instance per result page. Per-row eye
+          icons in the three views call `openSnapshotFor(url)`, which
+          finds the matching payload entry and stashes it as
+          `activeSnapshot`. The drawer shows that one listing standalone;
+          closing it resets back to null. */}
       <SavedSnapshotDrawer
-        open={snapshotOpen}
-        onClose={() => setSnapshotOpen(false)}
+        open={activeSnapshot !== null}
+        onClose={closeSnapshot}
         address={address}
-        listings={snapshotPayload}
+        listing={activeSnapshot}
         capturedAt={capturedAt}
       />
     </div>
@@ -953,7 +1055,15 @@ const MATCH_TIER_VARIANT: Record<'high' | 'med' | 'low', any> = {
   low:  'verdict-low',
 };
 
-function TableView({ listings, strongestId }: { listings: ListingFlat[]; strongestId: string | null }) {
+function TableView({
+  listings,
+  strongestId,
+  onSnapshot,
+}: {
+  listings: ListingFlat[];
+  strongestId: string | null;
+  onSnapshot: (url: string) => void;
+}) {
   const COLUMNS: any[] = [
     {
       key: 'platform',
@@ -1033,6 +1143,22 @@ function TableView({ listings, strongestId }: { listings: ListingFlat[]; stronge
       hideBelow: 'lg' as const,
       cell: (r: ListingFlat) => (
         <span className="font-mono tabular-nums text-caption text-ink-3">{r.firstSeen}</span>
+      ),
+    },
+    {
+      key: 'snapshot',
+      label: '',
+      width: '44px',
+      align: 'center' as const,
+      hideBelow: 'sm' as const,
+      cell: (r: ListingFlat) => (
+        <SnapshotIconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            onSnapshot(r.url);
+          }}
+          label={`View snapshot — ${r.title}`}
+        />
       ),
     },
     {

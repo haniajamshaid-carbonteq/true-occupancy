@@ -334,6 +334,163 @@
   letter-spacing: 0.04em;
 }
 
+/* === Snapshot archive variant =======================================
+ *  One .certificate-sheet per captured listing. Chrome (head, rule,
+ *  property, foot) is shared with the single-scan cert; the per-listing
+ *  body adds platform tag, label/value fields, screenshot placeholder,
+ *  and a strip footer.
+ *  Multi-page: each sheet but the last carries .cert-snapshot-sheet--break
+ *  which forces a page break after it. Inside-page splits are blocked by
+ *  the existing print rule on .certificate-sheet (page-break-inside: avoid).
+ */
+.certificate-sheet.cert-snapshot-sheet {
+  /* Snapshot pages need a touch more breathing room between sections than
+     the dense single-scan cert. Override the parent's tight gap. */
+  gap: 16pt;
+}
+.certificate-sheet .cert-snapshot-locality {
+  margin-top: 2pt;
+  font-size: 10pt;
+  color: var(--ink-3);
+  letter-spacing: 0.005em;
+}
+
+/* --- Listing head row: "LISTING N OF M · [TAG]" --- */
+.certificate-sheet .cert-snapshot-listing-head {
+  display: flex;
+  align-items: center;
+  gap: 8pt;
+  margin-top: -2pt;
+}
+.certificate-sheet .cert-snapshot-eyebrow {
+  text-transform: uppercase;
+  font-size: 8pt;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.certificate-sheet .cert-snapshot-sep {
+  color: var(--ink-4);
+  font-size: 9pt;
+}
+.certificate-sheet .cert-snapshot-tag {
+  display: inline-block;
+  padding: 2pt 7pt 2.5pt;
+  border-radius: 3pt;
+  background: var(--ink-3);
+  color: #FFFFFF;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.certificate-sheet .cert-snapshot-tag--airbnb { background: var(--airbnb); }
+.certificate-sheet .cert-snapshot-tag--vrbo   { background: var(--vrbo); }
+.certificate-sheet .cert-snapshot-tag--fb     { background: var(--fb); }
+
+/* --- Fields block: Title / Original URL / Captured by --- */
+.certificate-sheet .cert-snapshot-fields {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8pt;
+}
+.certificate-sheet .cert-snapshot-field {
+  display: grid;
+  grid-template-columns: 90pt 1fr;
+  gap: 12pt;
+  align-items: baseline;
+}
+.certificate-sheet .cert-snapshot-field dt {
+  font-size: 9.5pt;
+  color: var(--ink-3);
+  font-weight: 500;
+  margin: 0;
+}
+.certificate-sheet .cert-snapshot-field dd {
+  margin: 0;
+  font-size: 10pt;
+  color: var(--ink);
+  line-height: 1.4;
+  word-break: break-word;
+}
+.certificate-sheet .cert-snapshot-field-strong {
+  color: var(--navy);
+  font-weight: 600;
+}
+.certificate-sheet .cert-snapshot-link {
+  font-family: var(--mono);
+  color: var(--brand-deep);
+  text-decoration: none;
+  word-break: break-all;
+  font-size: 9.5pt;
+}
+
+/* --- Screenshot block --- */
+.certificate-sheet .cert-snapshot-shot-label {
+  margin-top: 4pt;
+  text-transform: uppercase;
+  font-size: 8pt;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.certificate-sheet .cert-snapshot-shot {
+  border: 0.75pt solid var(--line);
+  border-left: 3pt solid var(--brand-deep);
+  border-radius: 4pt;
+  /* Placeholder pattern matches the drawer's right-pane preview so the
+     printed page reads as the same artifact, just on paper. Real backend
+     screenshots replace this with an <img>. */
+  background:
+    repeating-linear-gradient(135deg,
+      var(--surface-2) 0,
+      var(--surface-2) 6pt,
+      #FFFFFF 6pt,
+      #FFFFFF 12pt);
+  min-height: 280pt;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6pt;
+  color: var(--ink-3);
+}
+.certificate-sheet .cert-snapshot-shot-icon {
+  width: 22pt;
+  height: 22pt;
+}
+.certificate-sheet .cert-snapshot-shot-caption {
+  font-size: 9pt;
+  color: var(--ink-3);
+}
+
+/* --- Per-listing strip footer (sits just above the doc footer) --- */
+.certificate-sheet .cert-snapshot-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12pt;
+  background: var(--surface-2);
+  border-radius: 3pt;
+  padding: 6pt 10pt;
+  margin-top: 6pt;
+  font-size: 8pt;
+}
+.certificate-sheet .cert-snapshot-strip-brand {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--navy);
+}
+.certificate-sheet .cert-snapshot-strip-meta {
+  font-family: var(--mono);
+  color: var(--ink-3);
+  letter-spacing: 0.01em;
+  word-break: break-all;
+  text-align: right;
+}
+
 /* === Print-only overrides =========================================== */
 @media print {
   @page {
@@ -361,6 +518,14 @@
     padding: 0;
     box-shadow: none !important;
     page-break-inside: avoid;
+  }
+  /* Snapshot archive — each listing is its own page. The ...--break
+     modifier sits on every sheet except the last, so we force a page
+     break after it (both legacy and modern properties so Chromium,
+     Safari, and Firefox all comply). */
+  .certificate-sheet.cert-snapshot-sheet--break {
+    page-break-after: always;
+    break-after: page;
   }
   /* Keep links clickable but not styled with browser-default underlines. */
   .certificate-sheet a { text-decoration: none; }
