@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>True Occupancy — States Spec</title>
+<title>True Occupancy — Notification Dock</title>
 
 <!-- Same font set as design-spec.html so the type-pairing toggle works here too. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -70,28 +70,6 @@
           micro:     ['var(--text-micro)',   { lineHeight: '1.3' }],
           eyebrow:   ['var(--text-eyebrow)', { lineHeight: '1.2' }],
         },
-        spacing: {
-          'inline-tight': 'var(--pad-inline-tight)',
-          'inline':       'var(--pad-inline)',
-          'inline-loose': 'var(--pad-inline-loose)',
-          'control-x':    'var(--pad-control-x)',
-          'control-y':    'var(--pad-control-y)',
-          'cell-x':       'var(--pad-cell-x)',
-          'cell-y':       'var(--pad-cell-y)',
-          'card':          'var(--pad-card)',
-          'card-tight':    'var(--pad-card-tight)',
-          'card-loose':    'var(--pad-card-loose)',
-          'surface-x':     'var(--pad-surface-x)',
-          'surface-y-h':   'var(--pad-surface-y-header)',
-          'surface-y-b':   'var(--pad-surface-y-body)',
-          'surface-y-f':   'var(--pad-surface-y-footer)',
-          'stack-tight':   'var(--gap-stack-tight)',
-          'stack-md':      'var(--gap-stack-md)',
-          'stack':         'var(--gap-stack)',
-          'section-tight': 'var(--gap-section-tight)',
-          'section-sub':   'var(--gap-section-sub)',
-          'section':       'var(--gap-section)',
-        },
       },
     },
   };
@@ -103,7 +81,7 @@
   #boot-status { position: fixed; left: 16px; bottom: 16px; font: 12px/1.4 ui-monospace, monospace; color: var(--ink-3); background: var(--surface); border: 1px solid var(--line); padding: 6px 10px; border-radius: 6px; box-shadow: var(--shadow-sm); z-index: 9999; }
   #boot-status.error { color: var(--error-ink); background: var(--error-soft); border-color: transparent; }
 
-  /* Spec-canvas chrome — same primitives as design-spec.html. */
+  /* Spec-canvas chrome — same primitives as states-spec.html. */
   .spec-canvas { padding: 80px 64px 120px; max-width: 1840px; margin: 0 auto; }
 
   .spec-header { max-width: 900px; margin-bottom: 60px; }
@@ -124,33 +102,20 @@
   .screen-meta { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
   .screen-meta .label { font-family: var(--mono); font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .08em; color: var(--brand); }
   .screen-meta h3 { font-family: var(--serif); font-size: var(--text-h3); font-weight: 600; margin: 0; }
-  .screen-meta .dim { font-family: var(--mono); font-size: var(--text-micro); color: var(--ink-4); margin-left: auto; }
   .screen-meta .desc { font-size: var(--text-label); color: var(--ink-3); width: 100%; line-height: 1.5; max-width: 80ch; }
 
+  /* Notification-dock stages need overflow: visible so expanded / multi-task
+     variants can poke out of the stage rather than getting clipped — the
+     bug that drove this page's existence. The inline style on DockStage
+     already sets it; this rule mirrors that for the !important specificity
+     story so no future CSS edit silently re-clips. */
   .screen-frame {
     border: 1px solid var(--line-strong);
     border-radius: 14px;
     background: var(--bg);
-    overflow: hidden;
+    overflow: visible !important;
     box-shadow: 0 24px 64px -32px rgba(28, 27, 23, .18), 0 4px 8px -2px rgba(28, 27, 23, .04);
   }
-  .screen-frame .browser-bar {
-    height: 38px;
-    background: #EFECE3;
-    border-bottom: 1px solid var(--line);
-    display: flex;
-    align-items: center;
-    padding: 0 16px;
-    gap: 8px;
-  }
-  .browser-bar .dots { display: flex; gap: 6px; }
-  .browser-bar .dots span { width: 11px; height: 11px; border-radius: 50%; }
-  .browser-bar .dots span:nth-child(1) { background: #E6604F; }
-  .browser-bar .dots span:nth-child(2) { background: #E5A93A; }
-  .browser-bar .dots span:nth-child(3) { background: #5BB35C; }
-  .browser-bar .url { flex: 1; height: 22px; border-radius: 6px; background: rgba(255, 255, 255, .6); border: 1px solid var(--line); display: flex; align-items: center; padding: 0 10px; font-family: var(--mono); font-size: var(--text-micro); color: var(--ink-3); margin: 0 80px; }
-
-  .screen-canvas { transform-origin: top left; }
 
   .nav-anchor {
     position: sticky;
@@ -185,76 +150,34 @@
 
 <script>
 /*
- * Bootstrap: same compile-and-inject pipeline as app.html / design-spec.html.
- * Includes src/state/AppState.tsx because StatesSpecApp uses AppStateContext.
- * Each Screen is wrapped in MockAppStateProvider with controlled values
- * so the real production pages render their loading / empty / error
- * variants without a backend.
+ * Bootstrap: same compile-and-inject pipeline as app.html / states-spec.html.
+ * Trimmed load list — we only need what the NotificationDock and its primitives
+ * touch. AppState is included because NotificationDock uses useAppState; the
+ * stages wrap each frame in a MockAppStateProvider so the spec-gallery branch
+ * runs without a live provider.
  */
 (async () => {
   const status = document.getElementById('boot-status');
   const files = [
-    // 1. Domain
+    // 1. Domain — needed by aiInvestigation, which exports useAIInvestigator
+    //    and startAIInvestigation (NotificationDock declares them as globals).
     'src/data/scenarios.tsx',
     'src/data/aiInvestigation.tsx',
-    // 2. Real AppState — needed so AppStateContext exists in scope and
-    //    consumers of useAppState() still resolve.
+    // 2. Real AppState — the NotificationDock's live flavour calls
+    //    useAppState(); even when notifications are forced via prop, the
+    //    hook still resolves at render time.
     'src/state/AppState.tsx',
-    // 3. Primitives (mirrors app.html load order)
+    // 3. Primitives the dock depends on.
     'src/components/ui/Icons.tsx',
-    'src/components/ui/Button.tsx',
-    'src/components/ui/Pill.tsx',
-    'src/components/ui/Card.tsx',
-    'src/components/ui/Modal.tsx',
-    'src/components/ui/Drawer.tsx',
-    'src/components/ui/ChipRow.tsx',
-    'src/components/ui/DateRangePicker.tsx',
-    'src/components/ui/Tabs.tsx',
-    'src/components/ui/Input.tsx',
-    'src/components/ui/EditableTitle.tsx',
-    'src/components/ui/Checkbox.tsx',
-    'src/components/ui/RiskBadge.tsx',
-    'src/components/ui/SearchBar.tsx',
-    'src/components/ui/CommandSearch.tsx',
-    'src/components/ui/CommandPalette.tsx',
-    'src/components/ui/Avatar.tsx',
-    'src/components/ui/Keycap.tsx',
-    'src/components/ui/TableSkeleton.tsx',
-    'src/components/ui/DataTable.tsx',
-    'src/components/ui/ScreenEmpty.tsx',
-    'src/components/ui/ScreenError.tsx',
-    'src/components/ui/MetricCard.tsx',
-    'src/components/ui/DropdownMenu.tsx',
-    'src/components/ui/BatchHugCard.tsx',
-    // 4. Structural
-    'src/components/SideNav.tsx',
-    'src/components/AppShell.tsx',
-    'src/components/PageHeader.tsx',
-    'src/components/ScanContextBar.tsx',
-    // Per-status scope primitives — load BEFORE AutomateModal (which uses
-    // StatusPillSelector + AutomationScopeCard).
-    'src/components/StatusPillSelector.tsx',
-    'src/components/AutomationScopeCard.tsx',
-    'src/components/AutomateModal.tsx',
-    'src/components/AutomationControl.tsx',
-    'src/components/VerdictTiles.tsx',
-    // 5. Result module (used by AI Investigator state matrix in states-spec)
-    'src/components/result/AIInvestigator.tsx',
-    // 5b. Notification Dock (Dynamic-Island-style) — Section 07.
-    //     Load order: Row first (consumed by Stack), Stack + Pill, then Dock.
+    // 4. Notification stack — load order matters (Row → Stack → Pill → Dock).
     'src/components/notification/NotificationRow.tsx',
     'src/components/notification/NotificationStack.tsx',
     'src/components/notification/NotificationPill.tsx',
     'src/components/notification/NotificationDock.tsx',
-    // 6. Pages used by the states spec
-    'src/pages/HomeScreen.tsx',
-    'src/pages/HistoryScreen.tsx',
-    'src/pages/ScheduledScreen.tsx',
-    'src/pages/ScheduleDetailScreen.tsx',
-    // 7. Spec canvas + mock provider + states-spec entry
+    // 5. Spec canvas + mock provider + the new entry.
     'src/spec/SpecCanvas.tsx',
     'src/spec/MockAppStateProvider.tsx',
-    'src/spec/StatesSpecApp.tsx',
+    'src/spec/NotificationDockSpecApp.tsx',
   ];
 
   const compileOpts = {
@@ -284,12 +207,12 @@
       inject(code, path);
     }
     status.textContent = 'Mounting…';
-    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(StatesSpecApp));
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(NotificationDockSpecApp));
     status.remove();
   } catch (err) {
     status.className = 'error';
     status.textContent = 'Boot error — see console';
-    console.error('[states-spec.html] boot failed:', err);
+    console.error('[notification-dock.html] boot failed:', err);
   }
 })();
 </script>
