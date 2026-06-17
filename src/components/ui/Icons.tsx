@@ -4,7 +4,7 @@
 
 type IconName =
   | 'search' | 'history' | 'flag' | 'globe' | 'pdf' | 'settings'
-  | 'check' | 'x' | 'alert' | 'info' | 'chevron'
+  | 'check' | 'x' | 'alert' | 'warning' | 'info' | 'chevron'
   | 'pin' | 'bed' | 'bath' | 'square' | 'shield' | 'cal' | 'price' | 'star'
   | 'spark' | 'ai-star' | 'replay' | 'share' | 'trend-up' | 'trend-down' | 'external'
   | 'arrow-right' | 'upload' | 'layers' | 'sliders' | 'download' | 'folder'
@@ -39,6 +39,7 @@ function Icon({ name, size = 16, className = '', ...rest }: IconProps) {
     case 'check':      return <svg {...common} strokeWidth={2}><path d="m5 12 5 5 9-11"/></svg>;
     case 'x':          return <svg {...common} strokeWidth={2}><path d="M6 6 18 18M18 6 6 18"/></svg>;
     case 'alert':      return <svg {...common} strokeWidth={2}><path d="M12 3 2 21h20Z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".5" fill="currentColor"/></svg>;
+    case 'warning':    return <svg {...common} strokeWidth={2}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>;
     case 'info':       return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".5" fill="currentColor"/></svg>;
     case 'chevron':    return <svg {...common}><path d="m6 9 6 6 6-6"/></svg>;
     case 'pin':        return <svg {...common}><path d="M12 21s7-7 7-12a7 7 0 1 0-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>;

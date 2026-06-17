@@ -30,7 +30,7 @@ interface BannerTone {
   iconColor: string;
   titleColor: string;
   bodyColor: string;
-  iconName: 'alert' | 'info';
+  iconName: 'warning' | 'info';
   highlightBg: string;
 }
 
@@ -45,7 +45,7 @@ const TONE: Record<AddressIntegrityVariant, BannerTone> = {
     iconColor:   'var(--risk)',
     titleColor:  'var(--risk-ink)',
     bodyColor:   'var(--risk-ink)',
-    iconName:    'alert',
+    iconName:    'warning',
     highlightBg: 'var(--risk)',
   },
   typo: {
@@ -81,7 +81,18 @@ function AddressIntegrityBanner({
   onDismiss,
 }: AddressIntegrityBannerProps) {
   const t = TONE[variant];
-  const [showReasoning, setShowReasoning] = React.useState(false);
+  const [showDetails, setShowDetails] = React.useState(false);
+  const [dismissed, setDismissed] = React.useState(false);
+
+  // The X is always present — it dismisses the banner from this view
+  // even if no parent handler is wired. If the parent provided an
+  // onDismiss it gets called too (useful for analytics or persistence).
+  const handleDismiss = () => {
+    setDismissed(true);
+    onDismiss && onDismiss();
+  };
+
+  if (dismissed) return null;
 
   return (
     <Card
@@ -89,67 +100,66 @@ function AddressIntegrityBanner({
       style={{ background: t.bg, borderColor: t.borderColor }}
     >
       <div className="flex items-start gap-3">
-        {/* Circular icon chip — matches AIInvestigator ErrorCard */}
+        {/* Bare icon on the card surface — no circular chip behind it. */}
         <span
           aria-hidden
-          className="w-7 h-7 rounded-full grid place-items-center shrink-0"
-          style={{ background: t.iconFill, color: t.iconColor }}
+          className="shrink-0 mt-0.5"
+          style={{ color: t.iconColor }}
         >
-          <Icon name={t.iconName} size={16} />
+          <Icon name={t.iconName} size={20} />
         </span>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3">
             <h3
-              className="font-sans font-semibold m-0 leading-none"
-              style={{ fontSize: 'var(--text-h4)', color: t.titleColor }}
+              className="font-sans font-semibold m-0 leading-tight"
+              style={{ fontSize: 'var(--text-body)', color: t.titleColor }}
             >
               {TITLE[variant]}
             </h3>
-            {onDismiss && (
-              <button
-                type="button"
-                onClick={onDismiss}
-                aria-label="Dismiss banner"
-                className="bg-transparent border-0 cursor-pointer p-0 shrink-0"
-                style={{ color: t.bodyColor, opacity: 0.7 }}
-              >
-                <Icon name="x" size={14} />
-              </button>
-            )}
-          </div>
-
-          <p
-            className="font-sans text-body-sm m-0 mt-1.5 leading-snug"
-            style={{ color: t.bodyColor }}
-          >
-            {LEAD[variant]}
-          </p>
-
-          {/* Disclosure: address comparison + plain-English reasoning.
-              Default state is just the title + lead + toggle, so the
-              banner stays compact until the user opts in. */}
-          <div className="mt-2.5">
             <button
               type="button"
-              onClick={() => setShowReasoning((v: boolean) => !v)}
+              onClick={handleDismiss}
+              aria-label="Dismiss banner"
+              className="bg-transparent border-0 cursor-pointer p-0 shrink-0"
+              style={{ color: t.bodyColor, opacity: 0.6 }}
+            >
+              <Icon name="x" size={14} />
+            </button>
+          </div>
+
+          {/* Disclosure: lead copy + address comparison + reasoning.
+              Default state is just the title + toggle — keeps the
+              banner to ~3 lines tall until the user opts in. */}
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => setShowDetails((v: boolean) => !v)}
               className="bg-transparent border-0 cursor-pointer p-0 inline-flex items-center gap-1.5 font-sans text-caption font-medium"
               style={{ color: t.bodyColor }}
             >
               <span
                 className="inline-flex transition-transform"
-                style={{ transform: showReasoning ? 'rotate(180deg)' : 'none' }}
+                style={{ transform: showDetails ? 'rotate(180deg)' : 'none' }}
               >
                 <Icon name="chevron" size={11} />
               </span>
-              {showReasoning ? 'Hide details' : 'Why we flagged this'}
+              {showDetails ? 'Hide details' : 'View details'}
             </button>
 
-            {showReasoning && (
-              <div className="mt-2.5">
+            {showDetails && (
+              <div className="mt-3">
+                {/* Lead copy — the "what does this mean" line */}
+                <p
+                  className="font-sans text-body-sm m-0 leading-snug"
+                  style={{ color: t.bodyColor }}
+                >
+                  {LEAD[variant]}
+                </p>
+
                 {/* Address comparison */}
                 <div
-                  className="rounded-md border overflow-hidden"
+                  className="mt-3 rounded-md border overflow-hidden"
                   style={{ background: 'var(--surface)', borderColor: 'var(--line)' }}
                 >
                   <AddressDiffRow
