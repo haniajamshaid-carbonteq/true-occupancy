@@ -1,5 +1,5 @@
 /* global React, ReactRouterDOM, HomeScreen, ScanStartScreen, ScanMidScreen,
-   ResultCleanScreen, ResultMediumScreen, ResultHighScreen,
+   ResultCleanScreen, ResultMediumScreen, ResultHighScreen, ResultTamperedScreen,
    WhyExpandedScreen, ComponentsPage, BatchScreen, BatchDetailScreen, HistoryScreen,
    ScheduledScreen, ScheduleDetailScreen, AppStateProvider,
    SignInScreen, SignUpScreen, CommandPalette, ProfileScreen */
@@ -48,6 +48,7 @@ const ROUTES = [
   { path: '/result/clean',   component: ResultCleanScreen },
   { path: '/result/medium',  component: ResultMediumScreen },
   { path: '/result/high',    component: ResultHighScreen },
+  { path: '/result/tampered', component: ResultTamperedScreen },
   { path: '/why-expanded',   component: WhyExpandedScreen },
   { path: '/components',     component: ComponentsPage },
   { path: '/profile',        component: ProfileScreen },
