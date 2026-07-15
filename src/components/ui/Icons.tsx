@@ -9,7 +9,7 @@ type IconName =
   | 'spark' | 'ai-star' | 'replay' | 'share' | 'trend-up' | 'trend-down' | 'external'
   | 'arrow-right' | 'upload' | 'layers' | 'sliders' | 'download' | 'folder'
   | 'mail' | 'lock' | 'eye' | 'eye-off' | 'google' | 'microsoft' | 'okta' | 'user'
-  | 'pencil';
+  | 'key' | 'pencil';
 
 interface IconProps extends Omit<React.SVGAttributes<SVGSVGElement>, 'children'> {
   name: IconName;
@@ -69,6 +69,7 @@ function Icon({ name, size = 16, className = '', ...rest }: IconProps) {
     case 'eye':        return <svg {...common}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>;
     case 'eye-off':    return <svg {...common}><path d="M3 3l18 18"/><path d="M10.6 10.6a3 3 0 0 0 4 4"/><path d="M9.7 5.2A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.7 4.7"/><path d="M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 4-.8"/></svg>;
     case 'user':       return <svg {...common}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>;
+    case 'key':        return <svg {...common}><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 21 2"/><path d="m16.5 6.5 3 3"/></svg>;
     // Google "G" — official multicolor mark, fill-based (overrides currentColor stroke)
     case 'google':     return (
       <svg {...common} fill="currentColor" stroke="none" viewBox="0 0 24 24">

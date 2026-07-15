@@ -285,6 +285,71 @@ function SignInForm({
   );
 }
 
+// --- Invite gating (Sign-Up) ---------------------------------------------
+//
+// Per docs/accounts-user-story.md: an account can't be created without an
+// invite, and the token forks the form. A *workspace invite* from a teammate
+// lets you JOIN their workspace (name resolved from the token); a *platform*
+// token lets you CREATE a new workspace (you name it). This gate wraps BOTH
+// the SSO and email paths — federated sign-up is invite-gated too. There's no
+// backend here, so the resolver is a small mock: a demo registry plus a
+// prefix fallback so any TEAM-/JOIN- or PLATFORM-/NEW- token demonstrates
+// the corresponding fork.
+
+type Invite =
+  | { kind: 'join'; workspace: string }
+  | { kind: 'create' }
+  | { kind: 'invalid' };
+
+const INVITE_REGISTRY: Record<string, Invite> = {
+  'TEAM-ASHEVILLE': { kind: 'join', workspace: 'City of Asheville Compliance' },
+  'PLATFORM-2026': { kind: 'create' },
+};
+
+function resolveInvite(raw: string): Invite | null {
+  const token = raw.trim().toUpperCase();
+  if (!token) return null;
+  if (INVITE_REGISTRY[token]) return INVITE_REGISTRY[token];
+  if (token.startsWith('JOIN-') || token.startsWith('TEAM-'))
+    return { kind: 'join', workspace: 'your teammate’s workspace' };
+  if (token.startsWith('NEW-') || token.startsWith('PLATFORM-'))
+    return { kind: 'create' };
+  return { kind: 'invalid' };
+}
+
+// Confirmation callout shown once a workspace-invite token resolves — the
+// join fork's answer to "Joining workspace: {name}". Brand-soft tint per
+// DESIGN.md §13.3 (brand pill = brand-soft bg + brand-deep text).
+function JoiningWorkspaceCallout({ workspace }: { workspace: string }) {
+  return (
+    <div
+      className="flex items-center gap-2.5 rounded-lg px-3 py-2.5"
+      style={{ background: 'var(--brand-soft)' }}
+    >
+      <span
+        className="shrink-0 [&>svg]:w-4 [&>svg]:h-4"
+        style={{ color: 'var(--brand-deep)' }}
+      >
+        <Icon name="check" size={16} />
+      </span>
+      <div className="min-w-0">
+        <div
+          className="font-sans text-eyebrow uppercase tracking-[0.1em] font-semibold"
+          style={{ color: 'var(--brand-deep)' }}
+        >
+          Joining workspace
+        </div>
+        <div
+          className="font-sans text-label font-semibold truncate"
+          style={{ color: 'var(--navy)' }}
+        >
+          {workspace}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Sign-Up form --------------------------------------------------------
 
 function SignUpForm({
@@ -294,76 +359,147 @@ function SignUpForm({
   onToggle: () => void;
   onSubmit: () => void;
 }) {
+  const [inviteToken, setInviteToken] = React.useState('');
+  const [workspaceName, setWorkspaceName] = React.useState('');
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [pwd, setPwd] = React.useState('');
   const [show, setShow] = React.useState(false);
 
+  const invite = resolveInvite(inviteToken);
+  const isInvalid = invite?.kind === 'invalid';
+  const isUnlocked = invite?.kind === 'join' || invite?.kind === 'create';
+
+  // CTA copy is fork-aware (acceptance criteria 2 & 3).
+  const ctaLabel =
+    invite?.kind === 'join'
+      ? `Join ${invite.workspace}`
+      : invite?.kind === 'create'
+        ? 'Create workspace'
+        : 'Create Account';
+
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit();
+        if (isUnlocked) onSubmit();
       }}
       className="flex flex-col gap-5 w-full max-w-[380px] mx-auto"
     >
       <FormHeading
         title="Create Account"
-        sub="Continue with your organization's SSO, or sign up by email."
+        sub="You'll need an invite to get started."
         formMode="signup"
       />
 
-      <SsoOptions onPick={onSubmit} />
+      {/* Invite gate — always first (acceptance criterion 1). */}
+      <div className="flex flex-col gap-1.5">
+        <Input
+          label="Invite token"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="e.g. TEAM-ASHEVILLE"
+          value={inviteToken}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInviteToken(e.target.value)}
+          leadingIcon={<Icon name="key" />}
+          error={isInvalid}
+          hint={
+            isInvalid
+              ? "That invite token isn't recognized. Check it and try again."
+              : 'You need an invite to create an account.'
+          }
+        />
+        <div className="font-sans text-micro" style={{ color: 'var(--ink-4)' }}>
+          Demo — <strong style={{ color: 'var(--ink-3)' }}>TEAM-ASHEVILLE</strong> to
+          join, <strong style={{ color: 'var(--ink-3)' }}>PLATFORM-2026</strong> to create.
+        </div>
+      </div>
 
-      <OrDivider label="Or sign up with email" />
+      {/* Locked until a valid invite resolves. */}
+      {invite === null && (
+        <div
+          className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-3"
+          style={{ borderColor: 'var(--line-strong)', color: 'var(--ink-4)' }}
+        >
+          <Icon name="lock" size={15} />
+          <span className="font-sans text-caption">
+            Enter your invite token to continue.
+          </span>
+        </div>
+      )}
 
-      <Input
-        label="Full name"
-        type="text"
-        autoComplete="name"
-        placeholder="J. Marlow"
-        value={name}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-        leadingIcon={<Icon name="user" />}
-      />
+      {isUnlocked && (
+        <>
+          {/* Fork: join a workspace, or name a new one. */}
+          {invite.kind === 'join' ? (
+            <JoiningWorkspaceCallout workspace={invite.workspace} />
+          ) : (
+            <Input
+              label="Workspace name"
+              type="text"
+              autoComplete="off"
+              placeholder="City of Asheville Compliance"
+              value={workspaceName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWorkspaceName(e.target.value)}
+              leadingIcon={<Icon name="folder" />}
+              hint="This is what your team will see."
+            />
+          )}
 
-      <Input
-        label="Email"
-        type="email"
-        autoComplete="email"
-        placeholder="you@company.com"
-        value={email}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-        leadingIcon={<Icon name="mail" />}
-      />
+          <SsoOptions onPick={onSubmit} />
 
-      <Input
-        label="Password"
-        type={show ? 'text' : 'password'}
-        autoComplete="new-password"
-        placeholder="Create a password"
-        value={pwd}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPwd(e.target.value)}
-        leadingIcon={<Icon name="lock" />}
-        hint="At least 8 characters."
-        trailing={
-          <button
-            type="button"
-            onClick={() => setShow((s) => !s)}
-            className="grid place-items-center w-6 h-6 bg-transparent border-0 cursor-pointer"
-            style={{ color: 'var(--ink-3)' }}
-            aria-label={show ? 'Hide password' : 'Show password'}
-          >
-            <Icon name={show ? 'eye-off' : 'eye'} size={16} />
-          </button>
-        }
-      />
+          <OrDivider label="Or sign up with email" />
 
-      <Button variant="primary" type="submit" className="w-full justify-center h-11">
-        Create Account
-      </Button>
+          <Input
+            label="Full name"
+            type="text"
+            autoComplete="name"
+            placeholder="J. Marlow"
+            value={name}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+            leadingIcon={<Icon name="user" />}
+          />
 
-      <SsoTrustNote />
+          <Input
+            label="Email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@company.com"
+            value={email}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+            leadingIcon={<Icon name="mail" />}
+          />
+
+          <Input
+            label="Password"
+            type={show ? 'text' : 'password'}
+            autoComplete="new-password"
+            placeholder="Create a password"
+            value={pwd}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPwd(e.target.value)}
+            leadingIcon={<Icon name="lock" />}
+            hint="At least 8 characters."
+            trailing={
+              <button
+                type="button"
+                onClick={() => setShow((s) => !s)}
+                className="grid place-items-center w-6 h-6 bg-transparent border-0 cursor-pointer"
+                style={{ color: 'var(--ink-3)' }}
+                aria-label={show ? 'Hide password' : 'Show password'}
+              >
+                <Icon name={show ? 'eye-off' : 'eye'} size={16} />
+              </button>
+            }
+          />
+
+          <Button variant="primary" type="submit" className="w-full justify-center h-11">
+            {ctaLabel}
+          </Button>
+
+          <SsoTrustNote />
+        </>
+      )}
 
       <div
         className="font-sans text-label text-center mt-2"
