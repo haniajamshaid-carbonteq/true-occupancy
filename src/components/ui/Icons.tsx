@@ -8,7 +8,7 @@ type IconName =
   | 'pin' | 'bed' | 'bath' | 'square' | 'shield' | 'cal' | 'price' | 'star'
   | 'spark' | 'ai-star' | 'replay' | 'share' | 'trend-up' | 'trend-down' | 'external'
   | 'arrow-right' | 'upload' | 'layers' | 'sliders' | 'download' | 'folder'
-  | 'mail' | 'lock' | 'eye' | 'eye-off' | 'google' | 'user'
+  | 'mail' | 'lock' | 'eye' | 'eye-off' | 'google' | 'microsoft' | 'okta' | 'user'
   | 'pencil';
 
 interface IconProps extends Omit<React.SVGAttributes<SVGSVGElement>, 'children'> {
@@ -76,6 +76,22 @@ function Icon({ name, size = 16, className = '', ...rest }: IconProps) {
         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.99.66-2.25 1.05-3.72 1.05-2.86 0-5.28-1.93-6.15-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
         <path fill="#FBBC05" d="M5.85 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.35-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.78.42 3.46 1.18 4.94l3.67-2.84z"/>
         <path fill="#EA4335" d="M12 5.38c1.62 0 3.07.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.67 2.84C6.72 7.31 9.14 5.38 12 5.38z"/>
+      </svg>
+    );
+    // Microsoft — official four-square mark, fill-based (overrides currentColor stroke)
+    case 'microsoft':  return (
+      <svg {...common} fill="none" stroke="none" viewBox="0 0 24 24">
+        <rect x="2.5" y="2.5" width="8.6" height="8.6" fill="#F25022"/>
+        <rect x="12.9" y="2.5" width="8.6" height="8.6" fill="#7FBA00"/>
+        <rect x="2.5" y="12.9" width="8.6" height="8.6" fill="#00A4EF"/>
+        <rect x="12.9" y="12.9" width="8.6" height="8.6" fill="#FFB900"/>
+      </svg>
+    );
+    // Okta — bold ring "O" in Okta blue, drawn as a stroked circle so it stays
+    // legible on any button background.
+    case 'okta':       return (
+      <svg {...common} fill="none" stroke="none" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="7" fill="none" stroke="#007DC1" strokeWidth={4.5}/>
       </svg>
     );
     default:           return null;

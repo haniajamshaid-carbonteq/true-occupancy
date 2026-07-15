@@ -1,6 +1,15 @@
 /* global React, ReactRouterDOM, Button, Input, Checkbox, Icon */
 // AuthScreen — paired Sign-In / Sign-Up flow.
 //
+// Auth model (per the Halcyon SSO walkthrough, 2026-07-15): enterprise
+// single sign-on is the primary path. Three identity providers — Microsoft
+// (Entra, the default the tenant auto-logs on against), Okta, and Google —
+// lead each form; email + password is kept as a labeled fallback for pilots
+// and service accounts that don't have an IdP. Provider buttons stay on the
+// neutral surface with their own brand marks (DESIGN.md §13.1 reserves the
+// teal budget for the app's single primary CTA, and each provider's brand
+// guidelines require its own colored mark on a plain button).
+//
 // Desktop (lg+): floating two-pane card. The image panel is absolutely
 // positioned over half the card and slides between sides as the user
 // toggles between sign-in and sign-up — both forms are always rendered
@@ -111,6 +120,69 @@ function ImagePanelContent({ compact = false }: { compact?: boolean }) {
   );
 }
 
+// --- SSO shared bits -----------------------------------------------------
+
+// Provider order is deliberate: Microsoft first — it's the default IdP the
+// app attempts an auto-logon against — then Okta, then Google.
+const SSO_PROVIDERS: { name: 'microsoft' | 'okta' | 'google'; label: string }[] = [
+  { name: 'microsoft', label: 'Microsoft' },
+  { name: 'okta', label: 'Okta' },
+  { name: 'google', label: 'Google' },
+];
+
+// The three provider buttons. Neutral surface + the provider's own colored
+// mark; "Continue with …" reads the same for sign-in and sign-up because SSO
+// auto-provisions the account either way. onPick simulates a successful
+// federated login in the prototype.
+function SsoOptions({ onPick }: { onPick: () => void }) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      {SSO_PROVIDERS.map((p) => (
+        <Button
+          key={p.name}
+          variant="default"
+          type="button"
+          onClick={onPick}
+          className="w-full justify-center h-11"
+          icon={<Icon name={p.name} size={18} />}
+        >
+          Continue with {p.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+// "or sign in with email" style rule between the SSO block and the fallback.
+function OrDivider({ label }: { label: string }) {
+  return (
+    <div className="relative my-1 flex items-center gap-3">
+      <div className="flex-1 h-px" style={{ background: 'var(--line)' }} />
+      <span
+        className="font-sans text-eyebrow uppercase tracking-[0.1em] font-medium whitespace-nowrap"
+        style={{ color: 'var(--ink-4)' }}
+      >
+        {label}
+      </span>
+      <div className="flex-1 h-px" style={{ background: 'var(--line)' }} />
+    </div>
+  );
+}
+
+// Trust line under the CTA — reassures enterprise users the session is
+// brokered by their own identity provider, not stored here.
+function SsoTrustNote() {
+  return (
+    <div
+      className="flex items-center justify-center gap-1.5 text-caption"
+      style={{ color: 'var(--ink-4)' }}
+    >
+      <Icon name="shield" size={13} />
+      <span>Single sign-on secured by your identity provider.</span>
+    </div>
+  );
+}
+
 // --- Sign-In form --------------------------------------------------------
 
 function SignInForm({
@@ -135,9 +207,13 @@ function SignInForm({
     >
       <FormHeading
         title="Sign In"
-        sub="Continue your scan history and verifications."
+        sub="Use your organization's single sign-on, or your email below."
         formMode="signin"
       />
+
+      <SsoOptions onPick={onSubmit} />
+
+      <OrDivider label="Or sign in with email" />
 
       <Input
         label="Email"
@@ -189,25 +265,7 @@ function SignInForm({
         Sign In
       </Button>
 
-      <div className="relative my-1 flex items-center gap-3">
-        <div className="flex-1 h-px" style={{ background: 'var(--line)' }} />
-        <span
-          className="font-sans text-eyebrow uppercase tracking-[0.18em] font-medium"
-          style={{ color: 'var(--ink-4)' }}
-        >
-          Or
-        </span>
-        <div className="flex-1 h-px" style={{ background: 'var(--line)' }} />
-      </div>
-
-      <Button
-        variant="default"
-        type="button"
-        className="w-full justify-center h-11"
-        icon={<Icon name="google" size={16} />}
-      >
-        Sign In with Google
-      </Button>
+      <SsoTrustNote />
 
       <div
         className="font-sans text-label text-center mt-2"
@@ -251,9 +309,13 @@ function SignUpForm({
     >
       <FormHeading
         title="Create Account"
-        sub="Start verifying property occupancy in minutes."
+        sub="Continue with your organization's SSO, or sign up by email."
         formMode="signup"
       />
+
+      <SsoOptions onPick={onSubmit} />
+
+      <OrDivider label="Or sign up with email" />
 
       <Input
         label="Full name"
@@ -301,25 +363,7 @@ function SignUpForm({
         Create Account
       </Button>
 
-      <div className="relative my-1 flex items-center gap-3">
-        <div className="flex-1 h-px" style={{ background: 'var(--line)' }} />
-        <span
-          className="font-sans text-eyebrow uppercase tracking-[0.18em] font-medium"
-          style={{ color: 'var(--ink-4)' }}
-        >
-          Or
-        </span>
-        <div className="flex-1 h-px" style={{ background: 'var(--line)' }} />
-      </div>
-
-      <Button
-        variant="default"
-        type="button"
-        className="w-full justify-center h-11"
-        icon={<Icon name="google" size={16} />}
-      >
-        Sign Up with Google
-      </Button>
+      <SsoTrustNote />
 
       <div
         className="font-sans text-label text-center mt-2"
