@@ -14,6 +14,7 @@ The harness does not replace the design documentation — it routes to it.
 |---|---|---|
 | **Brand + rationale** | [`docs/DESIGN.md`](../docs/DESIGN.md) | Why the system is the way it is. Brand book, product-surface posture (§13), notification dock (§14). The design source of truth. |
 | **Values** | [`src/styles/tokens.css`](../src/styles/tokens.css) | The tokens themselves. The only place a value is defined. |
+| **Utility binding** | [`src/styles/tailwind-config.js`](../src/styles/tailwind-config.js) | The single runtime Tailwind config, loaded by all 7 HTML hosts. |
 | **This harness** | `design-harness/` | Routing, rules, per-component state contracts, and the record of what exists vs what's missing. |
 
 **Nothing in this harness defines a value.** `references/tokens.md` is an index of `tokens.css`, not a second copy. If the two disagree, `tokens.css` wins and the index is stale — fix the index.
@@ -28,6 +29,8 @@ Task-language routing. Add a line whenever a new recurring task needs a home.
 
 ```
 Need exact values?          → references/tokens.md  (index of src/styles/tokens.css)
+Adding a token?             → tokens.css AND src/styles/tailwind-config.js AND
+                              tailwind.config.js (the mirror). Three files, one behaviour.
 Need a repeated look?       → references/hypertokens.md
 Animating something?        → references/motion.md  (+ src/styles/motion.css)
 Writing user-facing text?   → references/voice.md
@@ -151,7 +154,9 @@ The smallest set that makes composition possible. Common screen types (form, lis
 
 Each has a stub in `components/core/`. A component isn't done until it covers every state its class requires (§5).
 
-**Current width: 8 of the 24 required components are gaps** — link, textarea, select, radio, toggle, field-scaffold, toast, list. The product ships without them because its screens are read-heavy, but the floor is the floor: composition-only building is not yet possible. Exact status in `VIABILITY.md`.
+**Current width: 5 of the 24 required components are gaps** — link, select, toggle, toast, list. Down from 8: `field-scaffold`, `textarea` and `radio` were extracted from inline duplicates into real primitives.
+
+The five that remain genuinely do not exist in any form, so closing them means designing, not extracting. Exact status in `VIABILITY.md`.
 
 ---
 
