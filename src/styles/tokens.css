@@ -271,4 +271,85 @@
 
   --gap-section-sub:      var(--space-3xl);  /* between sub-sections — 32 */
   --gap-section:          var(--space-4xl);  /* between major sections — 48 */
+
+  /* === Z-index ===
+   * Previously nine bare literals scattered across components (z-10, z-30,
+   * z-40, z-50, z-[100], zIndex 1/10/20/90) with no ordering contract, so
+   * nobody could tell whether a new surface should sit above or below an
+   * existing one. Named by what the layer IS, ascending. Values preserve the
+   * exact stacking order that shipped.
+   */
+  --z-base:     1;    /* in-flow lift — a positioned child over its siblings */
+  --z-raised:   10;   /* sticky table headers, floating labels, map markers */
+  --z-sticky:   20;   /* pinned page chrome inside a scroll container */
+  --z-nav:      30;   /* side nav rail */
+  --z-scrim:    40;   /* the dim behind an overlay */
+  --z-popover:  50;   /* dropdown menus, tooltips — attached to a trigger */
+  --z-dock:     90;   /* notification dock — above content, below dialogs */
+  --z-modal:    100;  /* modal + drawer. Nothing may sit above this. */
+
+  /* === Control sizing ===
+   * Heights for interactive controls. Was h-8 / h-9 / h-11 inline.
+   */
+  --size-control-sm: 32px;  /* Button.sm, dock action buttons */
+  --size-control-md: 36px;  /* Button.md — the default control height */
+  --size-control-lg: 44px;  /* text input track, search bar */
+
+  --size-gutter-leading:  36px;  /* leading-icon cell in a field */
+  --size-gutter-trailing: 40px;  /* trailing-slot cell in a field */
+
+  /* === Glyph sizing ===
+   * Circular badge / chip wells that carry an icon.
+   */
+  --size-glyph-sm: 18px;
+  --size-glyph-md: 22px;  /* RiskBadge leading glyph */
+  --size-glyph-lg: 24px;
+  --size-glyph-xl: 26px;  /* dock status chip — DESIGN.md §14.2 */
+
+  /* === Layout widths === */
+  --width-modal-sm:   480px;  /* Modal default */
+  --width-modal-md:   520px;  /* AutomateModal, single */
+  --width-modal-lg:   600px;  /* AutomateModal, batch */
+  --width-nav:        248px;  /* SideNav rail */
+  --width-nav-offset: 280px;  /* content offset = rail + gutter */
+  --width-content:   1100px;  /* page content max-width */
+  --width-prose:      420px;  /* empty-state / centred copy max-width */
+
+  /* === Tracking ===
+   * Negative values are the display ramp (DESIGN.md §13.2); positive values
+   * are the uppercase mono/eyebrow treatments. Both were inline before.
+   */
+  --tracking-display:       -0.012em;
+  --tracking-h1:            -0.008em;
+  --tracking-h2:            -0.005em;
+  --tracking-pill:           0.04em;
+  --tracking-eyebrow:        0.08em;
+  --tracking-eyebrow-loose:  0.14em;
+  --tracking-mono-label:     0.16em;
+
+  /* === Border widths === */
+  --border-hairline:  1px;    /* the default rule everywhere */
+  --border-emphasis:  1.5px;  /* selected card outline */
+  --border-indicator: 2px;    /* active tab underline */
+  --border-focus:     3px;    /* focus ring spread */
+
+  /* === Radii — additions ===
+   * Two sizes were in use outside the --r-* scale (Tailwind's default
+   * `rounded` at 4px and `rounded-2xl` at 16px), plus the two pill radii.
+   */
+  --r-xs:   4px;    /* checkbox facade */
+  --r-2xl: 16px;    /* side-nav rail */
+  --r-pill: 999px;  /* full pill — badges, chips */
+  --r-dock: 22px;   /* dock pill + stack — the Dynamic-Island silhouette (§14.1) */
+
+  /* === Overlay & on-brand colors ===
+   * Raw values that were written inline because no token existed.
+   */
+  --scrim:            rgba(0, 0, 0, .40);          /* modal / drawer backdrop */
+  --on-brand:         #FFFFFF;                     /* text & glyphs on a brand fill */
+  --on-brand-divider: rgba(255, 255, 255, .20);    /* hairline on a brand fill */
+  --focus-ring-brand: rgba(10, 183, 163, .45);     /* --brand at 45% — dock focus ring */
+
+  /* === Dock geometry === */
+  --dock-top: 14px;  /* fixed offset from viewport top (§14.1) */
 }

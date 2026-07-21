@@ -3,9 +3,17 @@
   "configurations": [
     {
       "name": "true-occupancy",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8765"],
-      "port": 8765
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "python3 -m http.server ${PORT:-8765}"],
+      "port": 8765,
+      "autoPort": true
+    },
+    {
+      "name": "true-occupancy-alt",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "python3 -m http.server ${PORT:-8770}"],
+      "port": 8770,
+      "autoPort": true
     }
   ]
 }

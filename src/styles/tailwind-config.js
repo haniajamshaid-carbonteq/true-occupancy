@@ -1,26 +1,51 @@
-/** @type {import('tailwindcss').Config} */
+/* True Occupancy — shared Tailwind Play CDN config
+ *
+ * THE single runtime Tailwind config. Every HTML host loads this file
+ * immediately after the Play CDN <script> and before any app code.
+ *
+ * Why this file exists
+ * --------------------
+ * This config used to be copy-pasted inline into seven HTML hosts. They
+ * drifted: `navy` existed only in components.html, `verdict-*` in four of
+ * seven, `hover-bg` in six. So `text-navy` and `bg-hover-bg` silently
+ * resolved to nothing depending on which page you opened — which is why
+ * raw hex values kept getting written into components. One file fixes the
+ * class of bug, not just the instances.
+ *
+ * Every value points at a CSS custom property in tokens.css (or motion.css)
+ * so tokens stay the single source of truth and runtime theme switches
+ * flow through automatically.
+ *
+ * tailwind.config.js at the repo root mirrors this for tooling/editor
+ * support. It is NOT loaded at runtime. Keep the two in sync.
+ */
 
-// ---------------------------------------------------------------------------
-// NOT LOADED AT RUNTIME.
-//
-// The runtime config is src/styles/tailwind-config.js, which every HTML host
-// loads after the Tailwind Play CDN script. This file exists for tooling and
-// editor IntelliSense only, and must mirror the `theme.extend` block there.
-//
-// If you change one, change the other. The two drifting apart is exactly the
-// bug this consolidation was meant to end — the config used to be inline in
-// seven HTML files, and `text-navy` / `bg-hover-bg` silently resolved to
-// nothing depending on which page you opened.
-//
-// Every value points at a CSS custom property in src/styles/tokens.css (or
-// motion.css) so design tokens stay the single source of truth.
-// ---------------------------------------------------------------------------
-
-module.exports = {
-  content: [
-    './index.html',
-    './src/**/*.{js,jsx,ts,tsx,html}',
-    './*.{html,jsx}',
+/* global tailwind */
+tailwind.config = {
+  // The Play CDN's JIT only generates utilities for classes it sees in the
+  // live DOM. Conditionally-rendered classes (e.g. `bg-error-soft` on a
+  // destructive menu item that isn't currently mounted) would be skipped.
+  // Explicit safelist for the state-token utilities we want available
+  // everywhere — kept as a flat string list so the CDN doesn't have to
+  // expand a regex × variant matrix on boot.
+  safelist: [
+    'bg-success', 'bg-success-soft', 'text-success', 'text-success-ink', 'border-success', 'border-success-soft',
+    'bg-warning', 'bg-warning-soft', 'text-warning', 'text-warning-ink', 'border-warning', 'border-warning-soft',
+    'bg-error',   'bg-error-soft',   'text-error',   'text-error-ink',   'border-error',   'border-error-soft',
+    'hover:bg-success-soft', 'hover:text-success-ink',
+    'hover:bg-warning-soft', 'hover:text-warning-ink',
+    'hover:bg-error-soft',   'hover:text-error-ink',
+    'active:bg-success-soft', 'active:bg-warning-soft', 'active:bg-error-soft',
+    // Verdict tones (purple / yellow / blue) — neutral categorical fills for
+    // "Rented / Possibly rented / Not rented" pills + the matching header dot
+    // on BatchScreen MetricCards.
+    'bg-verdict-high', 'bg-verdict-high-soft', 'text-verdict-high', 'text-verdict-high-ink',
+    'bg-verdict-med',  'bg-verdict-med-soft',  'text-verdict-med',  'text-verdict-med-ink',
+    'bg-verdict-low',  'bg-verdict-low-soft',  'text-verdict-low',  'text-verdict-low-ink',
+    // Type ramp — safelist all 11 size utilities so they're available even
+    // before any code in the bundle uses them.
+    'text-display', 'text-h1', 'text-h2', 'text-h3', 'text-h4',
+    'text-body', 'text-body-sm', 'text-label', 'text-caption', 'text-micro', 'text-eyebrow',
   ],
   theme: {
     extend: {
@@ -41,6 +66,8 @@ module.exports = {
           mid: 'var(--brand-mid)',
           footer: 'var(--brand-footer)',
         },
+        // Authority family. `navy` previously existed in components.html
+        // only, so `text-navy` resolved to nothing on every other host.
         navy: {
           DEFAULT: 'var(--navy)',
           quote: 'var(--navy-quote)',
@@ -58,6 +85,8 @@ module.exports = {
         success: { DEFAULT: 'var(--success)', soft: 'var(--success-soft)', ink: 'var(--success-ink)' },
         warning: { DEFAULT: 'var(--warning)', soft: 'var(--warning-soft)', ink: 'var(--warning-ink)' },
         error:   { DEFAULT: 'var(--error)',   soft: 'var(--error-soft)',   ink: 'var(--error-ink)' },
+        // Overlay / on-brand. Replaces inline `bg-black/40`, `stroke="white"`
+        // and `border-white/20`.
         scrim: 'var(--scrim)',
         'on-brand': { DEFAULT: 'var(--on-brand)', divider: 'var(--on-brand-divider)' },
         airbnb: 'var(--airbnb)',
@@ -87,6 +116,9 @@ module.exports = {
         'focus-dock': '0 0 0 var(--border-indicator) var(--focus-ring-brand)',
       },
       fontFamily: { serif: 'var(--serif)', sans: 'var(--sans)', mono: 'var(--mono)' },
+      // Type ramp — semantic names map to --text-* CSS vars in tokens.css.
+      // Use `text-h1`, `text-body-sm`, `text-eyebrow` etc. instead of raw
+      // `text-[14px]` so we have a single source of truth.
       fontSize: {
         display:   ['var(--text-display)', { lineHeight: '1.0' }],
         h1:        ['var(--text-h1)',      { lineHeight: '1.1' }],
@@ -109,6 +141,9 @@ module.exports = {
         'eyebrow-loose': 'var(--tracking-eyebrow-loose)',
         'mono-label': 'var(--tracking-mono-label)',
       },
+      // Spacing — semantic tokens layered on top of the default Tailwind
+      // numeric scale. Prefer these names in new code (p-card, gap-section,
+      // px-control-x).
       spacing: {
         'inline-tight': 'var(--pad-inline-tight)',
         'inline':       'var(--pad-inline)',
@@ -130,6 +165,7 @@ module.exports = {
         'section-tight': 'var(--gap-section-tight)',
         'section-sub':   'var(--gap-section-sub)',
         'section':       'var(--gap-section)',
+        // Control + glyph sizing, for h-/w-/size- utilities.
         'control-sm':      'var(--size-control-sm)',
         'control-md':      'var(--size-control-md)',
         'control-lg':      'var(--size-control-lg)',
@@ -150,7 +186,11 @@ module.exports = {
         content: 'var(--width-content)',
         prose: 'var(--width-prose)',
       },
-      width: { nav: 'var(--width-nav)' },
+      width: {
+        nav: 'var(--width-nav)',
+      },
+      // Named stacking order. Replaces nine bare literals with an explicit
+      // ascending contract — see tokens.css for what each layer means.
       zIndex: {
         base: 'var(--z-base)',
         raised: 'var(--z-raised)',
@@ -175,5 +215,4 @@ module.exports = {
       },
     },
   },
-  plugins: [],
 };
