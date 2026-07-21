@@ -1,10 +1,15 @@
-/* global React */
+/* global React, Field */
 // Input — labeled text-input primitive used by AuthScreen and any form.
 //
-// Anatomy: optional label above + bordered track wrapping a borderless
-// <input>, with optional leading icon and trailing slot (eye toggle for
-// passwords, etc.). Focus ring uses brand-soft so it reads as warm-teal
-// confirmation rather than the default browser blue.
+// Anatomy: Field supplies the label + hint scaffold; Input owns the bordered
+// track wrapping a borderless <input>, with optional leading icon and
+// trailing slot (eye toggle for passwords, etc.). Focus ring uses brand-soft
+// so it reads as warm-teal confirmation rather than the default browser blue.
+//
+// Known gap, preserved deliberately: `error` only changes the border/ring
+// while the field is FOCUSED — a blurred errored field is visually identical
+// to a valid one apart from the hint color. There is also no aria-invalid and
+// no role="alert". Fixing either changes rendering; that is the owner's call.
 
 interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'prefix'> {
   /** Visible label above the input. Skip for unlabeled fields. */
@@ -43,16 +48,13 @@ function Input({
     : 'var(--line)';
 
   return (
-    <div className={`flex flex-col gap-1.5 ${containerClassName}`.trim()}>
-      {label && (
-        <label
-          htmlFor={inputId}
-          className="font-sans text-caption font-semibold"
-          style={{ color: 'var(--ink-2)' }}
-        >
-          {label}
-        </label>
-      )}
+    <Field
+      label={label}
+      htmlFor={inputId}
+      hint={hint}
+      error={error}
+      className={containerClassName}
+    >
       <div
         className="flex items-center gap-2 rounded-lg transition-shadow"
         style={{
@@ -97,14 +99,6 @@ function Input({
           </span>
         )}
       </div>
-      {hint && (
-        <div
-          className="font-sans text-micro"
-          style={{ color: error ? 'var(--risk-ink)' : 'var(--ink-3)' }}
-        >
-          {hint}
-        </div>
-      )}
-    </div>
+    </Field>
   );
 }

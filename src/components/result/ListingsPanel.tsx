@@ -1,4 +1,4 @@
-/* global React, SCENARIOS, PROPERTY, Tabs, Pill, DataTable, Icon, SavedSnapshotDrawer */
+/* global React, SCENARIOS, PROPERTY, Tabs, Pill, DataTable, Tooltip, Icon, SavedSnapshotDrawer */
 // ListingsPanel — diff-matrix evidence view.
 //
 // Reframes the matched listings as a comparison table: the property's
@@ -959,82 +959,8 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
   );
 }
 
-// --- truncation-aware tooltip --------------------------------------------
-// Wraps text with `truncate` and only shows a tooltip when the text is
-// actually clipped. Tooltip is positioned with a fixed-positioned bubble
-// anchored to the trigger so it escapes table overflow clipping.
-
-function TruncatedText({
-  children,
-  className,
-  style,
-  tooltip,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-  tooltip?: string;
-}) {
-  const ref = React.useRef<HTMLSpanElement>(null);
-  const [overflowing, setOverflowing] = React.useState(false);
-  const [hover, setHover] = React.useState(false);
-  const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null);
-
-  const tip = tooltip ?? (typeof children === 'string' ? children : '');
-
-  const check = React.useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    setOverflowing(el.scrollWidth > el.clientWidth + 1);
-  }, []);
-
-  React.useEffect(() => {
-    check();
-    const ro = new ResizeObserver(check);
-    if (ref.current) ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, [check, children]);
-
-  function onEnter(e: React.MouseEvent<HTMLSpanElement>) {
-    if (!overflowing) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    setPos({ x: r.left, y: r.top });
-    setHover(true);
-  }
-  function onLeave() {
-    setHover(false);
-  }
-
-  return (
-    <>
-      <span
-        ref={ref}
-        className={`truncate block min-w-0 ${className ?? ''}`}
-        style={style}
-        onMouseEnter={onEnter}
-        onMouseLeave={onLeave}
-      >
-        {children}
-      </span>
-      {hover && overflowing && pos && (
-        <div
-          role="tooltip"
-          className="fixed z-popover pointer-events-none px-2 py-1 rounded-md text-caption font-sans shadow-md max-w-sm break-words"
-          style={{
-            left: pos.x,
-            top: pos.y - 8,
-            transform: 'translateY(-100%)',
-            background: 'var(--navy)',
-            color: 'white',
-            whiteSpace: 'normal',
-          }}
-        >
-          {tip}
-        </div>
-      )}
-    </>
-  );
-}
+// The truncation-aware tooltip that used to live here is now the shared
+// `Tooltip` primitive in src/components/ui/Tooltip.tsx.
 
 // --- Table view ----------------------------------------------------------
 // Lighter-weight alternative to the diff matrix. Renders each listing as a
@@ -1091,11 +1017,11 @@ function TableView({
                   <Icon name="star" size={14} />
                 </span>
               )}
-              <TruncatedText>{r.title}</TruncatedText>
+              <Tooltip>{r.title}</Tooltip>
             </div>
-            <TruncatedText className="block font-sans text-caption text-ink-3 mt-0.5 leading-tight">
+            <Tooltip className="block font-sans text-caption text-ink-3 mt-0.5 leading-tight">
               @{r.host.handle}
-            </TruncatedText>
+            </Tooltip>
           </div>
         );
       },

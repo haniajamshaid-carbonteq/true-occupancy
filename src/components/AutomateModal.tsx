@@ -1,5 +1,6 @@
-/* global React, Modal, Button, Icon, StatusPillSelector, AutomationScopeCard,
-   Cadence, ScopeRetention, sameCadence, cadenceLabel, formatNextRun */
+/* global React, Modal, Button, Icon, Radio, RadioGroup, StatusPillSelector,
+   AutomationScopeCard, Cadence, ScopeRetention, sameCadence, cadenceLabel,
+   formatNextRun */
 // AutomateModal — shared dialog for creating OR editing an automation.
 //
 // Create mode: shows the cadence radio cards (and, for batches, the new
@@ -257,43 +258,17 @@ function AutomateModal({
           Cadence
         </div>
       )}
-      <div role="radiogroup" aria-label="Cadence" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {OPTIONS.map((opt) => {
-          const active = sameCadence(cadence, opt.value);
-          return (
-            <button
-              key={`${opt.value.every}-${opt.value.unit}`}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              onClick={() => setCadence(opt.value)}
-              className={`text-left flex items-start gap-inline-loose px-control-x py-3 rounded-md border transition-colors ${
-                active
-                  ? '!bg-brand-tint !border-brand/40'
-                  : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
-              }`}
-            >
-              <span
-                className={`mt-0.5 w-4 h-4 rounded-full border-2 grid place-items-center shrink-0 transition-colors ${
-                  active ? 'border-brand' : 'border-line-strong'
-                }`}
-                aria-hidden
-              >
-                {active && <span className="w-1.5 h-1.5 rounded-full bg-brand" />}
-              </span>
-              <span className="min-w-0">
-                <span
-                  className="block font-sans font-semibold text-label"
-                  style={{ color: active ? 'var(--brand-deep)' : 'var(--navy)' }}
-                >
-                  {opt.label}
-                </span>
-                <span className="block text-caption text-ink-3 mt-0.5">{opt.hint}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <RadioGroup label="Cadence">
+        {OPTIONS.map((opt) => (
+          <Radio
+            key={`${opt.value.every}-${opt.value.unit}`}
+            label={opt.label}
+            hint={opt.hint}
+            checked={sameCadence(cadence, opt.value)}
+            onSelect={() => setCadence(opt.value)}
+          />
+        ))}
+      </RadioGroup>
 
       {/* ---- Section: Status scope (BATCH ONLY) ----------------------- */}
       {isBatch && (
@@ -321,43 +296,18 @@ function AutomateModal({
           <div className="mt-section-sub font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase text-ink-3 mb-2">
             If a property no longer matches these statuses
           </div>
-          <div role="radiogroup" aria-label="When a property no longer matches" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {RETENTION_OPTIONS.map((opt) => {
-              const active = retention === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setRetention(opt.value)}
-                  className={`text-left flex items-start gap-inline-loose px-control-x py-3 rounded-md border transition-colors ${
-                    active
-                      ? '!bg-brand-tint !border-brand/40'
-                      : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
-                  }`}
-                >
-                  <span
-                    className={`mt-0.5 w-4 h-4 rounded-full border-2 grid place-items-center shrink-0 transition-colors ${
-                      active ? 'border-brand' : 'border-line-strong'
-                    }`}
-                    aria-hidden
-                  >
-                    {active && <span className="w-1.5 h-1.5 rounded-full bg-brand" />}
-                  </span>
-                  <span className="min-w-0">
-                    <span
-                      className="block font-sans font-semibold text-label"
-                      style={{ color: active ? 'var(--brand-deep)' : 'var(--navy)' }}
-                    >
-                      {opt.label}
-                    </span>
-                    <span className="block text-caption text-ink-3 mt-0.5 leading-snug">{opt.hint}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <RadioGroup label="When a property no longer matches">
+            {RETENTION_OPTIONS.map((opt) => (
+              <Radio
+                key={opt.value}
+                label={opt.label}
+                hint={opt.hint}
+                hintClassName="leading-snug"
+                checked={retention === opt.value}
+                onSelect={() => setRetention(opt.value)}
+              />
+            ))}
+          </RadioGroup>
           </>
           )}
 

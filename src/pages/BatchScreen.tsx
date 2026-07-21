@@ -1,4 +1,4 @@
-/* global React, AppShell, Card, Button, Pill, Icon, Input, DataTable, DropdownMenu, ReactRouterDOM,
+/* global React, AppShell, Card, Button, Pill, Icon, Input, Textarea, DataTable, DropdownMenu, ReactRouterDOM,
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
    deriveTitleFromFilename, useAppState */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
@@ -192,30 +192,22 @@ function BatchUpload() {
                 setTitleTouched(true);
               }}
             />
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="batch-description"
-                className="font-sans text-caption font-semibold"
-                style={{ color: 'var(--ink-2)' }}
-              >
-                Description <span className="text-ink-3 font-normal">(optional)</span>
-              </label>
-              <textarea
-                id="batch-description"
-                value={description}
-                maxLength={280}
-                rows={3}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                  setDescription(e.target.value)
-                }
-                placeholder="Add context that&rsquo;ll appear on the batch detail page."
-                className="w-full bg-surface border border-line rounded-lg px-4 py-2.5 text-body-sm font-sans outline-none focus:border-brand focus:shadow-[0_0_0_3px_var(--brand-soft)] placeholder:text-ink-4 resize-none transition-shadow"
-                style={{ color: 'var(--ink)' }}
-              />
-              <div className="font-sans text-micro" style={{ color: 'var(--ink-3)' }}>
-                Up to 280 characters · shown on the batch detail page.
-              </div>
-            </div>
+            <Textarea
+              id="batch-description"
+              label={
+                <>
+                  Description <span className="text-ink-3 font-normal">(optional)</span>
+                </>
+              }
+              value={description}
+              maxLength={280}
+              rows={3}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setDescription(e.target.value)
+              }
+              placeholder="Add context that&rsquo;ll appear on the batch detail page."
+              hint="Up to 280 characters · shown on the batch detail page."
+            />
           </FormSection>
 
           {/* ----- Advanced (collapsed) ----- */}
