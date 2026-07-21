@@ -53,6 +53,8 @@ Nothing fits, need new?     → STOP. Read the creation gate (§3) first.
 
 **Marketing vs product.** DESIGN.md §6 governs marketing collateral (full-bleed gradient heroes, navy quote blocks). §13 governs the product surface (white content area, gradient confined to small accents). `app.html` and everything in `src/` is a **product surface** and follows §13. Do not import §6 grammar into product UI.
 
+> **Amended Jul-2026 (owner call).** One exception: the `spotlight` Button variant may carry the brand gradient on product surfaces. The §13.1 gradient inventory is now side-nav strip · workspace avatar · `ScanCard` progress bar · `spotlight` CTA. Full-bleed gradient bands are still marketing-only. See `components/core/button.md` r2 — DESIGN.md line 393 still records the old inventory and needs the matching edit.
+
 ---
 
 ## 2 · Operating rules

@@ -4,9 +4,9 @@
 function ResultMediumScreen() {
   return (
     <AppShell>
-      <ScanContextBar showDownloadPDF showAutomate showAI automateScenario="medium" />
+      <ScanContextBar showDownloadPDF showAutomate automateScenario="medium" />
       <div className="mt-stack flex flex-col gap-stack">
-        <ConfidenceHero scenario="medium" />
+        <ConfidenceHero scenario="medium" defaultOpen={false} />
         <AIInvestigator scenario="medium" />
         <ListingsPanel scenario="medium" />
         <PropertyOverview />

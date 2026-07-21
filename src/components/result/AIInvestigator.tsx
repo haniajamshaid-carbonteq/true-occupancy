@@ -1,5 +1,6 @@
-/* global React, Card, Button, Pill, Icon, SCENARIOS,
-   useAIInvestigator, startAIInvestigation, resetAIInvestigation */
+/* global React, ReactRouterDOM, Card, Button, Icon, AI_INVESTIGATIONS,
+   useAIInvestigator, startAIInvestigation, resetAIInvestigation,
+   parseAIDemoStatus, formatReportDate */
 // AIInvestigator — a second-opinion module that runs after the rule-based
 // verdict has rendered. Sits between ConfidenceHero and ListingsPanel on
 // the three result screens.
@@ -29,10 +30,11 @@ interface AIInvestigatorProps {
    *  call sites omit this and the module always boots in 'idle'. */
   forcedStatus?: AIStatus;
   /** Spec-only override: skip the async call and use this canned result
-   *  for the success/error frames. */
+   *  for the complete frames. */
   forcedResult?: AIInvestigationResult;
-  /** Spec-only override: error message for the error frame. */
-  forcedError?: string;
+  /** Spec-only override: render the complete frame with the report body
+   *  already open, so the spec can show collapsed and expanded together. */
+  forcedExpanded?: boolean;
 }
 
 const AI_BAND_COPY: Record<AIVerdictBand, { variant: 'clean' | 'warn' | 'risk' | 'brand' | 'default'; label: string; tone: string; soft: string; ink: string }> = {
@@ -77,201 +79,222 @@ function AIInvestigator({
   scenario,
   forcedStatus,
   forcedResult,
-  forcedError,
+  forcedExpanded,
 }: AIInvestigatorProps) {
   // Spec-frame override path: don't touch the bus, render the frozen state.
   if (forcedStatus) {
     return (
       <ForcedFrame
-        scenario={scenario}
         status={forcedStatus}
         result={forcedResult}
-        errorMessage={forcedError || 'network error'}
+        expanded={forcedExpanded}
       />
     );
   }
 
   // Production path: subscribe to the shared bus.
   const bus = useAIInvestigator();
-  // Reset whenever the scenario being viewed changes (user navigates between
-  // /result/clean ↔ /result/high) so stale results don't carry over.
+  const { search } = ReactRouterDOM.useLocation();
+  const demo = parseAIDemoStatus(search);
+
+  // Clear any *live* run state when the viewed scenario changes, so a
+  // failed run on /result/high doesn't bleed onto /result/low. Stored
+  // reports are untouched — they are per-scenario and permanent.
   React.useEffect(() => {
     if (bus.scenario && bus.scenario !== scenario) resetAIInvestigation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenario]);
 
+  return (
+    <>
+      <AIStateProbe current={demo} />
+      {renderBody()}
+    </>
+  );
+
+  // Everything below is the original render chain, moved into a closure so
+  // the probe can sit above every state without duplicating the branches.
+  function renderBody() {
+  // Demo override first — see parseAIDemoStatus. These states are otherwise
+  // unreachable in the running app because the mock never rejects.
+  if (demo === 'loading') return <LoadingCard activeStep={1} />;
+  if (demo === 'error') {
+    return <ErrorCard onRetry={() => startAIInvestigation(scenario)} />;
+  }
+  if (demo === 'success') {
+    return (
+      <ReportCard
+        result={AI_INVESTIGATIONS[scenario]}
+        generatedAt={new Date().toISOString()}
+      />
+    );
+  }
+
+  // A stored report is final. It outranks live status, because the report
+  // is generated once per scan and survives navigation away and back.
+  const stored = bus.reports[scenario];
+  if (stored) {
+    return <ReportCard result={stored.result} generatedAt={stored.generatedAt} />;
+  }
+
   const status = bus.scenario === scenario ? bus.status : 'idle';
 
-  // Idle = render nothing; the CTA in ScanContextBar carries the entire
-  // affordance until the user opts in.
-  if (status === 'idle') return null;
-  // On the result page itself, render the rich inline progress / error
-  // surface so the user has a clear in-context signal. The NotificationDock
-  // detects this and suppresses its own AI notification while pathname
-  // matches /result/* — it only takes over once the user navigates away.
+  // The rich inline progress / error surface lives here rather than only in
+  // the dock. The NotificationDock suppresses its own AI notification while
+  // pathname matches /result/* and takes over once the user navigates away.
   if (status === 'loading-step-1' || status === 'loading-step-2') {
     return <LoadingCard activeStep={status === 'loading-step-1' ? 1 : 2} />;
   }
   if (status === 'error') {
     return (
       <ErrorCard
-        message={bus.errorMessage}
         onRetry={() => startAIInvestigation(scenario)}
       />
     );
   }
+  // A run that resolved on this mount, before the bus write settles into
+  // `reports` on the next render.
   if (status === 'success' && bus.result) {
     return (
-      <SuccessCard
-        scenario={scenario}
+      <ReportCard
         result={bus.result}
-        onRunAgain={resetAIInvestigation}
+        generatedAt={bus.reports[scenario]?.generatedAt || new Date().toISOString()}
+      />
+    );
+  }
+
+  // Never run. The slot always renders something: absence has to be
+  // legible, or a colleague opening this scan cannot tell "ran and found
+  // little" from "nobody ran it" — a meaningful difference in an audit trail.
+  return <IdleCard onRun={() => startAIInvestigation(scenario)} />;
+  }
+}
+
+// ⚠ TEMPORARY — design review only. Delete this component and its one
+// render site above before this ships.
+//
+// Drives the existing `?ai=` demo param rather than adding a second state
+// path, so what you see here is the same branch production takes. Error and
+// loading are otherwise unreachable in the running app: the mock never
+// rejects, so nothing can exercise ErrorCard's re-run control.
+function AIStateProbe({ current }: { current: AIDemoStatus | null }) {
+  const history = ReactRouterDOM.useHistory();
+  const { pathname } = ReactRouterDOM.useLocation();
+
+  const go = (next: AIDemoStatus | null) => {
+    resetAIInvestigation();
+    history.replace(next ? `${pathname}?ai=${next}` : pathname);
+  };
+
+  const STATES: Array<{ key: AIDemoStatus | null; label: string }> = [
+    { key: null, label: 'Idle' },
+    { key: 'loading', label: 'Loading' },
+    { key: 'success', label: 'Report' },
+    { key: 'error', label: 'Error' },
+  ];
+
+  return (
+    <div className="mb-3 flex items-center gap-2 flex-wrap">
+      <span className="font-mono text-micro uppercase tracking-[0.08em] text-ink-3">
+        Temp · AI state
+      </span>
+      {STATES.map((s) => (
+        <Button
+          key={s.label}
+          size="sm"
+          variant={current === s.key ? 'primary' : 'default'}
+          onClick={() => go(s.key)}
+        >
+          {s.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+// Spec frames use this — they don't talk to the bus.
+function ForcedFrame({
+  status,
+  result,
+  expanded,
+}: {
+  status: AIStatus;
+  result?: AIInvestigationResult;
+  expanded?: boolean;
+}) {
+  if (status === 'idle') return <IdleCard onRun={() => {}} />;
+  if (status === 'loading-step-1' || status === 'loading-step-2') {
+    return <LoadingCard activeStep={status === 'loading-step-1' ? 1 : 2} />;
+  }
+  if (status === 'error') {
+    return <ErrorCard onRetry={() => {}} />;
+  }
+  if (status === 'success' && result) {
+    return (
+      <ReportCard
+        result={result}
+        generatedAt={new Date().toISOString()}
+        defaultExpanded={expanded}
       />
     );
   }
   return null;
 }
 
-// Spec frames use this — they don't talk to the bus.
-function ForcedFrame({
-  scenario,
-  status,
-  result,
-  errorMessage,
-}: {
-  scenario: ScenarioKey;
-  status: AIStatus;
-  result?: AIInvestigationResult;
-  errorMessage: string;
-}) {
-  if (status === 'idle') return <IdleHint />;
-  if (status === 'loading-step-1' || status === 'loading-step-2') {
-    return <LoadingCard activeStep={status === 'loading-step-1' ? 1 : 2} />;
-  }
-  if (status === 'error') {
-    return <ErrorCard message={errorMessage} onRetry={() => {}} />;
-  }
-  if (status === 'success' && result) {
-    return <SuccessCard scenario={scenario} result={result} onRunAgain={() => {}} />;
-  }
-  return null;
-}
+// -------------------------------------------------------------------------
+// The slot.
+//
+// Four states share one shell: never-run, running, complete (frozen), and
+// failed. The run CTA lives here rather than in ScanContextBar (approved
+// 2026-07-21, overriding docs/DESIGN.md §14.9 and the rule recorded in
+// design-harness/components/core/working-indicator.md). The old split put
+// the button at the top of the page and its result below the fold with no
+// scroll and no anchor; keeping both in one slot removes the problem
+// rather than papering over it with a scrollIntoView.
+//
+// Every state renders. The slot never returns null, because absence has to
+// be legible: a colleague opening this scan must be able to tell "ran and
+// found little" from "nobody ran it".
 
-// Used only in the spec frames — shows what the bar-mounted CTA looks like
-// in isolation, since the live page doesn't render anything here when idle.
-function IdleHint() {
+function SlotEyebrow() {
   return (
-    <div className="rounded-lg border border-dashed border-line p-4 text-center">
-      <div className="font-sans text-caption text-ink-3">
-        Idle — the CTA lives in <code className="font-mono">ScanContextBar</code>.
-      </div>
+    <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.16em] text-ink-3">
+      Occupancy report
     </div>
   );
 }
 
-// -------------------------------------------------------------------------
-// Shared header (brand-teal AI glyph + title + tagline). Used by idle,
-// loading, and error states. The success state uses its own hero band.
-
-function ModuleHeader({
-  trailing,
-  tagline,
-}: {
-  trailing?: React.ReactNode;
-  tagline?: string;
-}) {
+function SlotTitle({ children }: { children: React.ReactNode }) {
   return (
-    <header className="flex items-start justify-between gap-3 mb-4">
-      <div className="flex items-center gap-3 min-w-0">
-        <span
-          className="w-9 h-9 rounded-xl grid place-items-center shrink-0 relative overflow-hidden"
-          style={{
-            background:
-              'linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%)',
-            color: 'white',
-            boxShadow: '0 1px 2px rgba(15,42,76,.10), 0 4px 12px rgba(10,183,163,.18)',
-          }}
-          aria-hidden
-        >
-          <Icon name="spark" size={18} />
-        </span>
-        <div className="min-w-0">
-          <h2
-            className="font-sans font-semibold text-ink m-0 leading-none"
-            style={{ fontSize: 'var(--text-h4)' }}
-          >
-            AI Investigation
-          </h2>
-          {tagline && (
-            <div
-              className="font-sans text-eyebrow uppercase tracking-[0.08em] mt-1.5"
-              style={{ color: 'var(--brand-deep)' }}
-            >
-              {tagline}
-            </div>
-          )}
-        </div>
-      </div>
-      {trailing}
-    </header>
+    <h2
+      className="font-sans font-semibold m-0 mt-2 leading-tight tracking-[-0.008em]"
+      style={{ fontSize: 'var(--text-h4)', color: 'var(--navy)' }}
+    >
+      {children}
+    </h2>
   );
 }
 
-// -------------------------------------------------------------------------
-// Idle — explainer + CTA. Reads as "you have a second tool available."
-
-// Custom "AI-flavored" CTA: brand gradient, soft outer halo, sparkle icon
-// with a slow shimmer. Distinct from the standard Button variants so it
-// reads as something special — not "another primary button." Mounted by
-// <ScanContextBar> next to Download PDF; subscribes to the bus so it
-// flips to a "Running…" indicator while the investigation is in flight
-// and hides itself entirely once the result card is visible.
-function AICtaButton({
-  scenario,
-  size = 'md',
-}: {
-  scenario: ScenarioKey;
-  size?: 'sm' | 'md';
-}) {
-  const bus = useAIInvestigator();
-  const myStatus = bus.scenario === scenario ? bus.status : 'idle';
-  const running =
-    myStatus === 'loading-step-1' || myStatus === 'loading-step-2';
-  // Hide once the result is rendered — the result card has its own
-  // Run-again control, so duplicating the CTA in the bar would be noise.
-  if (myStatus === 'success') return null;
-
-  const HEIGHT = size === 'sm' ? 32 : 36;
-  const FONT = size === 'sm' ? 'var(--text-caption)' : 'var(--text-label)';
-  const PAD = size === 'sm' ? '0 12px 0 10px' : '0 12px 0 12px';
-
+// Never run. Leads with what the report gives you rather than with the
+// constraint — the one-per-scan rule is real but it is not the reason to
+// press the button.
+function IdleCard({ onRun }: { onRun: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={() => startAIInvestigation(scenario)}
-      disabled={running}
-      className="ai-cta inline-flex items-center gap-1.5 rounded-lg font-sans font-semibold cursor-pointer border-0 transition-transform active:scale-[0.97] shrink-0 disabled:opacity-90 disabled:cursor-progress"
-      style={{
-        height: HEIGHT,
-        padding: PAD,
-        color: 'white',
-        fontSize: FONT,
-        letterSpacing: '0.01em',
-        background:
-          'linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%)',
-      }}
-    >
-      <span
-        className={`inline-flex items-center justify-center ${
-          running ? '' : 'ai-cta-spark'
-        }`}
-        style={{ width: 14, height: 14 }}
-        aria-hidden
-      >
-        {running ? <Spinner size={12} /> : <Icon name="ai-star" size={14} />}
-      </span>
-      {running ? 'Investigating...' : 'Run occupancy investigation'}
-    </button>
+    <Card padded>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <SlotEyebrow />
+          <SlotTitle>Find out who actually lives here</SlotTitle>
+          <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-3xl">
+            Listings show the property is rented. This checks utility, voter
+            and tenancy records to establish who lives in it.
+          </p>
+        </div>
+        <Button variant="primary" onClick={onRun} className="shrink-0">
+          Run report
+        </Button>
+      </div>
+    </Card>
   );
 }
 
@@ -481,186 +504,184 @@ function Spinner({ size = 14 }: { size?: number }) {
 //                   "Why This Score" pattern so the two surfaces feel
 //                   like a coordinated pair.
 
-function SuccessCard({
+function ReportCard({
   result,
-  onRunAgain,
+  generatedAt,
+  defaultExpanded = false,
 }: {
-  scenario: ScenarioKey;
   result: AIInvestigationResult;
-  onRunAgain: () => void;
+  generatedAt: string;
+  /** Spec-only: render with the body already open. */
+  defaultExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(defaultExpanded);
+  const date = formatReportDate(generatedAt);
 
   return (
     <Card padded={false} className="card-rise" allowOverflow>
-      <InvestigationResultPanel
-        result={result}
-        expanded={expanded}
-        onToggleExpanded={() => setExpanded((value) => !value)}
-        onRunAgain={onRunAgain}
-      />
+      {/* Header. Leads with the finding, not the module name — once the
+          report exists, "Occupancy report" is already carried by the
+          eyebrow and the title slot is better spent on what was found. */}
+      <div className="p-card">
+        <SlotEyebrow />
+        <SlotTitle>{result.caseArchetype}</SlotTitle>
+        <div className="font-sans text-caption text-ink-3 mt-2">
+          {date ? `Generated ${date}. Final.` : 'Final.'}
+        </div>
+      </div>
+
+      {/* Disclosure. Deliberately the same anatomy as ConfidenceHero's
+          "Why This Score": a full-width labelled row at the card's bottom
+          edge with a circled chevron, so the two cards on this page
+          disclose identically instead of inventing a second pattern.
+          Labels are asymmetric because "Collapse" is the honest inverse of
+          "Read the full report" — "Hide the full report" reads as a
+          warning. */}
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+        className="w-full flex items-center justify-between gap-3 border-0 border-t border-line bg-transparent cursor-pointer text-left px-6 py-3 hover:bg-hover-bg transition-colors"
+      >
+        <span
+          className="font-sans font-semibold"
+          style={{ fontSize: 'var(--text-body-sm)', color: 'var(--navy)' }}
+        >
+          {expanded ? 'Collapse' : 'Read the full report'}
+        </span>
+        <span
+          className={`w-6 h-6 rounded-full bg-surface-2 grid place-items-center text-ink-2 transition-transform shrink-0 ${
+            expanded ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        >
+          <Icon name="chevron" size={14} />
+        </span>
+      </button>
+
+      {expanded && <ReportBody result={result} />}
     </Card>
   );
 }
 
-function InvestigationResultPanel({
-  result,
-  expanded,
-  onToggleExpanded,
-  onRunAgain,
-}: {
-  result: AIInvestigationResult;
-  expanded: boolean;
-  onToggleExpanded: () => void;
-  onRunAgain: () => void;
-}) {
-  const band = AI_BAND_COPY[result.verdictBand];
+// The full report. Everything here was previously behind "View details"
+// inside the success card; it now sits under the disclosure row so the
+// control stays adjacent to what it opens.
+function ReportBody({ result }: { result: AIInvestigationResult }) {
   return (
-    <>
-      <div className="p-card">
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span
-                className="w-8 h-8 rounded-lg grid place-items-center shrink-0"
-                style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}
-                aria-hidden
-              >
-                <Icon name="ai-star" size={16} />
-              </span>
-              <Pill variant={band.variant} dot>{band.label}</Pill>
-            </div>
-            <h2 className="font-sans font-semibold text-h3 leading-tight m-0 mt-3 tracking-[-0.012em]" style={{ color: 'var(--navy)' }}>
-              Occupancy investigation
-            </h2>
-            <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-4xl">
-              {result.summary}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRunAgain}
-              icon={<Icon name="replay" />}
-            >
-              Run again
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={onToggleExpanded}
-              iconRight={<Icon name="chevron" />}
-              className={expanded ? '[&>span:last-child]:rotate-180' : ''}
-            >
-              {expanded ? 'Hide details' : 'View details'}
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
+    <div className="border-t border-line p-card">
+      {/* Score tiles lead, archetype + summary sit beside them. The band
+          label was dropped from the tile at the client's request — note
+          that `verdictBand` no longer renders anywhere in this panel, so
+          all five bands now present identically here. The certificate is
+          the only surface still expressing it. */}
+      <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
+        <div className="flex gap-3 shrink-0">
           <ScoreTile
-            label="Occupancy-review score"
+            label="Occupancy score"
             value={`${result.score}/${result.scoreMax}`}
-            helper={`${band.label.toLowerCase()} band`}
-            tone={band.tone}
           />
           <ScoreTile
-            label="Case archetype"
-            value={result.caseArchetype}
-            helper="occupancy context"
-            tone="var(--navy)"
-            compact
+            label="Evidence clarity"
+            value={`${result.clarityScore}/${result.clarityMax}`}
           />
         </div>
-
-        <div className="mt-4 rounded-lg border border-line p-4 flex items-start gap-3" style={{ background: 'var(--brand-soft)' }}>
-          <span className="w-7 h-7 rounded-md grid place-items-center shrink-0" style={{ background: 'var(--surface)', color: 'var(--brand-deep)' }}>
-            <Icon name="arrow-right" size={15} />
-          </span>
-          <div className="min-w-0">
-            <div className="font-sans font-semibold text-body-sm" style={{ color: 'var(--navy)' }}>Recommended action</div>
-            <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 mt-1">
-              {result.nextStep}
-            </p>
-          </div>
-        </div>
+        {/* Summary only — the archetype is the card's own title a few rows
+            up, and printing it again here spent the widest column on a
+            line the reader had just read. */}
+        <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 min-w-0 max-w-4xl">
+          {result.summary}
+        </p>
       </div>
-      {expanded && (
-        <div className="border-t border-line p-card">
-          <RecommendationBreakdown result={result} />
-          <OccupancyHistorySection result={result} />
+
+      {/* The only actionable line on the panel, so it sits directly under
+          the verdict and is the single loudest thing here — brand-soft
+          fill, an icon, and the directive set a full step above body copy.
+          Everything else on the panel is neutral, which is what lets this
+          carry emphasis without a border. */}
+      <div className="mt-8">
+        <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3">
+          Do this next
         </div>
-      )}
-    </>
+        <div
+          className="font-sans font-semibold text-h3 leading-tight mt-1.5"
+          style={{ color: 'var(--navy)' }}
+        >
+          {result.nextStepLead}
+        </div>
+        <p className="font-sans text-body-sm leading-relaxed text-ink-2 m-0 mt-2 max-w-3xl">
+          {result.nextStep}
+        </p>
+      </div>
+
+      {/* Sections are separated by space, not rules. The only hairline in
+          the body is the one under the scope note below. */}
+      <div className="mt-10">
+        <RecommendationBreakdown result={result} />
+        <OccupancyHistorySection result={result} />
+      </div>
+
+      <p className="font-sans text-caption text-ink-3 leading-relaxed m-0 mt-10 pt-4 border-t border-line">
+        {result.scopeNote}
+      </p>
+    </div>
   );
 }
 
+// Numeral-first stat tile. The value carries --navy rather than a band
+// tone: colouring it would put the status layer on a number that already
+// has a band pill's worth of meaning elsewhere, and the three colour
+// layers stay separate (harness §2).
 function ScoreTile({
   label,
   value,
-  helper,
-  tone = 'var(--brand)',
-  compact,
 }: {
   label: string;
   value: string;
-  helper: string;
-  tone?: string;
-  compact?: boolean;
 }) {
   return (
-    <div
-      className="rounded-lg border border-line bg-surface-2 p-3 min-w-0"
-    >
-      <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3">
-        {label}
-      </div>
+    <div className="rounded-lg border border-brand-2 px-5 py-4 text-center min-w-0">
       <div
-        className={`font-sans font-semibold leading-tight mt-1 ${compact ? 'text-body-sm' : 'text-h4'} truncate`}
-        style={{ color: compact ? 'var(--navy)' : tone }}
-        title={value}
+        className="font-sans font-semibold text-h3 leading-none tabular-nums"
+        style={{ color: 'var(--navy)' }}
       >
         {value}
       </div>
-      <div className="font-sans text-caption text-ink-3 mt-1 truncate">{helper}</div>
-    </div>
-  );
-}
-
-function RecommendationBreakdown({ result, compact }: { result: AIInvestigationResult; compact?: boolean }) {
-  return (
-    <div>
-      <SectionHeading
-        icon={
-          <span className="w-6 h-6 rounded-md grid place-items-center" style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}>
-            <Icon name="sliders" size={14} />
-          </span>
-        }
-      >
-        Recommendation rationale
-      </SectionHeading>
-      <p className="font-sans text-caption text-ink-3 leading-relaxed m-0 mt-2 max-w-4xl">
-        These are the factors behind the {AI_BAND_COPY[result.verdictBand].label.toLowerCase()} band and the {result.score}/{result.scoreMax} occupancy-review score. This does not determine rental status without public listing evidence.
-      </p>
-      <div className={`grid grid-cols-1 ${compact ? '' : 'lg:grid-cols-2'} gap-4 mt-3`}>
-        <FactorPanel
-          title="Raises concern"
-          icon="alert"
-          tone="risk"
-          items={result.riskSignals}
-        />
-        <FactorPanel
-          title="Lowers concern"
-          icon="shield"
-          tone="clean"
-          items={result.mitigatingSignals}
-        />
+      <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3 mt-2 whitespace-nowrap">
+        {label}
       </div>
     </div>
   );
 }
 
+// The "Recommendation rationale" heading and its intro paragraph were
+// dropped: the intro restated the score directly above it and repeated the
+// scope caveat, which now lives once as the panel footnote. The two columns
+// read as a balance without being told they're one.
+function RecommendationBreakdown({ result, compact }: { result: AIInvestigationResult; compact?: boolean }) {
+  return (
+    <div className={`grid grid-cols-1 ${compact ? '' : 'lg:grid-cols-2'} gap-6`}>
+      <FactorPanel
+        title="Raises concern"
+        icon="trend-up"
+        tone="warn"
+        items={result.riskSignals}
+      />
+      <FactorPanel
+        title="Lowers concern"
+        icon="trend-down"
+        tone="clean"
+        items={result.mitigatingSignals}
+      />
+    </div>
+  );
+}
+
+// One side of the balance. No card wrapper and no bullet dots — the only
+// colour is the soft-tinted icon tile, so direction stays legible without
+// putting a status hue on the heading text or on the evidence itself.
+// That matters here: this panel explicitly does not determine rental
+// status, and colouring the copy reads as a verdict on it.
 function FactorPanel({
   title,
   icon,
@@ -668,28 +689,34 @@ function FactorPanel({
   items,
 }: {
   title: string;
-  icon: 'alert' | 'shield' | 'warning';
+  icon: 'trend-up' | 'trend-down' | 'alert' | 'shield' | 'warning';
   tone: 'risk' | 'clean' | 'warn';
   items: string[];
 }) {
-  const color = tone === 'risk' ? 'var(--risk)' : tone === 'warn' ? 'var(--warn)' : 'var(--clean)';
+  const ink = tone === 'risk' ? 'var(--risk-ink)' : tone === 'warn' ? 'var(--warn-ink)' : 'var(--clean-ink)';
   const soft = tone === 'risk' ? 'var(--risk-soft)' : tone === 'warn' ? 'var(--warn-soft)' : 'var(--clean-soft)';
   return (
-    <section className="rounded-lg border border-line bg-surface p-4">
+    <section className="rounded-lg border border-line p-4">
+      {/* The heading sits on a hairline shelf rather than free-floating —
+          without it the two columns read as loose text adrift between the
+          action block and the people list. The tinted icon is the only
+          colour; the rule and the box do the grounding. */}
       <SectionHeading
         icon={
-          <span className="w-6 h-6 rounded-md grid place-items-center" style={{ background: soft, color }}>
-            <Icon name={icon} size={14} />
+          <span
+            className="w-7 h-7 rounded-md grid place-items-center shrink-0"
+            style={{ background: soft, color: ink }}
+          >
+            <Icon name={icon} size={15} />
           </span>
         }
       >
         {title}
       </SectionHeading>
-      <ul className="list-none m-0 p-0 mt-3 flex flex-col gap-2">
+      <ul className="list-none m-0 p-0 mt-3 pt-3 border-t border-line flex flex-col gap-2.5">
         {items.map((item, i) => (
-          <li key={i} className="flex items-start gap-2.5 text-caption text-ink-2 leading-snug">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" style={{ background: color }} />
-            <span>{item}</span>
+          <li key={i} className="text-caption text-ink-2 leading-relaxed">
+            {item}
           </li>
         ))}
       </ul>
@@ -702,121 +729,89 @@ function OccupancyHistorySection({ result }: { result: AIInvestigationResult }) 
   const relatedPeople = result.occupancyHistory.filter((person) => person.relationship !== 'owner');
 
   return (
-    <section className="mt-5">
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-4">
-        <div>
-          <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.16em] text-ink-3">
-            Property context
-          </div>
-          <h3 className="font-sans font-semibold text-h3 leading-tight m-0 mt-2" style={{ color: 'var(--navy)' }}>
-            Relationship to owner or borrower
-          </h3>
-          <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-4xl">
-            These people have appeared in connection with the property. Their relationship to the owner or borrower helps explain occupancy ambiguity, but it does not prove current residence or rental use.
-          </p>
-        </div>
-        <div className="shrink-0">
-          <HistoryStat label="People" value={String(result.occupancyHistory.length)} />
-        </div>
+    <section className="mt-10">
+      <div className="flex items-baseline justify-between gap-3">
+        <SectionHeading>People connected to the property</SectionHeading>
+        <span className="font-sans text-caption text-ink-3 tabular-nums shrink-0">
+          {result.occupancyHistory.length} total
+        </span>
       </div>
 
-      <div className="flex flex-col gap-4">
-        {owner && (
-          <section className="rounded-lg border border-line bg-surface-2 p-4">
-            <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4">
-              <span
-                className="w-8 h-8 rounded-md grid place-items-center shrink-0"
-                style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}
-                aria-hidden
-              >
-                <Icon name="pin" size={16} />
-              </span>
-              <div className="min-w-0 lg:w-[260px] shrink-0">
-                <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3">Owner / borrower anchor</div>
-                <h4 className="font-sans font-semibold text-body m-0 mt-1 leading-tight" style={{ color: 'var(--navy)' }}>{owner.name}</h4>
-              </div>
-              <div className="hidden lg:block w-px self-stretch bg-line" aria-hidden />
-              <div className="min-w-0">
-                <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 mt-2">
-                  {owner.summary}
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
-        <div className="flex items-center justify-between gap-3">
-          <SectionHeading>Other people associated</SectionHeading>
-          <span className="font-mono text-micro text-ink-3 uppercase tracking-[0.08em]">
-            {relatedPeople.length} found
-          </span>
+      {/* The anchor keeps a tinted row because it is categorically
+          different from the rest; everyone else is a plain row. */}
+      {owner && (
+        <div className="mt-3 rounded-lg border border-brand-2 p-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4
+              className="font-sans font-semibold text-body-sm m-0 leading-tight"
+              style={{ color: 'var(--navy)' }}
+            >
+              {owner.name}
+            </h4>
+            <RelationshipPill relationship="owner" />
+          </div>
+          <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 mt-1">
+            {owner.summary}
+          </p>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          {relatedPeople.map((person) => (
-            <OccupancyPersonCard key={person.name} person={person} />
-          ))}
-        </div>
+      )}
+
+      <div className="mt-1">
+        {relatedPeople.map((person) => (
+          <OccupancyPersonRow key={person.name} person={person} />
+        ))}
       </div>
     </section>
   );
 }
 
-function HistoryStat({ label, value }: { label: string; value: string }) {
+// Renders nothing for 'unrelated'. Every non-anchor person in a typical
+// report is unrelated, so the label was true of all of them at once and
+// carried no per-row information — it just repeated down the list.
+function RelationshipPill({
+  relationship,
+}: {
+  relationship: AIInvestigationResult['occupancyHistory'][number]['relationship'];
+}) {
+  if (relationship === 'unrelated') return null;
+
+  const isOwner = relationship === 'owner';
   return (
-    <div className="rounded-lg border border-line bg-surface-2 px-3 py-2 min-w-[76px]">
-      <div
-        className="font-mono text-h4 font-semibold leading-none tabular-nums"
-        style={{ color: 'var(--navy)' }}
-      >
-        {value}
-      </div>
-      <div className="font-sans text-micro text-ink-3 mt-1 uppercase tracking-[0.08em]">
-        {label}
-      </div>
-    </div>
+    <span
+      className="inline-flex items-center h-5 px-2 rounded-full font-sans text-micro font-semibold shrink-0"
+      style={
+        isOwner
+          ? { background: 'var(--brand-soft)', color: 'var(--brand-deep)' }
+          : { background: 'var(--surface-2)', color: 'var(--ink-2)', boxShadow: '0 0 0 1px var(--line)' }
+      }
+    >
+      {isOwner ? 'Current owner' : 'Possible household relation'}
+    </span>
   );
 }
 
-function OccupancyPersonCard({
+// One non-anchor person. Name column is fixed-width so the summaries form
+// a readable second column instead of starting at a ragged left edge.
+function OccupancyPersonRow({
   person,
 }: {
   person: AIInvestigationResult['occupancyHistory'][number];
 }) {
-  const isOwner = person.relationship === 'owner';
-  const relationshipLabel =
-    person.relationship === 'owner'
-      ? 'Owner'
-      : person.relationship === 'likely_family'
-      ? 'Possible household relation'
-      : 'No known relation';
-  const surface = person.primary ? 'var(--surface-2)' : 'var(--surface)';
-  const pillStyle = isOwner
-    ? { background: 'var(--brand-soft)', color: 'var(--brand-deep)' }
-    : { background: 'var(--surface-2)', color: 'var(--ink-2)', boxShadow: '0 0 0 1px var(--line)' };
-
   return (
-    <article
-      className="relative rounded-lg border border-line p-4 overflow-hidden"
-      style={{ background: surface }}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="font-sans font-semibold text-body m-0 leading-tight" style={{ color: 'var(--navy)' }}>
-              {person.name}
-            </h4>
-            <span
-              className="inline-flex items-center h-6 px-2.5 rounded-full font-sans text-micro font-bold uppercase tracking-[0.08em]"
-              style={pillStyle}
-            >
-              {relationshipLabel}
-            </span>
-          </div>
-          <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 mt-3">
-            {person.summary}
-          </p>
-        </div>
+    <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 py-2.5 border-b border-line last:border-b-0">
+      <div className="flex items-center gap-2 sm:w-[200px] shrink-0">
+        <span
+          className="font-sans text-body-sm leading-tight"
+          style={{ color: 'var(--navy)' }}
+        >
+          {person.name}
+        </span>
+        <RelationshipPill relationship={person.relationship} />
       </div>
-    </article>
+      <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 min-w-0">
+        {person.summary}
+      </p>
+    </div>
   );
 }
 
@@ -841,52 +836,21 @@ function SectionHeading({
 // -------------------------------------------------------------------------
 // Error — soft red surface, retry CTA.
 
-function ErrorCard({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) {
+function ErrorCard({ onRetry }: { onRetry: () => void }) {
   return (
-    <Card
-      padded
-      className="card-rise"
-      style={{
-        background: 'var(--risk-soft)',
-        borderColor: 'var(--risk)',
-      }}
-    >
-      <div className="flex items-start gap-3">
-        <span
-          className="w-7 h-7 rounded-full grid place-items-center shrink-0"
-          style={{ background: 'var(--surface)', color: 'var(--risk)' }}
-          aria-hidden
-        >
-          <Icon name="alert" size={16} />
-        </span>
-        <div className="flex-1 min-w-0">
-          <h2
-            className="font-sans font-semibold m-0 leading-none"
-            style={{
-              fontSize: 'var(--text-h4)',
-              color: 'var(--risk-ink)',
-            }}
-          >
-            Investigation failed
-          </h2>
-          <p
-            className="font-sans text-body-sm m-0 mt-1.5 leading-snug"
-            style={{ color: 'var(--risk-ink)' }}
-          >
-            {message || 'network error'}
+    <Card padded className="card-rise">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <SlotEyebrow />
+          <SlotTitle>The report did not finish</SlotTitle>
+          <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-3xl">
+            The connection dropped while records were being read. Nothing was
+            saved, so this scan&rsquo;s report has not been used.
           </p>
-          <div className="mt-3.5">
-            <Button variant="default" size="sm" onClick={onRetry}>
-              Try again
-            </Button>
-          </div>
         </div>
+        <Button variant="default" onClick={onRetry} className="shrink-0">
+          Re-run
+        </Button>
       </div>
     </Card>
   );

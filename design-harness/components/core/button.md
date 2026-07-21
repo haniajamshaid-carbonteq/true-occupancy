@@ -20,10 +20,14 @@ class: Interactive
 - disabled — `disabled:opacity-50 disabled:cursor-not-allowed`. Colors are not otherwise swapped.
 
 ## Variants
-`variant`: `primary` · `default` · `ghost`. `size`: `sm` · `md` (default). No `secondary` and no dedicated `icon` variant exist in the prop union — icon-only usage is `variant="ghost"` with an `icon` and no children.
+`variant`: `primary` · `default` · `ghost` · `spotlight`. `size`: `sm` · `md` (default). No `secondary` and no dedicated `icon` variant exist in the prop union — icon-only usage is `variant="ghost"` with an `icon` and no children.
+
+`spotlight` is the hero CTA: `bg-gradient-to-br from-brand to-brand-deep`, `text-on-brand`, transparent border, `hover:brightness-[1.06]`, plus the `.ai-cta` sheen from `src/styles/motion.css`. One per screen.
 
 ## Rules
-- Primary is solid `--brand` on white with white text — **never a gradient**. The gradient is marketing-collateral only (DESIGN.md §6 vs §10 / §13.1); its entire product-surface inventory is the side-nav strip, the workspace avatar, and the ScanCard progress bar.
+- Primary is solid `--brand` on white with white text — **never a gradient**. `spotlight` is the one variant that may carry a gradient (see below).
+- **Gradient on the product surface is permitted for `spotlight` only** (revised Jul-2026, owner call — supersedes the previous marketing-only rule from DESIGN.md §6 / §10). The §13.1 product-surface gradient inventory is now: side-nav strip, workspace avatar, `ScanCard` progress bar, and the `spotlight` CTA. Nothing else.
+- One `spotlight` per screen. A second one on the same view cancels the emphasis it exists to create.
 - Primary hover is `--brand-deep`, mirroring the brand-book hyperlink hover.
 - Ghost is transparent until hover; hover lands on neutral `--hover-bg`, not a brand tint — the pale brand tint read washed-out against surrounding cards (comment in source).
 - One primary button per view band; brand fill is part of the ~3% teal budget in DESIGN.md §13.1.
@@ -33,3 +37,4 @@ class: Interactive
 
 ## Revisions
 - r1: transcribed from `src/components/ui/Button.tsx`, `docs/DESIGN.md` §13.1 / §13.3 / §10, `src/styles/tokens.css`, `tailwind.config.js` into harness format.
+- r2 (breaking, rule change): added the `spotlight` variant and lifted the product-surface gradient ban for it. Owner call, made when the top AI CTA was removed and the scan CTA inherited its emphasis. **Re-check on breaking:** `docs/DESIGN.md` line 393 still states the old inventory ("that is the entire gradient inventory on the product surface") and the §10 marketing-vs-product split in `design-harness.md` §1 has been amended but DESIGN.md itself has not — the brand book is the owner's file to edit, so the two now disagree until that line is updated. First consumer: the scan CTA in `src/components/ui/CommandSearch.tsx`.

@@ -24,7 +24,15 @@ interface AIInvestigationResult {
   clarityLabel: AIClarityLabel;
   caseArchetype: string;
   summary: string;
+  /** Imperative one-liner — the only thing the reader is asked to DO. Leads
+   *  the action block; `nextStep` carries the qualifying detail underneath. */
+  nextStepLead: string;
   nextStep: string;
+  /** The "this doesn't determine rental status" caveat, stated ONCE as a
+   *  panel footnote. It used to appear three times — in `summary`, inside
+   *  `nextStep`, and again above the signal columns — which trained readers
+   *  to skip all three. */
+  scopeNote: string;
   riskSignals: string[];
   mitigatingSignals: string[];
   whyNotHigher: string[];
@@ -78,9 +86,12 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   clarityLabel: 'Low',
   caseArchetype: 'Ambiguous non-owner occupancy',
   summary:
-    'Owner presence is supported by utility and long-term residence records, but unrelated occupants and renter-coded loan records create enough ambiguity to warrant review. Local records can support owner-occupancy review, but they do not prove whether the property is a rental.',
+    'Owner presence is supported by utility and long-term residence records, but unrelated occupants and renter-coded loan records create enough ambiguity to warrant review.',
+  nextStepLead: 'Route this case for human review',
   nextStep:
-    'Route this case for human review. Do not treat it as a rental determination unless newer occupancy dates, public listing evidence, voter/driver records, or utility service periods clarify who currently occupies the property.',
+    'Resolves with newer occupancy dates, public listing evidence, voter or driver records, or utility service periods that clarify who currently occupies the property.',
+  scopeNote:
+    'Local records support owner-occupancy review only. None of the above determines rental status without public listing evidence.',
   riskSignals: [
     "DONALD CAIN appears in a loan record at the subject address with own_rent='0' renter coding.",
     'Owner mailing address differs from the subject property address.',
@@ -199,12 +210,72 @@ function runAIInvestigation(
 }
 
 // -------------------------------------------------------------------------
-// Shared state bus. The CTA lives in ScanContextBar (top-right, next to
-// Download PDF). The result card lives in the page body. They share a
-// single source of truth via a module-level state + listener set —
-// mirrors the pattern used by CommandPalette for ⌘K open/close.
-// `currentScenario` lets the body component reset its view automatically
-// when the user navigates between result scenarios.
+// Persistence.
+//
+// The report is generated once per scan and is never re-run, so it has to
+// outlive the result screen's mount — otherwise navigating away and back
+// shows an action the user can never take again as "never taken", which
+// on an irreversible action is data loss, not a cosmetic bug.
+//
+// Two layers, mirroring the scanReference field in ConfidenceHero:
+//   * sessionStorage.occupancyReports — keyed by scenario, so moving
+//     between /result/high and /result/low keeps each scan's own report.
+//   * AppState history entry — patched by the caller via
+//     setSingleScanReport when the result was opened from /history and a
+//     scanHistoryId is in session. Fresh scans are session-only.
+
+const AI_STORE_KEY = 'occupancyReports';
+
+interface StoredReport {
+  result: AIInvestigationResult;
+  /** ISO timestamp. Formatted for display by formatReportDate below —
+   *  a frozen artifact needs a date or a reader six months later has no
+   *  way to judge how stale it is. */
+  generatedAt: string;
+}
+
+type StoredReports = Partial<Record<ScenarioKey, StoredReport>>;
+
+function readStoredReports(): StoredReports {
+  if (typeof sessionStorage === 'undefined') return {};
+  try {
+    return JSON.parse(sessionStorage.getItem(AI_STORE_KEY) || '{}') as StoredReports;
+  } catch {
+    // A corrupt blob must not take the result page down with it.
+    return {};
+  }
+}
+
+function writeStoredReport(scenario: ScenarioKey, report: StoredReport) {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    sessionStorage.setItem(
+      AI_STORE_KEY,
+      JSON.stringify({ ...readStoredReports(), [scenario]: report })
+    );
+  } catch {
+    // Quota or private-mode failure. The in-memory bus still holds the
+    // report for this mount; losing the session copy is survivable.
+  }
+}
+
+/** "21 Jul 2026" — matches the date voice used on history rows. */
+function formatReportDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })} ${d.getFullYear()}`;
+}
+
+// -------------------------------------------------------------------------
+// Shared state bus. The run CTA and the report both live in the same slot
+// on the result page (docs/DESIGN.md §14.9 previously put the CTA in
+// ScanContextBar; moving it into the slot was approved 2026-07-21 so the
+// button and its outcome occupy one place). The bus is still shared so the
+// NotificationDock can mirror an in-flight run when the user navigates away.
+//
+// `reports` is the frozen record. `status` only ever describes a live run;
+// a scenario with a stored report is complete regardless of what status
+// says, which is what getAIReport() below encodes.
 
 type AIStatus =
   | 'idle'
@@ -219,8 +290,10 @@ interface AIBusState {
   result: AIInvestigationResult | null;
   errorMessage: string;
   /** Monotonic id used to ignore stale async resolutions when a newer
-   *  run has started (e.g. user hits "Run again" mid-flight). */
+   *  run has started (e.g. the user retries a failed run mid-flight). */
   runId: number;
+  /** Frozen reports, seeded from sessionStorage on boot. */
+  reports: StoredReports;
 }
 
 const __aiInitial: AIBusState = {
@@ -229,9 +302,10 @@ const __aiInitial: AIBusState = {
   result: null,
   errorMessage: '',
   runId: 0,
+  reports: {},
 };
 
-let __aiState: AIBusState = __aiInitial;
+let __aiState: AIBusState = { ...__aiInitial, reports: readStoredReports() };
 const __aiListeners = new Set<(s: AIBusState) => void>();
 
 function __setAI(next: Partial<AIBusState>) {
@@ -256,10 +330,22 @@ function startAIInvestigation(scenario: ScenarioKey) {
   })
     .then((res) => {
       if (__aiState.runId !== runId) return;
-      __setAI({ status: 'success', result: res });
+      const report: StoredReport = {
+        result: res,
+        generatedAt: new Date().toISOString(),
+      };
+      writeStoredReport(scenario, report);
+      __setAI({
+        status: 'success',
+        result: res,
+        reports: { ...__aiState.reports, [scenario]: report },
+      });
     })
     .catch((err: unknown) => {
       if (__aiState.runId !== runId) return;
+      // A failed run must not consume the scan's one report — nothing is
+      // written to storage here, so the slot returns to its runnable state
+      // behind the retry. See the error copy in AIInvestigator.
       __setAI({
         status: 'error',
         errorMessage:
@@ -268,14 +354,52 @@ function startAIInvestigation(scenario: ScenarioKey) {
     });
 }
 
-/** Reset the bus to idle. Used by Run-again and on result-screen unmount. */
+/** The frozen report for a scenario, or undefined if it was never run. */
+function getAIReport(scenario: ScenarioKey): StoredReport | undefined {
+  return __aiState.reports[scenario];
+}
+
+/** Clear the live run state without touching stored reports. Called when
+ *  the viewed scenario changes so a failed run on /result/high doesn't
+ *  bleed onto /result/low. */
 function resetAIInvestigation() {
-  __setAI({ ...__aiInitial, runId: __aiState.runId + 1 });
+  __setAI({
+    status: 'idle',
+    scenario: null,
+    result: null,
+    errorMessage: '',
+    runId: __aiState.runId + 1,
+  });
+}
+
+// -------------------------------------------------------------------------
+// Demo override.
+//
+// Every result in this prototype is hardcoded and runAIInvestigation never
+// rejects, so the error state is unreachable by clicking. A query param on
+// any result route forces a state so it can be reviewed in the running app
+// rather than only in states-spec.html:
+//
+//   #/result/high?ai=error      the failed run + retry
+//   #/result/high?ai=loading    the six-substep progress card
+//   #/result/high?ai=success    a completed report without waiting
+//
+// HashRouter puts the query after the hash, so this reads the router's
+// search string rather than window.location.search.
+
+type AIDemoStatus = 'loading' | 'success' | 'error';
+
+function parseAIDemoStatus(search: string): AIDemoStatus | null {
+  if (!search) return null;
+  const value = new URLSearchParams(search).get('ai');
+  return value === 'loading' || value === 'success' || value === 'error'
+    ? value
+    : null;
 }
 
 /** React hook — subscribe to the bus. The body component uses this to
- *  render its current state; the CTA in the context bar uses it to know
- *  whether to show "Run AI Investigator" vs "Running…" vs nothing. */
+ *  render its current state; the NotificationDock uses it to mirror an
+ *  in-flight run once the user has navigated away from the result page. */
 function useAIInvestigator(): AIBusState {
   const [state, setState] = React.useState<AIBusState>(__aiState);
   React.useEffect(() => {

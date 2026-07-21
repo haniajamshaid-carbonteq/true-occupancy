@@ -1,4 +1,4 @@
-/* global React, Card, Icon, Pill, SCENARIOS, ReferenceCell, useAppState */
+/* global React, Card, Icon, SCENARIOS, ReferenceCell, useAppState */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
@@ -14,39 +14,61 @@ interface ConfidenceHeroProps {
   defaultOpen?: boolean;
 }
 
-// One factor row in the "Why this score" breakdown. Positive-only render:
-// magnitude shown as a soft teal Pill, no signed sign or impact bar.
-// Mounts with a staggered fade+rise so the list reveals in cadence with the
-// waffle grid above (parent re-keys rows on accordion toggle, so the entrance
-// also fires every time the user reopens).
-function FactorRow({
+// One factor column in the "Why this score" breakdown. Positive-only render:
+// magnitude leads as a bare numeral, no sign and no impact bar — reading the
+// four magnitudes as a set is the point of the four-up layout, and a 12px
+// Pill doesn't survive a ~150px column.
+//
+// Magnitude stays --navy (the MetricCard value colour). Colouring it by
+// impact direction would push factor rows into the status layer, which the
+// system keeps separate from verdict tones — see harness §2.
+//
+// Mounts with a staggered fade+rise so the columns reveal left-to-right
+// (parent re-keys on accordion toggle, so the entrance also fires every time
+// the user reopens).
+function FactorColumn({
   title,
-  desc,
+  short,
   impact,
   index,
+  total,
 }: {
   title: string;
-  desc: string;
+  short: string;
   impact: number;
   index: number;
+  total: number;
 }) {
   const abs = Math.abs(impact);
 
+  // Hairline between columns, driven by each column's position in its row —
+  // which differs by breakpoint (two-up below md, four-up at md+). A column
+  // that opens a row gets no left border and no left pad; one that closes a
+  // row gets no right pad. Base classes describe the two-up grid, `md:`
+  // overrides describe the four-up.
+  const divider = [
+    index % 2 === 0 ? 'pl-0' : 'pl-4 border-l border-line',
+    index % 2 === 1 ? 'pr-0' : 'pr-4',
+    index === 0 ? 'md:pl-0 md:border-l-0' : 'md:pl-4 md:border-l md:border-line',
+    index === total - 1 ? 'md:pr-0' : 'md:pr-4',
+  ].join(' ');
+
   return (
     <div
-      className="py-4 card-rise"
+      className={`card-rise ${divider}`}
       style={{ '--rise-delay': `${80 + index * 60}ms` } as React.CSSProperties}
     >
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="font-sans font-semibold text-body-sm text-ink-2 leading-tight min-w-0">
-          {title}
-        </div>
-        <Pill variant="clean" size="md" className="tabular-nums shrink-0">
-          {abs}%
-        </Pill>
+      <div
+        className="font-sans font-semibold leading-none tracking-[-0.025em] tabular-nums"
+        style={{ fontSize: 'var(--text-h3)', color: 'var(--navy)' }}
+      >
+        {abs}%
       </div>
-      <div className="mt-2 font-sans text-caption text-ink-3 leading-snug">
-        {desc}
+      <div className="mt-1.5 font-sans font-semibold text-label text-ink-2 leading-tight">
+        {title}
+      </div>
+      <div className="mt-2 font-sans text-caption text-ink-3 leading-snug" title={short}>
+        {short}
       </div>
     </div>
   );
@@ -63,19 +85,29 @@ function WhyThisScore({
   const rows = sc.breakdown;
   const [open, setOpen] = React.useState(defaultOpen);
 
+  // Anatomy is deliberately identical to the occupancy-report slot's
+  // disclosure in AIInvestigator.tsx: a full-bleed labelled row on the
+  // card's bottom edge, body-sm label, circled chevron, hover tint, and a
+  // hairline above the revealed body. The two cards sit adjacent on the
+  // result page and previously disclosed in two different ways.
+  //
+  // Kept as a local copy rather than a shared primitive because
+  // states-spec.html loads AIInvestigator.tsx without ConfidenceHero.tsx —
+  // a shared helper declared here would be undefined there at runtime.
   return (
-    <div className="mt-5 pt-5 border-t border-line">
+    <>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 bg-transparent border-0 cursor-pointer text-left p-0"
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-3 border-0 border-t border-line bg-transparent cursor-pointer text-left px-6 py-3 hover:bg-hover-bg transition-colors"
       >
-        <h3
-          className="font-sans font-semibold m-0"
-          style={{ fontSize: 'var(--text-h4)', color: 'var(--navy)' }}
+        <span
+          className="font-sans font-semibold"
+          style={{ fontSize: 'var(--text-body-sm)', color: 'var(--navy)' }}
         >
-          Why This Score
-        </h3>
+          Why this score
+        </span>
         <span
           className={`w-6 h-6 rounded-full bg-surface-2 grid place-items-center text-ink-2 transition-transform shrink-0 ${
             open ? 'rotate-180' : ''
@@ -87,19 +119,26 @@ function WhyThisScore({
       </button>
 
       <AccordionPanel open={open}>
-        <div className="mt-3 divide-y divide-line">
-          {rows.map((r, i) => (
-            <FactorRow
-              key={`${open ? 'o' : 'c'}-${i}`}
-              title={r.title}
-              desc={r.desc}
-              impact={r.impact}
-              index={i}
-            />
-          ))}
+        {/* Hairline above the body, matching the report slot. Four-up at
+            md+ so the magnitudes read as one horizontal set. Collapses to
+            two-up below md — at four columns each cell would fall under
+            ~150px and the fragment copy would wrap to four lines. */}
+        <div className="border-t border-line p-card">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6">
+            {rows.map((r, i) => (
+              <FactorColumn
+                key={`${open ? 'o' : 'c'}-${i}`}
+                title={r.title}
+                short={r.short}
+                impact={r.impact}
+                index={i}
+                total={rows.length}
+              />
+            ))}
+          </div>
         </div>
       </AccordionPanel>
-    </div>
+    </>
   );
 }
 
@@ -178,7 +217,11 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const animatedScore = useCountUp(sc.score, 800);
 
   return (
-    <Card className="px-6 py-5">
+    // Unpadded so the disclosure row below can run full-bleed to the card
+    // edges, the same as the occupancy-report slot. The hero body carries
+    // its own padding instead.
+    <Card>
+      <div className="px-6 py-5">
       {/* Two-column hero. Left column owns the scan identity stack
           (verdict → score → reference pinned to the bottom). Right column
           carries the descriptive copy (headline + summary). A 1 px
@@ -222,6 +265,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
             {sc.summary}
           </div>
         </div>
+      </div>
       </div>
 
       {/* Why this score — accordion */}

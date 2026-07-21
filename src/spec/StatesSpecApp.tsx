@@ -1,5 +1,5 @@
 /* global React, ReactRouterDOM, Screen, SpecSection, MockAppStateProvider,
-   TableSkeleton, ScreenEmpty, ScreenError, AIInvestigator, AICtaButton, AI_INVESTIGATIONS,
+   TableSkeleton, ScreenEmpty, ScreenError, AIInvestigator, AI_INVESTIGATIONS,
    HomeScreen, HistoryScreen, ScheduledScreen, ScheduleDetailScreen,
    NotificationDock */
 
@@ -43,7 +43,7 @@ function StatesSpecApp() {
         <a href="#section-02">History</a>
         <a href="#section-03">Scheduled</a>
         <a href="#section-04">Schedule Detail</a>
-        <a href="#section-05">AI Investigator</a>
+        <a href="#section-05">Occupancy report</a>
         <a href="#section-06">Reusables</a>
         <a href="#section-07">Notification Dock</a>
       </nav>
@@ -158,29 +158,24 @@ function StatesSpecApp() {
       </SpecSection>
 
       {/* ============================================================== */}
-      <SpecSection num="05" title="AI Investigator" desc="Independent AI second-opinion module that lives between ConfidenceHero and ListingsPanel on the three result pages. Idle → loading → success / error.">
-        <ReusableFrame label="05.1" title="Idle · CTA (lives in ScanContextBar)" desc="The CTA is mounted next to Download PDF in the top-right of the result page header — not inline in the page body. Body component renders null when idle.">
-          <div className="flex items-center justify-center gap-3 py-6" style={{ background: 'var(--surface-2)' }}>
-            <AICtaButton scenario="high" size="sm" />
-          </div>
+      <SpecSection num="05" title="Occupancy report" desc="One-time report generated per scan, in a persistent slot below ConfidenceHero on the three result pages. Never run → running → complete (frozen) / failed. The run CTA lives in the slot itself, not in ScanContextBar.">
+        <ReusableFrame label="05.1" title="Never run" desc="The slot always renders. Absence has to be legible so a colleague can tell 'ran and found little' from 'nobody ran it'. Leads with the benefit; the run CTA sits top-right.">
+          <AIInvestigator scenario="high" forcedStatus="idle" />
         </ReusableFrame>
-        <ReusableFrame label="05.2" title="Loading · step 1" desc="Spinner on the first step; second step pending. aria-live polite announces transitions.">
+        <ReusableFrame label="05.2" title="Running · step 1" desc="Spinner on the first step; second step pending. aria-live polite announces transitions.">
           <AIInvestigator scenario="high" forcedStatus="loading-step-1" />
         </ReusableFrame>
-        <ReusableFrame label="05.3" title="Loading · step 2" desc="Step 1 marked done, spinner on step 2. Total perceived run ~3s in the prototype.">
+        <ReusableFrame label="05.3" title="Running · step 2" desc="Step 1 marked done, spinner on step 2. Total perceived run ~6s in the prototype.">
           <AIInvestigator scenario="high" forcedStatus="loading-step-2" />
         </ReusableFrame>
-        <ReusableFrame label="05.4" title="Success · AI agrees (high)" desc="High-confidence Red Flag scenario where AI confirms the rule-based call. Alignment row reads positive (clean-soft).">
+        <ReusableFrame label="05.4" title="Complete · collapsed" desc="Frozen record. Header leads with the finding, not the module name, plus the generated date. No re-run control — the report is final.">
           <AIInvestigator scenario="high" forcedStatus="success" forcedResult={AI_INVESTIGATIONS.high} />
         </ReusableFrame>
-        <ReusableFrame label="05.5" title="Success · AI disagrees (medium)" desc="The demo highlight: rule-based said Questionable, AI escalates to Red Flag. Alignment row reads warn-soft and names both verdicts.">
-          <AIInvestigator scenario="medium" forcedStatus="success" forcedResult={AI_INVESTIGATIONS.medium} />
+        <ReusableFrame label="05.5" title="Complete · expanded" desc="'Read the full report' opens the body in place. Same disclosure anatomy as ConfidenceHero's 'Why This Score' so the two cards on the page behave identically.">
+          <AIInvestigator scenario="medium" forcedStatus="success" forcedResult={AI_INVESTIGATIONS.medium} forcedExpanded />
         </ReusableFrame>
-        <ReusableFrame label="05.6" title="Success · AI agrees (clean)" desc="Both engines say Clean — confirms a benign address with no caveat.">
-          <AIInvestigator scenario="low" forcedStatus="success" forcedResult={AI_INVESTIGATIONS.low} />
-        </ReusableFrame>
-        <ReusableFrame label="05.7" title="Error" desc="Network or upstream failure during the investigation. Soft-red surface with a Try again button — module retries without leaving the result page.">
-          <AIInvestigator scenario="high" forcedStatus="error" forcedError="network error" />
+        <ReusableFrame label="05.6" title="Failed" desc="A dropped connection. Nothing is written to storage, so the scan's one report is not consumed and Re-run is offered. This is the only state that offers a re-run.">
+          <AIInvestigator scenario="high" forcedStatus="error" />
         </ReusableFrame>
       </SpecSection>
 

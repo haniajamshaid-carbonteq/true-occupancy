@@ -183,13 +183,17 @@ function CommandSearch({
           />
           {/* Same primary action in both modes — the home-screen search
               and the ⌘K overlay should feel identical, not like two
-              different products bolted together. */}
+              different products bolted together.
+
+              `spotlight`, not `primary`: this is the one CTA the whole
+              product funnels through, and it now carries the gradient +
+              sheen treatment the removed AI CTA used to own. */}
           <Button
-            variant="primary"
+            variant="spotlight"
             onClick={() => onRun(value)}
             icon={<Icon name="search" size={14} />}
           >
-            Run Scan
+            Run scan
           </Button>
         </div>
       </div>

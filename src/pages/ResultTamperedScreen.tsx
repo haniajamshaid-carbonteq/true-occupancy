@@ -17,7 +17,7 @@ const TAMPERED_SAMPLE = {
 function ResultTamperedScreen() {
   return (
     <AppShell>
-      <ScanContextBar showDownloadPDF showAutomate showAI automateScenario="high" />
+      <ScanContextBar showDownloadPDF showAutomate automateScenario="high" />
       <div className="mt-stack flex flex-col gap-stack">
         <AddressIntegrityBanner
           variant="tampered"
@@ -26,7 +26,7 @@ function ResultTamperedScreen() {
           suspectIndices={TAMPERED_SAMPLE.suspectIndices}
           plainReason={TAMPERED_SAMPLE.plainReason}
         />
-        <ConfidenceHero scenario="high" />
+        <ConfidenceHero scenario="high" defaultOpen={false} />
         <AIInvestigator scenario="high" />
         <ListingsPanel scenario="high" />
         <PropertyOverview />

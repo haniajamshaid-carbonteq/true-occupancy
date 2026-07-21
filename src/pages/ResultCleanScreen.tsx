@@ -4,9 +4,9 @@
 function ResultCleanScreen() {
   return (
     <AppShell>
-      <ScanContextBar showDownloadPDF showAutomate showAI automateScenario="low" />
+      <ScanContextBar showDownloadPDF showAutomate automateScenario="low" />
       <div className="mt-stack flex flex-col gap-stack">
-        <ConfidenceHero scenario="low" />
+        <ConfidenceHero scenario="low" defaultOpen={false} />
         <AIInvestigator scenario="low" />
         <ListingsPanel scenario="low" />
         <PropertyOverview />

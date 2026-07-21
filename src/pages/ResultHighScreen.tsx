@@ -4,9 +4,9 @@
 function ResultHighScreen() {
   return (
     <AppShell>
-      <ScanContextBar showDownloadPDF showAutomate showAI automateScenario="high" />
+      <ScanContextBar showDownloadPDF showAutomate automateScenario="high" />
       <div className="mt-stack flex flex-col gap-stack">
-        <ConfidenceHero scenario="high" />
+        <ConfidenceHero scenario="high" defaultOpen={false} />
         <AIInvestigator scenario="high" />
         <ListingsPanel scenario="high" />
         <PropertyOverview />
