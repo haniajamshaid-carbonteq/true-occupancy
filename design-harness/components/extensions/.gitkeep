@@ -1,0 +1,4 @@
+Project-born components land here. Each is a delta file on a core component
+(extends: <parent>, listing only what differs) or a gated brand-new one
+(extends: none, full spec). Add one line to the extensions index in
+design-harness.md §7 for each. Empty at kickoff.

@@ -1,0 +1,3 @@
+Recipes for how components compose to solve recurring problems: forms,
+screen-states, navigation, tables, confirmation flows. Added on need, and
+routed to from the decision map in design-harness.md §1. Empty at kickoff.

@@ -1,0 +1,3 @@
+Static files the interface points at: logos, illustrations. Plain storage,
+not a spec layer. Icons are NOT here — the icon library is named in
+design-harness.md §2 (Operating rules). Empty at kickoff.
