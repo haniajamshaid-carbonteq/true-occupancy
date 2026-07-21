@@ -88,19 +88,15 @@ This product's AI is a background-task model (the notification dock), not a chat
 
 ---
 
-## Known-broken host: `design-spec.html`
+## Host wiring
 
-Recorded here because it is the reason one smoke test and three visual-regression tests fail, and it has nothing to do with the design system itself.
+Each HTML host maintains its own `files` array listing every `.tsx` to compile, in dependency order. **A component missing from that array is `undefined` at runtime and its consumer throws** — there is no bundler to catch it.
 
-`design-spec.html` throws React errors on every result screen — `ScanReferenceField` (inside `ConfidenceHero`) and `ListingsPanel` both hit an error boundary. This predates the tokenization work; the same failures occur on a clean tree.
+`design-spec.html` was in exactly that state: `ReferenceCell` and `SavedSnapshotDrawer` were absent, so `ConfidenceHero` and `ListingsPanel` hit an error boundary on every result screen. Fixed — the page now boots clean and matches its committed visual baseline, which confirms the omission was a regression rather than the original state.
 
-Partial diagnosis, for whoever picks it up:
+Still outstanding: `components.html` and `design-spec.html` never load `motion.css`, so `var(--motion-*)` and `var(--ease-*)` are undefined there and shared animations silently don't run. Wiring it up is a visible change, so it is left as a decision.
 
-- Its script-load array is missing `ReferenceCell`, `SavedSnapshotDrawer` and `EditableTitle`, all of which those components depend on. `app.html` loads all three.
-- **Adding all three is not sufficient.** With every global defined and confirmed resolving, both components still throw. So there is a second, deeper cause — most likely state or props the spec host's `MockAppStateProvider` does not supply.
-- It also never loads `motion.css`, so `var(--motion-*)` / `var(--ease-*)` are undefined there (shared with `components.html`).
-
-Not fixed here: the load-array additions alone don't resolve it, and going further is a debugging task with its own scope, not part of a token refactor.
+**When adding a component, add it to every host that renders it**, above its consumers.
 
 ---
 
