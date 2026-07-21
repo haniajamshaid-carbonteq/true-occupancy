@@ -26,8 +26,8 @@ function ResultTamperedScreen() {
           suspectIndices={TAMPERED_SAMPLE.suspectIndices}
           plainReason={TAMPERED_SAMPLE.plainReason}
         />
-        <AIInvestigator scenario="high" />
         <ConfidenceHero scenario="high" />
+        <AIInvestigator scenario="high" />
         <ListingsPanel scenario="high" />
         <PropertyOverview />
       </div>

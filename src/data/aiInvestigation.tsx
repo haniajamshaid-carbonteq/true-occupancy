@@ -5,24 +5,61 @@
 // and the result card (in the page body) stay in sync. Wraps the mock so
 // swapping to a real backend is a single edit inside `runAIInvestigation`.
 
-type AIVerdict = 'clean' | 'warn' | 'risk';
-type AIConfidenceLabel = 'Low' | 'Medium' | 'High';
+type AIVerdictBand =
+  | 'manual_verification'
+  | 'low_evidence'
+  | 'monitor'
+  | 'review'
+  | 'high_priority_review';
+type AIClarityLabel = 'Low' | 'Medium' | 'High';
 
 interface AIInvestigationResult {
-  /** AI's independent verdict on the same scenario, using the same risk
-   *  taxonomy as the rule-based engine so the two can be compared directly. */
-  verdict: AIVerdict;
-  /** Human label for the verdict pill (UI mirrors the rule-based copy). */
-  verdictLabel: string;
-  /** 0–100. */
-  confidence: number;
-  confidenceLabel: AIConfidenceLabel;
-  /** 3–5 short factual sentences. Rendered as ✓-led bullets. */
-  findings: string[];
-  /** 2–4 imperative next-step bullets. Rendered with →. */
-  actions: string[];
-  /** Optional caution surfaced in a warn callout under the lists. */
-  caveat?: string;
+  verdictBand: AIVerdictBand;
+  recommendationLabel: string;
+  score: number;
+  scoreMax: number;
+  rawScore: number;
+  clarityScore: number;
+  clarityMax: number;
+  clarityLabel: AIClarityLabel;
+  caseArchetype: string;
+  summary: string;
+  nextStep: string;
+  riskSignals: string[];
+  mitigatingSignals: string[];
+  whyNotHigher: string[];
+  whyNotLower: string[];
+  checks: Array<{
+    id: string;
+    label: string;
+    status: 'triggered' | 'inconclusive' | 'not_triggered' | 'context' | 'skipped';
+    confidence: AIClarityLabel;
+    score: number;
+    evidenceCount: number;
+    caveatCount: number;
+  }>;
+  dataGaps: Array<{ group: string; items: string[] }>;
+  occupancyHistory: Array<{
+    name: string;
+    relationship: 'owner' | 'unrelated' | 'likely_family';
+    sources: string[];
+    summary: string;
+    lengthOfResidence?: string;
+    primary?: boolean;
+  }>;
+  evidenceRecords: Array<{
+    source: string;
+    rowid: number | null;
+    summary: string;
+    tone: 'risk' | 'mitigating' | 'neutral';
+  }>;
+  runMeta: {
+    jobId: string;
+    runAt: string;
+    durationLabel: string;
+    sourcesChecked: string[];
+    evidenceRefsCount: number;
+  };
 }
 
 // Loading-step timings. Constant here so the prototype animation is
@@ -30,59 +67,110 @@ interface AIInvestigationResult {
 const AI_STEP_1_MS = 3600; // "Retrieving property, owner & STR evidence"
 const AI_STEP_2_MS = 2800; // "Analyzing evidence & generating report"
 
+const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
+  verdictBand: 'review',
+  recommendationLabel: 'Review',
+  score: 5,
+  scoreMax: 10,
+  rawScore: 6,
+  clarityScore: 4,
+  clarityMax: 10,
+  clarityLabel: 'Low',
+  caseArchetype: 'Ambiguous non-owner occupancy',
+  summary:
+    'Owner presence is supported by utility and long-term residence records, but unrelated occupants and renter-coded loan records create enough ambiguity to warrant review. Local records can support owner-occupancy review, but they do not prove whether the property is a rental.',
+  nextStep:
+    'Route this case for human review. Do not treat it as a rental determination unless newer occupancy dates, public listing evidence, voter/driver records, or utility service periods clarify who currently occupies the property.',
+  riskSignals: [
+    "DONALD CAIN appears in a loan record at the subject address with own_rent='0' renter coding.",
+    'Owner mailing address differs from the subject property address.',
+    'Multiple unrelated people appear at the property across loan, base, trace, and utility records.',
+  ],
+  mitigatingSignals: [
+    'Owner WINKFIELD has utility service at the subject address.',
+    'Owner has a 10-year residence signal at the property.',
+    'Mailing-address separation alone is not enough to classify the owner as absent.',
+  ],
+  whyNotHigher: [
+    'Owner utility service and long-term residence evidence contradict a clear absentee-owner classification.',
+    'Missing service dates and person-name ambiguities prevent confidence that non-owner occupancy is current, unrelated, or rental-tied.',
+  ],
+  whyNotLower: [
+    "A non-owner loan record coded as renter establishes a non-owner occupancy pattern that requires oversight.",
+    'Owner mailing separation plus concurrent non-owner records means the case is not definitively owner-occupied.',
+  ],
+  checks: [
+    { id: 'property_tax_context', label: 'Property tax context', status: 'context', confidence: 'High', score: 0, evidenceCount: 14, caveatCount: 0 },
+    { id: 'owner_identity_and_mailing', label: 'Owner identity and mailing', status: 'triggered', confidence: 'High', score: 6, evidenceCount: 14, caveatCount: 6 },
+    { id: 'subject_occupancy_surfaces', label: 'Subject occupancy surfaces', status: 'inconclusive', confidence: 'Medium', score: 0, evidenceCount: 12, caveatCount: 4 },
+    { id: 'loan_tenure', label: 'Loan tenure', status: 'not_triggered', confidence: 'High', score: 0, evidenceCount: 5, caveatCount: 3 },
+    { id: 'portfolio_and_primary_comparison', label: 'Portfolio and primary comparison', status: 'not_triggered', confidence: 'High', score: 0, evidenceCount: 9, caveatCount: 2 },
+    { id: 'case_quality_and_synthesis', label: 'Case quality and synthesis', status: 'inconclusive', confidence: 'Medium', score: 0, evidenceCount: 12, caveatCount: 5 },
+  ],
+  dataGaps: [
+    {
+      group: 'Missing sources',
+      items: ['No driver records found at the selected address.', 'No voter records found at the selected address.', 'No auto rows found at the selected address.'],
+    },
+    {
+      group: 'Unclear timing',
+      items: ['Utility and trace records do not include explicit service dates.', 'Base length-of-residence is accumulated years, not a dated occupancy timeline.'],
+    },
+    {
+      group: 'Identity ambiguity',
+      items: ['Some person records have incomplete DOBs or name variants.', "CAIN's own_rent coding is mixed across loan rows."],
+    },
+  ],
+  occupancyHistory: [
+    {
+      name: 'Donald R. Cain',
+      relationship: 'unrelated',
+      sources: ['BASE', 'LOAN'],
+      summary: 'This person also appears connected to another primary address. Their association with this property adds context for review.',
+    },
+    {
+      name: 'Sheila Shankle',
+      relationship: 'unrelated',
+      sources: ['BASE', 'TRACE'],
+      summary: 'This person has appeared in connection with the address over time, though some identifying details are incomplete.',
+      lengthOfResidence: '7 yr LOR',
+      primary: true,
+    },
+    {
+      name: 'James Fairchild',
+      relationship: 'unrelated',
+      sources: ['UTILITY'],
+      summary: 'This name appears in limited address associations, with some variation in the match.',
+    },
+    {
+      name: 'Jerahmy S. Winkfield',
+      relationship: 'owner',
+      sources: ['BASE', 'TAX', 'TRACE', 'UTILITY'],
+      summary: 'The owner is also associated with this property through longer-running address activity.',
+      lengthOfResidence: '10 yr LOR',
+    },
+  ],
+  evidenceRecords: [
+    { source: 'TAX', rowid: 68344, tone: 'risk', summary: 'Owner WINKFIELD mailing address is 209 FALCON DR, while situs is 1552 SAMARA GLEN WAY.' },
+    { source: 'LOAN', rowid: 74143, tone: 'risk', summary: "DONALD CAIN appears at the subject address with own_rent='0' renter coding." },
+    { source: 'BASE', rowid: 175557, tone: 'risk', summary: 'SHEILA SHANKLE has primary-address evidence at the subject with 7-year length of residence.' },
+    { source: 'UTILITY', rowid: 1296784, tone: 'mitigating', summary: 'Owner JERAHMY WINKFIELD has a utility account at the subject address.' },
+    { source: 'BASE', rowid: 81239, tone: 'mitigating', summary: 'Owner JEREHMY WINKFIELD is recorded at the subject with 10-year residence length.' },
+    { source: 'TRACE', rowid: 433909, tone: 'neutral', summary: 'SHEILA SHANKLE trace record appears at subject, but DOB year is missing.' },
+  ],
+  runMeta: {
+    jobId: '4c260cb7-4c6c-48b8-9691-b01f34c2f8d4',
+    runAt: '2026-07-09 16:12 UTC',
+    durationLabel: '1 min 37 sec',
+    sourcesChecked: ['Tax', 'Base', 'Loan', 'Trace', 'Utility'],
+    evidenceRefsCount: 66,
+  },
+};
+
 const AI_INVESTIGATIONS: Record<ScenarioKey, AIInvestigationResult> = {
-  low: {
-    verdict: 'clean',
-    verdictLabel: 'Not Rented',
-    confidence: 88,
-    confidenceLabel: 'High',
-    findings: [
-      'No active listings on Airbnb, Vrbo, or Facebook Marketplace match this parcel.',
-      'County records show owner-occupied homestead exemption — no change of use filed.',
-      'No STR permit application has been submitted in the past 24 months.',
-    ],
-    actions: [
-      'Re-scan in 90 days as part of the standard compliance cadence.',
-      'No further action required.',
-    ],
-  },
-  medium: {
-    // AI disagrees with the rule-based "Questionable" verdict — bumps up.
-    verdict: 'risk',
-    verdictLabel: 'Likely Rented',
-    confidence: 89,
-    confidenceLabel: 'High',
-    findings: [
-      'Partial-match Airbnb listing in same neighborhood shows photo overlap of 64% with property record imagery.',
-      'Host handle on the partial-match listing has 72% fuzzy match to owner of record.',
-      'Owner purchased a second nearby property in 2024 — pattern consistent with portfolio operators.',
-      'No active STR permit on file despite likely commercial use.',
-    ],
-    actions: [
-      'Issue a notice-of-inquiry to the owner referencing the partial-match listing.',
-      'Cross-reference DBPR licenses for any other properties tied to this owner.',
-      'Schedule a 30-day follow-up scan to catch listing reactivation.',
-    ],
-    caveat: 'Photo-fingerprint overlap is suggestive but not conclusive. Field verification is recommended before enforcement action.',
-  },
-  high: {
-    verdict: 'risk',
-    verdictLabel: 'Rented',
-    confidence: 95,
-    confidenceLabel: 'High',
-    findings: [
-      'Sold Jan 2022 for $749k; current AVM range ~$670k–$758k.',
-      'ChampionsGate permits STRs; Osceola requires license, inspection, and 13.5% combined tax.',
-      'Nearby comps confirm STR prevalence — 1485 Casiola is permitted 5BD/14-guest; 1470 is a 9BD vacation rental.',
-      '4 matched listings across 3 platforms geocode within 25 ft of the parcel centroid.',
-    ],
-    actions: [
-      'Query Osceola County Property Appraiser for current owner and deed of record.',
-      'Search DBPR licenses for APN 31252751240001 0750 or the exact street address.',
-      'Initiate code-compliance case file — sufficient evidence for formal action.',
-    ],
-    caveat: 'Additional field evidence may be needed for a definitive determination at the parcel level.',
-  },
+  low: AI_INVESTIGATION_DEEP_DIVE,
+  medium: AI_INVESTIGATION_DEEP_DIVE,
+  high: AI_INVESTIGATION_DEEP_DIVE,
 };
 
 /**

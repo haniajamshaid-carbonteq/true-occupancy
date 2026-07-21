@@ -35,24 +35,43 @@ interface AIInvestigatorProps {
   forcedError?: string;
 }
 
-// Decide alignment: does the AI verdict match the rule-based one for this
-// scenario? Used to power the "AI agrees" / "AI's call differs" row.
-function computeAlignment(
-  scenario: ScenarioKey,
-  aiVerdict: 'clean' | 'warn' | 'risk'
-): { agrees: boolean; ruleLabel: string; aiLabel: string } {
-  const sc = SCENARIOS[scenario];
-  const RULE_LABEL: Record<'clean' | 'warn' | 'risk', string> = {
-    clean: 'Clean',
-    warn: 'Questionable',
-    risk: 'Red Flag',
-  };
-  return {
-    agrees: aiVerdict === sc.risk,
-    ruleLabel: RULE_LABEL[sc.risk],
-    aiLabel: RULE_LABEL[aiVerdict],
-  };
-}
+const AI_BAND_COPY: Record<AIVerdictBand, { variant: 'clean' | 'warn' | 'risk' | 'brand' | 'default'; label: string; tone: string; soft: string; ink: string }> = {
+  manual_verification: {
+    variant: 'brand',
+    label: 'Manual verification',
+    tone: 'var(--brand)',
+    soft: 'var(--brand-soft)',
+    ink: 'var(--brand-deep)',
+  },
+  low_evidence: {
+    variant: 'default',
+    label: 'Low evidence',
+    tone: 'var(--ink-3)',
+    soft: 'var(--surface-2)',
+    ink: 'var(--ink-2)',
+  },
+  monitor: {
+    variant: 'warn',
+    label: 'Monitor',
+    tone: 'var(--warn)',
+    soft: 'var(--warn-soft)',
+    ink: 'var(--warn-ink)',
+  },
+  review: {
+    variant: 'risk',
+    label: 'Review',
+    tone: 'var(--risk)',
+    soft: 'var(--risk-soft)',
+    ink: 'var(--risk-ink)',
+  },
+  high_priority_review: {
+    variant: 'risk',
+    label: 'High priority review',
+    tone: 'var(--risk)',
+    soft: 'var(--risk-soft)',
+    ink: 'var(--risk-ink)',
+  },
+};
 
 function AIInvestigator({
   scenario,
@@ -251,7 +270,7 @@ function AICtaButton({
       >
         {running ? <Spinner size={12} /> : <Icon name="ai-star" size={14} />}
       </span>
-      {running ? 'Investigating…' : 'Run AI Investigator'}
+      {running ? 'Investigating...' : 'Run occupancy investigation'}
     </button>
   );
 }
@@ -267,11 +286,12 @@ function AICtaButton({
 // phase; the parent bus controls the phase. A soft teal scan beam
 // sweeps the rail to keep the surface alive between ticks.
 const LOADING_STEPS: Array<{ phase: 1 | 2; label: string; short: string }> = [
-  { phase: 1, label: 'Locating parcel & owner records',        short: 'Parcel' },
-  { phase: 1, label: 'Pulling deed history & STR permits',     short: 'Deed & permits' },
-  { phase: 1, label: 'Scanning Airbnb, Vrbo & Marketplace',    short: 'Listings' },
-  { phase: 2, label: 'Matching photos & metadata signals',     short: 'Photos' },
-  { phase: 2, label: 'Computing confidence & drafting report', short: 'Report' },
+  { phase: 1, label: 'Resolving property records',             short: 'Property' },
+  { phase: 1, label: 'Selecting applicable occupancy checks',   short: 'Checks' },
+  { phase: 1, label: 'Planning the investigation',              short: 'Plan' },
+  { phase: 2, label: 'Investigating owner and occupant signals', short: 'Agents' },
+  { phase: 2, label: 'Scoring evidence and adjudicating verdict', short: 'Adjudicate' },
+  { phase: 2, label: 'Building the investigation report',       short: 'Report' },
 ];
 
 // Horizontal stepper + skeleton silhouette of the success card. The two
@@ -462,7 +482,6 @@ function Spinner({ size = 14 }: { size?: number }) {
 //                   like a coordinated pair.
 
 function SuccessCard({
-  scenario,
   result,
   onRunAgain,
 }: {
@@ -470,275 +489,207 @@ function SuccessCard({
   result: AIInvestigationResult;
   onRunAgain: () => void;
 }) {
-  const align = computeAlignment(scenario, result.verdict);
-  // Default open when AI disagrees with the rule-based call (high-signal
-  // moment the user should not have to click to see), otherwise collapsed.
-  const [open, setOpen] = React.useState(!align.agrees);
+  const [expanded, setExpanded] = React.useState(false);
 
   return (
     <Card padded={false} className="card-rise" allowOverflow>
-      <SuccessHero result={result} align={align} onRunAgain={onRunAgain} />
-
-      <ReportAccordion
-        open={open}
-        onToggle={() => setOpen((v) => !v)}
-        findingsCount={result.findings.length}
-        actionsCount={result.actions.length}
-      >
-        <div className="px-card pb-card pt-3 space-y-4">
-          <FindingsList findings={result.findings} />
-          <ActionsList actions={result.actions} />
-        </div>
-      </ReportAccordion>
+      <InvestigationResultPanel
+        result={result}
+        expanded={expanded}
+        onToggleExpanded={() => setExpanded((value) => !value)}
+        onRunAgain={onRunAgain}
+      />
     </Card>
   );
 }
 
-// ---- Success hero -------------------------------------------------------
-// Compact header block — verdict label + inline confidence numeric +
-// alignment chip. No background gradient, no decorative ring. The
-// Run-again control sits in the top-right alongside the verdict pill so
-// the action is reachable without scrolling past the report body.
-
-function SuccessHero({
+function InvestigationResultPanel({
   result,
-  align,
+  expanded,
+  onToggleExpanded,
   onRunAgain,
 }: {
   result: AIInvestigationResult;
-  align: { agrees: boolean; ruleLabel: string; aiLabel: string };
+  expanded: boolean;
+  onToggleExpanded: () => void;
   onRunAgain: () => void;
 }) {
-  const verdict = result.verdict;
+  const band = AI_BAND_COPY[result.verdictBand];
   return (
-    <div className="relative p-card pb-4">
-      <div className="absolute right-card top-card">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRunAgain}
-          icon={<Icon name="replay" />}
-        >
-          Run again
-        </Button>
-      </div>
+    <>
+      <div className="p-card">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className="w-8 h-8 rounded-lg grid place-items-center shrink-0"
+                style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}
+                aria-hidden
+              >
+                <Icon name="ai-star" size={16} />
+              </span>
+              <Pill variant={band.variant} dot>{band.label}</Pill>
+            </div>
+            <h2 className="font-sans font-semibold text-h3 leading-tight m-0 mt-3 tracking-[-0.012em]" style={{ color: 'var(--navy)' }}>
+              Occupancy investigation
+            </h2>
+            <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-4xl">
+              {result.summary}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRunAgain}
+              icon={<Icon name="replay" />}
+            >
+              Run again
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onToggleExpanded}
+              iconRight={<Icon name="chevron" />}
+              className={expanded ? '[&>span:last-child]:rotate-180' : ''}
+            >
+              {expanded ? 'Hide details' : 'View details'}
+            </Button>
+          </div>
+        </div>
 
-      <div className="flex items-center flex-wrap gap-x-3 gap-y-2">
-        <div
-          className="font-sans font-semibold leading-[0.95] tracking-[-0.015em]"
-          style={{ fontSize: 'var(--text-h3)', color: 'var(--navy)' }}
-        >
-          {result.verdictLabel}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
+          <ScoreTile
+            label="Occupancy-review score"
+            value={`${result.score}/${result.scoreMax}`}
+            helper={`${band.label.toLowerCase()} band`}
+            tone={band.tone}
+          />
+          <ScoreTile
+            label="Case archetype"
+            value={result.caseArchetype}
+            helper="occupancy context"
+            tone="var(--navy)"
+            compact
+          />
         </div>
-        <div
-          className="font-sans text-label tabular-nums leading-none"
-          style={{ color: 'var(--ink-3)' }}
-        >
-          <span className="font-semibold" style={{ color: 'var(--ink-2)' }}>
-            {result.confidence}%
-          </span>{' '}
-          {result.confidenceLabel.toLowerCase()} confidence
+
+        <div className="mt-4 rounded-lg border border-line p-4 flex items-start gap-3" style={{ background: 'var(--brand-soft)' }}>
+          <span className="w-7 h-7 rounded-md grid place-items-center shrink-0" style={{ background: 'var(--surface)', color: 'var(--brand-deep)' }}>
+            <Icon name="arrow-right" size={15} />
+          </span>
+          <div className="min-w-0">
+            <div className="font-sans font-semibold text-body-sm" style={{ color: 'var(--navy)' }}>Recommended action</div>
+            <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 mt-1">
+              {result.nextStep}
+            </p>
+          </div>
         </div>
-        <AlignmentRow
-          agrees={align.agrees}
-          ruleLabel={align.ruleLabel}
-          aiLabel={align.aiLabel}
+      </div>
+      {expanded && (
+        <div className="border-t border-line p-card">
+          <RecommendationBreakdown result={result} />
+          <OccupancyHistorySection result={result} />
+        </div>
+      )}
+    </>
+  );
+}
+
+function ScoreTile({
+  label,
+  value,
+  helper,
+  tone = 'var(--brand)',
+  compact,
+}: {
+  label: string;
+  value: string;
+  helper: string;
+  tone?: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className="rounded-lg border border-line bg-surface-2 p-3 min-w-0"
+    >
+      <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3">
+        {label}
+      </div>
+      <div
+        className={`font-sans font-semibold leading-tight mt-1 ${compact ? 'text-body-sm' : 'text-h4'} truncate`}
+        style={{ color: compact ? 'var(--navy)' : tone }}
+        title={value}
+      >
+        {value}
+      </div>
+      <div className="font-sans text-caption text-ink-3 mt-1 truncate">{helper}</div>
+    </div>
+  );
+}
+
+function RecommendationBreakdown({ result, compact }: { result: AIInvestigationResult; compact?: boolean }) {
+  return (
+    <div>
+      <SectionHeading
+        icon={
+          <span className="w-6 h-6 rounded-md grid place-items-center" style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}>
+            <Icon name="sliders" size={14} />
+          </span>
+        }
+      >
+        Recommendation rationale
+      </SectionHeading>
+      <p className="font-sans text-caption text-ink-3 leading-relaxed m-0 mt-2 max-w-4xl">
+        These are the factors behind the {AI_BAND_COPY[result.verdictBand].label.toLowerCase()} band and the {result.score}/{result.scoreMax} occupancy-review score. This does not determine rental status without public listing evidence.
+      </p>
+      <div className={`grid grid-cols-1 ${compact ? '' : 'lg:grid-cols-2'} gap-4 mt-3`}>
+        <FactorPanel
+          title="Raises concern"
+          icon="alert"
+          tone="risk"
+          items={result.riskSignals}
+        />
+        <FactorPanel
+          title="Lowers concern"
+          icon="shield"
+          tone="clean"
+          items={result.mitigatingSignals}
         />
       </div>
     </div>
   );
 }
 
-function AlignmentRow({
-  agrees,
-  ruleLabel,
-  aiLabel,
+function FactorPanel({
+  title,
+  icon,
+  tone,
+  items,
 }: {
-  agrees: boolean;
-  ruleLabel: string;
-  aiLabel: string;
+  title: string;
+  icon: 'alert' | 'shield' | 'warning';
+  tone: 'risk' | 'clean' | 'warn';
+  items: string[];
 }) {
-  // Single-line callout. Soft tint mirrors meaning:
-  // clean-soft = AI agrees, warn-soft = AI escalated (notable but not alarm).
-  const palette = agrees
-    ? {
-        background: 'var(--clean-soft)',
-        color: 'var(--clean-ink)',
-        iconName: 'check' as const,
-        ring: 'var(--clean)',
-      }
-    : {
-        background: 'var(--warn-soft)',
-        color: 'var(--warn-ink)',
-        iconName: 'alert' as const,
-        ring: 'var(--warn)',
-      };
+  const color = tone === 'risk' ? 'var(--risk)' : tone === 'warn' ? 'var(--warn)' : 'var(--clean)';
+  const soft = tone === 'risk' ? 'var(--risk-soft)' : tone === 'warn' ? 'var(--warn-soft)' : 'var(--clean-soft)';
   return (
-    <div
-      className="inline-flex items-center gap-2 rounded-full pl-2 pr-3 py-1.5"
-      style={{
-        background: palette.background,
-        color: palette.color,
-      }}
-    >
-      <span
-        className="w-4 h-4 rounded-full grid place-items-center shrink-0"
-        style={{ background: palette.ring, color: 'white' }}
-        aria-hidden
-      >
-        <Icon name={palette.iconName} size={10} />
-      </span>
-      <span className="font-sans text-caption font-medium leading-none">
-        {agrees ? (
-          <>
-            AI agrees with the{' '}
-            <strong className="font-semibold">{ruleLabel}</strong> verdict
-          </>
-        ) : (
-          <>
-            AI escalated from{' '}
-            <strong className="font-semibold">{ruleLabel}</strong> →{' '}
-            <strong className="font-semibold">{aiLabel}</strong>
-          </>
-        )}
-      </span>
-    </div>
-  );
-}
-
-// ---- Report accordion ---------------------------------------------------
-
-function ReportAccordion({
-  open,
-  onToggle,
-  findingsCount,
-  actionsCount,
-  children,
-}: {
-  open: boolean;
-  onToggle: () => void;
-  findingsCount: number;
-  actionsCount: number;
-  children: React.ReactNode;
-}) {
-  const ref = React.useRef<HTMLDivElement>(null);
-  const [maxH, setMaxH] = React.useState<number | 'auto'>(open ? 'auto' : 0);
-  React.useEffect(() => {
-    if (!ref.current) return;
-    if (open) {
-      const h = ref.current.scrollHeight;
-      setMaxH(h);
-      // After the transition, swap to 'auto' so dynamic content inside
-      // (longer text, etc.) won't get clipped on resize.
-      const t = window.setTimeout(() => setMaxH('auto'), 320);
-      return () => window.clearTimeout(t);
-    }
-    // Closing: if we're currently 'auto', set the measured height first
-    // so the next tick can transition down to 0.
-    if (maxH === 'auto') {
-      setMaxH(ref.current.scrollHeight);
-      requestAnimationFrame(() => setMaxH(0));
-    } else {
-      setMaxH(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  return (
-    <div className="border-t border-line">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="w-full flex items-center justify-between gap-3 bg-transparent border-0 cursor-pointer text-left px-card py-3"
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span
-            className="w-5 h-5 rounded-md grid place-items-center shrink-0"
-            style={{
-              background: 'var(--surface-2)',
-              color: 'var(--ink-3)',
-            }}
-            aria-hidden
-          >
-            <Icon name="ai-star" size={12} />
-          </span>
-          <h3
-            className="font-sans font-semibold m-0"
-            style={{ fontSize: 'var(--text-h4)', color: 'var(--navy)' }}
-          >
-            AI report
-          </h3>
-          <span
-            className="font-sans text-caption text-ink-4 tabular-nums"
-          >
-            · {findingsCount} {findingsCount === 1 ? 'finding' : 'findings'} · {actionsCount} {actionsCount === 1 ? 'action' : 'actions'}
-          </span>
-        </div>
-        <span
-          className={`w-6 h-6 rounded-full bg-surface-2 grid place-items-center text-ink-2 transition-transform shrink-0 ${
-            open ? 'rotate-180' : ''
-          }`}
-          aria-hidden
-        >
-          <Icon name="chevron" size={14} />
-        </span>
-      </button>
-      <div
-        className="accordion-content"
-        style={{
-          maxHeight: maxH === 'auto' ? 'none' : `${maxH}px`,
-          opacity: open ? 1 : 0,
-        }}
-      >
-        <div ref={ref}>{children}</div>
-      </div>
-    </div>
-  );
-}
-
-// ---- Findings + Actions lists ------------------------------------------
-
-function FindingsList({
-  findings,
-}: {
-  findings: string[];
-  verdict?: 'clean' | 'warn' | 'risk';
-}) {
-  return (
-    <section>
+    <section className="rounded-lg border border-line bg-surface p-4">
       <SectionHeading
         icon={
-          <span
-            className="w-5 h-5 rounded-full grid place-items-center"
-            style={{
-              background: 'var(--brand-soft)',
-              color: 'var(--brand-deep)',
-            }}
-          >
-            <Icon name="check" size={12} />
+          <span className="w-6 h-6 rounded-md grid place-items-center" style={{ background: soft, color }}>
+            <Icon name={icon} size={14} />
           </span>
         }
       >
-        Key findings
+        {title}
       </SectionHeading>
       <ul className="list-none m-0 p-0 mt-3 flex flex-col gap-2">
-        {findings.map((f, i) => (
-          <li
-            key={i}
-            className="flex items-start gap-3 card-rise"
-            style={{ ['--rise-delay' as any]: `${i * 60}ms` }}
-          >
-            <span
-              className="w-5 h-5 grid place-items-center shrink-0 mt-px"
-              style={{ color: 'var(--brand)' }}
-              aria-hidden
-            >
-              <Icon name="check" size={14} />
-            </span>
-            <span className="font-sans text-caption text-ink-2 leading-snug">
-              {f}
-            </span>
+        {items.map((item, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-caption text-ink-2 leading-snug">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" style={{ background: color }} />
+            <span>{item}</span>
           </li>
         ))}
       </ul>
@@ -746,52 +697,126 @@ function FindingsList({
   );
 }
 
-function ActionsList({ actions }: { actions: string[] }) {
+function OccupancyHistorySection({ result }: { result: AIInvestigationResult }) {
+  const owner = result.occupancyHistory.find((person) => person.relationship === 'owner');
+  const relatedPeople = result.occupancyHistory.filter((person) => person.relationship !== 'owner');
+
   return (
-    <section>
-      <SectionHeading
-        icon={
-          <span
-            className="w-5 h-5 rounded-full grid place-items-center"
-            style={{
-              background: 'var(--brand-soft)',
-              color: 'var(--brand-deep)',
-            }}
-          >
-            <Icon name="arrow-right" size={12} />
+    <section className="mt-5">
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-4">
+        <div>
+          <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.16em] text-ink-3">
+            Property context
+          </div>
+          <h3 className="font-sans font-semibold text-h3 leading-tight m-0 mt-2" style={{ color: 'var(--navy)' }}>
+            Relationship to owner or borrower
+          </h3>
+          <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-4xl">
+            These people have appeared in connection with the property. Their relationship to the owner or borrower helps explain occupancy ambiguity, but it does not prove current residence or rental use.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <HistoryStat label="People" value={String(result.occupancyHistory.length)} />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {owner && (
+          <section className="rounded-lg border border-line bg-surface-2 p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4">
+              <span
+                className="w-8 h-8 rounded-md grid place-items-center shrink-0"
+                style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}
+                aria-hidden
+              >
+                <Icon name="pin" size={16} />
+              </span>
+              <div className="min-w-0 lg:w-[260px] shrink-0">
+                <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3">Owner / borrower anchor</div>
+                <h4 className="font-sans font-semibold text-body m-0 mt-1 leading-tight" style={{ color: 'var(--navy)' }}>{owner.name}</h4>
+              </div>
+              <div className="hidden lg:block w-px self-stretch bg-line" aria-hidden />
+              <div className="min-w-0">
+                <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 mt-2">
+                  {owner.summary}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+        <div className="flex items-center justify-between gap-3">
+          <SectionHeading>Other people associated</SectionHeading>
+          <span className="font-mono text-micro text-ink-3 uppercase tracking-[0.08em]">
+            {relatedPeople.length} found
           </span>
-        }
-      >
-        Recommended actions
-      </SectionHeading>
-      <ol
-        className="list-none m-0 p-3 mt-3 flex flex-col gap-3 rounded-lg"
-        style={{ background: 'var(--surface-2)' }}
-      >
-        {actions.map((a, i) => (
-          <li
-            key={i}
-            className="flex items-start gap-3 card-rise"
-            style={{ ['--rise-delay' as any]: `${100 + i * 60}ms` }}
-          >
-            <span
-              className="w-6 h-6 rounded-full grid place-items-center shrink-0 mt-px font-sans font-semibold tabular-nums"
-              style={{
-                background: 'var(--surface)',
-                color: 'var(--brand-deep)',
-                fontSize: 'var(--text-micro)',
-              }}
-              aria-hidden
-            >
-              {i + 1}
-            </span>
-            <span className="font-sans text-caption text-ink-2 leading-snug pt-0.5">
-              {a}
-            </span>
-          </li>
-        ))}
-      </ol>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          {relatedPeople.map((person) => (
+            <OccupancyPersonCard key={person.name} person={person} />
+          ))}
+        </div>
+      </div>
     </section>
+  );
+}
+
+function HistoryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-line bg-surface-2 px-3 py-2 min-w-[76px]">
+      <div
+        className="font-mono text-h4 font-semibold leading-none tabular-nums"
+        style={{ color: 'var(--navy)' }}
+      >
+        {value}
+      </div>
+      <div className="font-sans text-micro text-ink-3 mt-1 uppercase tracking-[0.08em]">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function OccupancyPersonCard({
+  person,
+}: {
+  person: AIInvestigationResult['occupancyHistory'][number];
+}) {
+  const isOwner = person.relationship === 'owner';
+  const relationshipLabel =
+    person.relationship === 'owner'
+      ? 'Owner'
+      : person.relationship === 'likely_family'
+      ? 'Possible household relation'
+      : 'No known relation';
+  const surface = person.primary ? 'var(--surface-2)' : 'var(--surface)';
+  const pillStyle = isOwner
+    ? { background: 'var(--brand-soft)', color: 'var(--brand-deep)' }
+    : { background: 'var(--surface-2)', color: 'var(--ink-2)', boxShadow: '0 0 0 1px var(--line)' };
+
+  return (
+    <article
+      className="relative rounded-lg border border-line p-4 overflow-hidden"
+      style={{ background: surface }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="font-sans font-semibold text-body m-0 leading-tight" style={{ color: 'var(--navy)' }}>
+              {person.name}
+            </h4>
+            <span
+              className="inline-flex items-center h-6 px-2.5 rounded-full font-sans text-micro font-bold uppercase tracking-[0.08em]"
+              style={pillStyle}
+            >
+              {relationshipLabel}
+            </span>
+          </div>
+          <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 mt-3">
+            {person.summary}
+          </p>
+        </div>
+      </div>
+    </article>
   );
 }
 

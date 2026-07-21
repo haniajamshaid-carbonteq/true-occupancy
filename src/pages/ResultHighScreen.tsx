@@ -6,8 +6,8 @@ function ResultHighScreen() {
     <AppShell>
       <ScanContextBar showDownloadPDF showAutomate showAI automateScenario="high" />
       <div className="mt-stack flex flex-col gap-stack">
-        <AIInvestigator scenario="high" />
         <ConfidenceHero scenario="high" />
+        <AIInvestigator scenario="high" />
         <ListingsPanel scenario="high" />
         <PropertyOverview />
       </div>
