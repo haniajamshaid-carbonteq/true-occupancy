@@ -29,10 +29,10 @@ function RiskBadge({ level, glyph, children, className = '', ...rest }: RiskBadg
   return (
     <span
       {...rest}
-      className={`inline-flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full text-label font-medium font-sans ${SHELL_BY_LEVEL[level]} ${className}`.trim()}
+      className={`inline-flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-pill text-label font-medium font-sans ${SHELL_BY_LEVEL[level]} ${className}`.trim()}
     >
       <span
-        className={`w-[22px] h-[22px] rounded-full grid place-items-center text-white shrink-0 [&>svg]:w-3 [&>svg]:h-3 ${GLYPH_BY_LEVEL[level]}`}
+        className={`w-glyph-md h-glyph-md rounded-full grid place-items-center text-white shrink-0 [&>svg]:w-3 [&>svg]:h-3 ${GLYPH_BY_LEVEL[level]}`}
       >
         {glyph}
       </span>

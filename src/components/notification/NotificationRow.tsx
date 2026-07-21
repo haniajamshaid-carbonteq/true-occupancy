@@ -179,7 +179,7 @@ function NotificationRow({ notif, onDismiss }: NotificationRowProps) {
     >
       {/* Status chip */}
       <div
-        className="w-[26px] h-[26px] rounded-full grid place-items-center shrink-0 mt-[1px]"
+        className="w-glyph-xl h-glyph-xl rounded-full grid place-items-center shrink-0 mt-[1px]"
         style={{ background: theme.soft, color: theme.accent }}
         aria-hidden
       >

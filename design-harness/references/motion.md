@@ -14,13 +14,42 @@ The whole motion system in one file: values, the recipes built from them, and th
 
 ## Duration
 
+The intended three-tier scale:
+
 ```
 --motion-fast:  200ms   use: route transitions, quick fades
 --motion-mid:   360ms   use: panel and card entrances
 --motion-slow:  600ms   use: reserved for the longest deliberate reveals
 ```
 
-> ⚠ **Known drift.** Most keyframe utilities in `motion.css` hardcode their duration (380ms, 700ms, 220ms, 160ms, 320ms, 900ms, 1400ms, 2400ms) instead of referencing these three tokens. Only `.route-fade-in` uses `var(--motion-fast)`. The three tokens are the intended scale; the hardcoded values are what ships today. Do not add new hardcoded durations — and do not "fix" the existing ones as a side effect of unrelated work.
+Plus the durations that were previously hardcoded in the keyframe utilities. They are now named **at their exact shipped values**, so nothing re-timed:
+
+```
+--motion-exit:      160ms   toast-out
+--motion-enter:     220ms   toast-in, dock-out
+--motion-morph:     280ms   dock collapsed <-> expanded
+--motion-snap:      320ms   verdict-pulse, status-text-in, dock-in
+--motion-rise:      380ms   card-rise, ribbon-drop
+--motion-attention: 700ms   mismatch-pulse
+--motion-draw:      900ms   sparkline-draw
+```
+
+Ambient loops — infinite, never tied to an interaction:
+
+```
+--motion-loop-sm: 1200ms   status-dot-bounce
+--motion-loop-md: 1400ms   skeleton-pulse
+--motion-loop-lg: 1600ms   status-text-shimmer
+--motion-loop-xl: 2400ms   marker-breathe, ai-cta-spark-pulse
+```
+
+> ⚠ **This is named drift, not a resolved scale.** Eleven durations is more than a system needs. They were tokenized at their existing values so the refactor stayed visually neutral — collapsing them into `fast` / `mid` / `slow` changes timing, which is a design decision, not a refactor. **Open for the owner.** Until then: reach for `fast` / `mid` / `slow` in new work, and only use a named one to match an existing behaviour.
+
+## Stagger
+
+```
+--stagger: 160ms   the gap between items animating in sequence
+```
 
 ## Delay
 
@@ -48,9 +77,7 @@ status-dots:       160ms / 320ms stagger across the three dots
 
 No physics-preset springs. `--ease-spring` above is the sole spring-flavoured curve, expressed as a bezier.
 
-## Stagger
-
-No named stagger token. The one real stagger is the status-dots sequence at **160ms** intervals.
+The one real stagger in the system is the status-dots sequence. Its third dot sits at 320ms — 2 × `--stagger` — which is left as a literal because a multiplied token reads worse than the number.
 
 ---
 

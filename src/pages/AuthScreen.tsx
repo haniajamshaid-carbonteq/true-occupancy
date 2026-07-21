@@ -88,11 +88,11 @@ function ImagePanelContent({ compact = false }: { compact?: boolean }) {
     >
       <div
         className="absolute inset-0 pointer-events-none"
-        style={{ background: HERO_SCRIM, zIndex: 1 }}
+        style={{ background: HERO_SCRIM, zIndex: 'var(--z-base)' as any }}
         aria-hidden
       />
 
-      <div className="relative z-10 flex flex-col h-full">
+      <div className="relative z-raised flex flex-col h-full">
         <div className={compact ? 'mt-3' : 'mt-auto'}>
           {compact && (
             <div className="font-sans text-eyebrow uppercase tracking-[0.18em] font-semibold opacity-85 mb-1">
@@ -553,7 +553,7 @@ function AuthScreen({ mode }: AuthScreenProps) {
             left: 40,
             right: 40,
             height: 32,
-            zIndex: 20,
+            zIndex: 'var(--z-sticky)' as any,
           }}
         >
           <div
@@ -597,7 +597,7 @@ function AuthScreen({ mode }: AuthScreenProps) {
             style={{
               left: 0,
               width: '50%',
-              zIndex: 10,
+              zIndex: 'var(--z-raised)' as any,
               padding: 0,
               willChange: 'transform',
               boxShadow: 'var(--shadow-lg)',

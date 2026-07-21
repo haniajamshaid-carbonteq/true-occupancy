@@ -65,7 +65,7 @@ function Drawer({ open, onClose, title, footer, children, width = 380, labelId }
   if (!open) return null;
 
   const overlay = (
-    <div className="fixed inset-0 z-[100]" aria-hidden={false}>
+    <div className="fixed inset-0 z-modal" aria-hidden={false}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
@@ -91,7 +91,7 @@ function Drawer({ open, onClose, title, footer, children, width = 380, labelId }
           <div className="flex items-center justify-between gap-4 px-surface-x py-surface-y-h border-b border-line shrink-0">
             <h2
               id={titleId}
-              className="font-sans font-semibold text-h4 leading-tight tracking-[-0.005em] m-0"
+              className="font-sans font-semibold text-h4 leading-tight tracking-h2 m-0"
               style={{ color: 'var(--navy)' }}
             >
               {title}
@@ -100,7 +100,7 @@ function Drawer({ open, onClose, title, footer, children, width = 380, labelId }
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="w-8 h-8 -mr-1.5 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors shrink-0"
+              className="w-control-sm h-control-sm -mr-1.5 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors shrink-0"
             >
               <Icon name="x" size={16} />
             </button>

@@ -137,8 +137,8 @@ function MetricCard({
     ? 'text-left w-full cursor-pointer transition-colors hover:border-line-strong hover:bg-hover-bg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1'
     : '';
   const labelColor = primary ? 'rgba(255,255,255,0.85)' : 'var(--ink-3)';
-  const valueColor = primary ? '#FFFFFF' : 'var(--navy)';
-  const footerDivider = primary ? 'border-white/20' : 'border-line';
+  const valueColor = primary ? 'var(--on-brand)' : 'var(--navy)';
+  const footerDivider = primary ? 'border-on-brand-divider' : 'border-line';
   const hintColor = primary ? 'rgba(255,255,255,0.78)' : 'var(--ink-3)';
   const deltaColor = primary
     ? 'rgba(255,255,255,0.95)'
@@ -188,7 +188,7 @@ function MetricCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div
-          className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase inline-flex items-center gap-1.5"
+          className="font-sans text-eyebrow font-semibold tracking-mono-label uppercase inline-flex items-center gap-1.5"
           style={{ color: labelColor }}
         >
           {accent && (

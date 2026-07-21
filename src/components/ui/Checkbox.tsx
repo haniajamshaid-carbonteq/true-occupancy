@@ -25,7 +25,7 @@ function Checkbox({
       style={{ color: 'var(--ink-2)' }}
     >
       <span
-        className="relative inline-grid place-items-center w-4 h-4 rounded transition-colors"
+        className="relative inline-grid place-items-center w-4 h-4 rounded-xs transition-colors"
         style={{
           background: checked ? 'var(--brand)' : 'var(--surface)',
           border: `1px solid ${checked ? 'var(--brand)' : 'var(--line-strong)'}`,
@@ -37,7 +37,7 @@ function Checkbox({
             viewBox="0 0 16 16"
             className="w-3 h-3"
             fill="none"
-            stroke="white"
+            stroke="var(--on-brand)"
             strokeWidth={2.4}
             strokeLinecap="round"
             strokeLinejoin="round"

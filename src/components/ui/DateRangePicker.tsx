@@ -84,7 +84,7 @@ function DateRangePicker({
           <div
             className={
               labelStyle === 'eyebrow'
-                ? 'font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase'
+                ? 'font-sans text-eyebrow font-semibold tracking-eyebrow-loose uppercase'
                 : 'font-sans text-caption font-semibold'
             }
             style={{ color: labelStyle === 'eyebrow' ? 'var(--ink-3)' : 'var(--ink-2)' }}
@@ -113,7 +113,7 @@ function DateRangePicker({
                 key={p.id}
                 type="button"
                 onClick={() => onChange(p.range)}
-                className={`inline-flex items-center gap-inline h-8 px-control-x rounded-md border text-caption font-medium transition-colors duration-200 ${
+                className={`inline-flex items-center gap-inline h-control-sm px-control-x rounded-md border text-caption font-medium transition-colors duration-200 ${
                   active
                     ? '!bg-brand-tint !border-brand/40'
                     : 'bg-surface border-line hover:bg-hover-bg hover:border-line-strong'
@@ -179,7 +179,7 @@ function DateField({ id, ariaLabel, value, onChange, min, max }: DateFieldProps)
       }}
     >
       <span
-        className="grid w-8 h-9 place-items-center shrink-0 [&>svg]:w-3.5 [&>svg]:h-3.5"
+        className="grid w-8 h-control-md place-items-center shrink-0 [&>svg]:w-3.5 [&>svg]:h-3.5"
         style={{ color: 'var(--ink-3)' }}
         aria-hidden
       >
@@ -195,7 +195,7 @@ function DateField({ id, ariaLabel, value, onChange, min, max }: DateFieldProps)
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="flex-1 min-w-0 bg-transparent border-0 outline-none h-9 pr-2 text-caption font-sans tabular-nums"
+        className="flex-1 min-w-0 bg-transparent border-0 outline-none h-control-md pr-2 text-caption font-sans tabular-nums"
         style={{ color: value ? 'var(--ink)' : 'var(--ink-4)' }}
       />
     </div>

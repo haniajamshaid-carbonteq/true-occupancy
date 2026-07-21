@@ -22,8 +22,8 @@ const BTN_BASE =
 // md is the spec default (h-9 / 36px, 13/500). sm is a tighter variant for
 // inline CTAs inside cards or strips where the standard size feels heavy.
 const BTN_SIZES: Record<ButtonSize, string> = {
-  md: 'h-9 px-control-x text-label',
-  sm: 'h-8 px-3 text-caption',
+  md: 'h-control-md px-control-x text-label',
+  sm: 'h-control-sm px-3 text-caption',
 };
 
 // Primary CTA per docs/DESIGN.md §3.1 + §10:
@@ -32,7 +32,7 @@ const BTN_SIZES: Record<ButtonSize, string> = {
 // Solid fill, no gradient — gradient is reserved for marketing-collateral
 // hero bands (§6), not the product surface (§10).
 const BTN_VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'bg-brand text-white border-brand hover:bg-brand-deep hover:border-brand-deep',
+  primary: 'bg-brand text-on-brand border-brand hover:bg-brand-deep hover:border-brand-deep',
   default: 'bg-surface text-ink-2 border-line-strong hover:bg-hover-bg hover:border-line-strong',
   // Ghost / link buttons across the app land on neutral grey on hover —
   // the pale brand-tint they used to use looked washed-out against the

@@ -110,7 +110,7 @@ function DataTable<T>({
               <div
                 key={c.key}
                 className={[
-                  'font-sans text-eyebrow font-semibold uppercase tracking-[0.16em] text-ink-3 leading-none',
+                  'font-sans text-eyebrow font-semibold uppercase tracking-mono-label text-ink-3 leading-none',
                   c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : '',
                   c.hideBelow ? HIDE_CLS[c.hideBelow] : '',
                 ].join(' ')}
@@ -162,7 +162,7 @@ function DataTable<T>({
             <div
               key={c.key}
               className={[
-                'font-sans text-eyebrow font-semibold uppercase tracking-[0.16em] text-ink-3 leading-none',
+                'font-sans text-eyebrow font-semibold uppercase tracking-mono-label text-ink-3 leading-none',
                 c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : '',
                 c.hideBelow ? HIDE_CLS[c.hideBelow] : '',
               ].join(' ')}
@@ -275,7 +275,7 @@ function DataTable<T>({
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
               aria-label="Previous page"
-              className="w-8 h-8 grid place-items-center rounded-md text-ink-2 hover:bg-hover-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-control-sm h-control-sm grid place-items-center rounded-md text-ink-2 hover:bg-hover-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="m10 4-4 4 4 4" />
@@ -289,7 +289,7 @@ function DataTable<T>({
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
               aria-label="Next page"
-              className="w-8 h-8 grid place-items-center rounded-md text-ink-2 hover:bg-hover-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-control-sm h-control-sm grid place-items-center rounded-md text-ink-2 hover:bg-hover-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="m6 4 4 4-4 4" />

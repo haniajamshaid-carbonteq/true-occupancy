@@ -241,11 +241,10 @@ function NotificationPill({
         forceFocused ? 'is-focus' : '',
       ].filter(Boolean).join(' ')}
       style={{
-        borderRadius: 22,
+        borderRadius: 'var(--r-dock)',
         background: 'var(--surface)',
         borderColor: 'var(--line-strong)',
-        boxShadow:
-          '0 24px 48px -16px rgba(20,45,85,.14), 0 8px 16px -8px rgba(20,45,85,.07)',
+        boxShadow: 'var(--shadow-lg)',
         color: 'var(--ink-2)',
         minWidth: isScanningSingle ? 220 : single ? 0 : 180,
         maxWidth: 360,

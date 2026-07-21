@@ -65,7 +65,7 @@ function Input({
       >
         {leadingIcon && (
           <span
-            className="grid w-9 h-11 place-items-center shrink-0 [&>svg]:w-4 [&>svg]:h-4"
+            className="grid w-gutter-leading h-control-lg place-items-center shrink-0 [&>svg]:w-4 [&>svg]:h-4"
             style={{ color: 'var(--ink-3)' }}
             aria-hidden
           >
@@ -83,14 +83,14 @@ function Input({
             setFocused(false);
             rest.onBlur?.(e);
           }}
-          className={`flex-1 min-w-0 bg-transparent border-0 outline-none h-11 text-body-sm font-sans placeholder:text-ink-4 ${
+          className={`flex-1 min-w-0 bg-transparent border-0 outline-none h-control-lg text-body-sm font-sans placeholder:text-ink-4 ${
             leadingIcon ? '' : 'pl-4'
           } ${trailing ? '' : 'pr-4'} ${className}`.trim()}
           style={{ color: 'var(--ink)' }}
         />
         {trailing && (
           <span
-            className="grid w-10 h-11 place-items-center shrink-0"
+            className="grid w-gutter-trailing h-control-lg place-items-center shrink-0"
             style={{ color: 'var(--ink-3)' }}
           >
             {trailing}

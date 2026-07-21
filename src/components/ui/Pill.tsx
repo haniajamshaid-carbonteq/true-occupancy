@@ -37,8 +37,8 @@ interface PillProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'childre
 }
 
 const PILL_SIZE: Record<PillSize, string> = {
-  md: 'h-6 px-2.5 gap-1.5 text-micro font-medium uppercase tracking-[0.04em]',
-  sm: 'h-5 px-1.5 gap-1 text-eyebrow font-bold uppercase tracking-[0.08em]',
+  md: 'h-6 px-2.5 gap-1.5 text-micro font-medium uppercase tracking-pill',
+  sm: 'h-5 px-1.5 gap-1 text-eyebrow font-bold uppercase tracking-eyebrow',
 };
 
 const PILL_VARIANTS: Record<PillVariant, string> = {
@@ -56,7 +56,7 @@ const PILL_VARIANTS: Record<PillVariant, string> = {
 // chosen size. Keeps height/padding so subtle pills line up with regular ones.
 const SUBTLE_TYPO = 'font-normal normal-case tracking-normal';
 
-const PILL_BASE = 'inline-flex items-center rounded-full font-sans border';
+const PILL_BASE = 'inline-flex items-center rounded-pill font-sans border';
 
 function Pill({
   variant = 'default',

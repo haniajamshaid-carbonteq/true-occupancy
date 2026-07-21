@@ -23,7 +23,7 @@ function ScreenError({
 }: ScreenErrorProps) {
   return (
     <div className="bg-surface border border-line rounded-lg" role="alert">
-      <div className="flex flex-col items-center text-center gap-stack max-w-[420px] mx-auto py-section-sub px-card">
+      <div className="flex flex-col items-center text-center gap-stack max-w-prose mx-auto py-section-sub px-card">
         <span
           className="shrink-0 w-12 h-12 rounded-full grid place-items-center bg-error-soft text-error-ink [&>svg]:w-6 [&>svg]:h-6"
           aria-hidden
@@ -32,7 +32,7 @@ function ScreenError({
         </span>
         <div className="flex flex-col gap-stack-tight">
           <h2
-            className="font-sans font-semibold text-h4 tracking-[-0.005em] m-0"
+            className="font-sans font-semibold text-h4 tracking-h2 m-0"
             style={{ color: 'var(--navy)' }}
           >
             {title}

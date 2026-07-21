@@ -230,11 +230,11 @@ function DockShell({
     <div
       className={(contained ? 'absolute' : 'fixed') + ' notification-dock md:!left-[calc(50%+140px)]'}
       style={{
-        top: 14,
+        top: 'var(--dock-top)',
         left: '50%',
         transform: 'translateX(-50%)',
-        zIndex: 90,
-        animation: 'dock-in 320ms var(--ease-spring) both',
+        zIndex: 'var(--z-dock)' as any,
+        animation: 'dock-in var(--motion-snap) var(--ease-spring) both',
       }}
     >
       {expanded ? (

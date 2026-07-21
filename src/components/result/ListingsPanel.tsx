@@ -409,7 +409,7 @@ function DesktopMatrix({
           }}
         >
           {/* Top-left empty corner */}
-          <div className="px-4 py-4 sticky left-0 z-10 bg-surface" />
+          <div className="px-4 py-4 sticky left-0 z-raised bg-surface" />
 
           {/* Column headers — verdict + optional Strongest banner */}
           {listings.map((l, i) => {
@@ -467,7 +467,7 @@ function DesktopMatrix({
           })}
 
           {/* Source row — handle + platform name */}
-          <div className="px-4 py-3 border-t border-line flex flex-col justify-center sticky left-0 z-10 bg-surface">
+          <div className="px-4 py-3 border-t border-line flex flex-col justify-center sticky left-0 z-raised bg-surface">
             <div
               className="font-sans text-label font-semibold"
               style={{ color: 'var(--ink-2)' }}
@@ -501,7 +501,7 @@ function DesktopMatrix({
           {/* Data rows */}
           {rows.map((row, ri) => (
             <React.Fragment key={`r-${ri}`}>
-              <div className="px-4 py-3 border-t border-line flex flex-col justify-center sticky left-0 z-10 bg-surface">
+              <div className="px-4 py-3 border-t border-line flex flex-col justify-center sticky left-0 z-raised bg-surface">
                 <div
                   className="font-sans text-label font-semibold"
                   style={{ color: 'var(--ink-2)' }}
@@ -530,7 +530,7 @@ function DesktopMatrix({
               tucked just to its left so the two evidence verbs ("view
               listing on platform" / "view captured snapshot") stay
               adjacent without competing for visual weight. */}
-          <div className="px-4 py-3 border-t border-line sticky left-0 z-10 bg-surface" />
+          <div className="px-4 py-3 border-t border-line sticky left-0 z-raised bg-surface" />
           {listings.map((l, i) => (
             <div
               key={`a-${i}`}
@@ -1019,7 +1019,7 @@ function TruncatedText({
       {hover && overflowing && pos && (
         <div
           role="tooltip"
-          className="fixed z-50 pointer-events-none px-2 py-1 rounded-md text-caption font-sans shadow-md max-w-sm break-words"
+          className="fixed z-popover pointer-events-none px-2 py-1 rounded-md text-caption font-sans shadow-md max-w-sm break-words"
           style={{
             left: pos.x,
             top: pos.y - 8,

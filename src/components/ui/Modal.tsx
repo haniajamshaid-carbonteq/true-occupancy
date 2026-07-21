@@ -72,7 +72,7 @@ function Modal({ open, onClose, title, footer, children, width = 480, labelId }:
 
   const overlay = (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-modal flex items-center justify-center p-4"
       aria-hidden={false}
     >
       {/* Backdrop */}
@@ -90,14 +90,14 @@ function Modal({ open, onClose, title, footer, children, width = 480, labelId }:
         aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
         className="relative w-full bg-surface border border-line rounded-lg shadow-md outline-none"
-        style={{ maxWidth: width, animation: 'route-fade-in 200ms var(--ease-out) both' }}
+        style={{ maxWidth: width, animation: 'route-fade-in var(--motion-fast) var(--ease-out) both' }}
       >
         {/* Header */}
         {title && (
           <div className="flex items-center justify-between gap-4 px-surface-x py-surface-y-h border-b border-line">
             <h2
               id={titleId}
-              className="font-sans font-semibold text-h4 leading-tight tracking-[-0.005em] m-0"
+              className="font-sans font-semibold text-h4 leading-tight tracking-h2 m-0"
               style={{ color: 'var(--navy)' }}
             >
               {title}
@@ -106,7 +106,7 @@ function Modal({ open, onClose, title, footer, children, width = 480, labelId }:
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="w-8 h-8 -mr-1.5 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors shrink-0"
+              className="w-control-sm h-control-sm -mr-1.5 grid place-items-center rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors shrink-0"
             >
               <Icon name="x" size={16} />
             </button>

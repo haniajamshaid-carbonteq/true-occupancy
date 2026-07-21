@@ -66,7 +66,7 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 .ribbon-drop {
-  animation: ribbon-drop 380ms var(--ease-spring) 240ms both;
+  animation: ribbon-drop var(--motion-rise) var(--ease-spring) 240ms both;
 }
 
 /* === Diff-matrix mismatch attention pulse =========================== */
@@ -76,14 +76,14 @@
   50%      { box-shadow: inset 0 0 0 999px var(--warn-soft); }
 }
 .pulse-mismatch-warn {
-  animation: mismatch-pulse 700ms ease-in-out 900ms both;
+  animation: mismatch-pulse var(--motion-attention) ease-in-out 900ms both;
 }
 @keyframes mismatch-pulse-fail {
   0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
   50%      { box-shadow: inset 0 0 0 999px var(--risk-soft); }
 }
 .pulse-mismatch-fail {
-  animation: mismatch-pulse-fail 700ms ease-in-out 900ms both;
+  animation: mismatch-pulse-fail var(--motion-attention) ease-in-out 900ms both;
 }
 
 /* === Card / row entrance stagger ===================================== */
@@ -92,7 +92,7 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 .card-rise {
-  animation: card-rise 380ms var(--ease-out) both;
+  animation: card-rise var(--motion-rise) var(--ease-out) both;
   animation-delay: var(--rise-delay, 0ms);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -106,7 +106,7 @@
   50%      { transform: translateX(-50%) translateY(-1.5px); }
 }
 .marker-breathe {
-  animation: marker-breathe 2400ms ease-in-out infinite;
+  animation: marker-breathe var(--motion-loop-xl) ease-in-out infinite;
 }
 
 /* === Toast slide-in / slide-out ===================================== */
@@ -119,10 +119,10 @@
   to   { opacity: 0; transform: translate(-50%, 8px); }
 }
 .toast-in {
-  animation: toast-in 220ms var(--ease-out) both;
+  animation: toast-in var(--motion-enter) var(--ease-out) both;
 }
 .toast-out {
-  animation: toast-out 160ms var(--ease-in-out) both;
+  animation: toast-out var(--motion-exit) var(--ease-in-out) both;
 }
 
 /* === Notification Dock (Dynamic Island) ============================ */
@@ -155,16 +155,15 @@
 .notification-dock-pill:focus-visible,
 .notification-dock-pill.is-focus {
   box-shadow:
-    0 0 0 2px rgba(10, 183, 163, .45),
-    0 24px 48px -16px rgba(20, 45, 85, .14),
-    0 8px 16px -8px rgba(20, 45, 85, .07);
+    0 0 0 2px var(--focus-ring-brand),
+    var(--shadow-lg);
 }
 .notification-dock {
   /* Morph driver for collapsed ↔ expanded transitions when both share class. */
   transition:
-    width 280ms var(--ease-spring),
-    height 280ms var(--ease-spring),
-    border-radius 280ms var(--ease-spring);
+    width var(--motion-morph) var(--ease-spring),
+    height var(--motion-morph) var(--ease-spring),
+    border-radius var(--motion-morph) var(--ease-spring);
 }
 @media (prefers-reduced-motion: reduce) {
   .notification-dock { animation: none; }
@@ -188,7 +187,7 @@
   100% { transform: scale(1); }
 }
 .verdict-pulse {
-  animation: verdict-pulse 320ms var(--ease-spring) both;
+  animation: verdict-pulse var(--motion-snap) var(--ease-spring) both;
 }
 
 /* === Sparkline line-draw =========================================== */
@@ -204,7 +203,7 @@
 .sparkline-line {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: sparkline-draw 900ms var(--ease-out) 80ms both;
+  animation: sparkline-draw var(--motion-draw) var(--ease-out) 80ms both;
 }
 .sparkline-area {
   opacity: 0;
@@ -221,7 +220,7 @@
 }
 .status-text-in {
   display: inline-block;
-  animation: status-text-in 320ms var(--ease-out) both;
+  animation: status-text-in var(--motion-snap) var(--ease-out) both;
 }
 
 @keyframes status-text-shimmer {
@@ -230,7 +229,7 @@
 }
 .status-text-pulse {
   display: inline-block;
-  animation: status-text-shimmer 1600ms ease-in-out infinite;
+  animation: status-text-shimmer var(--motion-loop-lg) ease-in-out infinite;
 }
 
 .status-dots {
@@ -239,9 +238,11 @@
 }
 .status-dots > span {
   display: inline-block;
-  animation: status-dot-bounce 1200ms ease-in-out infinite;
+  animation: status-dot-bounce var(--motion-loop-sm) ease-in-out infinite;
 }
-.status-dots > span:nth-child(2) { animation-delay: 160ms; }
+.status-dots > span:nth-child(2) { animation-delay: var(--stagger); }
+/* 2 × --stagger — no token for the doubled step; left raw so the value
+ * stays literal rather than implying a token that doesn't exist. */
 .status-dots > span:nth-child(3) { animation-delay: 320ms; }
 
 @keyframes status-dot-bounce {
@@ -253,7 +254,7 @@
  * Subtle opacity oscillation for TableSkeleton bars. Reduced-motion
  * respects user preference. */
 .skeleton-pulse {
-  animation: skeleton-pulse 1400ms ease-in-out infinite;
+  animation: skeleton-pulse var(--motion-loop-md) ease-in-out infinite;
 }
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 0.55; }
@@ -286,7 +287,7 @@
   50%      { transform: scale(1.18); opacity: 1; }
 }
 .ai-cta-spark {
-  animation: ai-cta-spark-pulse 2400ms ease-in-out infinite;
+  animation: ai-cta-spark-pulse var(--motion-loop-xl) ease-in-out infinite;
 }
 .ai-cta {
   position: relative;

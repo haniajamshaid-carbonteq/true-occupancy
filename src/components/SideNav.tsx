@@ -19,7 +19,7 @@ const PRIMARY: NavItem[] = [
   { to: '/scheduled', label: 'Scheduled', icon: 'cal' },
 ];
 
-const NAV_WIDTH = 248;
+const NAV_WIDTH = 'var(--width-nav)';
 
 function NavLinkRow({
   item,
@@ -74,7 +74,7 @@ function BrandLockup({
       </div>
       <div className="leading-tight">
         <div
-          className="font-sans text-body font-bold tracking-[0.04em] uppercase"
+          className="font-sans text-body font-bold tracking-pill uppercase"
           style={{ color: 'var(--navy)' }}
         >
           Halcyon
@@ -119,7 +119,7 @@ function SideNav() {
           the bottom of the flex column always sits at the viewport edge,
           never pushed below the fold by a long route's content. */}
       <aside
-        className="hidden md:flex fixed flex-col bg-surface border border-line rounded-2xl z-30 overflow-hidden"
+        className="hidden md:flex fixed flex-col bg-surface border border-line rounded-2xl z-nav overflow-hidden"
         style={{ width: NAV_WIDTH, top: 16, bottom: 16, left: 16 }}
       >
         <div className="px-5 pt-6 pb-5 border-b border-line">
@@ -173,7 +173,7 @@ function SideNav() {
       </aside>
 
       {/* Mobile top bar (hidden on md+) */}
-      <header className="md:hidden sticky top-0 z-40 bg-surface border-b border-line">
+      <header className="md:hidden sticky top-0 z-scrim bg-surface border-b border-line">
         <div className="px-4 h-14 flex items-center justify-between gap-3">
           <BrandLockup size="mobile" />
           <button
@@ -181,7 +181,7 @@ function SideNav() {
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
-            className="w-11 h-11 -mr-2 grid place-items-center rounded-md hover:bg-hover-bg transition-colors"
+            className="w-control-lg h-control-lg -mr-2 grid place-items-center rounded-md hover:bg-hover-bg transition-colors"
             style={{ color: 'var(--navy)' }}
           >
             <span className="relative w-5 h-4 block" aria-hidden>
@@ -209,12 +209,12 @@ function SideNav() {
       {open && (
         <>
           <div
-            className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity"
+            className="md:hidden fixed inset-0 z-scrim bg-scrim backdrop-blur-sm transition-opacity"
             onClick={() => setOpen(false)}
             aria-hidden
           />
           <aside
-            className="md:hidden fixed inset-y-0 left-0 z-50 bg-surface border-r border-line flex flex-col"
+            className="md:hidden fixed inset-y-0 left-0 z-popover bg-surface border-r border-line flex flex-col"
             style={{ width: 'min(86vw, 320px)' }}
           >
             <div className="px-5 pt-5 pb-4 border-b border-line flex items-center justify-between">

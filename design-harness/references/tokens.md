@@ -14,12 +14,15 @@ These tokens are **not defined here**. This file is an index of what already exi
 |---|---|---|
 | Definition | [`src/styles/tokens.css`](../../src/styles/tokens.css) | The `:root` block. Every value below lives here. |
 | Type pairings | [`src/styles/typography.css`](../../src/styles/typography.css) | Overrides `--sans` / `--serif` / `--mono` per `body[data-type-pairing]`. |
-| Tailwind binding | [`tailwind.config.js`](../../tailwind.config.js) | Binds utilities to `var(--token)`. `bg-surface`, `text-ink-3`, etc. |
+| Tailwind binding | [`src/styles/tailwind-config.js`](../../src/styles/tailwind-config.js) | **The runtime config.** Binds utilities to `var(--token)`. Loaded by all 7 HTML hosts after the Play CDN script. |
+| Tooling mirror | [`tailwind.config.js`](../../tailwind.config.js) | Editor IntelliSense only — **not loaded at runtime**. Must mirror the file above. |
 | Rationale | [`docs/DESIGN.md`](../../docs/DESIGN.md) | Why the values are what they are. Brand book §3–§4, product posture §13. |
 
 **To change a token, edit `tokens.css` — never this file.** Update this index afterward. Adding a token is a four-step process documented in DESIGN.md §10.
 
 > ⚠ `docs/design-system.md` is the **superseded** legacy spec (forest-green / teal `#0F8FB8` era). Do not read it for values. `docs/DESIGN.md` supersedes it.
+
+> **Why the config lives in one file now.** It used to be copy-pasted inline into all seven HTML hosts, and they drifted — `navy` existed only in `components.html`, `verdict-*` in four of seven, `hover-bg` in six. So `text-navy` and `bg-hover-bg` silently resolved to *nothing* depending on which page you opened, and people wrote raw hex to compensate. That is the root cause most of the hardcoded values traced back to. If you add a token, add it in `tokens.css` **and** `src/styles/tailwind-config.js` **and** the mirror — three places, one behaviour.
 
 ---
 
@@ -205,10 +208,99 @@ Prefer these over primitives where intent matters. Larger values separate unrela
 Tightened from 8/12/18/28 so cards and tables read as product chrome, not consumer-app marshmallows.
 
 ```
---r-sm: 6px    --r-md: 8px    --r-lg: 10px    --r-xl: 14px
+--r-xs:    4px    checkbox facade
+--r-sm:    6px
+--r-md:    8px
+--r-lg:   10px
+--r-xl:   14px
+--r-2xl:  16px    side-nav rail
+--r-pill: 999px   full pill — badges, chips
+--r-dock:  22px   dock pill + stack — the Dynamic-Island silhouette (§14.1)
 ```
 
-The notification dock pill uses **22px** directly for the full-pill Dynamic-Island silhouette (DESIGN.md §14.1) — an intentional exception, not a token.
+Tailwind: `rounded-xs` … `rounded-2xl`, `rounded-pill`, `rounded-dock`.
+
+## Z-index
+
+Nine bare literals with no ordering contract, so nobody could tell whether a new surface belonged above or below an existing one. Named by what the layer **is**, ascending.
+
+```
+--z-base:     1     in-flow lift — a positioned child over its siblings
+--z-raised:   10    sticky table headers, floating labels, map markers
+--z-sticky:   20    pinned page chrome inside a scroll container
+--z-nav:      30    side nav rail
+--z-scrim:    40    the dim behind an overlay
+--z-popover:  50    dropdown menus, tooltips — attached to a trigger
+--z-dock:     90    notification dock — above content, below dialogs
+--z-modal:    100   modal + drawer. Nothing may sit above this.
+```
+
+Tailwind: `z-base` … `z-modal`. **Adding a layer means adding a token**, not an arbitrary number.
+
+## Sizing — controls & glyphs
+
+```
+--size-control-sm:      32px   Button.sm, dock action buttons
+--size-control-md:      36px   Button.md — the default control height
+--size-control-lg:      44px   text input track, search bar
+--size-gutter-leading:  36px   leading-icon cell in a field
+--size-gutter-trailing: 40px   trailing-slot cell in a field
+--size-glyph-sm:        18px
+--size-glyph-md:        22px   RiskBadge leading glyph
+--size-glyph-lg:        24px
+--size-glyph-xl:        26px   dock status chip — DESIGN.md §14.2
+```
+
+## Widths
+
+```
+--width-modal-sm:   480px   Modal default
+--width-modal-md:   520px   AutomateModal, single
+--width-modal-lg:   600px   AutomateModal, batch
+--width-nav:        248px   SideNav rail
+--width-nav-offset: 280px   content offset = rail + gutter
+--width-content:   1100px   page content max-width
+--width-prose:      420px   empty-state / centred copy max-width
+--dock-top:          14px   dock offset from viewport top (§14.1)
+```
+
+`--width-nav` and `--width-nav-offset` are deliberately separate: the offset is the rail plus its gutter, and the two drifting apart is what breaks the shell layout.
+
+## Tracking
+
+Negative values are the display ramp (DESIGN.md §13.2); positive values are the uppercase mono/eyebrow treatments.
+
+```
+--tracking-display:      -0.012em
+--tracking-h1:           -0.008em
+--tracking-h2:           -0.005em
+--tracking-pill:          0.04em
+--tracking-eyebrow:       0.08em
+--tracking-eyebrow-loose: 0.14em
+--tracking-mono-label:    0.16em
+```
+
+## Border widths
+
+```
+--border-hairline:   1px   the default rule everywhere
+--border-emphasis:   1.5px selected card outline
+--border-indicator:  2px   active tab underline
+--border-focus:      3px   focus ring spread
+```
+
+## Overlay & on-brand colors
+
+Raw values that were previously written inline because no token existed.
+
+```
+--scrim:            rgba(0,0,0,.40)        modal / drawer backdrop
+--on-brand:         #FFFFFF                text & glyphs on a brand fill
+--on-brand-divider: rgba(255,255,255,.20)  hairline on a brand fill
+--focus-ring-brand: rgba(10,183,163,.45)   --brand at 45% — dock focus ring
+```
+
+Tailwind: `bg-scrim`, `text-on-brand`, `border-on-brand-divider`, plus the composed `shadow-focus-brand` and `shadow-focus-dock`.
 
 ## Elevation / shadow
 

@@ -15,7 +15,7 @@ function AppShell({ children, contained = true }: AppShellProps) {
   return (
     <div className="min-h-screen bg-bg text-ink font-sans">
       <SideNav />
-      <div className="md:pl-[280px]">
+      <div className="md:pl-nav-offset">
         <main
           className={
             contained

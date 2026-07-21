@@ -68,13 +68,12 @@ function Tabs<V extends string>({ items, value, onChange, rightSlot, className =
                 'group inline-flex items-center h-10 px-control-x font-sans text-label font-medium transition-colors',
                 active ? 'text-navy' : 'text-ink-3 hover:text-ink-2',
               ].join(' ')}
-              style={active ? { color: 'var(--navy)' } : undefined}
             >
               <span className="inline-flex items-center gap-inline h-full whitespace-nowrap">
                 <span>{it.label}</span>
                 {typeof it.count === 'number' && (
                   <span
-                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded transition-colors duration-200"
+                    className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded-xs transition-colors duration-200"
                     style={{
                       background: active ? 'var(--brand-tint)' : 'var(--surface-2)',
                       color: active ? 'var(--brand-deep)' : 'var(--ink-3)',
@@ -90,7 +89,7 @@ function Tabs<V extends string>({ items, value, onChange, rightSlot, className =
         {indicator && (
           <span
             aria-hidden
-            className="pointer-events-none absolute -bottom-px h-[2px] bg-brand"
+            className="pointer-events-none absolute -bottom-px h-[var(--border-indicator)] bg-brand"
             style={{
               left: indicator.left,
               width: indicator.width,

@@ -101,17 +101,17 @@ function DropdownMenu({
         <>
           {/* Mobile bottom-sheet: scrim + slide-up panel */}
           <div
-            className="fixed inset-0 z-50 md:hidden bg-ink-2/40 backdrop-blur-[2px] transition-opacity"
+            className="fixed inset-0 z-popover md:hidden bg-ink-2/40 backdrop-blur-[2px] transition-opacity"
             onClick={() => setOpen(false)}
             aria-hidden
           />
           <div
             role="menu"
-            className="fixed inset-x-0 bottom-0 z-50 md:hidden bg-surface rounded-t-2xl border-t border-line shadow-lg pb-[max(env(safe-area-inset-bottom),16px)] pt-2 px-2 animate-[sheet-in_180ms_cubic-bezier(0.22,1,0.36,1)]"
+            className="fixed inset-x-0 bottom-0 z-popover md:hidden bg-surface rounded-t-2xl border-t border-line shadow-lg pb-[max(env(safe-area-inset-bottom),16px)] pt-2 px-2 animate-[sheet-in_180ms_cubic-bezier(0.22,1,0.36,1)]"
           >
             <div className="mx-auto w-9 h-1 rounded-full bg-line-strong mb-3" aria-hidden />
             {title && (
-              <div className="px-3 pb-2 font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase text-ink-3">
+              <div className="px-3 pb-2 font-sans text-eyebrow font-semibold tracking-mono-label uppercase text-ink-3">
                 {title}
               </div>
             )}
@@ -123,10 +123,10 @@ function DropdownMenu({
           {/* Desktop popover */}
           <div
             role="menu"
-            className={`hidden md:block absolute mt-2 ${desktopAlign} ${menuWidth} bg-surface border border-line rounded-lg shadow-md p-1 z-40 animate-[menu-in_120ms_cubic-bezier(0.22,1,0.36,1)] origin-top`}
+            className={`hidden md:block absolute mt-2 ${desktopAlign} ${menuWidth} bg-surface border border-line rounded-lg shadow-md p-1 z-scrim animate-[menu-in_120ms_cubic-bezier(0.22,1,0.36,1)] origin-top`}
           >
             {title && (
-              <div className="px-2.5 py-1.5 font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase text-ink-4">
+              <div className="px-2.5 py-1.5 font-sans text-eyebrow font-semibold tracking-mono-label uppercase text-ink-4">
                 {title}
               </div>
             )}
@@ -211,7 +211,7 @@ function SheetItem({
       ].join(' ')}
     >
       {item.icon && (
-        <span className="inline-flex shrink-0 w-9 h-9 rounded-lg bg-surface-2 grid place-items-center text-ink-2 [&>svg]:w-[18px] [&>svg]:h-[18px]">
+        <span className="inline-flex shrink-0 w-9 h-9 rounded-lg bg-surface-2 grid place-items-center text-ink-2 [&>svg]:w-glyph-sm [&>svg]:h-glyph-sm">
           {item.icon}
         </span>
       )}

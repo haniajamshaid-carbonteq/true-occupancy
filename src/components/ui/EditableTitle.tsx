@@ -43,16 +43,16 @@ interface EditableTitleProps {
 }
 
 const VARIANT_CLASS: Record<Variant, string> = {
-  h1: 'font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em] m-0',
-  h3: 'font-sans font-semibold text-h3 leading-tight tracking-[-0.005em] m-0',
+  h1: 'font-sans font-semibold text-h3 leading-[1.1] tracking-display m-0',
+  h3: 'font-sans font-semibold text-h3 leading-tight tracking-h2 m-0',
   // Description sits on body-sm with relaxed leading so it reads as a
   // companion paragraph to the title, not a UI sub-line.
   'body-sm': 'font-sans text-body-sm leading-relaxed m-0',
 };
 
 const VARIANT_INPUT_CLASS: Record<Variant, string> = {
-  h1: 'font-sans font-semibold text-h3 leading-[1.1] tracking-[-0.012em]',
-  h3: 'font-sans font-semibold text-h3 leading-tight tracking-[-0.005em]',
+  h1: 'font-sans font-semibold text-h3 leading-[1.1] tracking-display',
+  h3: 'font-sans font-semibold text-h3 leading-tight tracking-h2',
   'body-sm': 'font-sans text-body-sm leading-relaxed',
 };
 

@@ -104,7 +104,7 @@ function CommandPalette() {
       role="dialog"
       aria-modal="true"
       aria-label="Search"
-      className="fixed inset-0 z-[100] flex items-start justify-center transition-opacity duration-150"
+      className="fixed inset-0 z-modal flex items-start justify-center transition-opacity duration-150"
       style={{
         opacity: mounted ? 1 : 0,
         background: 'rgba(20, 45, 85, 0.36)',
