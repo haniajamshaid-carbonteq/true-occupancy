@@ -117,6 +117,7 @@ function AIInvestigator({
   function renderBody() {
   // Demo override first — see parseAIDemoStatus. These states are otherwise
   // unreachable in the running app because the mock never rejects.
+  if (demo === 'idle') return <IdleCard onRun={() => startAIInvestigation(scenario)} />;
   if (demo === 'loading') return <LoadingCard activeStep={1} />;
   if (demo === 'error') {
     return <ErrorCard onRetry={() => startAIInvestigation(scenario)} />;
@@ -187,7 +188,7 @@ function AIStateProbe({ current }: { current: AIDemoStatus | null }) {
   };
 
   const STATES: Array<{ key: AIDemoStatus | null; label: string }> = [
-    { key: null, label: 'Idle' },
+    { key: 'idle', label: 'Idle' },
     { key: 'loading', label: 'Loading' },
     { key: 'success', label: 'Report' },
     { key: 'error', label: 'Error' },
@@ -595,21 +596,24 @@ function ReportBody({ result }: { result: AIInvestigationResult }) {
       </div>
 
       {/* The only actionable line on the panel, so it sits directly under
-          the verdict and is the single loudest thing here — brand-soft
-          fill, an icon, and the directive set a full step above body copy.
-          Everything else on the panel is neutral, which is what lets this
-          carry emphasis without a border. */}
-      <div className="mt-8">
-        <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3">
+          the verdict and is the single loudest thing here. It is the one
+          block that takes a card: a brand-2 hairline lifts it off the
+          neutral body, and the "Do this next" eyebrow rides as a brand-soft
+          pill so the directive reads as the recommended action, not another
+          section label. Colour stays confined to the pill and the border —
+          the directive itself keeps --navy, so no status hue lands on it. */}
+      <div className="mt-8 rounded-lg border border-brand-2 p-card-tight">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft text-brand-deep px-2.5 py-1 font-sans text-eyebrow font-semibold uppercase tracking-[0.1em]">
+          <Icon name="arrow-right" size={13} />
           Do this next
-        </div>
+        </span>
         <div
-          className="font-sans font-semibold text-h3 leading-tight mt-1.5"
+          className="font-sans font-semibold text-h3 leading-tight mt-3"
           style={{ color: 'var(--navy)' }}
         >
           {result.nextStepLead}
         </div>
-        <p className="font-sans text-body-sm leading-relaxed text-ink-2 m-0 mt-2 max-w-3xl">
+        <p className="font-sans text-body-sm leading-relaxed text-ink-2 m-0 mt-2">
           {result.nextStep}
         </p>
       </div>
@@ -617,13 +621,12 @@ function ReportBody({ result }: { result: AIInvestigationResult }) {
       {/* Sections are separated by space, not rules. The only hairline in
           the body is the one under the scope note below. */}
       <div className="mt-10">
-        <RecommendationBreakdown result={result} />
+        <SectionHeading>What we found</SectionHeading>
+        <div className="mt-3">
+          <RecommendationBreakdown result={result} />
+        </div>
         <OccupancyHistorySection result={result} />
       </div>
-
-      <p className="font-sans text-caption text-ink-3 leading-relaxed m-0 mt-10 pt-4 border-t border-line">
-        {result.scopeNote}
-      </p>
     </div>
   );
 }
@@ -640,14 +643,14 @@ function ScoreTile({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-brand-2 px-5 py-4 text-center min-w-0">
+    <div className="rounded-lg border border-brand-2 px-6 py-5 text-center min-w-0">
       <div
-        className="font-sans font-semibold text-h3 leading-none tabular-nums"
+        className="font-sans font-semibold text-h2 leading-none tabular-nums"
         style={{ color: 'var(--navy)' }}
       >
         {value}
       </div>
-      <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3 mt-2 whitespace-nowrap">
+      <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3 mt-2.5 whitespace-nowrap">
         {label}
       </div>
     </div>
@@ -693,26 +696,28 @@ function FactorPanel({
   tone: 'risk' | 'clean' | 'warn';
   items: string[];
 }) {
-  const ink = tone === 'risk' ? 'var(--risk-ink)' : tone === 'warn' ? 'var(--warn-ink)' : 'var(--clean-ink)';
-  const soft = tone === 'risk' ? 'var(--risk-soft)' : tone === 'warn' ? 'var(--warn-soft)' : 'var(--clean-soft)';
+  const ink =
+    tone === 'risk'
+      ? 'var(--risk-ink)'
+      : tone === 'warn'
+        ? 'var(--warn-ink)'
+        : 'var(--clean-ink)';
   return (
     <section className="rounded-lg border border-line p-4">
-      {/* The heading sits on a hairline shelf rather than free-floating —
-          without it the two columns read as loose text adrift between the
-          action block and the people list. The tinted icon is the only
-          colour; the rule and the box do the grounding. */}
-      <SectionHeading
-        icon={
-          <span
-            className="w-7 h-7 rounded-md grid place-items-center shrink-0"
-            style={{ background: soft, color: ink }}
-          >
-            <Icon name={icon} size={15} />
-          </span>
-        }
+      {/* Lighter weight than the section-level SectionHeading: these two are
+          column labels inside "What we found", not sections of their own, so
+          they sit a step down in the hierarchy. The trend icon carries the
+          only colour — the heading text and evidence stay neutral so no
+          status hue reads as a verdict. */}
+      <h3
+        className="font-sans font-medium text-ink m-0 flex items-center gap-2"
+        style={{ fontSize: 'var(--text-body-sm)' }}
       >
+        <span style={{ color: ink }} className="inline-flex shrink-0">
+          <Icon name={icon} size={16} />
+        </span>
         {title}
-      </SectionHeading>
+      </h3>
       <ul className="list-none m-0 p-0 mt-3 pt-3 border-t border-line flex flex-col gap-2.5">
         {items.map((item, i) => (
           <li key={i} className="text-caption text-ink-2 leading-relaxed">
@@ -726,39 +731,25 @@ function FactorPanel({
 
 function OccupancyHistorySection({ result }: { result: AIInvestigationResult }) {
   const owner = result.occupancyHistory.find((person) => person.relationship === 'owner');
-  const relatedPeople = result.occupancyHistory.filter((person) => person.relationship !== 'owner');
+  const others = result.occupancyHistory.filter((person) => person.relationship !== 'owner');
+  // Owner leads the list, then everyone else. One flat, hairline-separated
+  // list — the owner no longer sits in its own tinted box; the "Current
+  // owner" pill is enough to set it apart, and the single list reads more
+  // like a connected-people record than a highlighted card plus a remainder.
+  const people = owner ? [owner, ...others] : others;
 
   return (
     <section className="mt-10">
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex items-baseline gap-2">
         <SectionHeading>People connected to the property</SectionHeading>
         <span className="font-sans text-caption text-ink-3 tabular-nums shrink-0">
           {result.occupancyHistory.length} total
         </span>
       </div>
 
-      {/* The anchor keeps a tinted row because it is categorically
-          different from the rest; everyone else is a plain row. */}
-      {owner && (
-        <div className="mt-3 rounded-lg border border-brand-2 p-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4
-              className="font-sans font-semibold text-body-sm m-0 leading-tight"
-              style={{ color: 'var(--navy)' }}
-            >
-              {owner.name}
-            </h4>
-            <RelationshipPill relationship="owner" />
-          </div>
-          <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 mt-1">
-            {owner.summary}
-          </p>
-        </div>
-      )}
-
-      <div className="mt-1">
-        {relatedPeople.map((person) => (
-          <OccupancyPersonRow key={person.name} person={person} />
+      <div className="mt-3">
+        {people.map((person, i) => (
+          <OccupancyPersonRow key={person.name} person={person} isFirst={i === 0} />
         ))}
       </div>
     </section>
@@ -790,25 +781,29 @@ function RelationshipPill({
   );
 }
 
-// One non-anchor person. Name column is fixed-width so the summaries form
-// a readable second column instead of starting at a ragged left edge.
+// One person in the connected-people list. Name and pill share the top
+// line; the summary sits full-width beneath so it reads as prose rather
+// than a ragged second column. A hairline above each row separates them,
+// except the first, which sits flush under the heading.
 function OccupancyPersonRow({
   person,
+  isFirst,
 }: {
   person: AIInvestigationResult['occupancyHistory'][number];
+  isFirst?: boolean;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 py-2.5 border-b border-line last:border-b-0">
-      <div className="flex items-center gap-2 sm:w-[200px] shrink-0">
+    <div className={`py-3 ${isFirst ? '' : 'border-t border-line'}`}>
+      <div className="flex items-center gap-2 flex-wrap">
         <span
-          className="font-sans text-body-sm leading-tight"
+          className="font-sans text-body-sm font-medium leading-tight"
           style={{ color: 'var(--navy)' }}
         >
           {person.name}
         </span>
         <RelationshipPill relationship={person.relationship} />
       </div>
-      <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 min-w-0">
+      <p className="font-sans text-caption leading-relaxed text-ink-2 m-0 mt-1">
         {person.summary}
       </p>
     </div>
@@ -836,19 +831,34 @@ function SectionHeading({
 // -------------------------------------------------------------------------
 // Error — soft red surface, retry CTA.
 
+// Failed run. Borrows the system error language from ScreenError — the
+// error-soft alert badge and error-ink eyebrow — so the slot reads as a
+// failure at a glance rather than another neutral "Occupancy report" card.
+// The left accent + tinted badge distinguish it from the idle card, which
+// shares the same shell and layout.
 function ErrorCard({ onRetry }: { onRetry: () => void }) {
   return (
-    <Card padded className="card-rise">
+    <Card padded className="card-rise bg-error-soft" role="alert">
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <SlotEyebrow />
-          <SlotTitle>The report did not finish</SlotTitle>
-          <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-3xl">
-            The connection dropped while records were being read. Nothing was
-            saved, so this scan&rsquo;s report has not been used.
-          </p>
+        <div className="flex items-start gap-3 min-w-0">
+          <span
+            className="shrink-0 w-9 h-9 rounded-full grid place-items-center bg-error text-white [&>svg]:w-5 [&>svg]:h-5"
+            aria-hidden
+          >
+            <Icon name="alert" size={20} />
+          </span>
+          <div className="min-w-0">
+            <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.16em] text-error-ink">
+              Report failed
+            </div>
+            <SlotTitle>The report did not finish</SlotTitle>
+            <p className="font-sans text-body-sm text-error-ink leading-relaxed m-0 mt-2 max-w-3xl">
+              The connection dropped while records were being read. Nothing was
+              saved, so this scan&rsquo;s report has not been used.
+            </p>
+          </div>
         </div>
-        <Button variant="default" onClick={onRetry} className="shrink-0">
+        <Button variant="primary" onClick={onRetry} className="shrink-0">
           Re-run
         </Button>
       </div>

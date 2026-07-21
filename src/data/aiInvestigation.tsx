@@ -387,12 +387,15 @@ function resetAIInvestigation() {
 // HashRouter puts the query after the hash, so this reads the router's
 // search string rather than window.location.search.
 
-type AIDemoStatus = 'loading' | 'success' | 'error';
+type AIDemoStatus = 'idle' | 'loading' | 'success' | 'error';
 
 function parseAIDemoStatus(search: string): AIDemoStatus | null {
   if (!search) return null;
   const value = new URLSearchParams(search).get('ai');
-  return value === 'loading' || value === 'success' || value === 'error'
+  return value === 'idle' ||
+    value === 'loading' ||
+    value === 'success' ||
+    value === 'error'
     ? value
     : null;
 }

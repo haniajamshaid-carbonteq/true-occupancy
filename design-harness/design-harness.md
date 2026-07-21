@@ -36,11 +36,12 @@ Animating something?        → references/motion.md  (+ src/styles/motion.css)
 Writing user-facing text?   → references/voice.md
 Using a component?          → components/core/[name].md — read its revisions, build the current version
 
-Building a form?            → components/core/text-field.md + checkbox.md
-                              ⚠ patterns/forms.md not yet written; field-scaffold is a GAP
-Page-level states?          → components/core/empty-state.md + loading.md
-                              ⚠ patterns/screen-states.md not yet written
-                              ⚠ ScreenError.tsx owns page error and has no stub — see §7
+Building a form?            → patterns/forms.md (composes text-field + field-scaffold
+                              + checkbox …). ⚠ forms.md is a compose-and-route stub;
+                              select and toggle are still gaps
+Page-level states?          → patterns/screen-states.md (composes empty-state + loading …)
+                              ⚠ screen-states.md is a compose-and-route stub;
+                              ScreenError owns page error and still has no file — see §7
 Building a table?           → components/core/table.md + loading.md + pagination.md
 Long-running / async task?  → components/core/working-indicator.md + docs/DESIGN.md §14
                               (the notification dock owns every async task)
@@ -66,8 +67,12 @@ Nothing fits, need new?     → STOP. Read the creation gate (§3) first.
   - Components: PascalCase `.tsx` under `src/components/`, grouped `ui/` (primitives) and `result/` · `scan/` · `notification/` (feature).
   - Harness files: kebab-case `.md` matching the component's slug.
 - **Icons.** Local Lucide-style stroked set in [`src/components/ui/Icons.tsx`](../src/components/ui/Icons.tsx). Names are kebab-case (`arrow-right`, `eye-off`, `trend-up`). All icons are `currentColor`-driven, `strokeWidth: 1.6`, `viewBox 0 0 24 24`, default size 16. **Use these; do not mix in icons from outside the set.** The file's own rule: keep the list narrow — add only what screens actually use.
-- **Three colour layers, never conflated.** Verdict tones (categorical) ≠ status clean/warn/risk (brand-framed) ≠ state success/warning/error (true semantics). See `references/tokens.md`. Picking the wrong layer is the most common way to get this system wrong.
-- **Verdict neutrality.** Rented / Possibly rented / Not rented are descriptive findings, not judgements. Never colour or word them as good/bad. Binds copy *and* palette.
+- **Three colour layers, never conflated.** The most common way to get this system wrong, so the whole map is here inline — details in `references/tokens.md`.
+  - **Verdict tones** — the scan finding itself: Rented / Possibly rented / Not rented. Categorical, non-judgemental. Use *only* on the occupancy verdict.
+  - **Status** clean / warn / risk — brand-framed severity on the product surface (pills, factor rows, hero gradients). Use for how concerning a signal is.
+  - **State** success / warning / error — true UI semantics (a save worked, a field is invalid, a request failed). Use for the interface talking about itself, never about the property.
+  - Rule of thumb: if it describes the *property*, it's a verdict tone; if it describes a *concern level*, it's status; if it describes the *app's own action*, it's state.
+- **Verdict neutrality.** Never colour or word a verdict as good/bad — the neutrality binds copy *and* palette, not just one.
 - **Sentence case everywhere.** Headings, buttons, labels. Uppercase only for tracked mono eyebrows.
 - **Reduced motion ships with the animation**, not after it.
 - **When nothing fits.** Check the extensions index (§7). Still nothing? Flag the gap. Never invent — see the gate.
@@ -105,6 +110,24 @@ When told to proceed: write the file in the component-file format
 (§8) — delta-only for extensions, status: draft — and add one line
 to the extensions index (§7).
 ```
+
+**The gate in action** — what a correct STOP looks like, and what happens after:
+
+```
+Task:  "Add a filter control above the results table."
+Claude: A single-select filter row isn't a registered component. Closest
+        is ChipRow (§7 candidate — single-select filter, Interactive), but
+        it has no file, so I can't build from it. Gap: a chip-style filter
+        control. Delta from Button: no border, selected state, roving focus.
+        STOP — need a "yes" before I create anything.
+Owner:  "Yes, spec ChipRow as an extension of button."
+Claude: Writes components/extensions/chip-row.md — delta-only, extends: button,
+        status: draft — listing just what differs (selected fill, focus model).
+        Adds one line to the §7 extensions index. Then builds from it.
+```
+
+The point: the STOP is not a refusal. It's the one move that keeps the
+system the owner's to change, not the transcriber's.
 
 ---
 
