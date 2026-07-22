@@ -19,7 +19,12 @@ node_modules/
 dist/
 build/
 
-# Playwright
+# Playwright — the E2E test tooling is kept out of the repo. The app runtime
+# is buildless; package.json / package-lock.json existed only for these tests.
+tests/
+playwright.config.ts
+package.json
+package-lock.json
 test-results/
 playwright-report/
 playwright/.cache/
