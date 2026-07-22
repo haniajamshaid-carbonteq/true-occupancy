@@ -24,14 +24,13 @@ interface AIInvestigationResult {
   clarityLabel: AIClarityLabel;
   caseArchetype: string;
   summary: string;
-  /** Imperative one-liner — the only thing the reader is asked to DO. Leads
-   *  the action block; `nextStep` carries the qualifying detail underneath. */
-  nextStepLead: string;
-  nextStep: string;
+  /** The recommendation directive (lead + detail) is NOT stored per case —
+   *  it is derived from `verdictBand`, so all five bands read consistently.
+   *  See AI_BAND_NEXT_STEP in AIInvestigator.tsx. */
   /** The "this doesn't determine rental status" caveat, stated ONCE as a
    *  panel footnote. It used to appear three times — in `summary`, inside
-   *  `nextStep`, and again above the signal columns — which trained readers
-   *  to skip all three. */
+   *  the next-step detail, and again above the signal columns — which
+   *  trained readers to skip all three. */
   scopeNote: string;
   riskSignals: string[];
   mitigatingSignals: string[];
@@ -93,9 +92,6 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   caseArchetype: 'Ambiguous non-owner occupancy',
   summary:
     'Owner presence is supported by utility and long-term residence records, but unrelated occupants and renter-coded loan records create enough ambiguity to warrant review.',
-  nextStepLead: 'Route this case for human review',
-  nextStep:
-    'Resolves with newer occupancy dates, public listing evidence, voter or driver records, or utility service periods that clarify who currently occupies the property.',
   scopeNote:
     'Local records support owner-occupancy review only. None of the above determines rental status without public listing evidence.',
   riskSignals: [

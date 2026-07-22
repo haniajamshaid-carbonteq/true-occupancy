@@ -75,6 +75,41 @@ const AI_BAND_COPY: Record<AIVerdictBand, { variant: 'clean' | 'warn' | 'risk' |
   },
 };
 
+// The recommendation directive, one per verdict band. Derived from
+// `verdictBand` rather than stored per case, so all five bands read
+// consistently and a new case can't ship a directive that contradicts its
+// own band. `lead` is the short directive (shown in the digest and as the
+// bold lead of the report's "Do this next"); `detail` is the qualifying
+// sentence that trails it in the report. Voice stays verdict-neutral — these
+// describe the action to take, never grade the finding as good or bad.
+const AI_BAND_NEXT_STEP: Record<AIVerdictBand, { lead: string; detail: string }> = {
+  high_priority_review: {
+    lead: 'Priority review',
+    detail:
+      'A strong non-owner-occupancy pattern at an absentee-owner property. Move this to the top of the queue for a person to work.',
+  },
+  review: {
+    lead: 'Manual review',
+    detail:
+      'The signals conflict enough that the case cannot be settled automatically. A person should weigh the evidence before a determination.',
+  },
+  monitor: {
+    lead: 'Monitor',
+    detail:
+      'Some signals are present but below the bar for review. Keep the case open and re-check as newer records land.',
+  },
+  low_evidence: {
+    lead: 'No action needed',
+    detail:
+      'Too little corroborating evidence to act on. Revisit only if stronger records surface.',
+  },
+  manual_verification: {
+    lead: 'Verify the address',
+    detail:
+      'The address may resolve to the wrong unit, so no occupancy read is safe yet. Confirm the parcel before relying on this case.',
+  },
+};
+
 function AIInvestigator({
   scenario,
   forcedStatus,
@@ -555,7 +590,7 @@ function ReportCard({
             className="font-sans text-body-sm font-medium min-w-0"
             style={{ color: 'var(--navy)' }}
           >
-            {result.nextStepLead}
+            {AI_BAND_NEXT_STEP[result.verdictBand].lead}
           </span>
         </div>
       </div>
@@ -682,26 +717,22 @@ function ReportBody({ result }: { result: AIInvestigationResult }) {
         </p>
       </div>
 
-      {/* The only actionable line on the panel, so it sits directly under
-          the verdict. It still takes a card to stay legible as the action,
-          but the emphasis is dialled down: a neutral hairline rather than a
-          brand-2 border, and the "Do this next" eyebrow is a plain tracked
-          label (brand-deep text only, no filled pill) so it reads as the
-          recommended action without shouting. The directive keeps --navy and
-          steps down from h3 to h4. */}
-      <div className="mt-8 rounded-lg border border-line p-card-tight">
+      {/* The single next action. Deliberately low-footprint: no card, no
+          heading — just a tracked "Do this next" label and a one-paragraph
+          directive (the lead in --navy, the qualifying detail trailing in
+          --ink-2). It's the digest that carries this action prominently; in
+          the full report it's a footnote-weight reminder, so it sits in the
+          body's space-not-rules flow like every other section. */}
+      <div className="mt-8">
         <span className="inline-flex items-center gap-1.5 text-brand-deep font-sans text-eyebrow font-semibold uppercase tracking-[0.1em]">
           <Icon name="arrow-right" size={13} />
           Do this next
         </span>
-        <div
-          className="font-sans font-semibold text-h4 leading-tight mt-2.5"
-          style={{ color: 'var(--navy)' }}
-        >
-          {result.nextStepLead}
-        </div>
-        <p className="font-sans text-body-sm leading-relaxed text-ink-2 m-0 mt-2">
-          {result.nextStep}
+        <p className="font-sans text-body-sm leading-relaxed text-ink-2 m-0 mt-1.5">
+          <span className="font-semibold" style={{ color: 'var(--navy)' }}>
+            {AI_BAND_NEXT_STEP[result.verdictBand].lead}.
+          </span>{' '}
+          {AI_BAND_NEXT_STEP[result.verdictBand].detail}
         </p>
       </div>
 
