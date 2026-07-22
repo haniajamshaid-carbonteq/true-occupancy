@@ -287,8 +287,9 @@ function IdleCard({ onRun }: { onRun: () => void }) {
           <SlotEyebrow />
           <SlotTitle>Find out who actually lives here</SlotTitle>
           <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-3xl">
-            Listings show the property is rented. This checks utility, voter
-            and tenancy records to establish who lives in it.
+            Listings show the property is rented. This settles who is actually
+            in the property, giving you the evidence to weigh that claim with
+            confidence.
           </p>
         </div>
         <Button variant="spotlight" onClick={onRun} className="shrink-0">
