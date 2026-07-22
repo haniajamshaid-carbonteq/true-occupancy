@@ -680,29 +680,30 @@ function DigestStat({ label, value }: { label: string; value: string }) {
 function ReportBody({ result }: { result: AIInvestigationResult }) {
   return (
     <div>
-      {/* Score tiles lead, archetype + summary sit beside them. The band
-          label was dropped from the tile at the client's request — note
-          that `verdictBand` no longer renders anywhere in this panel, so
-          all five bands now present identically here. The certificate is
-          the only surface still expressing it. */}
-      <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
-        <div className="flex gap-3 shrink-0">
-          <ScoreTile
-            label="Occupancy score"
-            value={`${result.score}/${result.scoreMax}`}
-          />
-          <ScoreTile
-            label="Evidence clarity"
-            value={`${result.clarityScore}/${result.clarityMax}`}
-          />
-        </div>
-        {/* Summary only — the archetype is the card's own title a few rows
-            up, and printing it again here spent the widest column on a
-            line the reader had just read. */}
-        <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 min-w-0 max-w-4xl">
-          {result.summary}
-        </p>
+      {/* Scores and summary STACK rather than sit side-by-side. The report
+          lives in a ~600px drawer, but the old md:flex-row fired on viewport
+          width, so on a wide screen the tiles took half the row and forced
+          the summary into a tall, cramped side column with dead space beneath
+          the tiles. Stacked: the two tiles span the width as an even stat
+          row, and the summary — the most human-readable line here — gets a
+          full, readable measure directly beneath. (The band label was dropped
+          from the tile at the client's request; `verdictBand` no longer
+          renders in this panel, so all five bands present identically.) */}
+      <div className="grid grid-cols-2 gap-3">
+        <ScoreTile
+          label="Occupancy score"
+          value={`${result.score}/${result.scoreMax}`}
+        />
+        <ScoreTile
+          label="Evidence clarity"
+          value={`${result.clarityScore}/${result.clarityMax}`}
+        />
       </div>
+      {/* Summary only — the archetype is the drawer's own title, so printing
+          it again here would spend the lead line on something just read. */}
+      <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-5 max-w-2xl">
+        {result.summary}
+      </p>
 
       {/* The single next action. Deliberately low-footprint: no card, no
           heading — just a tracked "Do this next" label and a one-paragraph
