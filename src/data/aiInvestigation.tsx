@@ -46,7 +46,13 @@ interface AIInvestigationResult {
     evidenceCount: number;
     caveatCount: number;
   }>;
-  dataGaps: Array<{ group: string; items: string[] }>;
+  /** The concern-raising subset only — contradictions, inconsistent
+   *  records, and missing/undated evidence an officer should weigh before
+   *  trusting the verdict. Deliberately curated, not the full caveat dump:
+   *  the raw run emits ~18 caveats, most of them boilerplate; this carries
+   *  only the ones that change how the case reads. `kind` selects the group
+   *  icon; `group` is the human label. */
+  dataGaps: Array<{ group: string; kind: 'conflict' | 'inconsistency' | 'gap'; items: string[] }>;
   occupancyHistory: Array<{
     name: string;
     relationship: 'owner' | 'unrelated' | 'likely_family';
@@ -120,16 +126,29 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   ],
   dataGaps: [
     {
-      group: 'Missing sources',
-      items: ['No driver records found at the selected address.', 'No voter records found at the selected address.', 'No auto rows found at the selected address.'],
+      group: 'Contradictions',
+      kind: 'conflict',
+      items: [
+        'Owner has a 10-year residence and active utility at the property, yet the tax mailing address is elsewhere (209 Falcon Dr, Versailles).',
+        'Sheila Shankle is tagged as unrelated but carries a homeowner flag — at odds with a single-owner home.',
+      ],
     },
     {
-      group: 'Unclear timing',
-      items: ['Utility and trace records do not include explicit service dates.', 'Base length-of-residence is accumulated years, not a dated occupancy timeline.'],
+      group: 'Records that disagree',
+      kind: 'inconsistency',
+      items: [
+        "Donald Cain's four loan rows disagree on tenure: three unknown, one coded as renter.",
+        '‘Jerahmy’ and ‘Jerehmy’ Winkfield appear across sources — a spelling variant of one person, not two occupants.',
+      ],
     },
     {
-      group: 'Identity ambiguity',
-      items: ['Some person records have incomplete DOBs or name variants.', "CAIN's own_rent coding is mixed across loan rows."],
+      group: 'Missing or undated evidence',
+      kind: 'gap',
+      items: [
+        'Utility and trace records carry no service dates, so current occupancy can’t be pinned to a period.',
+        'The rental listing is dated April 2026 — a future date with no corroboration elsewhere.',
+        'No driver, voter, or auto records, and no recorded mortgage lender, to corroborate against.',
+      ],
     },
   ],
   occupancyHistory: [

@@ -1,4 +1,4 @@
-/* global React, ReactRouterDOM, Card, Button, Icon, AI_INVESTIGATIONS,
+/* global React, ReactRouterDOM, Card, Button, Icon, Drawer, AI_INVESTIGATIONS,
    useAIInvestigator, startAIInvestigation, resetAIInvestigation,
    parseAIDemoStatus, formatReportDate */
 // AIInvestigator — a second-opinion module that runs after the rule-based
@@ -235,7 +235,7 @@ function ForcedFrame({
       <ReportCard
         result={result}
         generatedAt={new Date().toISOString()}
-        defaultExpanded={expanded}
+        renderInline={expanded}
       />
     );
   }
@@ -291,8 +291,8 @@ function IdleCard({ onRun }: { onRun: () => void }) {
             and tenancy records to establish who lives in it.
           </p>
         </div>
-        <Button variant="primary" onClick={onRun} className="shrink-0">
-          Run report
+        <Button variant="spotlight" onClick={onRun} className="shrink-0">
+          Run occupancy report
         </Button>
       </div>
     </Card>
@@ -496,81 +496,167 @@ function Spinner({ size = 14 }: { size?: number }) {
 }
 
 // -------------------------------------------------------------------------
-// Success — the meat. Two visual zones:
-//   1. Hero band  — brand-teal gradient surface carrying the verdict tile,
-//                   confidence ring, and the alignment indicator.
-//   2. AI report  — collapsible accordion with findings, actions, caveat.
-//                   Collapsed by default for tidy scanning; clicking the
-//                   header reveals the detail. Mirrors ConfidenceHero's
-//                   "Why This Score" pattern so the two surfaces feel
-//                   like a coordinated pair.
+// Success — a compact DIGEST that lives in the result flow, with the full
+// report behind a Drawer.
+//
+// The report is a full artifact — five sections, frozen once per scan — and
+// expanding it inline shoved the listings far down the page. So the slot now
+// carries only the digest (finding, the two scores, the single next action,
+// and a count teaser); "Read the full report" opens the report in a Drawer
+// with its own scroll, the same "an artifact in a focused drawer" move as
+// SavedSnapshotDrawer. The verdict stays visible behind it and the listings
+// never move.
+//
+// `renderInline` is a spec-only escape hatch: a live Drawer is a full-viewport
+// portal, so it can't be shown in the states-spec's side-by-side frames. When
+// set, the full report renders inline beneath the digest as documentation
+// instead of behind the portal.
 
 function ReportCard({
   result,
   generatedAt,
-  defaultExpanded = false,
+  renderInline = false,
 }: {
   result: AIInvestigationResult;
   generatedAt: string;
-  /** Spec-only: render with the body already open. */
-  defaultExpanded?: boolean;
+  /** Spec-only: render the full report inline beneath the digest instead of
+   *  behind the Drawer portal, so a static handoff frame can show both. */
+  renderInline?: boolean;
 }) {
-  const [expanded, setExpanded] = React.useState(defaultExpanded);
+  const [open, setOpen] = React.useState(false);
   const date = formatReportDate(generatedAt);
 
   return (
     <Card padded={false} className="card-rise" allowOverflow>
-      {/* Header. Leads with the finding, not the module name — once the
-          report exists, "Occupancy report" is already carried by the
-          eyebrow and the title slot is better spent on what was found. */}
+      {/* Digest. Header leads with the finding, then the two headline scores
+          on one compact line (not the full ScoreTile boxes — those are the
+          drawer's job), then the single action. Enough to act on or to decide
+          to open; not the whole report. */}
       <div className="p-card">
         <SlotEyebrow />
         <SlotTitle>{result.caseArchetype}</SlotTitle>
-        <div className="font-sans text-caption text-ink-3 mt-2">
-          {date ? `Generated ${date}. Final.` : 'Final.'}
+        {date && (
+          <div className="font-sans text-caption text-ink-3 mt-2">
+            Generated {date}
+          </div>
+        )}
+
+        <div className="mt-5 flex flex-wrap items-baseline gap-x-6 gap-y-2">
+          <DigestStat label="Occupancy score" value={`${result.score}/${result.scoreMax}`} />
+          <DigestStat label="Evidence clarity" value={`${result.clarityScore}/${result.clarityMax}`} />
+        </div>
+
+        <div className="mt-5 flex items-baseline gap-2 flex-wrap">
+          <span className="font-sans text-eyebrow font-semibold uppercase tracking-[0.1em] text-ink-3 shrink-0">
+            Do this next
+          </span>
+          <span
+            className="font-sans text-body-sm font-medium min-w-0"
+            style={{ color: 'var(--navy)' }}
+          >
+            {result.nextStepLead}
+          </span>
         </div>
       </div>
 
-      {/* Disclosure. Deliberately the same anatomy as ConfidenceHero's
-          "Why This Score": a full-width labelled row at the card's bottom
-          edge with a circled chevron, so the two cards on this page
-          disclose identically instead of inventing a second pattern.
-          Labels are asymmetric because "Collapse" is the honest inverse of
-          "Read the full report" — "Hide the full report" reads as a
-          warning. */}
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        aria-expanded={expanded}
-        className="w-full flex items-center justify-between gap-3 border-0 border-t border-line bg-transparent cursor-pointer text-left px-6 py-3 hover:bg-hover-bg transition-colors"
-      >
-        <span
-          className="font-sans font-semibold"
-          style={{ fontSize: 'var(--text-body-sm)', color: 'var(--navy)' }}
-        >
-          {expanded ? 'Collapse' : 'Read the full report'}
-        </span>
-        <span
-          className={`w-6 h-6 rounded-full bg-surface-2 grid place-items-center text-ink-2 transition-transform shrink-0 ${
-            expanded ? 'rotate-180' : ''
-          }`}
-          aria-hidden
-        >
-          <Icon name="chevron" size={14} />
-        </span>
-      </button>
+      {/* Opener. Same anatomy as ConfidenceHero's "Why This Score" row — a
+          full-width labelled row at the card's bottom edge with a circled
+          affordance — so the two cards on this page disclose identically. The
+          affordance is arrow-right, not a chevron: this opens a separate
+          surface, it does not expand in place. */}
+      {renderInline ? (
+        <div className="border-t border-line p-card">
+          {/* Inline (spec) mode: the digest header just above already carries
+              the generated-date line, so suppress the drawer's copy here. */}
+          <ReportSurface result={result} generatedAt={generatedAt} showDate={false} />
+        </div>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-haspopup="dialog"
+            className="w-full flex items-center justify-between gap-3 border-0 border-t border-line bg-transparent cursor-pointer text-left px-6 py-3 hover:bg-hover-bg transition-colors"
+          >
+            <span
+              className="font-sans font-semibold shrink-0"
+              style={{ fontSize: 'var(--text-body-sm)', color: 'var(--navy)' }}
+            >
+              Read the full report
+            </span>
+            <span
+              className="w-6 h-6 rounded-full bg-surface-2 grid place-items-center text-ink-2 shrink-0"
+              aria-hidden
+            >
+              <Icon name="arrow-right" size={14} />
+            </span>
+          </button>
 
-      {expanded && <ReportBody result={result} />}
+          <Drawer
+            open={open}
+            onClose={() => setOpen(false)}
+            title={result.caseArchetype}
+            width={600}
+          >
+            <ReportSurface result={result} generatedAt={generatedAt} />
+          </Drawer>
+        </>
+      )}
     </Card>
   );
 }
 
-// The full report. Everything here was previously behind "View details"
-// inside the success card; it now sits under the disclosure row so the
-// control stays adjacent to what it opens.
+// Compact inline stat for the digest: value-first, label trailing. Lighter
+// than the drawer's ScoreTile boxes on purpose — the digest summarises, the
+// drawer carries the full treatment.
+function DigestStat({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5">
+      <span
+        className="font-sans font-semibold tabular-nums leading-none"
+        style={{ color: 'var(--navy)', fontSize: 'var(--text-body)' }}
+      >
+        {value}
+      </span>
+      <span className="font-sans text-caption text-ink-3">{label}</span>
+    </span>
+  );
+}
+
+// The full report as it appears inside the Drawer (or inline in spec mode).
+// The Drawer supplies the padding and the archetype title, so this leads with
+// only the generated-date line and then the sections — a reader in the drawer
+// sees a self-contained artifact without the digest behind it.
+function ReportSurface({
+  result,
+  generatedAt,
+  showDate = true,
+}: {
+  result: AIInvestigationResult;
+  generatedAt: string;
+  /** Suppressed in inline (spec) mode where the digest above already shows
+   *  the date. In the Drawer it stays on, so the drawer is self-contained. */
+  showDate?: boolean;
+}) {
+  const date = formatReportDate(generatedAt);
+  return (
+    <>
+      {showDate && date && (
+        <div className="font-sans text-caption text-ink-3 mb-6">
+          Generated {date}
+        </div>
+      )}
+      <ReportBody result={result} />
+    </>
+  );
+}
+
+// The full report body — the five sections. Rendered inside the Drawer (or
+// inline in spec mode) by ReportSurface, which supplies the surrounding
+// padding, so this adds none of its own.
 function ReportBody({ result }: { result: AIInvestigationResult }) {
   return (
-    <div className="border-t border-line p-card">
+    <div>
       {/* Score tiles lead, archetype + summary sit beside them. The band
           label was dropped from the tile at the client's request — note
           that `verdictBand` no longer renders anywhere in this panel, so
@@ -596,19 +682,19 @@ function ReportBody({ result }: { result: AIInvestigationResult }) {
       </div>
 
       {/* The only actionable line on the panel, so it sits directly under
-          the verdict and is the single loudest thing here. It is the one
-          block that takes a card: a brand-2 hairline lifts it off the
-          neutral body, and the "Do this next" eyebrow rides as a brand-soft
-          pill so the directive reads as the recommended action, not another
-          section label. Colour stays confined to the pill and the border —
-          the directive itself keeps --navy, so no status hue lands on it. */}
-      <div className="mt-8 rounded-lg border border-brand-2 p-card-tight">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft text-brand-deep px-2.5 py-1 font-sans text-eyebrow font-semibold uppercase tracking-[0.1em]">
+          the verdict. It still takes a card to stay legible as the action,
+          but the emphasis is dialled down: a neutral hairline rather than a
+          brand-2 border, and the "Do this next" eyebrow is a plain tracked
+          label (brand-deep text only, no filled pill) so it reads as the
+          recommended action without shouting. The directive keeps --navy and
+          steps down from h3 to h4. */}
+      <div className="mt-8 rounded-lg border border-line p-card-tight">
+        <span className="inline-flex items-center gap-1.5 text-brand-deep font-sans text-eyebrow font-semibold uppercase tracking-[0.1em]">
           <Icon name="arrow-right" size={13} />
           Do this next
         </span>
         <div
-          className="font-sans font-semibold text-h3 leading-tight mt-3"
+          className="font-sans font-semibold text-h4 leading-tight mt-2.5"
           style={{ color: 'var(--navy)' }}
         >
           {result.nextStepLead}
@@ -625,6 +711,7 @@ function ReportBody({ result }: { result: AIInvestigationResult }) {
         <div className="mt-3">
           <RecommendationBreakdown result={result} />
         </div>
+        <DataGapsSection result={result} />
         <OccupancyHistorySection result={result} />
       </div>
     </div>
@@ -725,6 +812,66 @@ function FactorPanel({
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+// The concern-raising caveats, curated. An officer reading the verdict
+// needs to know where it is soft before acting on it, but the raw run emits
+// ~18 caveats and most are boilerplate. This surfaces only the three flavors
+// that change how the case reads — contradictions, records that disagree,
+// and missing/undated evidence — grouped so the reader can weigh each in one
+// pass. Deliberately kept neutral (no status hue): these are open questions
+// that limit confidence, not a verdict on the property, so colouring them
+// would put the status layer where it doesn't belong (harness §2).
+const GAP_KIND_ICON: Record<AIInvestigationResult['dataGaps'][number]['kind'], IconName> = {
+  conflict: 'warning',
+  inconsistency: 'layers',
+  gap: 'eye-off',
+};
+
+function DataGapsSection({ result }: { result: AIInvestigationResult }) {
+  const groups = result.dataGaps;
+  if (!groups.length) return null;
+
+  return (
+    <section className="mt-10">
+      <SectionHeading>Gaps and contradictions</SectionHeading>
+      {/* Neutrality note — states once that these are confidence limiters,
+          not findings, so no reader mistakes a gap for a mark against the
+          property. */}
+      <p className="font-sans text-caption text-ink-3 leading-relaxed m-0 mt-1">
+        Open questions that limit confidence — not findings on their own.
+      </p>
+
+      {/* One calm panel, groups separated by hairlines rather than three
+          stacked boxes — lighter on the eye and it reads as a single
+          checklist to run down. */}
+      <div className="mt-3 rounded-lg border border-line">
+        {groups.map((group, i) => (
+          <div key={group.group} className={`p-4 ${i === 0 ? '' : 'border-t border-line'}`}>
+            <h4
+              className="font-sans font-medium text-ink m-0 flex items-center gap-2"
+              style={{ fontSize: 'var(--text-body-sm)' }}
+            >
+              <span
+                className="w-6 h-6 rounded-md bg-surface-2 grid place-items-center text-ink-2 shrink-0"
+                aria-hidden
+              >
+                <Icon name={GAP_KIND_ICON[group.kind]} size={14} />
+              </span>
+              {group.group}
+            </h4>
+            <ul className="list-none m-0 p-0 mt-3 flex flex-col gap-2.5">
+              {group.items.map((item, j) => (
+                <li key={j} className="text-caption text-ink-2 leading-relaxed">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
