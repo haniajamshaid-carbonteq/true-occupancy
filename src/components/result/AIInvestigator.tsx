@@ -602,9 +602,9 @@ function ReportCard({
           surface, it does not expand in place. */}
       {renderInline ? (
         <div className="border-t border-line p-card">
-          {/* Inline (spec) mode: the digest header just above already carries
-              the generated-date line, so suppress the drawer's copy here. */}
-          <ReportSurface result={result} generatedAt={generatedAt} showDate={false} />
+          {/* Inline (spec) mode: the digest header just above carries the
+              date, so the body renders on its own. */}
+          <ReportBody result={result} />
         </div>
       ) : (
         <>
@@ -628,13 +628,28 @@ function ReportCard({
             </span>
           </button>
 
+          {/* Date rides in the header as a subtitle under the finding, so the
+              header carries the artifact's identity (what + when) and the body
+              can lead with the scores. */}
           <Drawer
             open={open}
             onClose={() => setOpen(false)}
-            title={result.caseArchetype}
+            title={
+              <span className="block">
+                {result.caseArchetype}
+                {date && (
+                  <span
+                    className="block font-sans text-caption font-normal text-ink-3 mt-1"
+                    style={{ letterSpacing: 'normal' }}
+                  >
+                    Generated {date}
+                  </span>
+                )}
+              </span>
+            }
             width={600}
           >
-            <ReportSurface result={result} generatedAt={generatedAt} />
+            <ReportBody result={result} />
           </Drawer>
         </>
       )}
@@ -659,37 +674,9 @@ function DigestStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-// The full report as it appears inside the Drawer (or inline in spec mode).
-// The Drawer supplies the padding and the archetype title, so this leads with
-// only the generated-date line and then the sections — a reader in the drawer
-// sees a self-contained artifact without the digest behind it.
-function ReportSurface({
-  result,
-  generatedAt,
-  showDate = true,
-}: {
-  result: AIInvestigationResult;
-  generatedAt: string;
-  /** Suppressed in inline (spec) mode where the digest above already shows
-   *  the date. In the Drawer it stays on, so the drawer is self-contained. */
-  showDate?: boolean;
-}) {
-  const date = formatReportDate(generatedAt);
-  return (
-    <>
-      {showDate && date && (
-        <div className="font-sans text-caption text-ink-3 mb-6">
-          Generated {date}
-        </div>
-      )}
-      <ReportBody result={result} />
-    </>
-  );
-}
-
 // The full report body — the five sections. Rendered inside the Drawer (or
-// inline in spec mode) by ReportSurface, which supplies the surrounding
-// padding, so this adds none of its own.
+// inline in spec mode); the container supplies the surrounding padding, so
+// this adds none of its own.
 function ReportBody({ result }: { result: AIInvestigationResult }) {
   return (
     <div>
