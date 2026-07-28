@@ -1,7 +1,7 @@
 /* global React, ReactRouterDOM, Screen, SpecSection, MockAppStateProvider,
    TableSkeleton, ScreenEmpty, ScreenError, AIInvestigator, AI_INVESTIGATIONS,
    HomeScreen, HistoryScreen, ScheduledScreen, ScheduleDetailScreen,
-   NotificationDock */
+   NotificationDock, ScanIntentHero */
 
 const { Route } = ReactRouterDOM;
 
@@ -46,6 +46,7 @@ function StatesSpecApp() {
         <a href="#section-05">Occupancy report</a>
         <a href="#section-06">Reusables</a>
         <a href="#section-07">Notification Dock</a>
+        <a href="#section-08">Scan intake</a>
       </nav>
 
       <header className="spec-header">
@@ -413,6 +414,48 @@ function StatesSpecApp() {
           />
         </DockFrame>
       </SpecSection>
+
+      {/* ============================================================== */}
+      <SpecSection
+        num="08"
+        title="Scan intake · intended occupancy"
+        desc="The required 'intended occupancy' declaration, captured at scan time without breaking the type-and-go command bar. ScanIntentHero composes the registered CommandSearch + ChipRow — no new component. Each frame is live: type an address, pick an intent, press Run scan."
+      >
+        <IntakeFrame label="08.1" title="Empty · address only" desc="The calm empty state — one field, one decision. The intent row stays hidden until there's an address to attach it to, so the command-bar identity is preserved.">
+          <ScanIntentHero />
+        </IntakeFrame>
+        <IntakeFrame label="08.2" title="Address entered · intent revealed" desc="Progressive reveal: once the address has content, the intent row rises in (card-rise). Nothing is pre-selected — a fraud-relevant declaration must be an active choice each scan, never a sticky default.">
+          <ScanIntentHero initialAddress="1428 Maplewood Drive, Asheville, NC 28804" />
+        </IntakeFrame>
+        <IntakeFrame label="08.3" title="Error · Run pressed with no intent" desc="The hard gate, shown honestly. Because the registered hero owns its own Run button, the gate blocks the run and flags the intent block (state = error, error-soft ring) rather than firing a blind scan. Alternative if the CTA is decoupled: disable Run until an intent is chosen.">
+          <ScanIntentHero initialAddress="1428 Maplewood Drive, Asheville, NC 28804" initialGateHit />
+        </IntakeFrame>
+        <IntakeFrame label="08.4" title="Declared · ready to run" desc="An intent is chosen (neutral brand tint — never coloured clean/warn/risk; the declaration is input, not a verdict). The helper states what running now does: flag any occupancy that contradicts the declaration.">
+          <ScanIntentHero initialAddress="1428 Maplewood Drive, Asheville, NC 28804" initialIntent="owner-occupied" />
+        </IntakeFrame>
+        <IntakeFrame label="08.5" title="'Not sure' · observed-only" desc="A first-class escape hatch, not an error. Selecting it is allowed and runs — but the consequence is stated inline: observed occupancy only, no exception check. Covers municipal orders and thin files.">
+          <ScanIntentHero initialAddress="1428 Maplewood Drive, Asheville, NC 28804" initialIntent="not-sure" />
+        </IntakeFrame>
+      </SpecSection>
+    </div>
+  );
+}
+
+// IntakeFrame — 1× stage for Section 08. Wider than ReusableFrame (560) so
+// the 64px command bar + wrapping intent chips read at their real width.
+function IntakeFrame({
+  label, title, desc, children,
+}: { label: string; title: string; desc?: string; children: React.ReactNode }) {
+  return (
+    <div className="screen-wrap" style={{ width: 820 }}>
+      <div className="screen-meta">
+        <span className="label">{label}</span>
+        <h3>{title}</h3>
+        {desc && <div className="desc">{desc}</div>}
+      </div>
+      <div className="screen-frame" style={{ padding: 40, background: 'var(--surface)' }}>
+        {children}
+      </div>
     </div>
   );
 }
