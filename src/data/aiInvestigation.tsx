@@ -24,14 +24,13 @@ interface AIInvestigationResult {
   clarityLabel: AIClarityLabel;
   caseArchetype: string;
   summary: string;
-  /** Imperative one-liner — the only thing the reader is asked to DO. Leads
-   *  the action block; `nextStep` carries the qualifying detail underneath. */
-  nextStepLead: string;
-  nextStep: string;
+  /** The recommendation directive (lead + detail) is NOT stored per case —
+   *  it is derived from `verdictBand`, so all five bands read consistently.
+   *  See AI_BAND_NEXT_STEP in AIInvestigator.tsx. */
   /** The "this doesn't determine rental status" caveat, stated ONCE as a
    *  panel footnote. It used to appear three times — in `summary`, inside
-   *  `nextStep`, and again above the signal columns — which trained readers
-   *  to skip all three. */
+   *  the next-step detail, and again above the signal columns — which
+   *  trained readers to skip all three. */
   scopeNote: string;
   riskSignals: string[];
   mitigatingSignals: string[];
@@ -46,7 +45,25 @@ interface AIInvestigationResult {
     evidenceCount: number;
     caveatCount: number;
   }>;
-  dataGaps: Array<{ group: string; items: string[] }>;
+  /** The concern-raising subset only — contradictions, inconsistent
+   *  records, and missing/undated evidence an officer should weigh before
+   *  trusting the verdict. Deliberately curated, not the full caveat dump:
+   *  the raw run emits ~18 caveats, most of them boilerplate; this carries
+   *  only the ones that change how the case reads. `kind` selects the group
+   *  icon; `group` is the human label. */
+  dataGaps: Array<{ group: string; kind: 'conflict' | 'inconsistency' | 'gap'; items: string[] }>;
+  /** The full per-heuristic write-ups, shown collapsed in a "Detailed
+   *  analysis" accordion. `takeaway` is the one-line preview; `detail` is the
+   *  essay revealed on expand; `direction` drives the row icon/tone so a
+   *  neutral heuristic (context/quality) isn't coloured as concerning. */
+  detailedAnalysis: Array<{
+    id: string;
+    title: string;
+    takeaway: string;
+    detail: string;
+    direction: 'risk' | 'mitigation' | 'context' | 'quality';
+    evidenceCount: number;
+  }>;
   occupancyHistory: Array<{
     name: string;
     relationship: 'owner' | 'unrelated' | 'likely_family';
@@ -87,9 +104,6 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   caseArchetype: 'Ambiguous non-owner occupancy',
   summary:
     'Owner presence is supported by utility and long-term residence records, but unrelated occupants and renter-coded loan records create enough ambiguity to warrant review.',
-  nextStepLead: 'Route this case for human review',
-  nextStep:
-    'Resolves with newer occupancy dates, public listing evidence, voter or driver records, or utility service periods that clarify who currently occupies the property.',
   scopeNote:
     'Local records support owner-occupancy review only. None of the above determines rental status without public listing evidence.',
   riskSignals: [
@@ -120,16 +134,85 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   ],
   dataGaps: [
     {
-      group: 'Missing sources',
-      items: ['No driver records found at the selected address.', 'No voter records found at the selected address.', 'No auto rows found at the selected address.'],
+      group: 'Contradictions',
+      kind: 'conflict',
+      items: [
+        'Owner has a 10-year residence and active utility at the property, yet the tax mailing address is elsewhere (209 Falcon Dr, Versailles).',
+        'Sheila Shankle is tagged as unrelated but carries a homeowner flag — at odds with a single-owner home.',
+      ],
     },
     {
-      group: 'Unclear timing',
-      items: ['Utility and trace records do not include explicit service dates.', 'Base length-of-residence is accumulated years, not a dated occupancy timeline.'],
+      group: 'Records that disagree',
+      kind: 'inconsistency',
+      items: [
+        "Donald Cain's four loan rows disagree on tenure: three unknown, one coded as renter.",
+        '‘Jerahmy’ and ‘Jerehmy’ Winkfield appear across sources — a spelling variant of one person, not two occupants.',
+      ],
     },
     {
-      group: 'Identity ambiguity',
-      items: ['Some person records have incomplete DOBs or name variants.', "CAIN's own_rent coding is mixed across loan rows."],
+      group: 'Missing or undated evidence',
+      kind: 'gap',
+      items: [
+        'Utility and trace records carry no service dates, so current occupancy can’t be pinned to a period.',
+        'The rental listing is dated April 2026 — a future date with no corroboration elsewhere.',
+        'No driver, voter, or auto records, and no recorded mortgage lender, to corroborate against.',
+      ],
+    },
+  ],
+  detailedAnalysis: [
+    {
+      id: 'property_tax_context',
+      title: 'Property tax context',
+      takeaway: 'A legitimate single-family home with moderate lien exposure and no foreclosure markers.',
+      detail:
+        '1552 Samara Glen Way is a single-family home (3 bed / 1 bath, built 1983), classified residential on the tax record, with one active lien of $83,000 against an estimated $128,400 value — roughly 65% equity. There is no foreclosure code or distress marker, and the owner holds only this one residential property, a non-portfolio profile. This frames the other occupancy signals as consistent with either owner-occupancy or rental use, without ruling either out.',
+      direction: 'context',
+      evidenceCount: 2,
+    },
+    {
+      id: 'owner_identity_and_mailing',
+      title: 'Owner identity and mailing',
+      takeaway: 'The owner is documented on-site, but mails elsewhere and shares the address with unrelated people.',
+      detail:
+        'Tax owner Jerahmy Winkfield is corroborated at the property through tax, base (10-year residence), trace and utility records — yet the tax mailing address (209 Falcon Dr, Versailles) diverges from the property. At the same time, Donald Cain appears in four loan records (one coded as a renter) and Sheila Shankle shows a 7-year base residence, both unrelated to the owner. Strong owner presence coexisting with unrelated-occupant evidence is what produces the occupancy-risk profile here.',
+      direction: 'risk',
+      evidenceCount: 8,
+    },
+    {
+      id: 'subject_occupancy_surfaces',
+      title: 'Subject occupancy surfaces',
+      takeaway: 'Non-owner utility and trace records place other people here, but none carry service dates.',
+      detail:
+        'Two utility accounts run under James Fairchild, a non-owner, and one under the owner; trace records add Sheila Shankle. The owner’s mailing divergence points to absentee status. The limitation is timing: the utility and trace records lack service dates, so current occupancy can’t be established — the non-owner presence is suggestive but not anchored to any period.',
+      direction: 'risk',
+      evidenceCount: 6,
+    },
+    {
+      id: 'loan_tenure',
+      title: 'Loan tenure',
+      takeaway: 'No tenure mismatch — the loan records don’t explicitly claim ownership or renting.',
+      detail:
+        'Four loan records exist for Donald Cain at the property, but all carry own/rent values of “unknown” or “0” rather than an explicit OWN or RENT claim. No non-owner claims ownership, and the tax owner has no conflicting tenure claim. None of the tenure-mismatch conditions trigger, so this check does not add risk on its own.',
+      direction: 'context',
+      evidenceCount: 0,
+    },
+    {
+      id: 'portfolio_and_primary_comparison',
+      title: 'Portfolio and primary comparison',
+      takeaway: 'A single-property owner with strong on-site presence — no portfolio risk.',
+      detail:
+        'The owner holds only one residential liened property, so the portfolio comparison does not apply. Owner presence at the property is strong — a base residence with 10-year length, plus tax and trace records — while the mailing address has no independent presence evidence of its own. This is a single-property scenario with robust owner presence, not a portfolio pattern.',
+      direction: 'mitigation',
+      evidenceCount: 0,
+    },
+    {
+      id: 'case_quality_and_synthesis',
+      title: 'Case quality and synthesis',
+      takeaway: 'Undated records, a name variant and mixed loan coding block a confident determination.',
+      detail:
+        'Several data-quality gaps limit the read: the lien has no lender or recording date; base residence is an aggregate number of years, not a dated timeline; and the utility, trace and loan records are undated. “Jerahmy” and “Jerehmy” are the same person across sources. Cain’s loan rows carry mixed own/rent coding, and a rental listing dated April 2026 is future-dated and uncorroborated. The case is owner-held, mailing-elsewhere, with occupancy status left unresolved.',
+      direction: 'quality',
+      evidenceCount: 8,
     },
   ],
   occupancyHistory: [

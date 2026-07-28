@@ -100,17 +100,32 @@ function synthesizeSnapshotMeta(url: string): {
 function SnapshotIconButton({
   onClick,
   label = 'View snapshot',
+  disabled = false,
+  disabledLabel = 'Snapshot still capturing — check back in a moment',
 }: {
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   label?: string;
+  /** True while the backend is still capturing this listing's screenshot.
+   *  In the prototype this is driven by a staggered timer in
+   *  ListingsPanel; in production it'll come from the listing record. */
+  disabled?: boolean;
+  disabledLabel?: string;
 }) {
+  const effLabel = disabled ? disabledLabel : label;
   return (
     <button
       type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-ink-3 hover:bg-hover-bg hover:text-ink-2 transition-colors bg-transparent border-0 cursor-pointer"
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-label={effLabel}
+      aria-disabled={disabled || undefined}
+      title={effLabel}
+      className={
+        'inline-flex items-center justify-center w-7 h-7 rounded-md transition-colors bg-transparent border-0 ' +
+        (disabled
+          ? 'text-ink-4 cursor-not-allowed'
+          : 'text-ink-3 hover:bg-hover-bg hover:text-ink-2 cursor-pointer')
+      }
     >
       <Icon name="eye" size={15} />
     </button>
@@ -386,11 +401,13 @@ function DesktopMatrix({
   rows,
   strongestId,
   onSnapshot,
+  isSnapshotReady,
 }: {
   listings: ListingFlat[];
   rows: DiffRow[];
   strongestId: string | null;
   onSnapshot: (url: string) => void;
+  isSnapshotReady: (url: string) => boolean;
 }) {
   const cols = `200px repeat(${listings.length}, minmax(180px, 1fr))`;
 
@@ -545,6 +562,7 @@ function DesktopMatrix({
                   onSnapshot(l.url);
                 }}
                 label={`View snapshot — ${l.title}`}
+                disabled={!isSnapshotReady(l.url)}
               />
               <a
                 href={l.url}
@@ -683,11 +701,13 @@ function MobileStack({
   rows,
   strongestId,
   onSnapshot,
+  isSnapshotReady,
 }: {
   listings: ListingFlat[];
   rows: DiffRow[];
   strongestId: string | null;
   onSnapshot: (url: string) => void;
+  isSnapshotReady: (url: string) => boolean;
 }) {
   const [openId, setOpenId] = React.useState<string | null>(
     listings[0]?.url || null
@@ -784,6 +804,7 @@ function MobileStack({
                       onSnapshot(l.url);
                     }}
                     label={`View snapshot — ${l.title}`}
+                    disabled={!isSnapshotReady(l.url)}
                   />
                   <a
                     href={l.url}
@@ -872,6 +893,50 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
   );
   const closeSnapshot = React.useCallback(() => setActiveSnapshot(null), []);
 
+  // Snapshot capture lifecycle. The backend captures each listing's
+  // screenshot asynchronously after the scan resolves, so when the user
+  // first lands on a result page the snapshots typically aren't ready
+  // yet. Per-row eye icons render disabled until each listing's snapshot
+  // is captured; the user gets a tooltip explaining the state instead of
+  // a silent dead click.
+  //
+  // Prototype simulation: all listings start pending on mount, then
+  // transition to ready one-by-one over ~3.5 s so reviewers can see both
+  // the disabled state and the transition. When the real backend ships,
+  // replace this with a per-listing read from the listing record (or a
+  // subscription if captures stream in) — `snapshotsReady` stays the same
+  // shape (a Set keyed by URL), so consumers don't change.
+  const [snapshotsReady, setSnapshotsReady] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => {
+    // Fresh page mount (or scenario switch) ⇒ reset to all pending.
+    setSnapshotsReady(new Set());
+    const timers: number[] = [];
+    listings.forEach((l, i) => {
+      // 700 ms head start before the first one flips, then ~700 ms between
+      // each so a 4-listing scan finishes in ~3.5 s. Tweak the constants
+      // if the lifecycle feels off in review.
+      const t = window.setTimeout(() => {
+        setSnapshotsReady((prev) => {
+          if (prev.has(l.url)) return prev;
+          const next = new Set(prev);
+          next.add(l.url);
+          return next;
+        });
+      }, 700 + i * 700);
+      timers.push(t);
+    });
+    return () => timers.forEach((t) => window.clearTimeout(t));
+    // Re-run when the scenario changes (different listings). Excluded
+    // `listings` because its identity changes per render but its content
+    // is scenario-stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenario]);
+
+  const isSnapshotReady = React.useCallback(
+    (url: string) => snapshotsReady.has(url),
+    [snapshotsReady],
+  );
+
   return (
     <div>
       {/* Section heading + view tabs. Snapshot entry is per-row, on each
@@ -923,6 +988,7 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
               rows={rows}
               strongestId={strongestId}
               onSnapshot={openSnapshotFor}
+              isSnapshotReady={isSnapshotReady}
             />
           </div>
           {/* Mobile: accordion stack */}
@@ -932,6 +998,7 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
               rows={rows}
               strongestId={strongestId}
               onSnapshot={openSnapshotFor}
+              isSnapshotReady={isSnapshotReady}
             />
           </div>
         </>
@@ -940,6 +1007,7 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
           listings={listings}
           strongestId={strongestId}
           onSnapshot={openSnapshotFor}
+          isSnapshotReady={isSnapshotReady}
         />
       )}
 
@@ -985,10 +1053,12 @@ function TableView({
   listings,
   strongestId,
   onSnapshot,
+  isSnapshotReady,
 }: {
   listings: ListingFlat[];
   strongestId: string | null;
   onSnapshot: (url: string) => void;
+  isSnapshotReady: (url: string) => boolean;
 }) {
   const COLUMNS: any[] = [
     {
@@ -1084,6 +1154,7 @@ function TableView({
             onSnapshot(r.url);
           }}
           label={`View snapshot — ${r.title}`}
+          disabled={!isSnapshotReady(r.url)}
         />
       ),
     },

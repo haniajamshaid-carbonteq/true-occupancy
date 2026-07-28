@@ -130,6 +130,20 @@ interface LiveBatchRow {
   listings?: number;
   /** Short reason populated when status === 'failed' (e.g. "Geocoder timeout"). */
   errorReason?: string;
+  /** The agentic AI report for this row — a SECOND, independent lifecycle
+   *  layered on top of the occupancy scan. Absent until the user runs AI on
+   *  this row (via the batch AI phase or a per-row "run now"). The occupancy
+   *  scan verdict (score/risk/listings) and the AI verdict (verdictBand) are
+   *  deliberately separate reads — a matched listing can be treated as a
+   *  smoking gun OR as a trigger to dig deeper, which is the AI's job. */
+  aiReport?: {
+    status: 'queued' | 'running' | 'done' | 'failed';
+    /** Set when status === 'done'. Reuses the five-band AI vocabulary from
+     *  aiInvestigation.tsx (AIVerdictBand). */
+    verdictBand?: AIVerdictBand;
+    /** Populated when status === 'failed'. */
+    errorReason?: string;
+  };
 }
 
 interface LiveBatch {
@@ -151,6 +165,17 @@ interface LiveBatch {
   /** Optional free-text description captured at upload (and editable from
    *  the results header). Shown only on the batch detail page. */
   description?: string;
+  /** The AI-report batch mode. Absent until the user kicks off AI reports on
+   *  this batch. Once present, a second worker (mirroring the occupancy sim)
+   *  walks the in-scope rows' `aiReport` sub-state queued → running → done.
+   *  `scope` records which verdict bands were selected to run — defaults to
+   *  ['risk'] (the red-threshold flow), but the trigger offers wider scopes.
+   *  AI scheduling / automation is deliberately NOT modelled here — it was
+   *  deferred (client call, 2026-07-23); the AI phase is human-triggered. */
+  aiPhase?: {
+    status: 'running' | 'complete';
+    scope: Risk[];
+  };
 }
 
 // ---- seed data ----------------------------------------------------------
@@ -370,6 +395,25 @@ const SAMPLE_BATCH_OUTCOMES: Record<number, SampleOutcome> = {
   14: { kind: 'done', score: 6,  risk: 'clean', listings: 0 },
 };
 
+// ---- AI batch resolution ------------------------------------------------
+// Deterministic AI verdict from the occupancy row's risk band, so the AI
+// batch phase reads believably in the prototype without a backend. Real
+// wiring resolves each row through runAIInvestigation() (see
+// aiInvestigation.tsx — already isolated as the backend swap seam) and maps
+// its verdictBand onto the row. The `id % 7` failure keeps the AI "failed"
+// pill reachable by clicking, mirroring the occupancy sim's seeded failures.
+type AIBatchOutcome =
+  | { kind: 'done'; verdictBand: AIVerdictBand }
+  | { kind: 'failed'; reason: string };
+
+function resolveAIOutcome(row: LiveBatchRow): AIBatchOutcome {
+  if (row.id % 7 === 0) return { kind: 'failed', reason: 'AI provider timeout — retry' };
+  if (row.risk === 'risk')
+    return { kind: 'done', verdictBand: row.id % 2 ? 'high_priority_review' : 'review' };
+  if (row.risk === 'warn') return { kind: 'done', verdictBand: 'monitor' };
+  return { kind: 'done', verdictBand: 'low_evidence' };
+}
+
 // ---- context -----------------------------------------------------------
 
 interface ScheduleTarget {
@@ -411,6 +455,16 @@ interface AppStateValue {
   clearBatch: () => void;
   dismissBatch: () => void;
   retryBatchRow: (id: number) => void;
+  /** Kick off the AI-report batch phase over the live batch: queues an AI
+   *  report on every completed row whose occupancy verdict falls in `scope`
+   *  (rows already carrying a done AI report are left alone; failed ones
+   *  re-queue). Sets liveBatch.aiPhase so the AI worker starts ticking. */
+  startBatchAIReports: (scope: Risk[]) => void;
+  /** On-demand single AI report — the "run now" path. Flips one row's AI
+   *  report straight to running (bypassing the queue) and ensures the AI
+   *  worker is active so it resolves. Used both for a row with no AI report
+   *  yet and to retry a failed one. */
+  runRowAIReport: (rowId: number) => void;
   /** Rename a batch by id. Propagates to the live batch (if matching),
    *  every history entry sharing the same filename, and any schedule that
    *  targets it, so list rows stay in sync with the detail page. */
@@ -514,6 +568,46 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearInterval(interval);
   }, [liveBatch?.id, liveBatch?.status]);
 
+  // AI batch worker — a second conveyor that runs ONLY while
+  // liveBatch.aiPhase.status === 'running'. Mirrors the occupancy sim above:
+  // each 900 ms tick resolves the first AI report in 'running' and promotes
+  // the first 'queued' one, so ~2 reports read as in-flight at a time. Rows
+  // without an `aiReport` are untouched — the phase only spans the in-scope
+  // subset the trigger queued. When none remain, aiPhase flips to 'complete'.
+  React.useEffect(() => {
+    if (!liveBatch || liveBatch.aiPhase?.status !== 'running') return;
+    const interval = window.setInterval(() => {
+      setLiveBatch((prev) => {
+        if (!prev || prev.aiPhase?.status !== 'running') return prev;
+        const rows = prev.rows.slice();
+        const runningIdx = rows.findIndex((r) => r.aiReport?.status === 'running');
+        if (runningIdx >= 0) {
+          const o = resolveAIOutcome(rows[runningIdx]);
+          rows[runningIdx] = {
+            ...rows[runningIdx],
+            aiReport:
+              o.kind === 'failed'
+                ? { status: 'failed', errorReason: o.reason }
+                : { status: 'done', verdictBand: o.verdictBand },
+          };
+        }
+        const queuedIdx = rows.findIndex((r) => r.aiReport?.status === 'queued');
+        if (queuedIdx >= 0) {
+          rows[queuedIdx] = { ...rows[queuedIdx], aiReport: { status: 'running' } };
+        }
+        const stillWorking = rows.some(
+          (r) => r.aiReport?.status === 'running' || r.aiReport?.status === 'queued'
+        );
+        return {
+          ...prev,
+          rows,
+          aiPhase: { ...prev.aiPhase, status: stillWorking ? 'running' : 'complete' },
+        };
+      });
+    }, 900);
+    return () => window.clearInterval(interval);
+  }, [liveBatch?.id, liveBatch?.aiPhase?.status]);
+
   const startSampleBatch = React.useCallback(() => {
     setLiveBatch({
       id: uid('lb'),
@@ -571,6 +665,46 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const dismissBatch = React.useCallback(() => {
     setLiveBatch((prev) => (prev ? { ...prev, dismissed: true } : prev));
+  }, []);
+
+  // Queue AI reports across the in-scope subset and start the AI phase. Only
+  // completed occupancy rows are eligible (you can't reason over a scan that
+  // hasn't landed). Rows already holding a done AI report are preserved so a
+  // re-run only fills the gaps + retries failures.
+  const startBatchAIReports = React.useCallback((scope: Risk[]) => {
+    setLiveBatch((prev) => {
+      if (!prev) return prev;
+      const rows = prev.rows.map((r) =>
+        r.status === 'done' &&
+        r.risk &&
+        scope.includes(r.risk) &&
+        (!r.aiReport || r.aiReport.status === 'failed')
+          ? { ...r, aiReport: { status: 'queued' as const } }
+          : r
+      );
+      const anyQueued = rows.some((r) => r.aiReport?.status === 'queued');
+      // Nothing to do (e.g. scope matched zero eligible rows) — leave state be.
+      if (!anyQueued && !prev.aiPhase) return prev;
+      return { ...prev, rows, aiPhase: { status: 'running' as const, scope } };
+    });
+  }, []);
+
+  const runRowAIReport = React.useCallback((rowId: number) => {
+    setLiveBatch((prev) => {
+      if (!prev) return prev;
+      const rows = prev.rows.map((r) =>
+        r.id === rowId && r.status === 'done'
+          ? { ...r, aiReport: { status: 'running' as const } }
+          : r
+      );
+      // Ensure the worker is live so the on-demand run resolves. Preserve any
+      // existing scope; a bare run-now carries none of its own.
+      const aiPhase =
+        prev.aiPhase && prev.aiPhase.status === 'running'
+          ? prev.aiPhase
+          : { status: 'running' as const, scope: prev.aiPhase?.scope ?? [] };
+      return { ...prev, rows, aiPhase };
+    });
   }, []);
 
   // Title is the join key across surfaces — a batch is identified by its
@@ -751,6 +885,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     clearBatch,
     dismissBatch,
     retryBatchRow,
+    startBatchAIReports,
+    runRowAIReport,
     renameBatch,
     setBatchDescription,
     setSingleScanReference,

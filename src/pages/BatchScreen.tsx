@@ -1,6 +1,6 @@
 /* global React, AppShell, Card, Button, Pill, Icon, Input, Textarea, DataTable, DropdownMenu, ReactRouterDOM,
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
-   deriveTitleFromFilename, useAppState */
+   deriveTitleFromFilename, useAppState, AI_BAND_COPY */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -15,6 +15,7 @@
 
 type Risk = 'clean' | 'warn' | 'risk';
 type RowStatus = 'done' | 'running' | 'queued' | 'failed';
+type AiReportStatus = 'queued' | 'running' | 'done' | 'failed';
 
 interface BatchRow {
   id: number;
@@ -26,6 +27,13 @@ interface BatchRow {
   errorReason?: string;
   /** Optional user-supplied identifier per the May-2026 lender spec. */
   reference?: string;
+  /** The agentic AI report layered on top of the occupancy scan — mirrors
+   *  LiveBatchRow.aiReport in AppState. Absent until AI is run on the row. */
+  aiReport?: {
+    status: AiReportStatus;
+    verdictBand?: AIVerdictBand;
+    errorReason?: string;
+  };
 }
 
 const SAMPLE_BATCH: BatchRow[] = [
@@ -320,6 +328,8 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const {
     clearBatch,
     retryBatchRow,
+    startBatchAIReports,
+    runRowAIReport,
     findScheduleByTarget,
     renameBatch,
     setBatchDescription,
@@ -333,6 +343,47 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const clean = rows.filter((r) => r.risk === 'clean').length;
   const progress = Math.round((done / total) * 100);
   const isComplete = batch.status === 'complete';
+
+  // ----- AI report batch phase -----
+  // The AI phase spans only the rows the trigger queued (those carrying an
+  // `aiReport`). Counts drive the AI progress banner and the trigger's
+  // enable/disable + "N flagged" copy. Gated on `!readOnly` end to end: the
+  // historical detail view sources from a frozen history snapshot, not the
+  // live batch the AI worker mutates, so its AI controls would be dead.
+  const aiPhase = batch.aiPhase as { status: 'running' | 'complete'; scope: Risk[] } | undefined;
+  const aiRows = rows.filter((r) => r.aiReport);
+  const aiTotal = aiRows.length;
+  const aiDone = aiRows.filter((r) => r.aiReport!.status === 'done').length;
+  const aiActive = aiRows.filter(
+    (r) => r.aiReport!.status === 'running' || r.aiReport!.status === 'queued'
+  ).length;
+  const aiRunning = aiPhase?.status === 'running';
+  const aiProgress = aiTotal > 0 ? Math.round((aiDone / aiTotal) * 100) : 0;
+  const canRunAI = !readOnly && isComplete;
+  // Scope options for the AI trigger — mirrors the red-threshold discussion:
+  // flagged-only by default, with wider nets available. `run now` on a row is
+  // the on-demand path; this is the bulk one.
+  const doneRows = rows.filter((r) => r.status === 'done');
+  const aiScopeItems = [
+    {
+      label: `Flagged only · ${flagged}`,
+      hint: 'Rented — the red-threshold set',
+      icon: <Icon name="flag" />,
+      onClick: () => startBatchAIReports(['risk']),
+    },
+    {
+      label: `Flagged + possibly rented · ${flagged + warn}`,
+      hint: 'Rented and Possibly rented rows',
+      icon: <Icon name="ai-star" />,
+      onClick: () => startBatchAIReports(['risk', 'warn']),
+    },
+    {
+      label: `All scanned · ${doneRows.length}`,
+      hint: 'Every completed row, all verdict bands',
+      icon: <Icon name="layers" />,
+      onClick: () => startBatchAIReports(['risk', 'warn', 'clean']),
+    },
+  ];
 
   // Per-status counts feed both the AutomateModal scope card and the
   // AutomationBanner. Re-derived on every render off the latest rows so the
@@ -390,7 +441,9 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
               detail page and when empty (the placeholder lets the user add
               one later). `renameBatch`/`setBatchDescription` propagate the
               edit into the stored history entry by filename. The `readOnly`
-              flag below governs re-execution only (retry / automation). */}
+              flag governs row-level re-execution (retry) only — NOT
+              automation, which is a forward-looking schedule independent of
+              the run beneath it, so it's offered on historical views too. */}
           <EditableTitle
             value={displayTitle}
             onSave={(next) => renameBatch(batch.id, next)}
@@ -418,7 +471,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           </div>
         </div>
         <div className="flex gap-2 shrink-0 mt-1">
-          {!activeSchedule && !readOnly && (
+          {!activeSchedule && (
             <AutomationControl
               target={{
                 kind: 'batch',
@@ -427,6 +480,31 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
                 scopeCounts,
                 scopeCountsPending,
               }}
+            />
+          )}
+          {/* Run AI reports — the batch AI phase trigger. Offered once the
+              occupancy scan is complete (you can't reason over rows that
+              haven't landed) and only on the live batch, never the read-only
+              historical view. Scope options match the red-threshold flow. */}
+          {canRunAI && (
+            <DropdownMenu
+              title="Run AI reports"
+              trigger={(open: boolean) => (
+                <Button
+                  icon={<Icon name="ai-star" />}
+                  iconRight={
+                    <span
+                      className={`inline-flex shrink-0 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
+                      aria-hidden
+                    >
+                      <Icon name="chevron" size={12} />
+                    </span>
+                  }
+                >
+                  {aiRunning ? 'Running AI…' : aiTotal > 0 ? 'Run more AI' : 'Run AI reports'}
+                </Button>
+              )}
+              items={aiScopeItems}
             />
           )}
           <DropdownMenu
@@ -542,6 +620,47 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         </div>
       </Card>
 
+      {/* AI report phase — a second progress surface that appears only once
+          the user has kicked off AI reports. Reuses the occupancy summary
+          card's headline + progress-bar rhythm so the two phases read as
+          siblings. The AI verdict itself lands per-row in the table's AI
+          column below. */}
+      {aiPhase && (
+        <Card allowOverflow>
+          <div className="px-card-loose py-card">
+            <h2
+              className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 mb-section-tight leading-tight inline-flex items-center gap-2"
+              style={{ color: 'var(--navy)' }}
+            >
+              <span className="inline-flex text-brand [&>svg]:w-5 [&>svg]:h-5" aria-hidden>
+                <Icon name="ai-star" size={20} />
+              </span>
+              {aiPhase.status === 'complete' ? (
+                <span className="status-text-in">{aiDone} AI reports generated</span>
+              ) : (
+                <span className="status-text-pulse">
+                  Generating AI reports {aiDone} of {aiTotal}
+                  <span className="status-dots" aria-hidden="true">
+                    <span>.</span><span>.</span><span>.</span>
+                  </span>
+                </span>
+              )}
+            </h2>
+            <div className="flex items-center gap-stack-md">
+              <div className="flex-1 h-1.5 bg-line rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
+                  style={{ width: `${aiProgress}%` }}
+                />
+              </div>
+              <div className="font-sans text-xs text-ink-3 shrink-0 tabular-nums">
+                {aiDone}/{aiTotal} done{aiRunning && aiActive > 0 ? ` · ${aiActive} in progress` : ''}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Status counts — sit outside the summary card, mirroring the dashboard KPI strip */}
       <VerdictTiles
         flagged={flagged}
@@ -590,14 +709,22 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             </div>
           </div>
         </div>
-        <BatchTable rows={filteredRows} />
+        <BatchTable rows={filteredRows} onRunRowAI={canRunAI ? runRowAIReport : undefined} />
       </div>
 
     </div>
   );
 }
 
-function BatchTable({ rows }: { rows: BatchRow[] }) {
+function BatchTable({
+  rows,
+  onRunRowAI,
+}: {
+  rows: BatchRow[];
+  /** Per-row "run AI now" handler. Undefined on the read-only historical
+   *  view, which collapses the AI column's idle cell to a dash. */
+  onRunRowAI?: (rowId: number) => void;
+}) {
   const history = ReactRouterDOM.useHistory();
 
   function openIfDone(row: BatchRow) {
@@ -606,7 +733,7 @@ function BatchTable({ rows }: { rows: BatchRow[] }) {
     }
   }
 
-  const columns = React.useMemo(() => buildBatchColumns(), []);
+  const columns = React.useMemo(() => buildBatchColumns(onRunRowAI), [onRunRowAI]);
 
   return (
     <DataTable
@@ -645,7 +772,7 @@ const ROUTE_FOR_RISK: Record<Risk, string> = {
 // Column definitions for the BatchTable. Mirrors the SCAN_COLUMNS shape
 // from HomeScreen so both data tables share rhythm, hover treatment, and
 // the table↔card switch via the global DataTable primitive.
-function buildBatchColumns(): any[] {
+function buildBatchColumns(onRunRowAI?: (rowId: number) => void): any[] {
   const cols: any[] = [
   {
     key: 'index',
@@ -754,6 +881,54 @@ function buildBatchColumns(): any[] {
       ) : (
         <span className="text-ink-4">—</span>
       ),
+  },
+  {
+    key: 'aireport',
+    label: 'AI report',
+    width: '168px',
+    hideBelow: 'md' as const,
+    cell: (row: BatchRow) => {
+      // AI reasons over a completed occupancy scan, so an unscanned /
+      // in-flight / failed occupancy row has nothing to run against yet.
+      if (row.status !== 'done') return <span className="text-ink-4">—</span>;
+
+      const ai = row.aiReport;
+
+      // Idle — no AI report yet. Offer an on-demand "run now" (the bypass-
+      // the-batch path), or a dash on the read-only historical view.
+      if (!ai) {
+        if (!onRunRowAI) return <span className="text-ink-4">—</span>;
+        return (
+          <button
+            type="button"
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              onRunRowAI(row.id);
+            }}
+            aria-label="Run AI report now"
+            title="Run AI report now"
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-line text-caption font-medium text-ink-2 transition-colors hover:bg-brand-soft hover:border-brand hover:text-brand-deep"
+          >
+            <Icon name="ai-star" size={13} />
+            <span>Run now</span>
+          </button>
+        );
+      }
+
+      if (ai.status === 'queued') return <Pill>Queued</Pill>;
+      if (ai.status === 'running') return <Pill variant="brand" dot>Analyzing</Pill>;
+      if (ai.status === 'failed') {
+        return (
+          <Pill variant="risk" title={ai.errorReason}>
+            Failed
+          </Pill>
+        );
+      }
+      // done — reuse the shared five-band AI vocabulary + tones so the batch
+      // pill matches the report page's headline band exactly.
+      const band = AI_BAND_COPY[row.aiReport!.verdictBand as keyof typeof AI_BAND_COPY];
+      return band ? <Pill variant={band.variant}>{band.label}</Pill> : <span className="text-ink-4">—</span>;
+    },
   },
 ];
   return cols;
