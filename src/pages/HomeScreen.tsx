@@ -1,4 +1,4 @@
-/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty */
+/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, ScanIntentHero, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty */
 // Home — product-first dashboard. The user lands directly on the working
 // scanner with real evidence visible (KPI strip, recent scans, flagged for
 // review, methodology note). Marketing-landing surfaces (photo hero,
@@ -757,16 +757,19 @@ function MonitoringPanel() {
 
 function HomeScreen() {
   const history = useHistory();
-  const [address, setAddress] = React.useState('');
 
-  function startScan(addr?: string) {
-    const value = addr ?? address;
+  function startScan(addr?: string, intent?: string) {
+    const value = addr ?? '';
     const scenario = pickScenario(value);
     sessionStorage.setItem('scanScenario', scenario);
     sessionStorage.setItem(
       'scanAddress',
       value || '1428 Maplewood Drive, Asheville, NC 28804'
     );
+    // The declared intended occupancy travels with the order so the result
+    // can reconcile observed-vs-declared. '' when not declared (e.g. a scan
+    // kicked off from a history/monitoring row rather than the intake hero).
+    sessionStorage.setItem('scanIntent', intent ?? '');
     // Clear any reference / history-id carried over from a previous visit
     // so the new scan starts with a blank Reference field on the result page.
     sessionStorage.removeItem('scanReference');
@@ -791,13 +794,13 @@ function HomeScreen() {
         </div>
       </header>
 
-      {/* Scanner — primary affordance, hero of the platform */}
+      {/* Scanner — primary affordance, hero of the platform. ScanIntentHero
+          wraps the same command bar and adds the required intended-occupancy
+          declaration, so every order carries the reference the result
+          reconciles against. */}
       <section className="mb-section">
-        <CommandSearch
-          mode="inline"
-          value={address}
-          onChange={setAddress}
-          onRun={(v: string) => startScan(v)}
+        <ScanIntentHero
+          onRun={(addr: string, intent: string) => startScan(addr, intent)}
           sampleChips={SAMPLE_CHIPS.map((c) => ({
             label: `${c.zip} · ${c.label}`,
             value: `1428 Maplewood Drive, Asheville, NC ${c.zip}`,
