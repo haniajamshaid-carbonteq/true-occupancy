@@ -93,17 +93,16 @@ function ScanIntentHero({
 
   const gateError = gateHit && !intent;
 
-  // One message slot, four variants. Default is the "why required" helper;
-  // it swaps to the error message on a blocked run, or to the consequence
-  // line when the user knowingly declares "Not sure".
+  // Dynamic message slot. Empty by default (the persistent help line under
+  // the header already carries the "why required"); it fills in only for the
+  // states that need a live consequence: blocked run, "Not sure", or chosen.
   let msgIcon = 'info';
   let msgTone = 'text-ink-3';
-  let msg =
-    'What the loan or policy says it should be — required before running.';
+  let msg = '';
   if (gateError) {
     msgIcon = 'alert';
     msgTone = 'text-error-ink';
-    msg = 'Choose an intended use to run — the scan is compared against it.';
+    msg = 'Choose an intended use to run.';
   } else if (intent === 'not-sure') {
     msg = "We'll report observed occupancy only — no exception check.";
   } else if (intent) {
@@ -112,67 +111,101 @@ function ScanIntentHero({
 
   return (
     <div className="w-full">
-      {/* Address command bar — the real registered hero, unchanged. Its
-          spotlight "Run scan" button is intercepted below as the gated
-          trigger, so muscle-memory (type · Enter) still lands here. */}
-      <CommandSearch
-        mode="inline"
-        value={address}
-        onChange={setAddress}
-        onRun={handleRun}
-        sampleChips={sampleChips}
-      />
+      {/* One intake panel. The address command bar and the required
+          intended-occupancy declaration live in the SAME surface so they
+          read as a single scan-order unit — not two stacked sections. */}
+      <div className="bg-surface border border-line rounded-2xl shadow-sm p-3.5 sm:p-4">
+        {/* Address command bar — the registered hero. Its spotlight "Run scan"
+            button is the gated trigger; type · Enter still lands here. */}
+        <CommandSearch
+          mode="inline"
+          value={address}
+          onChange={setAddress}
+          onRun={handleRun}
+          sampleChips={sampleChips}
+        />
 
-      {/* Intent reveal — appears once an address exists. */}
-      {revealed && (
-        <div
-          className="card-rise mt-5 pt-5 border-t border-line"
-          style={{ ['--rise-delay' as any]: '40ms' }}
-        >
-          {/* Error emphasis on a blocked run: a soft ring around the whole
-              intent block, using the state error-soft token (no new value,
-              no invented motion — a static shadow, not a pulse). */}
+        {/* Intent — a distinct sub-step of the SAME panel, hairline-separated
+            from the search above. Revealed once an address exists. The strong
+            header carries the emphasis; the shared panel carries the grouping,
+            so no nested tray (and no dead-space) is needed. */}
+        {revealed && (
           <div
-            className="rounded-lg -mx-2 px-2 py-1 transition-shadow duration-200"
-            style={{ boxShadow: gateError ? '0 0 0 3px var(--error-soft)' : 'none' }}
+            className="card-rise mt-4 pt-4 border-t border-line"
+            style={{ ['--rise-delay' as any]: '40ms' }}
           >
-            <ChipRow
-              label="Intended occupancy"
-              value={intent}
-              onChange={handleIntent}
-              options={INTENT_OPTIONS}
-            />
+            {/* The gate-error ring hugs just the declaration, with breathing
+                room, so a blocked run reads as "this field", not the panel. */}
+            <div
+              className="rounded-xl -mx-2 px-2 py-2 transition-shadow duration-200"
+              style={{
+                boxShadow: gateError
+                  ? '0 0 0 1px var(--error), 0 0 0 4px var(--error-soft)'
+                  : 'none',
+              }}
+            >
+              {/* Emphasised header: strong label + required badge + why-line —
+                  a declaration that drives a fraud flag, not a filter caption. */}
+              <div className="flex items-center gap-2">
+                <span
+                  className="font-sans text-body-sm font-semibold tracking-[-0.005em]"
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  Intended occupancy
+                </span>
+                <span className="font-sans text-micro font-semibold uppercase tracking-[0.06em] text-brand-deep bg-brand-soft rounded px-1.5 py-0.5">
+                  Required
+                </span>
+              </div>
+              <p className="text-caption text-ink-3 mt-1 mb-3">
+                What the loan or policy says this property should be — the scan is compared against it.
+              </p>
 
-            {/* Message slot */}
-            <div className="mt-2.5 flex items-start gap-2">
-              <span
-                className={`${msgTone} shrink-0 mt-px [&>svg]:w-3.5 [&>svg]:h-3.5`}
-                aria-hidden
-              >
-                <Icon name={msgIcon} size={14} />
-              </span>
-              <span className={`text-caption leading-snug ${msgTone}`}>{msg}</span>
+              {/* ChipRow supplies the chips; its own eyebrow label is suppressed
+                  (empty) in favour of the stronger header above. */}
+              <ChipRow
+                label=""
+                value={intent}
+                onChange={handleIntent}
+                options={INTENT_OPTIONS}
+              />
+
+              {/* Live consequence — announced to assistive tech on a blocked
+                  run. Reserved height prevents a layout jump as it toggles. */}
+              <div className="mt-3 min-h-[1.15rem]" aria-live="assertive">
+                {msg && (
+                  <div className="flex items-start gap-2">
+                    <span
+                      className={`${msgTone} shrink-0 mt-px [&>svg]:w-3.5 [&>svg]:h-3.5`}
+                      aria-hidden
+                    >
+                      <Icon name={msgIcon} size={14} />
+                    </span>
+                    <span className={`text-caption leading-snug ${msgTone}`}>{msg}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Prototype-only confirmation so the ready → run transition is legible
-          in the spec. In the app this navigates to /scan/start. */}
-      {ran && (
-        <div className="mt-4 flex items-center gap-2 text-caption text-brand-deep">
-          <span className="[&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
-            <Icon name="check" size={14} />
-          </span>
-          <span>
-            Scanning — reconciling against{' '}
-            <strong className="font-semibold">
-              {INTENT_OPTIONS.find((o) => o.value === intent)?.label}
-            </strong>
-            .
-          </span>
-        </div>
-      )}
+        {/* Prototype-only confirmation so the ready → run transition is legible
+            in the spec. In the app this navigates to /scan/start. */}
+        {ran && (
+          <div className="mt-3.5 flex items-center gap-2 text-caption text-brand-deep">
+            <span className="[&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
+              <Icon name="check" size={14} />
+            </span>
+            <span>
+              Scanning — reconciling against{' '}
+              <strong className="font-semibold">
+                {INTENT_OPTIONS.find((o) => o.value === intent)?.label}
+              </strong>
+              .
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
