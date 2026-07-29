@@ -540,10 +540,30 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
               historical view. Scope options match the red-threshold flow. */}
           {canRunAI && (
             <Button
-              icon={<Icon name="ai-star" />}
+              icon={
+                aiRunning ? (
+                  <span
+                    className="w-3.5 h-3.5 rounded-full border-[1.6px] border-current border-t-transparent animate-spin"
+                    aria-hidden
+                  />
+                ) : (
+                  <Icon name="ai-star" />
+                )
+              }
+              iconRight={
+                aiTotal > 0 && !aiRunning ? (
+                  <span className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded bg-brand-soft text-brand-deep">
+                    {aiDone}
+                  </span>
+                ) : undefined
+              }
               onClick={() => setReportOpen(true)}
             >
-              {aiRunning ? 'Running AI…' : aiTotal > 0 ? 'Run more reports' : 'Run occupancy reports'}
+              {aiRunning
+                ? `Running… ${aiDone}/${aiTotal}`
+                : aiTotal > 0
+                ? 'Run more reports'
+                : 'Run occupancy reports'}
             </Button>
           )}
           <DropdownMenu
@@ -656,49 +676,48 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
               {done}/{total} scanned{!isComplete && running > 0 ? ` · ${running} in progress` : ''}
             </div>
           </div>
+
+          {/* Occupancy-report status — a compact secondary row inside the same
+              card, not a second full-width progress surface. While running it
+              shows a live count + slim bar; once done it collapses to a single
+              confirmation line. Per-row occupancy lands in the table column. */}
+          {aiPhase && (
+            <div className="mt-5 pt-4 border-t border-line flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {aiRunning ? (
+                  <span
+                    className="w-4 h-4 rounded-full border-[1.8px] border-brand border-t-transparent animate-spin shrink-0"
+                    aria-hidden
+                  />
+                ) : (
+                  <span
+                    className="w-5 h-5 rounded-full grid place-items-center bg-clean text-white shrink-0 [&>svg]:w-3 [&>svg]:h-3"
+                    aria-hidden
+                  >
+                    <Icon name="check" size={12} />
+                  </span>
+                )}
+                <span
+                  className="font-sans text-body-sm font-medium truncate"
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  {aiPhase.status === 'complete'
+                    ? `${aiDone} occupancy report${aiDone === 1 ? '' : 's'} generated`
+                    : `Generating occupancy reports · ${aiDone} of ${aiTotal}`}
+                </span>
+              </div>
+              {aiRunning && (
+                <div className="w-28 sm:w-40 h-1 bg-line rounded-full overflow-hidden shrink-0">
+                  <div
+                    className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
+                    style={{ width: `${aiProgress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Card>
-
-      {/* AI report phase — a second progress surface that appears only once
-          the user has kicked off AI reports. Reuses the occupancy summary
-          card's headline + progress-bar rhythm so the two phases read as
-          siblings. The AI verdict itself lands per-row in the table's AI
-          column below. */}
-      {aiPhase && (
-        <Card allowOverflow>
-          <div className="px-card-loose py-card">
-            <h2
-              className="font-sans font-semibold text-h3 tracking-[-0.005em] m-0 mb-section-tight leading-tight inline-flex items-center gap-2"
-              style={{ color: 'var(--navy)' }}
-            >
-              <span className="inline-flex text-brand [&>svg]:w-5 [&>svg]:h-5" aria-hidden>
-                <Icon name="ai-star" size={20} />
-              </span>
-              {aiPhase.status === 'complete' ? (
-                <span className="status-text-in">{aiDone} AI reports generated</span>
-              ) : (
-                <span className="status-text-pulse">
-                  Generating AI reports {aiDone} of {aiTotal}
-                  <span className="status-dots" aria-hidden="true">
-                    <span>.</span><span>.</span><span>.</span>
-                  </span>
-                </span>
-              )}
-            </h2>
-            <div className="flex items-center gap-stack-md">
-              <div className="flex-1 h-1.5 bg-line rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
-                  style={{ width: `${aiProgress}%` }}
-                />
-              </div>
-              <div className="font-sans text-xs text-ink-3 shrink-0 tabular-nums">
-                {aiDone}/{aiTotal} done{aiRunning && aiActive > 0 ? ` · ${aiActive} in progress` : ''}
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
 
       {/* Status counts — sit outside the summary card, mirroring the dashboard KPI strip */}
       <VerdictTiles
