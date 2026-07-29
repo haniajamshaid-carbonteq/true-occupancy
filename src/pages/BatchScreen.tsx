@@ -423,20 +423,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
     setReportOpen(false);
   };
 
-  // Reconciliation roll-up — declared (as per loan) vs observed, across rows
-  // whose occupancy report has been run (so this agrees with the per-row tags
-  // in the Occupancy report column). Exceptions are the headline: occupancy
-  // that contradicts what the file declared.
-  const reconcile = { exception: 0, consistent: 0, inconclusive: 0 };
-  rows.forEach((r) => {
-    if (r.status !== 'done' || r.aiReport?.status !== 'done') return;
-    const intent = r.intent ?? batch.defaultIntent ?? 'not-sure';
-    const rec = reconcileOccupancy(intent, r.risk);
-    if (rec) reconcile[rec] += 1;
-  });
-  const reconciledTotal =
-    reconcile.exception + reconcile.consistent + reconcile.inconclusive;
-
   // Per-status counts feed both the AutomateModal scope card and the
   // AutomationBanner. Re-derived on every render off the latest rows so the
   // "X of Y" follows the data after retries / new scans.
@@ -727,33 +713,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         onSelect={toggleVerdict}
         selected={verdictFilter === 'all' ? null : verdictFilter}
       />
-
-      {/* Reconciliation roll-up — declared (as per loan) vs observed. Exceptions
-          are the headline: occupancy that contradicts what the file declared. */}
-      {reconciledTotal > 0 && (
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-line bg-surface px-4 py-3">
-          <span
-            className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            Declared vs observed
-          </span>
-          {([
-            ['exception', reconcile.exception, 'exception', 'exceptions'],
-            ['consistent', reconcile.consistent, 'consistent', 'consistent'],
-            ['inconclusive', reconcile.inconclusive, 'inconclusive', 'inconclusive'],
-          ] as const).map(([key, n, singular, plural]) => (
-            <span key={key} className="inline-flex items-center gap-1.5 font-sans text-body-sm">
-              <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ background: RECONCILIATION_META[key].color }}
-              />
-              <strong className="tabular-nums" style={{ color: 'var(--ink-2)' }}>{n}</strong>
-              <span style={{ color: 'var(--ink-3)' }}>{n === 1 ? singular : plural}</span>
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* Properties — same DataTable primitive as Home + History */}
       <div>
