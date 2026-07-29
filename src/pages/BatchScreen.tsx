@@ -1,6 +1,6 @@
 /* global React, AppShell, Card, Button, Pill, Icon, Input, Textarea, DataTable, DropdownMenu, ReactRouterDOM,
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
-   deriveTitleFromFilename, useAppState, AI_BAND_COPY */
+   deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -360,30 +360,29 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const aiRunning = aiPhase?.status === 'running';
   const aiProgress = aiTotal > 0 ? Math.round((aiDone / aiTotal) * 100) : 0;
   const canRunAI = !readOnly && isComplete;
-  // Scope options for the AI trigger — mirrors the red-threshold discussion:
-  // flagged-only by default, with wider nets available. `run now` on a row is
-  // the on-demand path; this is the bulk one.
-  const doneRows = rows.filter((r) => r.status === 'done');
-  const aiScopeItems = [
-    {
-      label: `Flagged only · ${flagged}`,
-      hint: 'Rented — the red-threshold set',
-      icon: <Icon name="flag" />,
-      onClick: () => startBatchAIReports(['risk']),
-    },
-    {
-      label: `Flagged + possibly rented · ${flagged + warn}`,
-      hint: 'Rented and Possibly rented rows',
-      icon: <Icon name="ai-star" />,
-      onClick: () => startBatchAIReports(['risk', 'warn']),
-    },
-    {
-      label: `All scanned · ${doneRows.length}`,
-      hint: 'Every completed row, all verdict bands',
-      icon: <Icon name="layers" />,
-      onClick: () => startBatchAIReports(['risk', 'warn', 'clean']),
-    },
-  ];
+  // Which verdict statuses to run occupancy reports for. Multi-select (any
+  // combination) — a user may want just "Possibly rented", or "Rented + Not
+  // rented", not only the old cumulative tiers. startBatchAIReports already
+  // accepts any Risk[]; this lets the UI express it.
+  const [reportOpen, setReportOpen] = React.useState(false);
+  const [reportScope, setReportScope] = React.useState<Risk[]>(['risk']);
+
+  // Rows a run with the current scope would actually queue: completed,
+  // in-scope, and not already holding a done report (failed ones re-run).
+  // Drives the primary button's count + disabled state.
+  const reportEligible = rows.filter(
+    (r) =>
+      r.status === 'done' &&
+      r.risk &&
+      reportScope.includes(r.risk) &&
+      (!r.aiReport || r.aiReport.status === 'failed')
+  ).length;
+
+  const runReports = () => {
+    if (reportScope.length === 0 || reportEligible === 0) return;
+    startBatchAIReports(reportScope);
+    setReportOpen(false);
+  };
 
   // Per-status counts feed both the AutomateModal scope card and the
   // AutomationBanner. Re-derived on every render off the latest rows so the
@@ -487,25 +486,12 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
               haven't landed) and only on the live batch, never the read-only
               historical view. Scope options match the red-threshold flow. */}
           {canRunAI && (
-            <DropdownMenu
-              title="Run AI reports"
-              trigger={(open: boolean) => (
-                <Button
-                  icon={<Icon name="ai-star" />}
-                  iconRight={
-                    <span
-                      className={`inline-flex shrink-0 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
-                      aria-hidden
-                    >
-                      <Icon name="chevron" size={12} />
-                    </span>
-                  }
-                >
-                  {aiRunning ? 'Running AI…' : aiTotal > 0 ? 'Run more AI' : 'Run AI reports'}
-                </Button>
-              )}
-              items={aiScopeItems}
-            />
+            <Button
+              icon={<Icon name="ai-star" />}
+              onClick={() => setReportOpen(true)}
+            >
+              {aiRunning ? 'Running AI…' : aiTotal > 0 ? 'Run more reports' : 'Run occupancy reports'}
+            </Button>
           )}
           <DropdownMenu
             title="Download Report"
@@ -711,6 +697,59 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         </div>
         <BatchTable rows={filteredRows} onRunRowAI={canRunAI ? runRowAIReport : undefined} />
       </div>
+
+      {/* Run occupancy reports — pick ANY combination of verdict statuses to
+          reason over, then run. Multi-select replaces the old cumulative-only
+          presets (Rented / +Possibly / +All). Only completed, in-scope rows
+          without a done report are queued; failed ones re-run. */}
+      <Modal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        title="Run occupancy reports"
+        width={460}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setReportOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              disabled={reportEligible === 0}
+              onClick={runReports}
+            >
+              {reportScope.length === 0
+                ? 'Select a status'
+                : reportEligible > 0
+                ? `Run ${reportEligible} report${reportEligible === 1 ? '' : 's'}`
+                : 'No eligible rows'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-body-sm text-ink-2 mb-4 leading-relaxed">
+          Choose which verdict statuses to generate occupancy reports for. Pick
+          any combination. Reports run on completed scans only — rows that
+          already have a report are skipped, and failed ones re-run.
+        </p>
+        <StatusPillSelector
+          options={[
+            { value: 'risk',  label: 'Rented',          count: scopeCounts.risk },
+            { value: 'warn',  label: 'Possibly Rented', count: scopeCounts.warn },
+            { value: 'clean', label: 'Not Rented',      count: scopeCounts.clean },
+          ]}
+          value={reportScope}
+          onChange={(next) => setReportScope(next)}
+          countsPending={scopeCountsPending}
+          ariaLabel="Which verdict statuses to run occupancy reports for"
+        />
+        <p className="text-caption text-ink-3 mt-4">
+          {reportScope.length === 0
+            ? 'Select at least one status to run.'
+            : reportEligible === 0
+            ? 'No completed rows in the selected statuses need a report right now.'
+            : `${reportEligible} ${reportEligible === 1 ? 'row' : 'rows'} will be queued.`}
+        </p>
+      </Modal>
 
     </div>
   );
