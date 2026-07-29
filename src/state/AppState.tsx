@@ -121,15 +121,80 @@ interface BatchScheduleEntry {
 
 type ScheduleEntry = SingleScheduleEntry | BatchScheduleEntry;
 
+// ---- Intended (declared) occupancy — "as per loan" -----------------------
+// The occupancy the loan/policy says a property should be. Captured per
+// property (a CSV column on batch upload, or the single-scan intake) and
+// reconciled against the OBSERVED verdict so a finding can be judged: does
+// what we found contradict what was declared?
+type IntendedOccupancy = 'owner-occupied' | 'rental' | 'second-home' | 'not-sure';
+
+// Human labels — shared by the batch "Declared" column and the intake chips.
+const INTENDED_OCCUPANCY_LABEL: Record<IntendedOccupancy, string> = {
+  'owner-occupied': 'Owner-occupied',
+  rental: 'Rental / investment',
+  'second-home': 'Second home',
+  'not-sure': 'Not sure',
+};
+
+// Normalise a raw CSV cell to a canonical value. null = unrecognised (surfaced
+// at upload, then falls back to the batch default). Lenient + case/space-
+// insensitive; covers free text, single letters, and agency codes (P/S/I,
+// Fannie 1/2/3) as they appear in real LOS exports. This is the seam a live
+// CSV parser plugs into; the prototype seeds already-canonical values.
+function normalizeIntent(raw: string): IntendedOccupancy | null {
+  const s = (raw || '').trim().toLowerCase();
+  if (!s) return 'not-sure';
+  if (['owner-occupied', 'owner occupied', 'owner', 'primary', 'primary residence', 'oo', 'o', 'p', '1'].includes(s)) return 'owner-occupied';
+  if (['rental', 'investment', 'investment property', 'investor', 'non-owner', 'nonowner', 'noo', 'i', '3'].includes(s)) return 'rental';
+  if (['second-home', 'second home', '2nd home', 'secondary', 'vacation', 'seasonal', 's', '2'].includes(s)) return 'second-home';
+  if (['not-sure', 'unknown', 'n/a', 'na', 'tbd', '?'].includes(s)) return 'not-sure';
+  return null;
+}
+
+// Declared × observed → reconciliation. null when the row isn't scanned yet.
+// 'not-sure' never yields an exception (no reference to judge against). risk:
+// 'risk' = Rented (tenants), 'warn' = Possibly rented, 'clean' = Not rented.
+type Reconciliation = 'exception' | 'consistent' | 'inconclusive';
+function reconcileOccupancy(intent: IntendedOccupancy, risk?: Risk): Reconciliation | null {
+  if (!risk) return null;
+  if (intent === 'not-sure') return 'inconclusive';
+  if (intent === 'rental') {
+    // Non-owner occupancy is expected; only a "not rented" reading is unclear.
+    return risk === 'clean' ? 'inconclusive' : 'consistent';
+  }
+  // owner-occupied or second-home: tenants are NOT expected.
+  if (risk === 'risk') return 'exception';
+  if (risk === 'warn') return 'inconclusive';
+  return 'consistent';
+}
+
 interface LiveBatchRow {
   id: number;
   address: string;
   status: 'done' | 'running' | 'queued' | 'failed';
+  /** Declared "as per loan" occupancy for this property (CSV column on upload
+   *  or a per-row edit). Undefined = not declared → the batch default applies
+   *  at read time. Reconciled against `risk` once the row is scanned. */
+  intent?: IntendedOccupancy;
   score?: number;
   risk?: Risk;
   listings?: number;
   /** Short reason populated when status === 'failed' (e.g. "Geocoder timeout"). */
   errorReason?: string;
+  /** The agentic AI report for this row — a SECOND, independent lifecycle
+   *  layered on top of the occupancy scan. Absent until the user runs AI on
+   *  this row (via the batch AI phase or a per-row "run now"). The occupancy
+   *  scan verdict (score/risk/listings) and the AI verdict (verdictBand) are
+   *  deliberately separate reads — a matched listing can be treated as a
+   *  smoking gun OR as a trigger to dig deeper, which is the AI's job. */
+  aiReport?: {
+    status: 'queued' | 'running' | 'done' | 'failed';
+    /** Set when status === 'done'. Reuses the five-band AI vocabulary from
+     *  aiInvestigation.tsx (AIVerdictBand). */
+    verdictBand?: AIVerdictBand;
+    /** Populated when status === 'failed'. */
+    errorReason?: string;
+  };
 }
 
 interface LiveBatch {
@@ -138,6 +203,11 @@ interface LiveBatch {
   rows: LiveBatchRow[];
   status: 'running' | 'complete';
   startedAt: number;
+  /** Declared-occupancy config captured at upload. `defaultIntent` applies to
+   *  any row whose `intent` is undefined (blank cell / no column). `intentColumn`
+   *  records which CSV column was mapped, for audit. */
+  defaultIntent?: IntendedOccupancy;
+  intentColumn?: string;
   /** Set true once the user acknowledges the completed-batch notice on
    *  the dashboard. The strip hides; /batch still shows the results. */
   dismissed?: boolean;
@@ -151,6 +221,17 @@ interface LiveBatch {
   /** Optional free-text description captured at upload (and editable from
    *  the results header). Shown only on the batch detail page. */
   description?: string;
+  /** The AI-report batch mode. Absent until the user kicks off AI reports on
+   *  this batch. Once present, a second worker (mirroring the occupancy sim)
+   *  walks the in-scope rows' `aiReport` sub-state queued → running → done.
+   *  `scope` records which verdict bands were selected to run — defaults to
+   *  ['risk'] (the red-threshold flow), but the trigger offers wider scopes.
+   *  AI scheduling / automation is deliberately NOT modelled here — it was
+   *  deferred (client call, 2026-07-23); the AI phase is human-triggered. */
+  aiPhase?: {
+    status: 'running' | 'complete';
+    scope: Risk[];
+  };
 }
 
 // ---- seed data ----------------------------------------------------------
@@ -329,21 +410,23 @@ const SEED_SCHEDULES: ScheduleEntry[] = [
 
 // Batch sample addresses — kept identical to the previous BatchScreen mock
 // so the prototype reads the same.
+// `intent` stands in for a mapped CSV occupancy column. Rows 11 & 12 are left
+// undefined on purpose, to exercise the batch-default fallback at read time.
 const SAMPLE_BATCH_ROWS: LiveBatchRow[] = [
-  { id: 1,  address: '1428 Maplewood Drive, Asheville, NC 28804', status: 'queued' },
-  { id: 2,  address: '502 N Liberty St, Asheville, NC 28801',     status: 'queued' },
-  { id: 3,  address: '800 Hilliard Ave, Asheville, NC 28801',     status: 'queued' },
-  { id: 4,  address: '145 Westchester Dr, Asheville, NC 28803',   status: 'queued' },
-  { id: 5,  address: '23 Tunnel Rd, Asheville, NC 28805',         status: 'queued' },
-  { id: 6,  address: '67 Charlotte Hwy, Asheville, NC 28803',     status: 'queued' },
-  { id: 7,  address: '215 Edgewood Rd, Asheville, NC 28804',      status: 'queued' },
-  { id: 8,  address: '88 Cumberland Ave, Asheville, NC 28801',    status: 'queued' },
-  { id: 9,  address: '301 Merrimon Ave, Asheville, NC 28804',     status: 'queued' },
-  { id: 10, address: '450 Patton Ave, Asheville, NC 28806',       status: 'queued' },
+  { id: 1,  address: '1428 Maplewood Drive, Asheville, NC 28804', status: 'queued', intent: 'owner-occupied' },
+  { id: 2,  address: '502 N Liberty St, Asheville, NC 28801',     status: 'queued', intent: 'owner-occupied' },
+  { id: 3,  address: '800 Hilliard Ave, Asheville, NC 28801',     status: 'queued', intent: 'rental' },
+  { id: 4,  address: '145 Westchester Dr, Asheville, NC 28803',   status: 'queued', intent: 'second-home' },
+  { id: 5,  address: '23 Tunnel Rd, Asheville, NC 28805',         status: 'queued', intent: 'owner-occupied' },
+  { id: 6,  address: '67 Charlotte Hwy, Asheville, NC 28803',     status: 'queued', intent: 'rental' },
+  { id: 7,  address: '215 Edgewood Rd, Asheville, NC 28804',      status: 'queued', intent: 'second-home' },
+  { id: 8,  address: '88 Cumberland Ave, Asheville, NC 28801',    status: 'queued', intent: 'owner-occupied' },
+  { id: 9,  address: '301 Merrimon Ave, Asheville, NC 28804',     status: 'queued', intent: 'owner-occupied' },
+  { id: 10, address: '450 Patton Ave, Asheville, NC 28806',       status: 'queued', intent: 'rental' },
   { id: 11, address: '12 Hillside St, Asheville, NC 28801',       status: 'queued' },
   { id: 12, address: '156 Sand Hill Rd, Asheville, NC 28806',     status: 'queued' },
-  { id: 13, address: '89 Beverly Rd, Asheville, NC 28805',        status: 'queued' },
-  { id: 14, address: '720 Haywood Rd, Asheville, NC 28806',       status: 'queued' },
+  { id: 13, address: '89 Beverly Rd, Asheville, NC 28805',        status: 'queued', intent: 'owner-occupied' },
+  { id: 14, address: '720 Haywood Rd, Asheville, NC 28806',       status: 'queued', intent: 'owner-occupied' },
 ];
 
 // Resolution table for the sim — when a row finishes we assign a score and
@@ -369,6 +452,25 @@ const SAMPLE_BATCH_OUTCOMES: Record<number, SampleOutcome> = {
   13: { kind: 'done', score: 22, risk: 'clean', listings: 0 },
   14: { kind: 'done', score: 6,  risk: 'clean', listings: 0 },
 };
+
+// ---- AI batch resolution ------------------------------------------------
+// Deterministic AI verdict from the occupancy row's risk band, so the AI
+// batch phase reads believably in the prototype without a backend. Real
+// wiring resolves each row through runAIInvestigation() (see
+// aiInvestigation.tsx — already isolated as the backend swap seam) and maps
+// its verdictBand onto the row. The `id % 7` failure keeps the AI "failed"
+// pill reachable by clicking, mirroring the occupancy sim's seeded failures.
+type AIBatchOutcome =
+  | { kind: 'done'; verdictBand: AIVerdictBand }
+  | { kind: 'failed'; reason: string };
+
+function resolveAIOutcome(row: LiveBatchRow): AIBatchOutcome {
+  if (row.id % 7 === 0) return { kind: 'failed', reason: 'AI provider timeout — retry' };
+  if (row.risk === 'risk')
+    return { kind: 'done', verdictBand: row.id % 2 ? 'high_priority_review' : 'review' };
+  if (row.risk === 'warn') return { kind: 'done', verdictBand: 'monitor' };
+  return { kind: 'done', verdictBand: 'low_evidence' };
+}
 
 // ---- context -----------------------------------------------------------
 
@@ -407,10 +509,22 @@ interface AppStateValue {
     title?: string;
     description?: string;
     addressColumn?: string;
+    intentColumn?: string;
+    defaultIntent?: IntendedOccupancy;
   }) => void;
   clearBatch: () => void;
   dismissBatch: () => void;
   retryBatchRow: (id: number) => void;
+  /** Kick off the AI-report batch phase over the live batch: queues an AI
+   *  report on every completed row whose occupancy verdict falls in `scope`
+   *  (rows already carrying a done AI report are left alone; failed ones
+   *  re-queue). Sets liveBatch.aiPhase so the AI worker starts ticking. */
+  startBatchAIReports: (scope: Risk[]) => void;
+  /** On-demand single AI report — the "run now" path. Flips one row's AI
+   *  report straight to running (bypassing the queue) and ensures the AI
+   *  worker is active so it resolves. Used both for a row with no AI report
+   *  yet and to retry a failed one. */
+  runRowAIReport: (rowId: number) => void;
   /** Rename a batch by id. Propagates to the live batch (if matching),
    *  every history entry sharing the same filename, and any schedule that
    *  targets it, so list rows stay in sync with the detail page. */
@@ -514,6 +628,46 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearInterval(interval);
   }, [liveBatch?.id, liveBatch?.status]);
 
+  // AI batch worker — a second conveyor that runs ONLY while
+  // liveBatch.aiPhase.status === 'running'. Mirrors the occupancy sim above:
+  // each 900 ms tick resolves the first AI report in 'running' and promotes
+  // the first 'queued' one, so ~2 reports read as in-flight at a time. Rows
+  // without an `aiReport` are untouched — the phase only spans the in-scope
+  // subset the trigger queued. When none remain, aiPhase flips to 'complete'.
+  React.useEffect(() => {
+    if (!liveBatch || liveBatch.aiPhase?.status !== 'running') return;
+    const interval = window.setInterval(() => {
+      setLiveBatch((prev) => {
+        if (!prev || prev.aiPhase?.status !== 'running') return prev;
+        const rows = prev.rows.slice();
+        const runningIdx = rows.findIndex((r) => r.aiReport?.status === 'running');
+        if (runningIdx >= 0) {
+          const o = resolveAIOutcome(rows[runningIdx]);
+          rows[runningIdx] = {
+            ...rows[runningIdx],
+            aiReport:
+              o.kind === 'failed'
+                ? { status: 'failed', errorReason: o.reason }
+                : { status: 'done', verdictBand: o.verdictBand },
+          };
+        }
+        const queuedIdx = rows.findIndex((r) => r.aiReport?.status === 'queued');
+        if (queuedIdx >= 0) {
+          rows[queuedIdx] = { ...rows[queuedIdx], aiReport: { status: 'running' } };
+        }
+        const stillWorking = rows.some(
+          (r) => r.aiReport?.status === 'running' || r.aiReport?.status === 'queued'
+        );
+        return {
+          ...prev,
+          rows,
+          aiPhase: { ...prev.aiPhase, status: stillWorking ? 'running' : 'complete' },
+        };
+      });
+    }, 900);
+    return () => window.clearInterval(interval);
+  }, [liveBatch?.id, liveBatch?.aiPhase?.status]);
+
   const startSampleBatch = React.useCallback(() => {
     setLiveBatch({
       id: uid('lb'),
@@ -521,6 +675,9 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       rows: SAMPLE_BATCH_ROWS.map((r) => ({ ...r, status: 'queued' as const })),
       status: 'running',
       startedAt: Date.now(),
+      // Stands in for a detected occupancy column; unset rows fall to the default.
+      intentColumn: 'occupancy_type',
+      defaultIntent: 'not-sure',
       // Sample flow bypasses the form, so the title is derived (not user-set)
       // and there's no description or cadence. The header still reads cleanly
       // because BatchResults falls back to deriveTitleFromFilename().
@@ -541,6 +698,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       title?: string;
       description?: string;
       addressColumn?: string;
+      intentColumn?: string;
+      defaultIntent?: IntendedOccupancy;
     }) => {
       setLiveBatch({
         id: uid('lb'),
@@ -550,6 +709,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         startedAt: Date.now(),
         title: config.title?.trim() || undefined,
         description: config.description?.trim() || undefined,
+        intentColumn: config.intentColumn?.trim() || undefined,
+        defaultIntent: config.defaultIntent ?? 'not-sure',
       });
     },
     []
@@ -562,7 +723,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!prev) return prev;
       const rows = prev.rows.map((r) =>
         r.id === id
-          ? { id: r.id, address: r.address, status: 'queued' as const }
+          ? { id: r.id, address: r.address, status: 'queued' as const, intent: r.intent }
           : r
       );
       return { ...prev, rows, status: 'running' };
@@ -571,6 +732,46 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const dismissBatch = React.useCallback(() => {
     setLiveBatch((prev) => (prev ? { ...prev, dismissed: true } : prev));
+  }, []);
+
+  // Queue AI reports across the in-scope subset and start the AI phase. Only
+  // completed occupancy rows are eligible (you can't reason over a scan that
+  // hasn't landed). Rows already holding a done AI report are preserved so a
+  // re-run only fills the gaps + retries failures.
+  const startBatchAIReports = React.useCallback((scope: Risk[]) => {
+    setLiveBatch((prev) => {
+      if (!prev) return prev;
+      const rows = prev.rows.map((r) =>
+        r.status === 'done' &&
+        r.risk &&
+        scope.includes(r.risk) &&
+        (!r.aiReport || r.aiReport.status === 'failed')
+          ? { ...r, aiReport: { status: 'queued' as const } }
+          : r
+      );
+      const anyQueued = rows.some((r) => r.aiReport?.status === 'queued');
+      // Nothing to do (e.g. scope matched zero eligible rows) — leave state be.
+      if (!anyQueued && !prev.aiPhase) return prev;
+      return { ...prev, rows, aiPhase: { status: 'running' as const, scope } };
+    });
+  }, []);
+
+  const runRowAIReport = React.useCallback((rowId: number) => {
+    setLiveBatch((prev) => {
+      if (!prev) return prev;
+      const rows = prev.rows.map((r) =>
+        r.id === rowId && r.status === 'done'
+          ? { ...r, aiReport: { status: 'running' as const } }
+          : r
+      );
+      // Ensure the worker is live so the on-demand run resolves. Preserve any
+      // existing scope; a bare run-now carries none of its own.
+      const aiPhase =
+        prev.aiPhase && prev.aiPhase.status === 'running'
+          ? prev.aiPhase
+          : { status: 'running' as const, scope: prev.aiPhase?.scope ?? [] };
+      return { ...prev, rows, aiPhase };
+    });
   }, []);
 
   // Title is the join key across surfaces — a batch is identified by its
@@ -751,6 +952,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     clearBatch,
     dismissBatch,
     retryBatchRow,
+    startBatchAIReports,
+    runRowAIReport,
     renameBatch,
     setBatchDescription,
     setSingleScanReference,

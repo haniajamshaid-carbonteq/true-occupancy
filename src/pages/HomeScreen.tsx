@@ -1,4 +1,4 @@
-/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty */
+/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, ScanIntentHero, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty */
 // Home — product-first dashboard. The user lands directly on the working
 // scanner with real evidence visible (KPI strip, recent scans, flagged for
 // review, methodology note). Marketing-landing surfaces (photo hero,
@@ -26,19 +26,67 @@ function pickScenario(input: string): 'low' | 'medium' | 'high' {
 }
 
 // --- demo data (believable, not aspirational) -----------------------------
+// KPI model reframed from activity ("scanned today", "verified clean") to
+// trust + workload, the questions an investigator actually opens on:
+//   1. Flag Precision — do flags hold up after review? (the trust metric)
+//   2. Review Queue   — how many ambiguous verdicts await a human call?
+//   3. Confidence Mix — how much output is self-serve vs needs my eyes?
+// Raw activity counts moved to History, where the work is logged.
 
-const KPIS: {
+interface Kpi {
   label: string;
   value: string;
   delta?: { dir: 'up' | 'down'; pct: string };
   hint: string;
   icon: string;
   spark: number[];
-}[] = [
-  { label: 'Scanned Today',     value: '34',  delta: { dir: 'up',   pct: '+12%' }, hint: 'vs. yesterday',  icon: 'search',     spark: [18, 22, 19, 25, 21, 28, 24, 30, 27, 32, 30, 34] },
-  { label: 'Flagged This Week', value: '11',  delta: { dir: 'up',   pct: '+3' },   hint: 'vs. last week',  icon: 'flag',       spark: [4, 5, 3, 6, 5, 7, 6, 8, 7, 9, 10, 11] },
-  { label: 'Verified Clean',    value: '187', delta: { dir: 'up',   pct: '+22' },  hint: 'past 30 days',   icon: 'shield',     spark: [140, 148, 152, 158, 161, 165, 168, 172, 176, 178, 183, 187] },
-  { label: 'Avg Confidence',    value: '92',  delta: { dir: 'down', pct: '-1pt' }, hint: 'vs. 30 d avg',   icon: 'trend-down', spark: [95, 94, 96, 95, 93, 94, 93, 92, 93, 92, 91, 92] },
+  /** Categorical dot on the eyebrow, for queue-style metrics. */
+  accent?: 'verdict-high' | 'verdict-med' | 'verdict-low';
+  /** When set, the tile becomes a button routing here. */
+  to?: string;
+}
+
+const KPIS: Kpi[] = [
+  { label: 'Flag Precision', value: '84%', delta: { dir: 'up', pct: '+6pt' }, hint: 'confirmed after review', icon: 'shield', spark: [74, 77, 76, 79, 78, 80, 79, 82, 81, 84] },
+  { label: 'Review Queue',   value: '7',   delta: { dir: 'down', pct: '-2' }, hint: 'oldest waiting 5 d',     icon: 'flag',   spark: [12, 11, 13, 10, 9, 10, 8, 9, 8, 7], accent: 'verdict-med', to: '/history' },
+];
+
+// Confidence distribution — the shape the old "Avg Confidence" mean hid.
+// "Decisive" = high-confidence Rented OR Not-Rented (self-serve). "Needs
+// review" = the ambiguous Possibly-Rented band that costs human time.
+interface ConfBand {
+  key: string;
+  label: string;
+  count: number;
+  color: string;
+}
+
+const CONFIDENCE_TOTAL = 232;
+const CONFIDENCE_BANDS: ConfBand[] = [
+  { key: 'decisive', label: 'Decisive',     count: 168, color: 'var(--brand)' },
+  { key: 'review',   label: 'Needs review', count: 41,  color: 'var(--warn)' },
+  { key: 'low',      label: 'Inconclusive', count: 23,  color: 'var(--ink-4)' },
+];
+
+// --- monitoring data ------------------------------------------------------
+// State changes are the payoff of scheduled re-scans: a property whose
+// verdict flipped since its last run. Escalations (→ Rented) are the
+// high-value alerts; resolutions (→ Not Rented) close cases. Nothing else
+// in the product surfaces this today — it's the whole reason to re-scan.
+interface StateChange {
+  id: string;
+  address: string;
+  from: 'low' | 'medium' | 'high';
+  to: 'low' | 'medium' | 'high';
+  detail: string;
+  detectedAgo: string;
+}
+
+const STATE_CHANGES: StateChange[] = [
+  { id: 'c1', address: '73 Beaucatcher Rd, Asheville, NC 28805', from: 'low',    to: 'high', detail: 'New Airbnb + Vrbo listings now geocode to the parcel', detectedAgo: '2 d ago' },
+  { id: 'c2', address: '19 Edgemont Rd, Asheville, NC 28801',    from: 'medium', to: 'high', detail: 'Host handle now matches the owner of record',         detectedAgo: '3 d ago' },
+  { id: 'c3', address: '410 Kimberly Ave, Asheville, NC 28804',  from: 'low',    to: 'high', detail: 'Facebook Marketplace weekly-rental post appeared',     detectedAgo: '4 d ago' },
+  { id: 'c4', address: '88 Cumberland Ave, Asheville, NC 28801', from: 'high',   to: 'low',  detail: 'All matched listings removed — case can be closed',    detectedAgo: '6 d ago' },
 ];
 
 interface RecentScan {
@@ -118,10 +166,11 @@ function KpiTile({
   primary,
   index,
 }: {
-  kpi: typeof KPIS[number];
+  kpi: Kpi;
   primary?: boolean;
   index: number;
 }) {
+  const history = useHistory();
   return (
     <div
       className="card-rise"
@@ -133,6 +182,10 @@ function KpiTile({
         value={kpi.value}
         icon={<Icon name={kpi.icon} />}
         sparkline={kpi.spark}
+        accent={kpi.accent}
+        delta={kpi.delta ? { dir: kpi.delta.dir, value: kpi.delta.pct } : undefined}
+        hint={kpi.hint}
+        onClick={kpi.to ? () => history.push(kpi.to!) : undefined}
       />
     </div>
   );
@@ -514,37 +567,214 @@ const DASHBOARD_BATCH_COLUMNS: any[] = [
   },
 ];
 
+// --- Confidence Mix card --------------------------------------------------
+// Sibling to the MetricCard tiles (same surface/padding), but the body is a
+// stacked bar + legend instead of one number — because the distribution is
+// the insight the mean threw away. Spans two columns in the KPI grid.
+
+function ConfidenceDistribution() {
+  const total = CONFIDENCE_TOTAL;
+  const decisivePct = Math.round((CONFIDENCE_BANDS[0].count / total) * 100);
+  return (
+    <div className="bg-surface border border-line rounded-lg p-card-tight shadow-sm flex flex-col h-full">
+      <div className="flex items-start justify-between gap-2">
+        <div className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase" style={{ color: 'var(--ink-3)' }}>
+          Confidence Mix
+        </div>
+        <span className="w-7 h-7 rounded-md grid place-items-center shrink-0 bg-brand-soft text-brand [&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
+          <Icon name="trend-up" />
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-baseline gap-2">
+        <span className="font-sans font-semibold text-h1 leading-none tracking-[-0.025em] tabular-nums" style={{ color: 'var(--navy)' }}>
+          {decisivePct}%
+        </span>
+        <span className="text-caption text-ink-3">decisive · {total} scans · 30 d</span>
+      </div>
+
+      {/* Stacked bar — one segment per band, width ∝ share. */}
+      <div className="mt-4 h-2.5 w-full rounded-full overflow-hidden flex" style={{ background: 'var(--surface-2)' }}>
+        {CONFIDENCE_BANDS.map((b) => (
+          <div
+            key={b.key}
+            style={{ width: `${(b.count / total) * 100}%`, background: b.color }}
+            title={`${b.label}: ${b.count}`}
+          />
+        ))}
+      </div>
+
+      {/* Legend — dot + label + count, one per band. */}
+      <div className="mt-4 pt-3 border-t border-line grid grid-cols-3 gap-2">
+        {CONFIDENCE_BANDS.map((b) => (
+          <div key={b.key} className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: b.color }} aria-hidden />
+              <span className="text-micro text-ink-3 truncate">{b.label}</span>
+            </div>
+            <div className="mt-0.5 font-mono tabular-nums text-label font-semibold" style={{ color: 'var(--navy)' }}>
+              {b.count}
+              <span className="text-micro text-ink-4 font-sans font-normal ml-1">
+                {Math.round((b.count / total) * 100)}%
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Monitoring panel -----------------------------------------------------
+// The recurring-scan payoff surface. Main column: verdict changes caught
+// since each property's last run (escalations in risk tone, resolutions in
+// clean). Right rail: monitoring health — schedules, overdue runs, stale
+// coverage, evidence freshness.
+
+const MON_TONE_COLOR: Record<'risk' | 'warn' | 'clean' | 'neutral', string> = {
+  risk: 'var(--risk)',
+  warn: 'var(--warn)',
+  clean: 'var(--clean)',
+  neutral: 'var(--ink-2)',
+};
+
+function StateChangeRow({ row, onOpen }: { row: StateChange; onOpen: (row: StateChange) => void }) {
+  const escalation = row.to === 'high';
+  const tone = escalation ? 'var(--risk)' : 'var(--clean)';
+  const toneSoft = escalation ? 'var(--risk-soft)' : 'var(--clean-soft)';
+  const [street] = splitAddress(row.address);
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(row)}
+      className="w-full flex items-center gap-3 px-4 py-3 border-t border-line first:border-t-0 hover:bg-hover-bg transition-colors text-left"
+    >
+      <span className="w-9 h-9 rounded-md grid place-items-center shrink-0" style={{ background: toneSoft, color: tone }} aria-hidden>
+        <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+          {escalation ? <path d="M8 13V3M8 3 4 7M8 3l4 4" /> : <path d="M8 3v10M8 13l4-4M8 13l-4-4" />}
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-label font-semibold truncate" style={{ color: 'var(--navy)' }}>
+          {street}
+        </span>
+        <span className="block text-caption text-ink-3 truncate">{row.detail}</span>
+      </span>
+      <span className="hidden sm:flex flex-col items-end gap-1 shrink-0">
+        <span className="inline-flex items-center gap-1.5 text-caption whitespace-nowrap" style={{ color: 'var(--ink-2)' }}>
+          {HOME_VERDICT_LABEL[row.from]}
+          <svg viewBox="0 0 16 16" className="w-3 h-3 text-ink-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="m6 4 4 4-4 4" />
+          </svg>
+          <span className="font-semibold" style={{ color: tone }}>{HOME_VERDICT_LABEL[row.to]}</span>
+        </span>
+        <span className="text-micro text-ink-4 tabular-nums">{row.detectedAgo}</span>
+      </span>
+    </button>
+  );
+}
+
+function MonitoringPanel() {
+  const history = useHistory();
+  const { schedules } = useAppState();
+  const escalations = STATE_CHANGES.filter((c) => c.to === 'high').length;
+
+  // Health rail — schedules count is real (from state); the rest are mock
+  // monitoring telemetry a backend would supply.
+  const stats: { icon: string; label: string; value: string; tone: 'risk' | 'warn' | 'clean' | 'neutral' }[] = [
+    { icon: 'cal',     label: 'Active schedules',    value: `${schedules.length} running`,   tone: 'neutral' },
+    { icon: 'history', label: 'Overdue re-scans',    value: '2 past due',                     tone: 'risk' },
+    { icon: 'search',  label: 'Stale coverage',      value: '37 parcels · 90 d+',             tone: 'warn' },
+    { icon: 'shield',  label: 'Evidence freshness',  value: 'Median 2 d',                     tone: 'clean' },
+  ];
+
+  function openChange(row: StateChange) {
+    sessionStorage.setItem('scanScenario', row.to);
+    sessionStorage.setItem('scanAddress', row.address);
+    const path = row.to === 'low' ? '/result/clean' : row.to === 'medium' ? '/result/medium' : '/result/high';
+    history.push(path);
+  }
+
+  return (
+    <section className="mb-section">
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <div>
+          <h2 className="font-sans font-semibold text-h4 leading-tight tracking-[-0.01em] m-0" style={{ color: 'var(--navy)' }}>
+            Monitoring
+          </h2>
+          <p className="text-caption text-ink-3 m-0 mt-1">
+            Verdict changes caught by scheduled re-scans · {escalations} new escalation{escalations === 1 ? '' : 's'}
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          onClick={() => history.push('/scheduled')}
+          iconRight={
+            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="m6 4 4 4-4 4" />
+            </svg>
+          }
+        >
+          Manage schedules
+        </Button>
+      </div>
+
+      <Card className="card-rise" style={{ ['--rise-delay' as any]: '120ms' } as any}>
+        <div className="grid grid-cols-1 lg:grid-cols-3">
+          {/* Main — state changes */}
+          <div className="lg:col-span-2 lg:border-r border-line">
+            {STATE_CHANGES.map((row) => (
+              <StateChangeRow key={row.id} row={row} onOpen={openChange} />
+            ))}
+          </div>
+
+          {/* Rail — monitoring health */}
+          <div className="border-t lg:border-t-0 border-line p-4 flex flex-col gap-3">
+            <div className="text-eyebrow font-semibold tracking-[0.16em] uppercase text-ink-3">
+              Monitoring health
+            </div>
+            {stats.map((s) => (
+              <div key={s.label} className="flex items-center gap-3">
+                <span className="w-8 h-8 rounded-md grid place-items-center shrink-0 bg-surface-2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
+                  <Icon name={s.icon} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-micro text-ink-3 truncate">{s.label}</span>
+                  <span className="block text-label font-semibold truncate" style={{ color: MON_TONE_COLOR[s.tone] }}>
+                    {s.value}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+    </section>
+  );
+}
+
 // --- the page -------------------------------------------------------------
 
 function HomeScreen() {
   const history = useHistory();
-  const [address, setAddress] = React.useState('');
 
-  function startScan(addr?: string) {
-    const value = addr ?? address;
+  function startScan(addr?: string, intent?: string) {
+    const value = addr ?? '';
     const scenario = pickScenario(value);
     sessionStorage.setItem('scanScenario', scenario);
     sessionStorage.setItem(
       'scanAddress',
       value || '1428 Maplewood Drive, Asheville, NC 28804'
     );
+    // The declared intended occupancy travels with the order so the result
+    // can reconcile observed-vs-declared. '' when not declared (e.g. a scan
+    // kicked off from a history/monitoring row rather than the intake hero).
+    sessionStorage.setItem('scanIntent', intent ?? '');
     // Clear any reference / history-id carried over from a previous visit
     // so the new scan starts with a blank Reference field on the result page.
     sessionStorage.removeItem('scanReference');
     sessionStorage.removeItem('scanHistoryId');
     history.push('/scan/start');
-  }
-
-  function openResult(row: RecentScan) {
-    sessionStorage.setItem('scanScenario', row.scenario);
-    sessionStorage.setItem('scanAddress', row.address);
-    const path =
-      row.scenario === 'low'
-        ? '/result/clean'
-        : row.scenario === 'medium'
-        ? '/result/medium'
-        : '/result/high';
-    history.push(path);
   }
 
   return (
@@ -564,13 +794,13 @@ function HomeScreen() {
         </div>
       </header>
 
-      {/* Scanner — primary affordance, hero of the platform */}
+      {/* Scanner — primary affordance, hero of the platform. ScanIntentHero
+          wraps the same command bar and adds the required intended-occupancy
+          declaration, so every order carries the reference the result
+          reconciles against. */}
       <section className="mb-section">
-        <CommandSearch
-          mode="inline"
-          value={address}
-          onChange={setAddress}
-          onRun={(v: string) => startScan(v)}
+        <ScanIntentHero
+          onRun={(addr: string, intent: string) => startScan(addr, intent)}
           sampleChips={SAMPLE_CHIPS.map((c) => ({
             label: `${c.zip} · ${c.label}`,
             value: `1428 Maplewood Drive, Asheville, NC ${c.zip}`,
@@ -578,14 +808,21 @@ function HomeScreen() {
         />
       </section>
 
-      {/* KPI cards — separate inline cards, equal-width grid */}
+      {/* KPI cards — trust + workload metrics. Flag Precision leads as the
+          primary tile; Review Queue is the workload count; Confidence Mix
+          spans two columns to host the stacked distribution. */}
       <section className="mb-section">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {KPIS.map((kpi, i) => (
-            <KpiTile key={kpi.label} kpi={kpi} index={i} />
-          ))}
+          <KpiTile kpi={KPIS[0]} primary index={0} />
+          <KpiTile kpi={KPIS[1]} index={1} />
+          <div className="sm:col-span-2 card-rise" style={{ ['--rise-delay' as any]: '120ms' }}>
+            <ConfidenceDistribution />
+          </div>
         </div>
       </section>
+
+      {/* Monitoring — verdict changes caught by scheduled re-scans + health */}
+      <MonitoringPanel />
 
       {/* Recent Scans — Single / Batch tabs, each capped to 6 rows.
           "View all" links to /history. Scheduled lives at /scheduled. */}

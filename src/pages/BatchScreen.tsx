@@ -1,6 +1,7 @@
 /* global React, AppShell, Card, Button, Pill, Icon, Input, Textarea, DataTable, DropdownMenu, ReactRouterDOM,
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
-   deriveTitleFromFilename, useAppState */
+   deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
+   ChipRow, reconcileOccupancy, INTENDED_OCCUPANCY_LABEL */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -15,6 +16,7 @@
 
 type Risk = 'clean' | 'warn' | 'risk';
 type RowStatus = 'done' | 'running' | 'queued' | 'failed';
+type AiReportStatus = 'queued' | 'running' | 'done' | 'failed';
 
 interface BatchRow {
   id: number;
@@ -26,6 +28,16 @@ interface BatchRow {
   errorReason?: string;
   /** Optional user-supplied identifier per the May-2026 lender spec. */
   reference?: string;
+  /** Declared "as per loan" occupancy, mapped from the CSV column on upload.
+   *  Undefined = fall back to the batch default. */
+  intent?: IntendedOccupancy;
+  /** The agentic AI report layered on top of the occupancy scan — mirrors
+   *  LiveBatchRow.aiReport in AppState. Absent until AI is run on the row. */
+  aiReport?: {
+    status: AiReportStatus;
+    verdictBand?: AIVerdictBand;
+    errorReason?: string;
+  };
 }
 
 const SAMPLE_BATCH: BatchRow[] = [
@@ -93,6 +105,10 @@ function BatchUpload() {
   const [titleTouched, setTitleTouched] = React.useState<boolean>(false);
   const [description, setDescription] = React.useState<string>('');
   const [addressColumn, setAddressColumn] = React.useState<string>('');
+  const [intentColumn, setIntentColumn] = React.useState<string>('');
+  // The "as per loan" occupancy default — applied to any property whose CSV
+  // occupancy cell is blank or unmapped. 'not-sure' = observed-only (safe).
+  const [defaultIntent, setDefaultIntent] = React.useState<IntendedOccupancy>('not-sure');
   const [advancedOpen, setAdvancedOpen] = React.useState<boolean>(false);
 
   function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
@@ -109,6 +125,8 @@ function BatchUpload() {
       title: title.trim() || undefined,
       description: description.trim() || undefined,
       addressColumn: addressColumn.trim() || undefined,
+      intentColumn: intentColumn.trim() || undefined,
+      defaultIntent,
     });
   }
 
@@ -210,6 +228,26 @@ function BatchUpload() {
             />
           </FormSection>
 
+          {/* ----- Declared occupancy (as per loan) ----- */}
+          <div className="mt-section-sub w-full max-w-[560px] flex flex-col gap-stack-tight">
+            <ChipRow
+              label="Default intended occupancy"
+              value={defaultIntent}
+              onChange={(v: string) => setDefaultIntent(v as IntendedOccupancy)}
+              options={[
+                { value: 'owner-occupied', label: 'Owner-occupied' },
+                { value: 'rental', label: 'Rental / investment' },
+                { value: 'second-home', label: 'Second home' },
+                { value: 'not-sure', label: 'Not sure' },
+              ]}
+            />
+            <p className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>
+              Applied to any property with no occupancy in the CSV. Per-property
+              values map from the occupancy column (set it under Advanced). We
+              compare each declaration against what the scan finds.
+            </p>
+          </div>
+
           {/* ----- Advanced (collapsed) ----- */}
           <div className="mt-section-sub w-full max-w-[560px]">
             <button
@@ -232,7 +270,7 @@ function BatchUpload() {
                 className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line normal-case tracking-normal"
                 style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}
               >
-                1 option
+                2 options
               </span>
             </button>
             {advancedOpen && (
@@ -244,6 +282,15 @@ function BatchUpload() {
                   hint="We auto-detect a column named 'address' by default."
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setAddressColumn(e.target.value)
+                  }
+                />
+                <Input
+                  label="Intended-occupancy column name"
+                  value={intentColumn}
+                  placeholder='e.g. "occupancy_type" or "intended_occupancy"'
+                  hint="Maps each property's declared occupancy (owner-occupied / rental / second home). Blank or unrecognised cells use the default above."
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setIntentColumn(e.target.value)
                   }
                 />
               </div>
@@ -320,6 +367,8 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const {
     clearBatch,
     retryBatchRow,
+    startBatchAIReports,
+    runRowAIReport,
     findScheduleByTarget,
     renameBatch,
     setBatchDescription,
@@ -333,6 +382,46 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const clean = rows.filter((r) => r.risk === 'clean').length;
   const progress = Math.round((done / total) * 100);
   const isComplete = batch.status === 'complete';
+
+  // ----- AI report batch phase -----
+  // The AI phase spans only the rows the trigger queued (those carrying an
+  // `aiReport`). Counts drive the AI progress banner and the trigger's
+  // enable/disable + "N flagged" copy. Gated on `!readOnly` end to end: the
+  // historical detail view sources from a frozen history snapshot, not the
+  // live batch the AI worker mutates, so its AI controls would be dead.
+  const aiPhase = batch.aiPhase as { status: 'running' | 'complete'; scope: Risk[] } | undefined;
+  const aiRows = rows.filter((r) => r.aiReport);
+  const aiTotal = aiRows.length;
+  const aiDone = aiRows.filter((r) => r.aiReport!.status === 'done').length;
+  const aiActive = aiRows.filter(
+    (r) => r.aiReport!.status === 'running' || r.aiReport!.status === 'queued'
+  ).length;
+  const aiRunning = aiPhase?.status === 'running';
+  const aiProgress = aiTotal > 0 ? Math.round((aiDone / aiTotal) * 100) : 0;
+  const canRunAI = !readOnly && isComplete;
+  // Which verdict statuses to run occupancy reports for. Multi-select (any
+  // combination) — a user may want just "Possibly rented", or "Rented + Not
+  // rented", not only the old cumulative tiers. startBatchAIReports already
+  // accepts any Risk[]; this lets the UI express it.
+  const [reportOpen, setReportOpen] = React.useState(false);
+  const [reportScope, setReportScope] = React.useState<Risk[]>(['risk']);
+
+  // Rows a run with the current scope would actually queue: completed,
+  // in-scope, and not already holding a done report (failed ones re-run).
+  // Drives the primary button's count + disabled state.
+  const reportEligible = rows.filter(
+    (r) =>
+      r.status === 'done' &&
+      r.risk &&
+      reportScope.includes(r.risk) &&
+      (!r.aiReport || r.aiReport.status === 'failed')
+  ).length;
+
+  const runReports = () => {
+    if (reportScope.length === 0 || reportEligible === 0) return;
+    startBatchAIReports(reportScope);
+    setReportOpen(false);
+  };
 
   // Per-status counts feed both the AutomateModal scope card and the
   // AutomationBanner. Re-derived on every render off the latest rows so the
@@ -390,7 +479,9 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
               detail page and when empty (the placeholder lets the user add
               one later). `renameBatch`/`setBatchDescription` propagate the
               edit into the stored history entry by filename. The `readOnly`
-              flag below governs re-execution only (retry / automation). */}
+              flag governs row-level re-execution (retry) only — NOT
+              automation, which is a forward-looking schedule independent of
+              the run beneath it, so it's offered on historical views too. */}
           <EditableTitle
             value={displayTitle}
             onSave={(next) => renameBatch(batch.id, next)}
@@ -418,7 +509,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           </div>
         </div>
         <div className="flex gap-2 shrink-0 mt-1">
-          {!activeSchedule && !readOnly && (
+          {!activeSchedule && (
             <AutomationControl
               target={{
                 kind: 'batch',
@@ -428,6 +519,38 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
                 scopeCountsPending,
               }}
             />
+          )}
+          {/* Run AI reports — the batch AI phase trigger. Offered once the
+              occupancy scan is complete (you can't reason over rows that
+              haven't landed) and only on the live batch, never the read-only
+              historical view. Scope options match the red-threshold flow. */}
+          {canRunAI && (
+            <Button
+              icon={
+                aiRunning ? (
+                  <span
+                    className="w-3.5 h-3.5 rounded-full border-[1.6px] border-current border-t-transparent animate-spin"
+                    aria-hidden
+                  />
+                ) : (
+                  <Icon name="ai-star" />
+                )
+              }
+              iconRight={
+                aiTotal > 0 && !aiRunning ? (
+                  <span className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded bg-brand-soft text-brand-deep">
+                    {aiDone}
+                  </span>
+                ) : undefined
+              }
+              onClick={() => setReportOpen(true)}
+            >
+              {aiRunning
+                ? `Running… ${aiDone}/${aiTotal}`
+                : aiTotal > 0
+                ? 'Run more reports'
+                : 'Run occupancy reports'}
+            </Button>
           )}
           <DropdownMenu
             title="Download Report"
@@ -539,6 +662,46 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
               {done}/{total} scanned{!isComplete && running > 0 ? ` · ${running} in progress` : ''}
             </div>
           </div>
+
+          {/* Occupancy-report status — a compact secondary row inside the same
+              card, not a second full-width progress surface. While running it
+              shows a live count + slim bar; once done it collapses to a single
+              confirmation line. Per-row occupancy lands in the table column. */}
+          {aiPhase && (
+            <div className="mt-5 pt-4 border-t border-line flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {aiRunning ? (
+                  <span
+                    className="w-4 h-4 rounded-full border-[1.8px] border-brand border-t-transparent animate-spin shrink-0"
+                    aria-hidden
+                  />
+                ) : (
+                  <span
+                    className="w-5 h-5 rounded-full grid place-items-center bg-clean text-white shrink-0 [&>svg]:w-3 [&>svg]:h-3"
+                    aria-hidden
+                  >
+                    <Icon name="check" size={12} />
+                  </span>
+                )}
+                <span
+                  className="font-sans text-body-sm font-medium truncate"
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  {aiPhase.status === 'complete'
+                    ? `${aiDone} occupancy report${aiDone === 1 ? '' : 's'} generated`
+                    : `Generating occupancy reports · ${aiDone} of ${aiTotal}`}
+                </span>
+              </div>
+              {aiRunning && (
+                <div className="w-28 sm:w-40 h-1 bg-line rounded-full overflow-hidden shrink-0">
+                  <div
+                    className="h-full bg-gradient-to-r from-brand to-brand-2 rounded-full transition-[width] duration-500"
+                    style={{ width: `${aiProgress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Card>
 
@@ -590,14 +753,82 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             </div>
           </div>
         </div>
-        <BatchTable rows={filteredRows} />
+        <BatchTable
+          rows={filteredRows}
+          onRunRowAI={canRunAI ? runRowAIReport : undefined}
+          defaultIntent={batch.defaultIntent}
+        />
       </div>
+
+      {/* Run occupancy reports — pick ANY combination of verdict statuses to
+          reason over, then run. Multi-select replaces the old cumulative-only
+          presets (Rented / +Possibly / +All). Only completed, in-scope rows
+          without a done report are queued; failed ones re-run. */}
+      <Modal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        title="Run occupancy reports"
+        width={460}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setReportOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              disabled={reportEligible === 0}
+              onClick={runReports}
+            >
+              {reportScope.length === 0
+                ? 'Select a status'
+                : reportEligible > 0
+                ? `Run ${reportEligible} report${reportEligible === 1 ? '' : 's'}`
+                : 'No eligible rows'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-body-sm text-ink-2 mb-4 leading-relaxed">
+          Choose which verdict statuses to generate occupancy reports for. Pick
+          any combination. Reports run on completed scans only — rows that
+          already have a report are skipped, and failed ones re-run.
+        </p>
+        <StatusPillSelector
+          options={[
+            { value: 'risk',  label: 'Rented',          count: scopeCounts.risk },
+            { value: 'warn',  label: 'Possibly Rented', count: scopeCounts.warn },
+            { value: 'clean', label: 'Not Rented',      count: scopeCounts.clean },
+          ]}
+          value={reportScope}
+          onChange={(next) => setReportScope(next)}
+          countsPending={scopeCountsPending}
+          ariaLabel="Which verdict statuses to run occupancy reports for"
+        />
+        <p className="text-caption text-ink-3 mt-4">
+          {reportScope.length === 0
+            ? 'Select at least one status to run.'
+            : reportEligible === 0
+            ? 'No completed rows in the selected statuses need a report right now.'
+            : `${reportEligible} ${reportEligible === 1 ? 'row' : 'rows'} will be queued.`}
+        </p>
+      </Modal>
 
     </div>
   );
 }
 
-function BatchTable({ rows }: { rows: BatchRow[] }) {
+function BatchTable({
+  rows,
+  onRunRowAI,
+  defaultIntent,
+}: {
+  rows: BatchRow[];
+  /** Per-row "run AI now" handler. Undefined on the read-only historical
+   *  view, which collapses the AI column's idle cell to a dash. */
+  onRunRowAI?: (rowId: number) => void;
+  /** Batch-level occupancy default — applied to rows with no mapped intent. */
+  defaultIntent?: IntendedOccupancy;
+}) {
   const history = ReactRouterDOM.useHistory();
 
   function openIfDone(row: BatchRow) {
@@ -606,7 +837,10 @@ function BatchTable({ rows }: { rows: BatchRow[] }) {
     }
   }
 
-  const columns = React.useMemo(() => buildBatchColumns(), []);
+  const columns = React.useMemo(
+    () => buildBatchColumns(onRunRowAI, defaultIntent),
+    [onRunRowAI, defaultIntent]
+  );
 
   return (
     <DataTable
@@ -645,7 +879,18 @@ const ROUTE_FOR_RISK: Record<Risk, string> = {
 // Column definitions for the BatchTable. Mirrors the SCAN_COLUMNS shape
 // from HomeScreen so both data tables share rhythm, hover treatment, and
 // the table↔card switch via the global DataTable primitive.
-function buildBatchColumns(): any[] {
+// Reconciliation tag styling — a secondary annotation under the declared
+// value, deliberately quieter than the Verdict pill beside it.
+const RECONCILIATION_META: Record<string, { label: string; color: string }> = {
+  exception:    { label: 'Exception',    color: 'var(--warn-deep)' },
+  consistent:   { label: 'Consistent',   color: 'var(--clean-ink)' },
+  inconclusive: { label: 'Inconclusive', color: 'var(--ink-3)' },
+};
+
+function buildBatchColumns(
+  onRunRowAI?: (rowId: number) => void,
+  defaultIntent?: IntendedOccupancy
+): any[] {
   const cols: any[] = [
   {
     key: 'index',
@@ -754,6 +999,71 @@ function buildBatchColumns(): any[] {
       ) : (
         <span className="text-ink-4">—</span>
       ),
+  },
+  {
+    key: 'aireport',
+    label: 'Occupancy report',
+    width: '188px',
+    hideBelow: 'md' as const,
+    cell: (row: BatchRow) => {
+      // AI reasons over a completed occupancy scan, so an unscanned /
+      // in-flight / failed occupancy row has nothing to run against yet.
+      if (row.status !== 'done') return <span className="text-ink-4">—</span>;
+
+      const ai = row.aiReport;
+
+      // Idle — no AI report yet. Offer an on-demand "run now" (the bypass-
+      // the-batch path), or a dash on the read-only historical view.
+      if (!ai) {
+        if (!onRunRowAI) return <span className="text-ink-4">—</span>;
+        return (
+          <button
+            type="button"
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              onRunRowAI(row.id);
+            }}
+            aria-label="Run AI report now"
+            title="Run AI report now"
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-line text-caption font-medium text-ink-2 transition-colors hover:bg-brand-soft hover:border-brand hover:text-brand-deep"
+          >
+            <Icon name="ai-star" size={13} />
+            <span>Run now</span>
+          </button>
+        );
+      }
+
+      if (ai.status === 'queued') return <Pill>Queued</Pill>;
+      if (ai.status === 'running') return <Pill variant="brand" dot>Running…</Pill>;
+      if (ai.status === 'failed') {
+        return (
+          <Pill variant="risk" title={ai.errorReason}>
+            Failed
+          </Pill>
+        );
+      }
+      // done — the occupancy status declared "as per loan" on upload, plus how
+      // it reconciles against what the scan observed.
+      const intent = row.intent ?? defaultIntent ?? 'not-sure';
+      const rec = reconcileOccupancy(intent, row.risk);
+      return (
+        <div className="min-w-0 flex flex-col items-start gap-1">
+          <Pill>{INTENDED_OCCUPANCY_LABEL[intent]}</Pill>
+          {rec && (
+            <span
+              className="inline-flex items-center gap-1 font-sans text-micro font-semibold"
+              style={{ color: RECONCILIATION_META[rec].color }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ background: RECONCILIATION_META[rec].color }}
+              />
+              {RECONCILIATION_META[rec].label}
+            </span>
+          )}
+        </div>
+      );
+    },
   },
 ];
   return cols;

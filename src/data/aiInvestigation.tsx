@@ -52,6 +52,18 @@ interface AIInvestigationResult {
    *  only the ones that change how the case reads. `kind` selects the group
    *  icon; `group` is the human label. */
   dataGaps: Array<{ group: string; kind: 'conflict' | 'inconsistency' | 'gap'; items: string[] }>;
+  /** The full per-heuristic write-ups, shown collapsed in a "Detailed
+   *  analysis" accordion. `takeaway` is the one-line preview; `detail` is the
+   *  essay revealed on expand; `direction` drives the row icon/tone so a
+   *  neutral heuristic (context/quality) isn't coloured as concerning. */
+  detailedAnalysis: Array<{
+    id: string;
+    title: string;
+    takeaway: string;
+    detail: string;
+    direction: 'risk' | 'mitigation' | 'context' | 'quality';
+    evidenceCount: number;
+  }>;
   occupancyHistory: Array<{
     name: string;
     relationship: 'owner' | 'unrelated' | 'likely_family';
@@ -145,6 +157,62 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
         'The rental listing is dated April 2026 — a future date with no corroboration elsewhere.',
         'No driver, voter, or auto records, and no recorded mortgage lender, to corroborate against.',
       ],
+    },
+  ],
+  detailedAnalysis: [
+    {
+      id: 'property_tax_context',
+      title: 'Property tax context',
+      takeaway: 'A legitimate single-family home with moderate lien exposure and no foreclosure markers.',
+      detail:
+        '1552 Samara Glen Way is a single-family home (3 bed / 1 bath, built 1983), classified residential on the tax record, with one active lien of $83,000 against an estimated $128,400 value — roughly 65% equity. There is no foreclosure code or distress marker, and the owner holds only this one residential property, a non-portfolio profile. This frames the other occupancy signals as consistent with either owner-occupancy or rental use, without ruling either out.',
+      direction: 'context',
+      evidenceCount: 2,
+    },
+    {
+      id: 'owner_identity_and_mailing',
+      title: 'Owner identity and mailing',
+      takeaway: 'The owner is documented on-site, but mails elsewhere and shares the address with unrelated people.',
+      detail:
+        'Tax owner Jerahmy Winkfield is corroborated at the property through tax, base (10-year residence), trace and utility records — yet the tax mailing address (209 Falcon Dr, Versailles) diverges from the property. At the same time, Donald Cain appears in four loan records (one coded as a renter) and Sheila Shankle shows a 7-year base residence, both unrelated to the owner. Strong owner presence coexisting with unrelated-occupant evidence is what produces the occupancy-risk profile here.',
+      direction: 'risk',
+      evidenceCount: 8,
+    },
+    {
+      id: 'subject_occupancy_surfaces',
+      title: 'Subject occupancy surfaces',
+      takeaway: 'Non-owner utility and trace records place other people here, but none carry service dates.',
+      detail:
+        'Two utility accounts run under James Fairchild, a non-owner, and one under the owner; trace records add Sheila Shankle. The owner’s mailing divergence points to absentee status. The limitation is timing: the utility and trace records lack service dates, so current occupancy can’t be established — the non-owner presence is suggestive but not anchored to any period.',
+      direction: 'risk',
+      evidenceCount: 6,
+    },
+    {
+      id: 'loan_tenure',
+      title: 'Loan tenure',
+      takeaway: 'No tenure mismatch — the loan records don’t explicitly claim ownership or renting.',
+      detail:
+        'Four loan records exist for Donald Cain at the property, but all carry own/rent values of “unknown” or “0” rather than an explicit OWN or RENT claim. No non-owner claims ownership, and the tax owner has no conflicting tenure claim. None of the tenure-mismatch conditions trigger, so this check does not add risk on its own.',
+      direction: 'context',
+      evidenceCount: 0,
+    },
+    {
+      id: 'portfolio_and_primary_comparison',
+      title: 'Portfolio and primary comparison',
+      takeaway: 'A single-property owner with strong on-site presence — no portfolio risk.',
+      detail:
+        'The owner holds only one residential liened property, so the portfolio comparison does not apply. Owner presence at the property is strong — a base residence with 10-year length, plus tax and trace records — while the mailing address has no independent presence evidence of its own. This is a single-property scenario with robust owner presence, not a portfolio pattern.',
+      direction: 'mitigation',
+      evidenceCount: 0,
+    },
+    {
+      id: 'case_quality_and_synthesis',
+      title: 'Case quality and synthesis',
+      takeaway: 'Undated records, a name variant and mixed loan coding block a confident determination.',
+      detail:
+        'Several data-quality gaps limit the read: the lien has no lender or recording date; base residence is an aggregate number of years, not a dated timeline; and the utility, trace and loan records are undated. “Jerahmy” and “Jerehmy” are the same person across sources. Cain’s loan rows carry mixed own/rent coding, and a rental listing dated April 2026 is future-dated and uncorroborated. The case is owner-held, mailing-elsewhere, with occupancy status left unresolved.',
+      direction: 'quality',
+      evidenceCount: 8,
     },
   ],
   occupancyHistory: [

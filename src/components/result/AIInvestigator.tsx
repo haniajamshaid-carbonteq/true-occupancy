@@ -700,10 +700,16 @@ function ReportBody({ result }: { result: AIInvestigationResult }) {
         />
       </div>
       {/* Summary only — the archetype is the drawer's own title, so printing
-          it again here would spend the lead line on something just read. */}
-      <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-5 max-w-2xl">
-        {result.summary}
-      </p>
+          it again here would spend the lead line on something just read.
+          Clamped to a few lines with Read more so a long real-data summary
+          can't dump a wall of text at the top of the report. */}
+      <div className="mt-5 max-w-2xl">
+        <ClampText
+          text={result.summary}
+          lines={3}
+          className="font-sans text-body-sm text-ink-2 leading-relaxed"
+        />
+      </div>
 
       {/* The single next action. Deliberately low-footprint: no card, no
           heading — just a tracked "Do this next" label and a one-paragraph
@@ -733,7 +739,173 @@ function ReportBody({ result }: { result: AIInvestigationResult }) {
         </div>
         <DataGapsSection result={result} />
         <OccupancyHistorySection result={result} />
+        <DetailedAnalysisSection result={result} />
       </div>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------------------
+// ClampText — line-clamps a paragraph to `lines` and reveals a Read more
+// toggle only when the text actually overflows. Keeps a long real-data
+// paragraph from dumping a wall of text inline. Measures while clamped;
+// once expanded it stops measuring so the toggle stays put.
+function ClampText({
+  text,
+  lines = 3,
+  className = '',
+}: {
+  text: string;
+  lines?: number;
+  className?: string;
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+  const [clamped, setClamped] = React.useState(false);
+  const ref = React.useRef<HTMLParagraphElement | null>(null);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el || expanded) return;
+    const check = () => setClamped(el.scrollHeight > el.clientHeight + 1);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [text, lines, expanded]);
+
+  return (
+    <>
+      <p
+        ref={ref}
+        className={`m-0 ${className}`}
+        style={
+          expanded
+            ? undefined
+            : {
+                display: '-webkit-box',
+                WebkitLineClamp: lines,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }
+        }
+      >
+        {text}
+      </p>
+      {(clamped || expanded) && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1 font-sans text-caption font-semibold text-brand-deep hover:underline"
+        >
+          {expanded ? 'Read less' : 'Read more'}
+        </button>
+      )}
+    </>
+  );
+}
+
+// -------------------------------------------------------------------------
+// Detailed analysis — every heuristic the investigation ran, each as an
+// accordion row (title + one-line takeaway; tap to reveal the full write-up).
+// This is where the long per-heuristic essays live, collapsed, so they stop
+// masquerading as "gaps and contradictions" and stop dumping a wall of text
+// into the reading flow. The row icon/tone come from `direction`, so a
+// neutral heuristic (context / quality) is not coloured as a risk.
+const ANALYSIS_DIRECTION: Record<
+  AIInvestigationResult['detailedAnalysis'][number]['direction'],
+  { icon: IconName; ink: string }
+> = {
+  risk: { icon: 'trend-up', ink: 'var(--warn-ink)' },
+  mitigation: { icon: 'trend-down', ink: 'var(--clean-ink)' },
+  context: { icon: 'info', ink: 'var(--ink-3)' },
+  quality: { icon: 'layers', ink: 'var(--ink-3)' },
+};
+
+function DetailedAnalysisSection({ result }: { result: AIInvestigationResult }) {
+  const items = result.detailedAnalysis;
+  if (!items.length) return null;
+  return (
+    <section className="mt-10">
+      <SectionHeading>Detailed analysis</SectionHeading>
+      <p className="font-sans text-caption text-ink-3 leading-relaxed m-0 mt-1">
+        Every check the investigation ran, with its full reasoning. Tap a row to expand.
+      </p>
+      <div className="mt-3 rounded-lg border border-line">
+        {items.map((item, i) => (
+          <AnalysisRow key={item.id} item={item} isFirst={i === 0} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AnalysisRow({
+  item,
+  isFirst,
+}: {
+  item: AIInvestigationResult['detailedAnalysis'][number];
+  isFirst?: boolean;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const visual = ANALYSIS_DIRECTION[item.direction];
+  return (
+    <div className={isFirst ? '' : 'border-t border-line'}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full flex items-start gap-3 text-left px-4 py-3.5 hover:bg-hover-bg transition-colors"
+      >
+        <span
+          className="w-6 h-6 rounded-md bg-surface-2 grid place-items-center shrink-0 mt-0.5"
+          style={{ color: visual.ink }}
+          aria-hidden
+        >
+          <Icon name={visual.icon} size={14} />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="flex items-center justify-between gap-2">
+            <span
+              className="font-sans font-medium text-ink"
+              style={{ fontSize: 'var(--text-body-sm)' }}
+            >
+              {item.title}
+            </span>
+            <span
+              className={`w-5 h-5 grid place-items-center text-ink-3 shrink-0 transition-transform ${
+                open ? 'rotate-180' : ''
+              }`}
+              aria-hidden
+            >
+              <Icon name="chevron" size={13} />
+            </span>
+          </span>
+          {!open && (
+            <span
+              className="block font-sans text-caption text-ink-2 leading-relaxed mt-0.5"
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {item.takeaway}
+            </span>
+          )}
+        </span>
+      </button>
+      {open && (
+        <div className="pb-4 pr-4" style={{ paddingLeft: 52 }}>
+          <p className="font-sans text-caption text-ink-2 leading-relaxed m-0">
+            {item.detail}
+          </p>
+          {item.evidenceCount > 0 && (
+            <div className="font-sans text-micro text-ink-3 uppercase tracking-[0.08em] mt-2">
+              Backed by {item.evidenceCount} record{item.evidenceCount === 1 ? '' : 's'}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
