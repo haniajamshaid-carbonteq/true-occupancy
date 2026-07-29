@@ -423,11 +423,13 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
     setReportOpen(false);
   };
 
-  // Reconciliation roll-up across scanned rows — declared (as per loan) vs
-  // observed. Exceptions are the headline: occupancy that contradicts the file.
+  // Reconciliation roll-up — declared (as per loan) vs observed, across rows
+  // whose occupancy report has been run (so this agrees with the per-row tags
+  // in the Occupancy report column). Exceptions are the headline: occupancy
+  // that contradicts what the file declared.
   const reconcile = { exception: 0, consistent: 0, inconclusive: 0 };
   rows.forEach((r) => {
-    if (r.status !== 'done') return;
+    if (r.status !== 'done' || r.aiReport?.status !== 'done') return;
     const intent = r.intent ?? batch.defaultIntent ?? 'not-sure';
     const rec = reconcileOccupancy(intent, r.risk);
     if (rec) reconcile[rec] += 1;
@@ -1006,36 +1008,6 @@ function buildBatchColumns(
     },
   },
   {
-    key: 'declared',
-    label: 'Declared',
-    width: '156px',
-    hideBelow: 'md' as const,
-    cell: (row: BatchRow) => {
-      // Effective declaration: the row's mapped value, or the batch default.
-      const intent = row.intent ?? defaultIntent ?? 'not-sure';
-      const rec = row.status === 'done' ? reconcileOccupancy(intent, row.risk) : null;
-      return (
-        <div className="min-w-0 flex flex-col gap-0.5">
-          <span className="font-sans text-caption text-ink-2 truncate">
-            {INTENDED_OCCUPANCY_LABEL[intent]}
-          </span>
-          {rec && (
-            <span
-              className="inline-flex items-center gap-1 font-sans text-micro font-semibold"
-              style={{ color: RECONCILIATION_META[rec].color }}
-            >
-              <span
-                className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{ background: RECONCILIATION_META[rec].color }}
-              />
-              {RECONCILIATION_META[rec].label}
-            </span>
-          )}
-        </div>
-      );
-    },
-  },
-  {
     key: 'listings',
     label: 'Listings',
     width: '88px',
@@ -1052,8 +1024,8 @@ function buildBatchColumns(
   },
   {
     key: 'aireport',
-    label: 'AI report',
-    width: '168px',
+    label: 'Occupancy report',
+    width: '188px',
     hideBelow: 'md' as const,
     cell: (row: BatchRow) => {
       // AI reasons over a completed occupancy scan, so an unscanned /
@@ -1084,7 +1056,7 @@ function buildBatchColumns(
       }
 
       if (ai.status === 'queued') return <Pill>Queued</Pill>;
-      if (ai.status === 'running') return <Pill variant="brand" dot>Analyzing</Pill>;
+      if (ai.status === 'running') return <Pill variant="brand" dot>Running…</Pill>;
       if (ai.status === 'failed') {
         return (
           <Pill variant="risk" title={ai.errorReason}>
@@ -1092,10 +1064,27 @@ function buildBatchColumns(
           </Pill>
         );
       }
-      // done — reuse the shared five-band AI vocabulary + tones so the batch
-      // pill matches the report page's headline band exactly.
-      const band = AI_BAND_COPY[row.aiReport!.verdictBand as keyof typeof AI_BAND_COPY];
-      return band ? <Pill variant={band.variant}>{band.label}</Pill> : <span className="text-ink-4">—</span>;
+      // done — the occupancy status declared "as per loan" on upload, plus how
+      // it reconciles against what the scan observed.
+      const intent = row.intent ?? defaultIntent ?? 'not-sure';
+      const rec = reconcileOccupancy(intent, row.risk);
+      return (
+        <div className="min-w-0 flex flex-col items-start gap-1">
+          <Pill>{INTENDED_OCCUPANCY_LABEL[intent]}</Pill>
+          {rec && (
+            <span
+              className="inline-flex items-center gap-1 font-sans text-micro font-semibold"
+              style={{ color: RECONCILIATION_META[rec].color }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ background: RECONCILIATION_META[rec].color }}
+              />
+              {RECONCILIATION_META[rec].label}
+            </span>
+          )}
+        </div>
+      );
     },
   },
 ];
