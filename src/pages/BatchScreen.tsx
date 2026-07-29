@@ -1,6 +1,7 @@
 /* global React, AppShell, Card, Button, Pill, Icon, Input, Textarea, DataTable, DropdownMenu, ReactRouterDOM,
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
-   deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector */
+   deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
+   ChipRow, reconcileOccupancy, INTENDED_OCCUPANCY_LABEL */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -27,6 +28,9 @@ interface BatchRow {
   errorReason?: string;
   /** Optional user-supplied identifier per the May-2026 lender spec. */
   reference?: string;
+  /** Declared "as per loan" occupancy, mapped from the CSV column on upload.
+   *  Undefined = fall back to the batch default. */
+  intent?: IntendedOccupancy;
   /** The agentic AI report layered on top of the occupancy scan — mirrors
    *  LiveBatchRow.aiReport in AppState. Absent until AI is run on the row. */
   aiReport?: {
@@ -101,6 +105,10 @@ function BatchUpload() {
   const [titleTouched, setTitleTouched] = React.useState<boolean>(false);
   const [description, setDescription] = React.useState<string>('');
   const [addressColumn, setAddressColumn] = React.useState<string>('');
+  const [intentColumn, setIntentColumn] = React.useState<string>('');
+  // The "as per loan" occupancy default — applied to any property whose CSV
+  // occupancy cell is blank or unmapped. 'not-sure' = observed-only (safe).
+  const [defaultIntent, setDefaultIntent] = React.useState<IntendedOccupancy>('not-sure');
   const [advancedOpen, setAdvancedOpen] = React.useState<boolean>(false);
 
   function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
@@ -117,6 +125,8 @@ function BatchUpload() {
       title: title.trim() || undefined,
       description: description.trim() || undefined,
       addressColumn: addressColumn.trim() || undefined,
+      intentColumn: intentColumn.trim() || undefined,
+      defaultIntent,
     });
   }
 
@@ -218,6 +228,26 @@ function BatchUpload() {
             />
           </FormSection>
 
+          {/* ----- Declared occupancy (as per loan) ----- */}
+          <div className="mt-section-sub w-full max-w-[560px] flex flex-col gap-stack-tight">
+            <ChipRow
+              label="Default intended occupancy"
+              value={defaultIntent}
+              onChange={(v: string) => setDefaultIntent(v as IntendedOccupancy)}
+              options={[
+                { value: 'owner-occupied', label: 'Owner-occupied' },
+                { value: 'rental', label: 'Rental / investment' },
+                { value: 'second-home', label: 'Second home' },
+                { value: 'not-sure', label: 'Not sure' },
+              ]}
+            />
+            <p className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>
+              Applied to any property with no occupancy in the CSV. Per-property
+              values map from the occupancy column (set it under Advanced). We
+              compare each declaration against what the scan finds.
+            </p>
+          </div>
+
           {/* ----- Advanced (collapsed) ----- */}
           <div className="mt-section-sub w-full max-w-[560px]">
             <button
@@ -240,7 +270,7 @@ function BatchUpload() {
                 className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line normal-case tracking-normal"
                 style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}
               >
-                1 option
+                2 options
               </span>
             </button>
             {advancedOpen && (
@@ -252,6 +282,15 @@ function BatchUpload() {
                   hint="We auto-detect a column named 'address' by default."
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setAddressColumn(e.target.value)
+                  }
+                />
+                <Input
+                  label="Intended-occupancy column name"
+                  value={intentColumn}
+                  placeholder='e.g. "occupancy_type" or "intended_occupancy"'
+                  hint="Maps each property's declared occupancy (owner-occupied / rental / second home). Blank or unrecognised cells use the default above."
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setIntentColumn(e.target.value)
                   }
                 />
               </div>
@@ -383,6 +422,18 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
     startBatchAIReports(reportScope);
     setReportOpen(false);
   };
+
+  // Reconciliation roll-up across scanned rows — declared (as per loan) vs
+  // observed. Exceptions are the headline: occupancy that contradicts the file.
+  const reconcile = { exception: 0, consistent: 0, inconclusive: 0 };
+  rows.forEach((r) => {
+    if (r.status !== 'done') return;
+    const intent = r.intent ?? batch.defaultIntent ?? 'not-sure';
+    const rec = reconcileOccupancy(intent, r.risk);
+    if (rec) reconcile[rec] += 1;
+  });
+  const reconciledTotal =
+    reconcile.exception + reconcile.consistent + reconcile.inconclusive;
 
   // Per-status counts feed both the AutomateModal scope card and the
   // AutomationBanner. Re-derived on every render off the latest rows so the
@@ -656,6 +707,33 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         selected={verdictFilter === 'all' ? null : verdictFilter}
       />
 
+      {/* Reconciliation roll-up — declared (as per loan) vs observed. Exceptions
+          are the headline: occupancy that contradicts what the file declared. */}
+      {reconciledTotal > 0 && (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-line bg-surface px-4 py-3">
+          <span
+            className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase"
+            style={{ color: 'var(--ink-3)' }}
+          >
+            Declared vs observed
+          </span>
+          {([
+            ['exception', reconcile.exception, 'exception', 'exceptions'],
+            ['consistent', reconcile.consistent, 'consistent', 'consistent'],
+            ['inconclusive', reconcile.inconclusive, 'inconclusive', 'inconclusive'],
+          ] as const).map(([key, n, singular, plural]) => (
+            <span key={key} className="inline-flex items-center gap-1.5 font-sans text-body-sm">
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ background: RECONCILIATION_META[key].color }}
+              />
+              <strong className="tabular-nums" style={{ color: 'var(--ink-2)' }}>{n}</strong>
+              <span style={{ color: 'var(--ink-3)' }}>{n === 1 ? singular : plural}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Properties — same DataTable primitive as Home + History */}
       <div>
         <div className="flex items-end justify-between mb-stack-md gap-stack flex-wrap">
@@ -695,7 +773,11 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             </div>
           </div>
         </div>
-        <BatchTable rows={filteredRows} onRunRowAI={canRunAI ? runRowAIReport : undefined} />
+        <BatchTable
+          rows={filteredRows}
+          onRunRowAI={canRunAI ? runRowAIReport : undefined}
+          defaultIntent={batch.defaultIntent}
+        />
       </div>
 
       {/* Run occupancy reports — pick ANY combination of verdict statuses to
@@ -758,11 +840,14 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
 function BatchTable({
   rows,
   onRunRowAI,
+  defaultIntent,
 }: {
   rows: BatchRow[];
   /** Per-row "run AI now" handler. Undefined on the read-only historical
    *  view, which collapses the AI column's idle cell to a dash. */
   onRunRowAI?: (rowId: number) => void;
+  /** Batch-level occupancy default — applied to rows with no mapped intent. */
+  defaultIntent?: IntendedOccupancy;
 }) {
   const history = ReactRouterDOM.useHistory();
 
@@ -772,7 +857,10 @@ function BatchTable({
     }
   }
 
-  const columns = React.useMemo(() => buildBatchColumns(onRunRowAI), [onRunRowAI]);
+  const columns = React.useMemo(
+    () => buildBatchColumns(onRunRowAI, defaultIntent),
+    [onRunRowAI, defaultIntent]
+  );
 
   return (
     <DataTable
@@ -811,7 +899,18 @@ const ROUTE_FOR_RISK: Record<Risk, string> = {
 // Column definitions for the BatchTable. Mirrors the SCAN_COLUMNS shape
 // from HomeScreen so both data tables share rhythm, hover treatment, and
 // the table↔card switch via the global DataTable primitive.
-function buildBatchColumns(onRunRowAI?: (rowId: number) => void): any[] {
+// Reconciliation tag styling — a secondary annotation under the declared
+// value, deliberately quieter than the Verdict pill beside it.
+const RECONCILIATION_META: Record<string, { label: string; color: string }> = {
+  exception:    { label: 'Exception',    color: 'var(--warn-deep)' },
+  consistent:   { label: 'Consistent',   color: 'var(--clean-ink)' },
+  inconclusive: { label: 'Inconclusive', color: 'var(--ink-3)' },
+};
+
+function buildBatchColumns(
+  onRunRowAI?: (rowId: number) => void,
+  defaultIntent?: IntendedOccupancy
+): any[] {
   const cols: any[] = [
   {
     key: 'index',
@@ -904,6 +1003,36 @@ function buildBatchColumns(onRunRowAI?: (rowId: number) => void): any[] {
         );
       }
       return <Pill>Queued</Pill>;
+    },
+  },
+  {
+    key: 'declared',
+    label: 'Declared',
+    width: '156px',
+    hideBelow: 'md' as const,
+    cell: (row: BatchRow) => {
+      // Effective declaration: the row's mapped value, or the batch default.
+      const intent = row.intent ?? defaultIntent ?? 'not-sure';
+      const rec = row.status === 'done' ? reconcileOccupancy(intent, row.risk) : null;
+      return (
+        <div className="min-w-0 flex flex-col gap-0.5">
+          <span className="font-sans text-caption text-ink-2 truncate">
+            {INTENDED_OCCUPANCY_LABEL[intent]}
+          </span>
+          {rec && (
+            <span
+              className="inline-flex items-center gap-1 font-sans text-micro font-semibold"
+              style={{ color: RECONCILIATION_META[rec].color }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ background: RECONCILIATION_META[rec].color }}
+              />
+              {RECONCILIATION_META[rec].label}
+            </span>
+          )}
+        </div>
+      );
     },
   },
   {

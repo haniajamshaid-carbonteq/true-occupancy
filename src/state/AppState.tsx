@@ -121,10 +121,61 @@ interface BatchScheduleEntry {
 
 type ScheduleEntry = SingleScheduleEntry | BatchScheduleEntry;
 
+// ---- Intended (declared) occupancy — "as per loan" -----------------------
+// The occupancy the loan/policy says a property should be. Captured per
+// property (a CSV column on batch upload, or the single-scan intake) and
+// reconciled against the OBSERVED verdict so a finding can be judged: does
+// what we found contradict what was declared?
+type IntendedOccupancy = 'owner-occupied' | 'rental' | 'second-home' | 'not-sure';
+
+// Human labels — shared by the batch "Declared" column and the intake chips.
+const INTENDED_OCCUPANCY_LABEL: Record<IntendedOccupancy, string> = {
+  'owner-occupied': 'Owner-occupied',
+  rental: 'Rental / investment',
+  'second-home': 'Second home',
+  'not-sure': 'Not sure',
+};
+
+// Normalise a raw CSV cell to a canonical value. null = unrecognised (surfaced
+// at upload, then falls back to the batch default). Lenient + case/space-
+// insensitive; covers free text, single letters, and agency codes (P/S/I,
+// Fannie 1/2/3) as they appear in real LOS exports. This is the seam a live
+// CSV parser plugs into; the prototype seeds already-canonical values.
+function normalizeIntent(raw: string): IntendedOccupancy | null {
+  const s = (raw || '').trim().toLowerCase();
+  if (!s) return 'not-sure';
+  if (['owner-occupied', 'owner occupied', 'owner', 'primary', 'primary residence', 'oo', 'o', 'p', '1'].includes(s)) return 'owner-occupied';
+  if (['rental', 'investment', 'investment property', 'investor', 'non-owner', 'nonowner', 'noo', 'i', '3'].includes(s)) return 'rental';
+  if (['second-home', 'second home', '2nd home', 'secondary', 'vacation', 'seasonal', 's', '2'].includes(s)) return 'second-home';
+  if (['not-sure', 'unknown', 'n/a', 'na', 'tbd', '?'].includes(s)) return 'not-sure';
+  return null;
+}
+
+// Declared × observed → reconciliation. null when the row isn't scanned yet.
+// 'not-sure' never yields an exception (no reference to judge against). risk:
+// 'risk' = Rented (tenants), 'warn' = Possibly rented, 'clean' = Not rented.
+type Reconciliation = 'exception' | 'consistent' | 'inconclusive';
+function reconcileOccupancy(intent: IntendedOccupancy, risk?: Risk): Reconciliation | null {
+  if (!risk) return null;
+  if (intent === 'not-sure') return 'inconclusive';
+  if (intent === 'rental') {
+    // Non-owner occupancy is expected; only a "not rented" reading is unclear.
+    return risk === 'clean' ? 'inconclusive' : 'consistent';
+  }
+  // owner-occupied or second-home: tenants are NOT expected.
+  if (risk === 'risk') return 'exception';
+  if (risk === 'warn') return 'inconclusive';
+  return 'consistent';
+}
+
 interface LiveBatchRow {
   id: number;
   address: string;
   status: 'done' | 'running' | 'queued' | 'failed';
+  /** Declared "as per loan" occupancy for this property (CSV column on upload
+   *  or a per-row edit). Undefined = not declared → the batch default applies
+   *  at read time. Reconciled against `risk` once the row is scanned. */
+  intent?: IntendedOccupancy;
   score?: number;
   risk?: Risk;
   listings?: number;
@@ -152,6 +203,11 @@ interface LiveBatch {
   rows: LiveBatchRow[];
   status: 'running' | 'complete';
   startedAt: number;
+  /** Declared-occupancy config captured at upload. `defaultIntent` applies to
+   *  any row whose `intent` is undefined (blank cell / no column). `intentColumn`
+   *  records which CSV column was mapped, for audit. */
+  defaultIntent?: IntendedOccupancy;
+  intentColumn?: string;
   /** Set true once the user acknowledges the completed-batch notice on
    *  the dashboard. The strip hides; /batch still shows the results. */
   dismissed?: boolean;
@@ -354,21 +410,23 @@ const SEED_SCHEDULES: ScheduleEntry[] = [
 
 // Batch sample addresses — kept identical to the previous BatchScreen mock
 // so the prototype reads the same.
+// `intent` stands in for a mapped CSV occupancy column. Rows 11 & 12 are left
+// undefined on purpose, to exercise the batch-default fallback at read time.
 const SAMPLE_BATCH_ROWS: LiveBatchRow[] = [
-  { id: 1,  address: '1428 Maplewood Drive, Asheville, NC 28804', status: 'queued' },
-  { id: 2,  address: '502 N Liberty St, Asheville, NC 28801',     status: 'queued' },
-  { id: 3,  address: '800 Hilliard Ave, Asheville, NC 28801',     status: 'queued' },
-  { id: 4,  address: '145 Westchester Dr, Asheville, NC 28803',   status: 'queued' },
-  { id: 5,  address: '23 Tunnel Rd, Asheville, NC 28805',         status: 'queued' },
-  { id: 6,  address: '67 Charlotte Hwy, Asheville, NC 28803',     status: 'queued' },
-  { id: 7,  address: '215 Edgewood Rd, Asheville, NC 28804',      status: 'queued' },
-  { id: 8,  address: '88 Cumberland Ave, Asheville, NC 28801',    status: 'queued' },
-  { id: 9,  address: '301 Merrimon Ave, Asheville, NC 28804',     status: 'queued' },
-  { id: 10, address: '450 Patton Ave, Asheville, NC 28806',       status: 'queued' },
+  { id: 1,  address: '1428 Maplewood Drive, Asheville, NC 28804', status: 'queued', intent: 'owner-occupied' },
+  { id: 2,  address: '502 N Liberty St, Asheville, NC 28801',     status: 'queued', intent: 'owner-occupied' },
+  { id: 3,  address: '800 Hilliard Ave, Asheville, NC 28801',     status: 'queued', intent: 'rental' },
+  { id: 4,  address: '145 Westchester Dr, Asheville, NC 28803',   status: 'queued', intent: 'second-home' },
+  { id: 5,  address: '23 Tunnel Rd, Asheville, NC 28805',         status: 'queued', intent: 'owner-occupied' },
+  { id: 6,  address: '67 Charlotte Hwy, Asheville, NC 28803',     status: 'queued', intent: 'rental' },
+  { id: 7,  address: '215 Edgewood Rd, Asheville, NC 28804',      status: 'queued', intent: 'second-home' },
+  { id: 8,  address: '88 Cumberland Ave, Asheville, NC 28801',    status: 'queued', intent: 'owner-occupied' },
+  { id: 9,  address: '301 Merrimon Ave, Asheville, NC 28804',     status: 'queued', intent: 'owner-occupied' },
+  { id: 10, address: '450 Patton Ave, Asheville, NC 28806',       status: 'queued', intent: 'rental' },
   { id: 11, address: '12 Hillside St, Asheville, NC 28801',       status: 'queued' },
   { id: 12, address: '156 Sand Hill Rd, Asheville, NC 28806',     status: 'queued' },
-  { id: 13, address: '89 Beverly Rd, Asheville, NC 28805',        status: 'queued' },
-  { id: 14, address: '720 Haywood Rd, Asheville, NC 28806',       status: 'queued' },
+  { id: 13, address: '89 Beverly Rd, Asheville, NC 28805',        status: 'queued', intent: 'owner-occupied' },
+  { id: 14, address: '720 Haywood Rd, Asheville, NC 28806',       status: 'queued', intent: 'owner-occupied' },
 ];
 
 // Resolution table for the sim — when a row finishes we assign a score and
@@ -451,6 +509,8 @@ interface AppStateValue {
     title?: string;
     description?: string;
     addressColumn?: string;
+    intentColumn?: string;
+    defaultIntent?: IntendedOccupancy;
   }) => void;
   clearBatch: () => void;
   dismissBatch: () => void;
@@ -615,6 +675,9 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       rows: SAMPLE_BATCH_ROWS.map((r) => ({ ...r, status: 'queued' as const })),
       status: 'running',
       startedAt: Date.now(),
+      // Stands in for a detected occupancy column; unset rows fall to the default.
+      intentColumn: 'occupancy_type',
+      defaultIntent: 'not-sure',
       // Sample flow bypasses the form, so the title is derived (not user-set)
       // and there's no description or cadence. The header still reads cleanly
       // because BatchResults falls back to deriveTitleFromFilename().
@@ -635,6 +698,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       title?: string;
       description?: string;
       addressColumn?: string;
+      intentColumn?: string;
+      defaultIntent?: IntendedOccupancy;
     }) => {
       setLiveBatch({
         id: uid('lb'),
@@ -644,6 +709,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         startedAt: Date.now(),
         title: config.title?.trim() || undefined,
         description: config.description?.trim() || undefined,
+        intentColumn: config.intentColumn?.trim() || undefined,
+        defaultIntent: config.defaultIntent ?? 'not-sure',
       });
     },
     []
@@ -656,7 +723,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (!prev) return prev;
       const rows = prev.rows.map((r) =>
         r.id === id
-          ? { id: r.id, address: r.address, status: 'queued' as const }
+          ? { id: r.id, address: r.address, status: 'queued' as const, intent: r.intent }
           : r
       );
       return { ...prev, rows, status: 'running' };
