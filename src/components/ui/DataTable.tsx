@@ -317,14 +317,17 @@ function MobileCard<T>({
           {meta.map((c) => (
             <div
               key={c.key}
-              className="flex items-baseline justify-between gap-2 text-caption"
+              // flex-wrap so a wide value (e.g. a verdict Pill) drops to its own
+              // line under the label instead of being clipped by the label
+              // sharing the row. Short values still sit inline on the right.
+              className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-caption"
             >
               {c.label && (
                 <dt className="font-mono text-eyebrow uppercase tracking-[0.12em] text-ink-4 shrink-0">
                   {c.label}
                 </dt>
               )}
-              <dd className="text-ink-2 min-w-0 truncate text-right">
+              <dd className="text-ink-2 min-w-0 text-right">
                 {(c.mobileCell ?? c.cell)(row, index)}
               </dd>
             </div>

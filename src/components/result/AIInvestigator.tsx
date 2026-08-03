@@ -1,6 +1,6 @@
 /* global React, ReactRouterDOM, Card, Button, Icon, Drawer, AI_INVESTIGATIONS,
    useAIInvestigator, startAIInvestigation, resetAIInvestigation,
-   parseAIDemoStatus, formatReportDate */
+   parseAIDemoStatus, formatReportDate, formatUsDateTime, ServedStamp, RescanButton */
 // AIInvestigator — a second-opinion module that runs after the rule-based
 // verdict has rendered. Sits between ConfidenceHero and ListingsPanel on
 // the three result screens.
@@ -322,9 +322,7 @@ function IdleCard({ onRun }: { onRun: () => void }) {
           <SlotEyebrow />
           <SlotTitle>Find out who actually lives here</SlotTitle>
           <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-2 max-w-3xl">
-            Listings show the property is rented. This settles who is actually
-            in the property, giving you the evidence to weigh that claim with
-            confidence.
+            Settles who is in the property with evidence-backed confidence.
           </p>
         </div>
         <Button variant="spotlight" onClick={onRun} className="shrink-0">
@@ -560,7 +558,6 @@ function ReportCard({
   renderInline?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
-  const date = formatReportDate(generatedAt);
 
   return (
     <Card padded={false} className="card-rise" allowOverflow>
@@ -569,13 +566,16 @@ function ReportCard({
           drawer's job), then the single action. Enough to act on or to decide
           to open; not the whole report. */}
       <div className="p-card">
-        <SlotEyebrow />
-        <SlotTitle>{result.caseArchetype}</SlotTitle>
-        {date && (
-          <div className="font-sans text-caption text-ink-3 mt-2">
-            Generated {date}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <SlotEyebrow />
+            <SlotTitle>{result.caseArchetype}</SlotTitle>
           </div>
-        )}
+          <RescanButton label="Re-run occupancy report" icon="ai-star" />
+        </div>
+        <div className="mt-2">
+          <ServedStamp />
+        </div>
 
         <div className="mt-5 flex flex-wrap items-baseline gap-x-6 gap-y-2">
           <DigestStat label="Occupancy score" value={`${result.score}/${result.scoreMax}`} />
@@ -634,19 +634,7 @@ function ReportCard({
           <Drawer
             open={open}
             onClose={() => setOpen(false)}
-            title={
-              <span className="block">
-                {result.caseArchetype}
-                {date && (
-                  <span
-                    className="block font-sans text-caption font-normal text-ink-3 mt-1"
-                    style={{ letterSpacing: 'normal' }}
-                  >
-                    Generated {date}
-                  </span>
-                )}
-              </span>
-            }
+            title={<span className="block">{result.caseArchetype}</span>}
             width={600}
           >
             <ReportBody result={result} />

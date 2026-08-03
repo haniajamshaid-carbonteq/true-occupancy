@@ -1,6 +1,6 @@
 /* global React, AppShell, Card, Icon, Pill, Modal, Button, DataTable, AutomateModal, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress, deriveTitleFromFilename, ScreenError,
-   Cadence, ScopeRetention, cadenceLabel, sameCadence */
+   Cadence, ScopeRetention, cadenceLabel, sameCadence, isRedAddress, OCC_INTENT_LABEL, timeAgo */
 // Schedule detail — full page for a scheduled automation.
 // Layout:
 //   1. Header bar  — back link (left) + Cancel automation (right, destructive)
@@ -52,6 +52,13 @@ function ScheduleDetailScreen() {
   const runs: any[] = runIds
     .map((rid) => history.find((h: any) => h.id === rid))
     .filter(Boolean);
+
+  // How many addresses in this schedule are flagged red. Their automatic
+  // re-scans are driven by the global red-flag rule (Configuration), not by
+  // this schedule — the note below spells that out.
+  const redInSchedule = isBatch
+    ? (runs[0]?.rows || []).filter((r: any) => isRedAddress(r.address)).length
+    : schedule && isRedAddress(schedule.address) ? 1 : 0;
 
   function openRun(run: any) {
     if (run.kind === 'batch') {
@@ -139,7 +146,7 @@ function ScheduleDetailScreen() {
       label: 'Run',
       width: '160px',
       cell: (r: any) => (
-        <span className="font-mono tabular-nums text-caption text-ink-3">{r.scannedAgo}</span>
+        <span className="font-mono tabular-nums text-caption text-ink-3">{timeAgo(r.scannedAt)}</span>
       ),
     },
     {
@@ -303,14 +310,62 @@ function ScheduleDetailScreen() {
                       value={currentRetention === 'monitor' ? 'Keep monitoring' : 'Remove from automation'}
                     />
                   )}
+                  {schedule.intent && OCC_INTENT_LABEL[schedule.intent] && (
+                    <RuleField label="Intended occupancy" value={OCC_INTENT_LABEL[schedule.intent]} />
+                  )}
                   <RuleField label="Next run" value={schedule.nextRunLabel} />
-                  <RuleField label="Created" value={schedule.createdAgo} />
+                  <RuleField label="Created" value={timeAgo(schedule.createdAt)} />
                   <RuleField label="Runs to date" value={String(runs.length)} />
                 </dl>
               </>
             )}
           </div>
         </Card>
+
+        {/* Red-flag note — clarifies that any red-flagged addresses in this
+            schedule are re-scanned by the global rule in Configuration, not by
+            this automation. Resolves the "why is this red / what triggers it"
+            confusion between normal schedules and red-flag automations. */}
+        {redInSchedule > 0 && (
+          <div className="rounded-lg p-3 flex items-start gap-inline bg-risk-soft">
+            <span className="shrink-0 mt-0.5 [&>svg]:w-4 [&>svg]:h-4" style={{ color: 'var(--risk)' }} aria-hidden>
+              <Icon name="warning" size={16} />
+            </span>
+            <p className="font-sans text-caption" style={{ color: 'var(--risk-ink)' }}>
+              <span className="tabular-nums font-medium">{redInSchedule}</span>{' '}
+              {redInSchedule === 1 ? 'address' : 'addresses'} in this{' '}
+              {isBatch ? 'batch' : 'schedule'}{' '}
+              {redInSchedule === 1 ? 'is' : 'are'} flagged red. Red-flagged addresses
+              are re-scanned automatically under the rule set in{' '}
+              <button
+                type="button"
+                className="underline underline-offset-2 hover:no-underline font-medium"
+                onClick={() => routerHistory.push('/settings/scan')}
+                style={{ color: 'var(--risk-ink)' }}
+              >
+                Configuration &rarr; Recurring scans
+              </button>
+              , separate from this schedule.
+              {isBatch && runs[0] && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className="underline underline-offset-2 hover:no-underline font-medium"
+                    onClick={() => {
+                      sessionStorage.setItem('batchOpenRedFilter', '1');
+                      routerHistory.push(`/batch/${runs[0].id}`);
+                    }}
+                    style={{ color: 'var(--risk-ink)' }}
+                  >
+                    View {redInSchedule === 1 ? 'it' : 'them'}
+                  </button>
+                  .
+                </>
+              )}
+            </p>
+          </div>
+        )}
 
         {/* Run history */}
         <div>

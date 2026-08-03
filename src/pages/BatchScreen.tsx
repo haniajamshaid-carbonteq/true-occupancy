@@ -1,7 +1,8 @@
 /* global React, AppShell, Card, Button, Pill, Icon, Input, Textarea, DataTable, DropdownMenu, ReactRouterDOM,
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
    deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
-   ChipRow, reconcileOccupancy, INTENDED_OCCUPANCY_LABEL */
+   ChipRow, reconcileOccupancy, INTENDED_OCCUPANCY_LABEL, isRedAddress, RedFlag, RedFilterToggle,
+   redRecordFor, RedPropertyDrawer, OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -41,7 +42,7 @@ interface BatchRow {
 }
 
 const SAMPLE_BATCH: BatchRow[] = [
-  { id: 1,  address: '1428 Maplewood Drive, Asheville, NC 28804', status: 'done', score: 87, risk: 'risk',  listings: 4 },
+  { id: 1,  address: '412 Cumberland Ave, Asheville, NC 28801',   status: 'done', score: 87, risk: 'risk',  listings: 4 },
   { id: 2,  address: '502 N Liberty St, Asheville, NC 28801',     status: 'done', score: 12, risk: 'clean', listings: 0 },
   { id: 3,  address: '800 Hilliard Ave, Asheville, NC 28801',     status: 'done', score: 54, risk: 'warn',  listings: 1 },
   { id: 4,  address: '145 Westchester Dr, Asheville, NC 28803',   status: 'done', score: 76, risk: 'risk',  listings: 3 },
@@ -58,9 +59,8 @@ const SAMPLE_BATCH: BatchRow[] = [
 ];
 
 // "Just now" within a minute, "N min ago" / "N h ago" / "N d ago" after.
-// Matches the relative-label voice used by history's `scannedAgo` so the
-// live identity-strip caption reads identically once the batch lands in
-// history.
+// Relative-label formatter for the live batch identity strip; once the
+// batch lands in history its `scannedAt` epoch drives `timeAgo()` instead.
 function formatStartedAgo(startedAt: number): string {
   const elapsedMs = Date.now() - startedAt;
   const min = Math.floor(elapsedMs / 60000);
@@ -105,7 +105,6 @@ function BatchUpload() {
   const [titleTouched, setTitleTouched] = React.useState<boolean>(false);
   const [description, setDescription] = React.useState<string>('');
   const [addressColumn, setAddressColumn] = React.useState<string>('');
-  const [intentColumn, setIntentColumn] = React.useState<string>('');
   // The "as per loan" occupancy default — applied to any property whose CSV
   // occupancy cell is blank or unmapped. 'not-sure' = observed-only (safe).
   const [defaultIntent, setDefaultIntent] = React.useState<IntendedOccupancy>('not-sure');
@@ -125,7 +124,6 @@ function BatchUpload() {
       title: title.trim() || undefined,
       description: description.trim() || undefined,
       addressColumn: addressColumn.trim() || undefined,
-      intentColumn: intentColumn.trim() || undefined,
       defaultIntent,
     });
   }
@@ -228,10 +226,14 @@ function BatchUpload() {
             />
           </FormSection>
 
-          {/* ----- Declared occupancy (as per loan) ----- */}
+          {/* ----- Intended occupancy (as per loan) — batch level -----
+               One declaration for the whole batch. Per-row occupancy was
+               dropped at the client's direction: intended behaviour is a
+               batch-level fact, not row-level. Every property in the batch
+               inherits this value, reconciled against what its scan finds. */}
           <div className="mt-section-sub w-full max-w-[560px] flex flex-col gap-stack-tight">
             <ChipRow
-              label="Default intended occupancy"
+              label="Intended Occupancy"
               value={defaultIntent}
               onChange={(v: string) => setDefaultIntent(v as IntendedOccupancy)}
               options={[
@@ -242,9 +244,8 @@ function BatchUpload() {
               ]}
             />
             <p className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>
-              Applied to any property with no occupancy in the CSV. Per-property
-              values map from the occupancy column (set it under Advanced). We
-              compare each declaration against what the scan finds.
+              Applied to every property in this batch. We compare it against
+              what each scan finds and flag the ones that don&rsquo;t match.
             </p>
           </div>
 
@@ -270,7 +271,7 @@ function BatchUpload() {
                 className="tabular-nums text-micro font-semibold px-1.5 py-0.5 rounded border border-line normal-case tracking-normal"
                 style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}
               >
-                2 options
+                1 option
               </span>
             </button>
             {advancedOpen && (
@@ -282,15 +283,6 @@ function BatchUpload() {
                   hint="We auto-detect a column named 'address' by default."
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setAddressColumn(e.target.value)
-                  }
-                />
-                <Input
-                  label="Intended-occupancy column name"
-                  value={intentColumn}
-                  placeholder='e.g. "occupancy_type" or "intended_occupancy"'
-                  hint="Maps each property's declared occupancy (owner-occupied / rental / second home). Blank or unrecognised cells use the default above."
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setIntentColumn(e.target.value)
                   }
                 />
               </div>
@@ -372,6 +364,8 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
     findScheduleByTarget,
     renameBatch,
     setBatchDescription,
+    isRedStopped,
+    setRedStopped,
   } = useAppState();
   const rows: BatchRow[] = batch.rows;
   const total = rows.length;
@@ -405,6 +399,10 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   // accepts any Risk[]; this lets the UI express it.
   const [reportOpen, setReportOpen] = React.useState(false);
   const [reportScope, setReportScope] = React.useState<Risk[]>(['risk']);
+  const [lastReportRun, setLastReportRun] = React.useState<{
+    time: Date;
+    categories: Risk[];
+  } | null>(null);
 
   // Rows a run with the current scope would actually queue: completed,
   // in-scope, and not already holding a done report (failed ones re-run).
@@ -420,6 +418,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const runReports = () => {
     if (reportScope.length === 0 || reportEligible === 0) return;
     startBatchAIReports(reportScope);
+    setLastReportRun({ time: new Date(), categories: [...reportScope] });
     setReportOpen(false);
   };
 
@@ -444,8 +443,35 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   type VerdictFilter = 'all' | 'risk' | 'warn' | 'clean';
   const [query, setQuery] = React.useState('');
   const [verdictFilter, setVerdictFilter] = React.useState<VerdictFilter>('all');
+  const [redOnly, setRedOnly] = React.useState(false);
+  // Red property drawer (same one single-property + Scheduled use), opened
+  // when a red row inside the batch is clicked.
+  const [redSelected, setRedSelected] = React.useState<any>(null);
+  const [redMode, setRedMode] = React.useState('detail');
+  // How many properties in THIS batch are flagged red (scan contradicts the
+  // declared occupancy). Drives the scoped "Red flags" filter on the table.
+  const redCount = rows.filter((r) => isRedAddress(r.address)).length;
+
+  // Arriving from a "N red" badge pre-applies the red filter so the user lands
+  // on just the red properties. One-shot: cleared once read.
+  React.useEffect(() => {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('batchOpenRedFilter') === '1') {
+      sessionStorage.removeItem('batchOpenRedFilter');
+      if (redCount > 0) setRedOnly(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openRedRow = (row: BatchRow) => {
+    const rec = redRecordFor(row.address);
+    setRedSelected(
+      rec || { address: row.address, intent: batch.defaultIntent, verdict: 'rented', confidence: row.score }
+    );
+    setRedMode('detail');
+  };
 
   const filteredRows = rows.filter((r) => {
+    if (redOnly && !isRedAddress(r.address)) return false;
     if (verdictFilter !== 'all') {
       if (r.status !== 'done' || r.risk !== verdictFilter) return false;
     }
@@ -456,11 +482,8 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const toggleVerdict = (v: 'risk' | 'warn' | 'clean') =>
     setVerdictFilter((cur) => (cur === v ? 'all' : v));
 
-  // Identity-strip "uploaded" label. Live batches carry `startedAt` (epoch);
-  // history entries carry `scannedAgo` (pre-formatted). Falling back to
-  // "Just now" preserves the column on freshly-completed batches.
   const uploadedLabel: string =
-    batch.scannedAgo ?? (batch.startedAt ? formatStartedAgo(batch.startedAt) : 'Just now');
+    batch.scannedAt ? timeAgo(batch.scannedAt) : (batch.startedAt ? formatStartedAgo(batch.startedAt) : 'Just now');
 
   // Resolved display title — user-chosen, falling back to a derived label so
   // legacy seeds and unnamed batches still read as a name, not a filename.
@@ -724,6 +747,13 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             Properties
           </h3>
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            {redCount > 0 && (
+              <RedFilterToggle
+                active={redOnly}
+                count={redCount}
+                onToggle={() => setRedOnly((v) => !v)}
+              />
+            )}
             {onRetryAllFailed && failedCount > 0 && (
               <button
                 type="button"
@@ -757,8 +787,28 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           rows={filteredRows}
           onRunRowAI={canRunAI ? runRowAIReport : undefined}
           defaultIntent={batch.defaultIntent}
+          onOpenRed={openRedRow}
+          redView={redOnly}
         />
       </div>
+
+      {/* Red property drawer — a red row opens the same panel as a single
+          property, so the user can stop its (globally-driven) scan here. */}
+      <RedPropertyDrawer
+        open={!!redSelected}
+        onClose={() => {
+          setRedSelected(null);
+          setRedMode('detail');
+        }}
+        property={
+          redSelected
+            ? { ...redSelected, scansStopped: isRedStopped?.(redSelected.address) }
+            : null
+        }
+        mode={redMode as any}
+        onModeChange={setRedMode}
+        onApply={setRedStopped}
+      />
 
       {/* Run occupancy reports — pick ANY combination of verdict statuses to
           reason over, then run. Multi-select replaces the old cumulative-only
@@ -811,6 +861,18 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             ? 'No completed rows in the selected statuses need a report right now.'
             : `${reportEligible} ${reportEligible === 1 ? 'row' : 'rows'} will be queued.`}
         </p>
+        {lastReportRun && (
+          <p className="text-caption text-ink-3 mt-2">
+            <span className="font-medium">Note:</span>{' '}
+            Last run {lastReportRun.time.toLocaleString('en-US', {
+              month: 'short', day: 'numeric', hour: 'numeric',
+              minute: '2-digit', hour12: true,
+            })}{' · '}
+            {lastReportRun.categories.map(c =>
+              c === 'risk' ? 'Rented' : c === 'warn' ? 'Possibly Rented' : 'Not Rented'
+            ).join(', ')}
+          </p>
+        )}
       </Modal>
 
     </div>
@@ -821,6 +883,8 @@ function BatchTable({
   rows,
   onRunRowAI,
   defaultIntent,
+  onOpenRed,
+  redView,
 }: {
   rows: BatchRow[];
   /** Per-row "run AI now" handler. Undefined on the read-only historical
@@ -828,18 +892,28 @@ function BatchTable({
   onRunRowAI?: (rowId: number) => void;
   /** Batch-level occupancy default — applied to rows with no mapped intent. */
   defaultIntent?: IntendedOccupancy;
+  /** A red row opens the red property drawer instead of the result screen. */
+  onOpenRed?: (row: BatchRow) => void;
+  /** Red-flags filter is active — show Declared vs Found instead of the
+   *  score/AI columns, so the user can see WHY each row is red. */
+  redView?: boolean;
 }) {
   const history = ReactRouterDOM.useHistory();
 
   function openIfDone(row: BatchRow) {
+    // Red rows open the red drawer (stop its scan) — same as a single property.
+    if (onOpenRed && isRedAddress(row.address)) {
+      onOpenRed(row);
+      return;
+    }
     if (row.status === 'done' && row.risk) {
       history.push(ROUTE_FOR_RISK[row.risk]);
     }
   }
 
   const columns = React.useMemo(
-    () => buildBatchColumns(onRunRowAI, defaultIntent),
-    [onRunRowAI, defaultIntent]
+    () => (redView ? buildBatchRedColumns(defaultIntent) : buildBatchColumns(onRunRowAI, defaultIntent)),
+    [onRunRowAI, defaultIntent, redView]
   );
 
   return (
@@ -870,6 +944,69 @@ const VERDICT_LABEL: Record<Risk, string> = {
 
 // Map a row's risk band to the matching detail-screen route, so the demo
 // has somewhere believable to drill into.
+// Column set shown when the batch table is filtered to Red flags. Trades the
+// score/listings/AI columns for Declared vs Found, so the reason a row is red
+// is visible in-line (mirrors the standalone red list). Few, modest widths so
+// the address track keeps its room.
+function buildBatchRedColumns(defaultIntent?: IntendedOccupancy): any[] {
+  const verdictOf = (row: BatchRow): string => {
+    const rec = redRecordFor(row.address);
+    if (rec?.verdict) return rec.verdict;
+    return row.risk === 'risk' ? 'rented' : row.risk === 'warn' ? 'possibly-rented' : 'not-rented';
+  };
+  const intentOf = (row: BatchRow): string => redRecordFor(row.address)?.intent ?? defaultIntent ?? 'owner-occupied';
+  return [
+    {
+      key: 'address',
+      label: 'Address',
+      primary: true,
+      cell: (row: BatchRow) => {
+        const [street, locality] = splitAddress(row.address);
+        return (
+          <div className="min-w-0">
+            <div className="flex items-center gap-inline min-w-0">
+              <span className="font-sans font-semibold text-body-sm leading-tight truncate" style={{ color: 'var(--navy)' }}>
+                {street}
+              </span>
+              {isRedAddress(row.address) && <RedFlag />}
+            </div>
+            {locality && (
+              <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">{locality}</div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'declared',
+      label: 'Declared',
+      width: '132px',
+      hideBelow: 'md' as const,
+      cell: (row: BatchRow) => (
+        <span className="font-sans text-caption text-ink-2">{OCC_INTENT_SHORT[intentOf(row)]}</span>
+      ),
+    },
+    {
+      key: 'found',
+      label: 'Found',
+      width: '132px',
+      cell: (row: BatchRow) => (
+        <span className="font-sans text-caption text-ink-2">{OCC_VERDICT_LABEL[verdictOf(row)]}</span>
+      ),
+    },
+    {
+      key: 'score',
+      label: 'Score',
+      width: '72px',
+      align: 'right' as const,
+      hideBelow: 'lg' as const,
+      cell: (row: BatchRow) => (
+        <span className="font-mono tabular-nums text-caption text-ink-3">{row.score ?? '—'}</span>
+      ),
+    },
+  ];
+}
+
 const ROUTE_FOR_RISK: Record<Risk, string> = {
   risk: '/result/high',
   warn: '/result/medium',
@@ -912,11 +1049,14 @@ function buildBatchColumns(
       const dim = row.status === 'queued';
       return (
         <div className={`min-w-0 ${dim ? 'opacity-60' : ''}`}>
-          <div
-            className="font-sans font-semibold text-body-sm leading-tight truncate"
-            style={{ color: 'var(--navy)' }}
-          >
-            {street}
+          <div className="flex items-center gap-inline min-w-0">
+            <span
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {street}
+            </span>
+            {isRedAddress(row.address) && <RedFlag />}
           </div>
           {locality && (
             <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">

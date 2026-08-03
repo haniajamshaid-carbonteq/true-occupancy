@@ -1,0 +1,552 @@
+<title>TrueOccupancy &mdash; Prioritize a scan flow</title>
+<style>
+  /* ============================================================
+     Tokens — copied from src/styles/tokens.css (source of truth).
+     Product surface is a committed light world (DESIGN.md §13);
+     the flow chrome around it matches. Single-theme by intent.
+     ============================================================ */
+  :root {
+    --bg: #F4F6F8;
+    --surface: #FFFFFF;
+    --surface-2: #F2F2F2;
+    --pill-neutral-bg: #F6F7F8;
+    --line: #E5E7EB;
+    --line-strong: #CBD5E1;
+    --hover-bg: #E8EBF0;
+    --ink: #1C1C1E;
+    --ink-2: #142D55;
+    --ink-3: #475569;
+    --ink-4: #94A3B8;
+    --brand: #0AB7A3;
+    --brand-2: #0498C6;
+    --brand-soft: #E6F8F5;
+    --brand-tint: #F2FBFA;
+    --brand-deep: #015E7A;
+    --brand-mid: #02AF9B;
+    --navy: #142D55;
+    --clean: #0AB7A3; --clean-soft: #E6F8F5; --clean-ink: #015E7A;
+    --warn: #EDA436; --warn-soft: #FDF1DC; --warn-ink: #6B4914;
+    --risk: #C0533C; --risk-soft: #FBE3DB; --risk-ink: #6F2917;
+    --error: #DC2626; --error-soft: #FEE2E2; --error-ink: #7F1D1D;
+    /* verdict tones — categorical & neutral (Rented / Possibly / Not rented) */
+    --verdict-high: #A855F7; --verdict-high-soft: #F3E8FF; --verdict-high-ink: #6B21A8;
+    --verdict-med:  #EAB308; --verdict-med-soft:  #FEF9C3; --verdict-med-ink:  #854D0E;
+    --verdict-low:  #3B82F6; --verdict-low-soft:  #DBEAFE; --verdict-low-ink:  #1E3A8A;
+
+    --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 10px; --r-xl: 14px;
+    --r-2xl: 16px; --r-pill: 999px; --r-dock: 22px;
+
+    --shadow-sm: 0 1px 3px rgba(20,45,85,.055), 0 1px 1px rgba(20,45,85,.035);
+    --shadow-md: 0 4px 16px -4px rgba(20,45,85,.09), 0 2px 5px rgba(20,45,85,.05);
+    --shadow-lg: 0 24px 48px -16px rgba(20,45,85,.14), 0 8px 16px -8px rgba(20,45,85,.07);
+
+    --sans: "Century Gothic", "CenturyGothic", "Jost", "URW Geometric", "Futura PT", "Avenir Next", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --brand-gradient: linear-gradient(90deg, #0AB7A3 0%, #0498C6 100%);
+    --scrim: rgba(0,0,0,.40);
+
+    --canvas: #E7ECF1;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: var(--sans); background: var(--canvas); color: var(--ink); -webkit-font-smoothing: antialiased; line-height: 1.5; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* ---------- Flow chrome ---------- */
+  .flow-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+  .flow-title { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.014em; color: var(--navy); line-height: 1.15; }
+  .flow-sub { margin: 10px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--ink-3); max-width: 66ch; }
+  .flow-tag { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; color: var(--brand-deep); background: var(--brand-soft); border-radius: var(--r-pill); padding: 6px 12px; white-space: nowrap; }
+
+  .rail-lbl { font-family: var(--mono); text-transform: uppercase; letter-spacing: .16em; font-size: 10px; color: var(--ink-4); font-weight: 600; margin-bottom: 11px; }
+  .rail-steps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 0; }
+  .rail-step { appearance: none; cursor: pointer; font-family: var(--sans); display: inline-flex; align-items: center; gap: 8px;
+    height: 34px; padding: 0 13px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--surface); color: var(--ink-3);
+    font-size: 12px; font-weight: 500; transition: background-color .15s, border-color .15s, color .15s; }
+  .rail-step:hover { border-color: var(--line-strong); color: var(--ink-2); }
+  .rail-step .n { font-family: var(--mono); font-size: 11px; color: var(--ink-4); }
+  .rail-step[aria-current="true"] { background: var(--brand-tint); border-color: var(--brand); color: var(--brand-deep); }
+  .rail-step[aria-current="true"] .n { color: var(--brand-deep); }
+
+  /* caption is its own panel, with a clear title → body → note rhythm */
+  .caption { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; margin: 24px 0 22px; padding: 24px 26px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+  .caption-body { min-width: 0; }
+  .eyebrow { display: block; font-family: var(--mono); text-transform: uppercase; letter-spacing: .16em; font-size: 10px; color: var(--brand-deep); font-weight: 700; margin-bottom: 12px; }
+  .caption h2 { margin: 0 0 12px; font-size: 20px; font-weight: 700; color: var(--navy); letter-spacing: -.008em; line-height: 1.25; text-wrap: balance; }
+  .caption p { margin: 0; font-size: 13.5px; line-height: 1.7; color: var(--ink-3); max-width: 74ch; }
+  .devnote { margin-top: 18px; display: flex; flex-direction: column; gap: 6px; background: var(--brand-tint); border: 1px solid var(--brand-soft); border-left: 3px solid var(--brand); border-radius: var(--r-sm); padding: 12px 15px; }
+  .devnote b { color: var(--brand-deep); font-weight: 700; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+  .devnote .txt { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+  .nav-btns { display: flex; gap: 8px; flex-shrink: 0; align-self: flex-start; }
+
+  /* ---------- Device frame ---------- */
+  .device { border-radius: var(--r-xl); overflow: hidden; box-shadow: var(--shadow-lg); border: 1px solid var(--line-strong); background: var(--surface); }
+  .device-bar { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; background: #EDF0F4; border-bottom: 1px solid var(--line); }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 10px; height: 10px; border-radius: 50%; background: #CFD6DE; display: block; }
+  .url { font-family: var(--mono); font-size: 11px; color: var(--ink-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 3px 12px; }
+
+  .app { position: relative; display: flex; min-height: 640px; background: var(--bg); }
+  /* when the dock is showing, drop the content so the pill never overlaps the title */
+  .app.dock-on .main { padding-top: 76px; }
+
+  /* ---------- Side nav ---------- */
+  .rail { width: 248px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--line); padding: 18px 14px; display: flex; flex-direction: column; gap: 22px; }
+  .brand-lock { display: flex; align-items: center; gap: 10px; }
+  .mark { width: 40px; height: 40px; border-radius: 11px; background: var(--brand-gradient); flex-shrink: 0; position: relative; box-shadow: 0 2px 6px rgba(4,152,198,.3); }
+  .mark::after { content: ""; position: absolute; inset: 11px; border-radius: 50%; border: 2px solid rgba(255,255,255,.9); border-right-color: transparent; transform: rotate(-45deg); }
+  .brand-name { font-size: 16px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--navy); line-height: 1.1; }
+  .brand-prod { font-size: 11px; font-weight: 500; color: var(--brand-deep); }
+  .nav-group { display: flex; flex-direction: column; gap: 2px; }
+  .nav-row { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: var(--r-md); font-size: 13px; font-weight: 500; color: var(--navy); text-decoration: none; cursor: pointer; }
+  .nav-row:hover { background: var(--hover-bg); }
+  .nav-row.active { background: var(--brand-tint); color: var(--brand-deep); }
+  .nav-row svg { width: 15px; height: 15px; opacity: .8; flex-shrink: 0; }
+  .nav-spacer { flex: 1; }
+
+  /* ---------- Content ---------- */
+  .main { flex: 1; min-width: 0; padding: 28px 32px 40px; overflow: hidden; }
+  .content { display: none; }
+  .content.active { display: block; animation: fade .2s ease both; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  h1.page { margin: 0 0 7px; font-size: 30px; font-weight: 700; letter-spacing: -.01em; color: var(--navy); line-height: 1.1; }
+  .page-sub { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-3); }
+  .idstrip { font-family: var(--mono); font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 28px; }
+  .head-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+  .card.pad { padding: 24px; }
+
+  /* buttons */
+  .btn { appearance: none; cursor: pointer; font-family: var(--sans); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 36px; padding: 0 14px; border-radius: var(--r-lg); font-size: 13px; font-weight: 500; border: 1px solid var(--line-strong);
+    background: var(--surface); color: var(--ink-2); transition: background-color .15s, border-color .15s, color .15s, transform .1s; }
+  .btn:hover { background: var(--hover-bg); }
+  .btn:active { transform: scale(.97); }
+  .btn svg { width: 14px; height: 14px; }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn.primary:hover { background: var(--brand-deep); border-color: var(--brand-deep); }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
+  .btn.ghost:hover { background: var(--hover-bg); }
+  .btn.sm { height: 32px; padding: 0 12px; font-size: 12px; }
+  .btn.spotlight { background: var(--brand-gradient); border-color: transparent; color: #fff; }
+  .btn.spotlight:hover { filter: brightness(1.05); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn:disabled:hover { background: var(--surface); }
+
+  /* pills */
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: var(--r-pill);
+    font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; border: 1px solid transparent; white-space: nowrap; }
+  .pill.neutral { background: var(--pill-neutral-bg); color: var(--ink-2); border-color: var(--line); }
+  .pill.brand { background: var(--brand-soft); color: var(--brand-deep); }
+  .pill svg { width: 12px; height: 12px; }
+  .pill.dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pill.vh { background: var(--verdict-high-soft); color: var(--verdict-high-ink); }
+  .pill.vm { background: var(--verdict-med-soft); color: var(--verdict-med-ink); }
+  .pill.vl { background: var(--verdict-low-soft); color: var(--verdict-low-ink); }
+
+  /* batch summary: progress header + three verdict cards */
+  .scan-card { padding: 22px 26px; margin-bottom: 16px; }
+  .scan-card-title { font-size: 22px; font-weight: 700; color: var(--navy); margin-bottom: 16px; }
+  .scan-prog-row { display: flex; align-items: center; gap: 16px; }
+  .scan-prog { flex: 1; height: 8px; border-radius: var(--r-pill); background: var(--line); overflow: hidden; }
+  .scan-prog > i { display: block; height: 100%; border-radius: var(--r-pill); background: var(--brand-gradient); }
+  .scan-prog-lbl { font-family: var(--mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .vcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 22px; }
+  .vcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 20px 22px; box-shadow: var(--shadow-sm); }
+  .vcard-top { display: flex; align-items: center; justify-content: space-between; }
+  .vcard-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; font-weight: 600; color: var(--ink-3); }
+  .vcard-ic { width: 28px; height: 28px; border-radius: var(--r-sm); background: var(--brand-soft); color: var(--brand-deep); display: grid; place-items: center; }
+  .vcard-ic svg { width: 15px; height: 15px; }
+  .vcard-num { font-size: 34px; font-weight: 700; color: var(--navy); margin-top: 16px; font-variant-numeric: tabular-nums; line-height: 1; }
+  @media (max-width: 640px) { .vcards { grid-template-columns: 1fr; } }
+
+  /* table + caption */
+  .tbl-cap { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; min-height: 28px; }
+  .tbl-cap .cap-l { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; font-weight: 600; color: var(--ink-3); }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px; }
+  thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); font-weight: 600;
+    padding: 11px 14px; background: var(--surface-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--ink-2); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) td { background: #FAFBFC; }
+  .addr { font-weight: 500; color: var(--navy); }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .muted { color: var(--ink-4); }
+  .scan-txt { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-3); font-size: 13px; }
+  .ai-queued { color: var(--ink-4); font-size: 13px; }
+
+  /* the prioritized row gets a subtle brand wash so it reads as "jumped ahead" */
+  tr.row-priority td { background: var(--brand-tint) !important; }
+
+  /* single report chrome (report header shared with the live report page) */
+  .rpt-top { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; }
+  .rpt-back { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 500; color: var(--navy); text-decoration: none; cursor: pointer; }
+  .rpt-back svg { width: 16px; height: 16px; }
+  .rpt-addr { font-size: 18px; font-weight: 700; color: var(--navy); }
+  .rpt-dl { margin-left: auto; }
+  .rpt-dl svg { width: 15px; height: 15px; }
+  .eyebrow2 { font-size: 10px; text-transform: uppercase; letter-spacing: .14em; font-weight: 600; color: var(--ink-3); }
+  .rpt-card { padding: 28px 30px; margin-bottom: 16px; }
+  .rpt-hero { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; }
+  .rpt-hero-l { flex-shrink: 0; min-width: 220px; }
+  .rpt-verdict { font-size: 44px; font-weight: 700; color: var(--navy); line-height: 1; letter-spacing: -.02em; }
+  .rpt-conf { font-size: 14px; color: var(--ink-2); margin-top: 12px; }
+  .rpt-conf b { font-weight: 700; }
+  .rpt-ref { margin-top: 18px; display: flex; align-items: center; gap: 9px; }
+  .rpt-ref .lnk { font-size: 13px; color: var(--ink-4); text-decoration: none; cursor: pointer; }
+  .rpt-hero-r { flex: 1; min-width: 260px; padding-top: 4px; }
+  .rpt-sum-title { font-size: 15px; font-weight: 700; color: var(--navy); }
+  .rpt-sum-p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--ink-3); max-width: 60ch; }
+  .sec-h { font-size: 19px; font-weight: 700; color: var(--navy); margin: 34px 0 14px; }
+
+  /* AI report panel — sits on top of a scanned report as the run-AI CTA */
+  .ai-panel { border: 1px solid var(--brand-soft); background: var(--brand-tint); border-radius: var(--r-lg); padding: 16px 18px; margin-bottom: 18px; }
+  .ai-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .ai-panel-lead { display: flex; align-items: center; gap: 13px; min-width: 0; }
+  .ai-panel-ic { width: 36px; height: 36px; border-radius: var(--r-md); background: #fff; color: var(--brand-deep); display: grid; place-items: center; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+  .ai-panel-ic svg { width: 18px; height: 18px; }
+  .ai-panel-title { font-size: 14px; font-weight: 700; color: var(--navy); }
+  .ai-panel-sub { font-size: 12.5px; color: var(--ink-3); margin-top: 1px; }
+
+  /* pending report — unscanned property opened from a row */
+  .pending-card { padding: 40px 30px; text-align: center; margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; }
+  .pending-ic { width: 54px; height: 54px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-deep); display: grid; place-items: center; margin-bottom: 18px; }
+  .pending-ic svg { width: 25px; height: 25px; }
+  .pending-title { font-size: 22px; font-weight: 700; color: var(--navy); }
+  .pending-sub { font-size: 14px; line-height: 1.6; color: var(--ink-3); max-width: 52ch; margin: 9px 0 22px; }
+  .pending-sub b { color: var(--ink-2); font-weight: 600; }
+  .pending-cta { height: 46px; padding: 0 24px; font-size: 14px; }
+  .pending-cta svg { width: 16px; height: 16px; }
+  .pending-note { display: flex; align-items: center; gap: 8px; margin-top: 18px; font-size: 12px; color: var(--ink-3); }
+  .pending-note svg { width: 14px; height: 14px; color: var(--brand-deep); flex-shrink: 0; }
+
+  /* ---------- Notification dock ---------- */
+  .dock { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 90; display: none; }
+  .dock.show { display: block; animation: dockin .3s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes dockin { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  .dockpill { display: inline-flex; align-items: center; gap: 11px; height: 44px; padding: 0 18px; border-radius: var(--r-dock); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-md); min-width: 300px; }
+  .dock-chip { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; }
+  .dock-chip.running, .dock-chip.ai { background: var(--brand-soft); color: var(--brand-deep); }
+  .dock-chip.done { background: var(--clean-soft); color: var(--clean-ink); }
+  .dock-chip svg { width: 14px; height: 14px; }
+  .dock-txt .t { font-size: 12.5px; font-weight: 600; color: var(--ink-2); line-height: 1.2; }
+  .dock-txt .s { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .dock-rail { width: 66px; height: 3px; border-radius: var(--r-pill); background: var(--line); overflow: hidden; margin-left: 2px; }
+  .dock-rail > i { display: block; height: 100%; border-radius: var(--r-pill); background: var(--brand-gradient); }
+
+  /* ---------- Notification popup (priority scan done) ---------- */
+  .toast { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 90; display: none; align-items: center; gap: 13px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-lg); border-radius: var(--r-xl); padding: 12px 14px 12px 16px; min-width: 340px; }
+  .toast.show { display: flex; animation: toastin .28s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes toastin { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  .toast-ic { width: 30px; height: 30px; border-radius: 50%; background: var(--clean-soft); color: var(--clean-ink); display: grid; place-items: center; flex-shrink: 0; }
+  .toast-ic svg { width: 16px; height: 16px; }
+  .toast-txt { min-width: 0; }
+  .toast-t { font-size: 13px; font-weight: 700; color: var(--navy); line-height: 1.2; }
+  .toast-s { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .toast-link { margin-left: 8px; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: var(--r-md); border: none; background: var(--brand); color: #fff; font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .toast-link:hover { background: var(--brand-deep); }
+  .toast-link svg { width: 14px; height: 14px; }
+
+  @media (max-width: 860px) { .rail { display: none; } .main { padding: 22px 18px; } }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: .001ms !important; } .spin { animation: none !important; } }
+  .spin { animation: spin .9s linear infinite; transform-origin: center; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .foot-legend { margin-top: 22px; font-size: 12px; color: var(--ink-4); text-align: center; }
+  .foot-legend kbd { font-family: var(--mono); font-size: 11px; background: var(--surface); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--ink-3); }
+</style>
+
+<div class="wrap">
+  <div class="flow-top">
+    <div>
+      <h1 class="flow-title">Prioritize a scan &mdash; screen flow</h1>
+      <p class="flow-sub">A property is still queued in a running batch, and you need it now. Click its row &rarr; <b>Scan now</b> makes the address priority &rarr; it&rsquo;s scanned ahead of the queue &rarr; a notification pops up &rarr; then you can run the AI report on it. Built from the TrueOccupancy design system.</p>
+    </div>
+    <span class="flow-tag">Scope &sect;2.2 &middot; priority scan</span>
+  </div>
+
+  <div class="rail-lbl">Walkthrough &middot; click any step</div>
+  <div class="rail-steps" id="rail"></div>
+
+  <div class="caption">
+    <div class="caption-body">
+      <div class="eyebrow" id="cap-eye">Step 1</div>
+      <h2 id="cap-title">&mdash;</h2>
+      <p id="cap-desc">&mdash;</p>
+      <div class="devnote" id="cap-note" hidden><b>Dev note</b><span class="txt" id="cap-note-txt"></span></div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn sm" id="prev">&larr; Back</button>
+      <button class="btn sm primary" id="next">Next &rarr;</button>
+    </div>
+  </div>
+
+  <!-- ============================ DEVICE ============================ -->
+  <div class="device">
+    <div class="device-bar">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <span class="url" id="url">app.trueoccupancy.io / batch</span>
+    </div>
+    <div class="app">
+      <!-- side nav -->
+      <nav class="rail">
+        <div class="brand-lock">
+          <div class="mark"></div>
+          <div><div class="brand-name">Halcyon</div><div class="brand-prod">TrueOccupancy&trade;</div></div>
+        </div>
+        <div class="nav-group">
+          <a class="nav-row" data-nav="dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v5"/></svg>Dashboard</a>
+          <a class="nav-row" data-nav="batch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg>Batch Upload</a>
+          <a class="nav-row" data-nav="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 8v4l3 2"/></svg>History</a>
+          <a class="nav-row" data-nav="sched"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>Scheduled</a>
+        </div>
+        <div class="nav-spacer"></div>
+        <a class="nav-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Sign out</a>
+      </nav>
+
+      <!-- main content -->
+      <div class="main">
+
+        <!-- cScan · batch scan in progress, some rows still queued -->
+        <section class="content" data-c="cScan">
+          <div class="head-row">
+            <div><h1 class="page">Asheville Q2 2026</h1><div class="idstrip">asheville-q2-2026.csv &middot; 24 properties &middot; Uploaded just now</div></div>
+            <div class="head-actions"><button class="btn" disabled>Download PDF</button></div>
+          </div>
+          <div class="card scan-card">
+            <div class="scan-card-title">Scanning 24 properties</div>
+            <div class="scan-prog-row"><div class="scan-prog"><i style="width:62%"></i></div><span class="scan-prog-lbl">15/24 scanned</span></div>
+          </div>
+          <div class="vcards">
+            <div class="vcard"><div class="vcard-top"><span class="vcard-lbl">Rented</span><span class="vcard-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 21V4h13l-2 4 2 4H4"/></svg></span></div><div class="vcard-num">2</div></div>
+            <div class="vcard"><div class="vcard-top"><span class="vcard-lbl">Possibly rented</span><span class="vcard-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h16.9a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span></div><div class="vcard-num">1</div></div>
+            <div class="vcard"><div class="vcard-top"><span class="vcard-lbl">Not rented</span><span class="vcard-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></span></div><div class="vcard-num">12</div></div>
+          </div>
+          <div class="tbl-cap"><span class="cap-l">24 properties &middot; click a queued row to prioritise it</span></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Property</th><th>Verdict</th><th>Score</th><th>Listings</th></tr></thead><tbody id="tbScan"></tbody></table></div>
+        </section>
+
+        <!-- cPending · queued row opened, normal scan not done yet -->
+        <section class="content" data-c="cPending">
+          <div class="rpt-top">
+            <a class="rpt-back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m15 18-6-6 6-6"/></svg>Back</a>
+            <div class="rpt-addr">88 Cumberland Ave, Asheville</div>
+            <button class="btn" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download</button>
+          </div>
+          <div class="card pending-card">
+            <div class="pending-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></div>
+            <div class="pending-title">Not scanned yet</div>
+            <p class="pending-sub">This property is still queued in <b>Asheville Q2 2026</b>. AI needs the normal scan first &mdash; Scan now makes this address priority, so it&rsquo;s scanned ahead of the queue.</p>
+            <button class="btn spotlight pending-cta" id="scan-now-priority"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>Scan now</button>
+            <div class="pending-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Runs first, ahead of the queue. A notification pops up when it&rsquo;s done.</div>
+          </div>
+        </section>
+
+        <!-- cPriority · the prioritized property jumps the queue, running now -->
+        <section class="content" data-c="cPriority">
+          <div class="head-row">
+            <div><h1 class="page">Asheville Q2 2026</h1><div class="idstrip">asheville-q2-2026.csv &middot; 24 properties &middot; 88 Cumberland Ave prioritised</div></div>
+            <div class="head-actions"><button class="btn" disabled>Download PDF</button></div>
+          </div>
+          <div class="card scan-card">
+            <div class="scan-card-title">Scanning 24 properties</div>
+            <div class="scan-prog-row"><div class="scan-prog"><i style="width:66%"></i></div><span class="scan-prog-lbl">16/24 scanned</span></div>
+          </div>
+          <div class="vcards">
+            <div class="vcard"><div class="vcard-top"><span class="vcard-lbl">Rented</span><span class="vcard-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 21V4h13l-2 4 2 4H4"/></svg></span></div><div class="vcard-num">2</div></div>
+            <div class="vcard"><div class="vcard-top"><span class="vcard-lbl">Possibly rented</span><span class="vcard-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h16.9a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span></div><div class="vcard-num">1</div></div>
+            <div class="vcard"><div class="vcard-top"><span class="vcard-lbl">Not rented</span><span class="vcard-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></span></div><div class="vcard-num">12</div></div>
+          </div>
+          <div class="tbl-cap"><span class="cap-l">24 properties &middot; 88 Cumberland Ave jumped ahead</span></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Property</th><th>Verdict</th><th>Score</th><th>Listings</th></tr></thead><tbody id="tbPriority"></tbody></table></div>
+        </section>
+
+        <!-- cReport · the prioritized property is scanned; run-AI CTA on top -->
+        <section class="content" data-c="cReport">
+          <div class="rpt-top">
+            <a class="rpt-back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m15 18-6-6 6-6"/></svg>Back</a>
+            <div class="rpt-addr">88 Cumberland Ave, Asheville</div>
+            <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download</button>
+          </div>
+          <div class="card rpt-card">
+            <div class="rpt-hero">
+              <div class="rpt-hero-l">
+                <div class="rpt-verdict">Not rented</div>
+                <div class="rpt-conf"><b>0%</b> rental confidence</div>
+                <div class="rpt-ref"><span class="eyebrow2">Reference</span><a class="lnk">+ Add reference</a></div>
+              </div>
+              <div class="rpt-hero-r">
+                <div class="rpt-sum-title">No meaningful rental activity found.</div>
+                <p class="rpt-sum-p">Full sweep across rental platforms returned no confident matches near this address. This was scanned on priority, ahead of the rest of the batch.</p>
+              </div>
+            </div>
+          </div>
+          <div class="card ai-panel">
+            <div class="ai-panel-head">
+              <div class="ai-panel-lead">
+                <span class="ai-panel-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M18 18l-2.5-2.5M6 18l2.5-2.5M18 6l-2.5 2.5"/></svg></span>
+                <div>
+                  <div class="ai-panel-title">AI occupancy report</div>
+                  <div class="ai-panel-sub">The normal scan is done, so AI is available. Run the deeper agentic review for this one property.</div>
+                </div>
+              </div>
+              <button class="btn primary" id="run-ai-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M18 18l-2.5-2.5M6 18l2.5-2.5M18 6l-2.5 2.5"/></svg>Run AI report</button>
+            </div>
+          </div>
+          <h2 class="sec-h" style="margin-top:0;">Property Listings</h2>
+          <div class="card" style="padding:20px 24px;"><div class="rpt-sum-title">No active listings detected.</div><p class="rpt-sum-p">Full sweep across Airbnb, Vrbo and Facebook Marketplace &mdash; nothing matched this property.</p></div>
+        </section>
+
+      </div><!-- /main -->
+
+      <!-- notification dock -->
+      <div class="dock" id="dock">
+        <div class="dockpill">
+          <div class="dock-chip" id="dock-chip"></div>
+          <div class="dock-txt"><div class="t" id="dock-t">Scanning batch</div><div class="s" id="dock-s">15 of 24 &middot; Asheville Q2 2026</div></div>
+          <div class="dock-rail"><i id="dock-bar" style="width:62%"></i></div>
+        </div>
+      </div>
+
+      <!-- notification popup (priority scan done) -->
+      <div class="toast" id="toast">
+        <div class="toast-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div class="toast-txt"><div class="toast-t">Priority scan complete</div><div class="toast-s">88 Cumberland Ave &middot; Not rented</div></div>
+        <button class="toast-link" id="toast-view">View report<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+
+    </div><!-- /app -->
+  </div><!-- /device -->
+
+  <div class="foot-legend">Click a step above, use <kbd>&larr;</kbd> <kbd>&rarr;</kbd>, or Back / Next. The queued row, Scan-now button and toast link are live.</div>
+</div>
+
+<script>
+(function () {
+  // Verdict labels use the neutral verdict tones (purple / yellow / blue),
+  // NOT the status ramp — matches the live app's DataTable verdict cell.
+  const V = { risk:['vh','Rented'], warn:['vm','Possibly rented'], clean:['vl','Not rented'] };
+  const rows = [
+    { a:'1428 Maplewood Drive',  v:'risk',  s:87, l:4 },
+    { a:'502 N Liberty St',      v:'clean', s:12, l:0 },
+    { a:'800 Hilliard Ave',      v:'warn',  s:54, l:1 },
+    { a:'145 Westchester Dr',    v:'risk',  s:76, l:3 },
+    { a:'23 Tunnel Rd',          v:'clean', s:8,  l:0 },
+    { a:'67 Charlotte Hwy',      v:'risk',  s:91, l:5 },
+    { a:'215 Edgewood Rd',       v:'warn',  s:42, l:1 },
+    { a:'88 Cumberland Ave',     v:'clean', s:18, l:0 },
+  ];
+  const verdictPill = v => `<span class="pill ${V[v][0]}">${V[v][1]}</span>`;
+  const spinSvg = '<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.55"/></svg>';
+  const checkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>';
+
+  // Build the batch table for a scanning stage.
+  //   opt.priority: the last row (88 Cumberland) shows "Running now" and jumps ahead.
+  function build(id, opt) {
+    opt = opt || {};
+    const tb = document.getElementById(id);
+    if (!tb) return;
+    tb.innerHTML = rows.map((r, i) => {
+      let verdict, score, cls = '';
+      if (i <= 4) { verdict = verdictPill(r.v); score = `<span class="num">${r.s}</span>`; }
+      else if (i <= 6) { verdict = `<span class="scan-txt">${spinSvg}Scanning…</span>`; score = '<span class="muted">—</span>'; }
+      else if (opt.priority) { verdict = '<span class="pill brand dot">Running now</span>'; score = '<span class="muted">—</span>'; cls = ' class="row-priority"'; }
+      else { verdict = '<span class="ai-queued">Queued</span>'; score = '<span class="muted">—</span>'; }
+      return `<tr${cls}><td class="addr">${r.a}</td><td>${verdict}</td><td>${score}</td><td class="num">${r.l}</td></tr>`;
+    }).join('');
+  }
+
+  build('tbScan', {});
+  build('tbPriority', { priority: true });
+
+  // ---------------- flow ----------------
+  const STEPS = [
+    { c:'cScan', nav:'batch', url:'app.trueoccupancy.io / batch/asheville-q2', dock:'scan',
+      eye:'Batch scan · in progress', title:'A property is still queued',
+      desc:'The batch scan is running. You need one property now — click the still-queued last row, “88 Cumberland Ave”, to prioritise it.',
+      note:'Clicking a queued row opens its Scan-now option; a scanned row would open its report.' },
+    { c:'cPending', nav:'batch', url:'app.trueoccupancy.io / report/88-cumberland', dock:'scan',
+      eye:'Priority · not scanned yet', title:'Scan now — make this address priority',
+      desc:'The property’s normal scan isn’t done, so there’s no report or AI yet. Scan now prioritises it — it’s scanned ahead of the queue, then a notification pops up.',
+      note:'No intended-occupancy prompt. Scan now = a priority normal scan for one address.' },
+    { c:'cPriority', nav:'batch', url:'app.trueoccupancy.io / batch/asheville-q2', dock:'priority',
+      eye:'Priority · running', title:'Jumped the queue — running now',
+      desc:'The property leaves its place in line and runs immediately. The dock shows “Running now — priority”, and the row is marked Running now, ahead of everything still queued.',
+      note:'Leaving the batch queue means it won’t run — or cost — twice.' },
+    { c:'cPriority', nav:'batch', url:'app.trueoccupancy.io / batch/asheville-q2', dock:'scan', toast:true,
+      eye:'Priority · done', title:'Notification — priority scan complete',
+      desc:'When the priority scan finishes, a notification pops up. The batch keeps going in the background; click “View report” to open the freshly-scanned property.',
+      note:'The notification popup carries the link to the report — you stay where you are.' },
+    { c:'cReport', nav:'batch', url:'app.trueoccupancy.io / report/88-cumberland', dock:null,
+      eye:'Priority · run AI', title:'Scanned — now run the AI report',
+      desc:'The normal scan is done and AI hasn’t run, so the report shows a Run AI report CTA. Run the deeper agentic review on this one prioritised property.',
+      note:'AI is only offered because the normal scan is complete.' },
+  ];
+
+  let idx = 0;
+  const railEl = document.getElementById('rail');
+  STEPS.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.className = 'rail-step';
+    b.innerHTML = `<span class="n">${i+1}</span> ${s.title}`;
+    b.addEventListener('click', () => go(i));
+    railEl.appendChild(b);
+  });
+
+  const contents = document.querySelectorAll('.content');
+  const dock = document.getElementById('dock');
+
+  function setDock(kind) {
+    document.querySelector('.app').classList.toggle('dock-on', !!kind);
+    if (!kind) { dock.classList.remove('show'); return; }
+    dock.classList.add('show');
+    const chip = document.getElementById('dock-chip');
+    const t = document.getElementById('dock-t');
+    const s = document.getElementById('dock-s');
+    const bar = document.getElementById('dock-bar');
+    if (kind === 'scan') { chip.className = 'dock-chip running'; chip.innerHTML = spinSvg; t.textContent = 'Scanning batch'; s.textContent = '16 of 24 · Asheville Q2 2026'; bar.style.width = '66%'; }
+    else if (kind === 'priority') { chip.className = 'dock-chip running'; chip.innerHTML = spinSvg; t.textContent = 'Running now — priority'; s.textContent = '88 Cumberland Ave — ahead of the queue'; bar.style.width = '45%'; }
+    else if (kind === 'done') { chip.className = 'dock-chip done'; chip.innerHTML = checkSvg; t.textContent = 'Priority scan complete'; s.textContent = '88 Cumberland Ave · Not rented'; bar.style.width = '100%'; }
+  }
+
+  function go(i) {
+    idx = Math.max(0, Math.min(STEPS.length - 1, i));
+    const st = STEPS[idx];
+    contents.forEach(c => c.classList.toggle('active', c.dataset.c === st.c));
+    document.querySelectorAll('.nav-row').forEach(n => n.classList.toggle('active', n.dataset.nav === st.nav));
+    document.getElementById('url').textContent = st.url;
+    setDock(st.dock);
+    document.getElementById('toast').classList.toggle('show', !!st.toast);
+    document.getElementById('cap-eye').textContent = `Step ${idx+1} of ${STEPS.length} · ${st.eye}`;
+    document.getElementById('cap-title').textContent = st.title;
+    document.getElementById('cap-desc').textContent = st.desc;
+    const nw = document.getElementById('cap-note');
+    if (st.note) { nw.hidden = false; document.getElementById('cap-note-txt').textContent = st.note; } else nw.hidden = true;
+    document.querySelectorAll('.rail-step').forEach((b, bi) => b.setAttribute('aria-current', bi === idx ? 'true' : 'false'));
+    document.getElementById('prev').disabled = idx === 0;
+    document.getElementById('next').disabled = idx === STEPS.length - 1;
+  }
+
+  document.getElementById('prev').addEventListener('click', () => go(idx - 1));
+  document.getElementById('next').addEventListener('click', () => go(idx + 1));
+  document.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') go(idx - 1); if (e.key === 'ArrowRight') go(idx + 1); });
+
+  // live affordances
+  document.getElementById('scan-now-priority').addEventListener('click', () => go(2));
+  document.getElementById('toast-view').addEventListener('click', () => go(4));
+  document.getElementById('run-ai-row').addEventListener('click', () => go(4));
+  document.querySelectorAll('[data-back]').forEach(el => el.addEventListener('click', () => go(0)));
+  document.querySelectorAll('.nav-row').forEach(n => n.addEventListener('click', () => { if (n.dataset.nav === 'batch') go(0); }));
+
+  // a still-queued row -> Scan now (priority)
+  const qRow = document.querySelector('#tbScan tr:last-child');
+  if (qRow) { qRow.style.cursor = 'pointer'; qRow.title = 'Scan now'; qRow.addEventListener('click', () => go(1)); }
+
+  go(0);
+})();
+</script>

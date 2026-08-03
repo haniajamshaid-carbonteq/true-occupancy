@@ -1,4 +1,4 @@
-/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, ScanIntentHero, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty */
+/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, ScanIntentHero, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty, isRedAddress, RedFlag, BatchRedBadge, timeAgo, seedTime */
 // Home — product-first dashboard. The user lands directly on the working
 // scanner with real evidence visible (KPI strip, recent scans, flagged for
 // review, methodology note). Marketing-landing surfaces (photo hero,
@@ -94,16 +94,16 @@ interface RecentScan {
   address: string;
   scenario: 'low' | 'medium' | 'high';
   platforms: number;
-  scannedAgo: string;
+  scannedAt: number;
 }
 
 const RECENT_SCANS: RecentScan[] = [
-  { id: 'r1', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago'  },
-  { id: 'r2', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago' },
-  { id: 'r3', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAgo: '1 h ago'    },
-  { id: 'r4', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAgo: '2 h ago'    },
-  { id: 'r5', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAgo: '3 h ago'    },
-  { id: 'r6', address: '301 Merrimon Ave, Asheville, NC 28804',      scenario: 'medium', platforms: 1, scannedAgo: '4 h ago'    },
+  { id: 'r1', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAt: seedTime('8min')  },
+  { id: 'r2', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAt: seedTime('24min') },
+  { id: 'r3', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAt: seedTime('1h')    },
+  { id: 'r4', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAt: seedTime('2h')    },
+  { id: 'r5', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAt: seedTime('3h')    },
+  { id: 'r6', address: '301 Merrimon Ave, Asheville, NC 28804',      scenario: 'medium', platforms: 1, scannedAt: seedTime('4h')    },
 ];
 
 const FLAGGED_FOR_REVIEW = RECENT_SCANS.filter((r) => r.scenario === 'high').slice(0, 3);
@@ -227,7 +227,7 @@ function splitAddress(addr: string): [string, string] {
   return [addr.slice(0, idx), addr.slice(idx + 2)];
 }
 
-function buildScanColumns<T extends { address: string; scenario: 'low' | 'medium' | 'high'; platforms: number; scannedAgo: string }>(): any[] {
+function buildScanColumns<T extends { address: string; scenario: 'low' | 'medium' | 'high'; platforms: number; scannedAt: number }>(): any[] {
   return [
     {
       key: 'address',
@@ -237,11 +237,14 @@ function buildScanColumns<T extends { address: string; scenario: 'low' | 'medium
         const [street, locality] = splitAddress(row.address);
         return (
           <div className="min-w-0">
-            <div
-              className="font-sans font-semibold text-body-sm leading-tight truncate"
-              style={{ color: 'var(--navy)' }}
-            >
-              {street}
+            <div className="flex items-center gap-inline min-w-0">
+              <span
+                className="font-sans font-semibold text-body-sm leading-tight truncate"
+                style={{ color: 'var(--navy)' }}
+              >
+                {street}
+              </span>
+              {isRedAddress(row.address) && <RedFlag />}
             </div>
             {locality && (
               <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
@@ -313,7 +316,7 @@ function buildScanColumns<T extends { address: string; scenario: 'low' | 'medium
       hideBelow: 'md' as const,
       cell: (row: T) => (
         <span className="font-mono tabular-nums text-caption text-ink-3">
-          {row.scannedAgo}
+          {timeAgo(row.scannedAt)}
         </span>
       ),
     },
@@ -346,7 +349,7 @@ function FlaggedRow({ row, onOpen }: { row: RecentScan; onOpen: (row: RecentScan
           {row.address}
         </span>
         <span className="block text-caption text-ink-3 truncate">
-          {row.platforms} platforms · {row.scannedAgo}
+          {row.platforms} platforms · {timeAgo(row.scannedAt)}
         </span>
       </span>
       <svg
@@ -381,6 +384,10 @@ function RecentScansPanel() {
   function openSingleRow(row: any) {
     sessionStorage.setItem('scanScenario', row.scenario);
     sessionStorage.setItem('scanAddress', row.address);
+    // Dashboard's recent scans are all current — clear any stale stamp left
+    // by a previously-opened old report so this reads fresh.
+    sessionStorage.removeItem('resultServedAt');
+    sessionStorage.removeItem('resultCached');
     const path =
       row.scenario === 'low'  ? '/result/clean'
       : row.scenario === 'medium' ? '/result/medium'
@@ -484,11 +491,14 @@ const DASHBOARD_SINGLE_COLUMNS: any[] = [
       const [street, locality] = splitAddress(r.address);
       return (
         <div className="min-w-0">
-          <div
-            className="font-sans font-semibold text-body-sm leading-tight truncate"
-            style={{ color: 'var(--navy)' }}
-          >
-            {street}
+          <div className="flex items-center gap-inline min-w-0">
+            <span
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {street}
+            </span>
+            {isRedAddress(r.address) && <RedFlag />}
           </div>
           {locality && (
             <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
@@ -519,7 +529,7 @@ const DASHBOARD_SINGLE_COLUMNS: any[] = [
     align: 'right' as const,
     hideBelow: 'md' as const,
     cell: (r: any) => (
-      <span className="font-mono tabular-nums text-caption text-ink-3">{r.scannedAgo}</span>
+      <span className="font-mono tabular-nums text-caption text-ink-3">{timeAgo(r.scannedAt)}</span>
     ),
   },
 ];
@@ -529,19 +539,25 @@ const DASHBOARD_BATCH_COLUMNS: any[] = [
     key: 'target',
     label: 'File',
     primary: true,
-    cell: (r: any) => (
-      <div className="min-w-0">
-        <div
-          className="font-sans font-semibold text-body-sm leading-tight truncate"
-          style={{ color: 'var(--navy)' }}
-        >
-          {r.filename}
+    cell: (r: any) => {
+      const nRed = (r.rows || []).filter((x: any) => isRedAddress(x.address)).length;
+      return (
+        <div className="min-w-0">
+          <div className="flex items-center gap-inline min-w-0">
+            <span
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {r.filename}
+            </span>
+            <BatchRedBadge count={nRed} />
+          </div>
+          <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
+            {r.total} properties · {r.flagged} flagged
+          </div>
         </div>
-        <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
-          {r.total} properties · {r.flagged} flagged
-        </div>
-      </div>
-    ),
+      );
+    },
   },
   {
     key: 'status',
@@ -562,7 +578,7 @@ const DASHBOARD_BATCH_COLUMNS: any[] = [
     align: 'right' as const,
     hideBelow: 'md' as const,
     cell: (r: any) => (
-      <span className="font-mono tabular-nums text-caption text-ink-3">{r.scannedAgo}</span>
+      <span className="font-mono tabular-nums text-caption text-ink-3">{timeAgo(r.scannedAt)}</span>
     ),
   },
 ];

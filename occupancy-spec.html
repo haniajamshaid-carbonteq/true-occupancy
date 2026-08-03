@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>True Occupancy — States Spec</title>
+<title>True Occupancy — Occupancy Spec</title>
 
 <!-- Same font set as design-spec.html so the type-pairing toggle works here too. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -109,10 +109,11 @@
 <script>
 /*
  * Bootstrap: same compile-and-inject pipeline as app.html / design-spec.html.
- * Includes src/state/AppState.tsx because StatesSpecApp uses AppStateContext.
- * Each Screen is wrapped in MockAppStateProvider with controlled values
- * so the real production pages render their loading / empty / error
- * variants without a backend.
+ * Includes src/state/AppState.tsx so AppShell / SideNav and the other shared
+ * chrome resolve. The surfaces under review are prop-driven rather than
+ * state-driven, but AppShell mounts the notification dock, which reads
+ * useAppState() — so frames still need MockAppStateProvider to supply an
+ * empty, inert store.
  */
 (async () => {
   const status = document.getElementById('boot-status');
@@ -135,6 +136,7 @@
     'src/components/ui/Tabs.tsx',
     'src/components/ui/Field.tsx',
     'src/components/ui/Input.tsx',
+    'src/components/ui/Textarea.tsx',
     'src/components/ui/EditableTitle.tsx',
     'src/components/ui/Checkbox.tsx',
     'src/components/ui/RiskBadge.tsx',
@@ -169,8 +171,6 @@
     //     both already loaded above.
     'src/components/scan/ScanIntentHero.tsx',
     // 5. Result module (used by AI Investigator state matrix in states-spec)
-    'src/state/OccupancyConfig.tsx',
-    'src/components/result/ServedStamp.tsx',
     'src/components/result/AIInvestigator.tsx',
     // 5b. Notification Dock (Dynamic-Island-style) — Section 07.
     //     Load order: Row first (consumed by Stack), Stack + Pill, then Dock.
@@ -178,15 +178,18 @@
     'src/components/notification/NotificationStack.tsx',
     'src/components/notification/NotificationPill.tsx',
     'src/components/notification/NotificationDock.tsx',
-    // 6. Pages used by the states spec
-    'src/pages/HomeScreen.tsx',
-    'src/pages/HistoryScreen.tsx',
-    'src/pages/ScheduledScreen.tsx',
-    'src/pages/ScheduleDetailScreen.tsx',
-    // 7. Spec canvas + mock provider + states-spec entry
+    // 6. Occupancy configuration model — pure derivation, no React.
+    //    Must load BEFORE any page that reads it.
+    'src/state/OccupancyConfig.tsx',
+    // 7. New surfaces under review
+    'src/components/red/RedPropertyDrawer.tsx',
+    'src/components/result/ServedStamp.tsx',
+    'src/pages/ScanConfigScreen.tsx',
+    'src/pages/RedAddressesScreen.tsx',
+    // 8. Spec canvas + entry
     'src/spec/SpecCanvas.tsx',
     'src/spec/MockAppStateProvider.tsx',
-    'src/spec/StatesSpecApp.tsx',
+    'src/spec/OccupancySpecApp.tsx',
   ];
 
   const compileOpts = {
@@ -216,12 +219,12 @@
       inject(code, path);
     }
     status.textContent = 'Mounting…';
-    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(StatesSpecApp));
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(OccupancySpecApp));
     status.remove();
   } catch (err) {
     status.className = 'error';
     status.textContent = 'Boot error — see console';
-    console.error('[states-spec.html] boot failed:', err);
+    console.error('[occupancy-spec.html] boot failed:', err);
   }
 })();
 </script>

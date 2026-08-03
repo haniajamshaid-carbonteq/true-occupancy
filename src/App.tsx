@@ -2,7 +2,8 @@
    ResultCleanScreen, ResultMediumScreen, ResultHighScreen, ResultTamperedScreen,
    WhyExpandedScreen, ComponentsPage, BatchScreen, BatchDetailScreen, HistoryScreen,
    ScheduledScreen, ScheduleDetailScreen, AppStateProvider,
-   SignInScreen, SignUpScreen, CommandPalette, ProfileScreen */
+   SignInScreen, SignUpScreen, CommandPalette, ProfileScreen,
+   ScanConfigScreen */
 // Top-level router. Each route = one screen.
 // HashRouter so the static server doesn't need URL-rewriting config.
 
@@ -52,6 +53,9 @@ const ROUTES = [
   { path: '/why-expanded',   component: WhyExpandedScreen },
   { path: '/components',     component: ComponentsPage },
   { path: '/profile',        component: ProfileScreen },
+  // The standalone /red-addresses page was retired — red is a filter now
+  // (Red flags toggle on History / Scheduled / batch), not a destination.
+  { path: '/settings/scan',  component: ScanConfigScreen },
   // Both auth paths share one Route → one AuthScreen instance persists
   // across the toggle so the slide CSS transition has prior state.
   { path: ['/signin', '/signup'], component: SignInScreen },

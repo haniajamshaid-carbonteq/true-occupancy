@@ -1,6 +1,7 @@
 /* global React, Modal, Button, Icon, Radio, RadioGroup, StatusPillSelector,
    AutomationScopeCard, Cadence, ScopeRetention, sameCadence, cadenceLabel,
-   formatNextRun */
+   formatNextRun, ChipRow, OCC_INTENTS, OCC_INTENT_LABEL, DEFAULT_OCC_CONFIG,
+   isRedAddress, useAppState */
 // AutomateModal — shared dialog for creating OR editing an automation.
 //
 // Create mode: shows the cadence radio cards (and, for batches, the new
@@ -31,7 +32,7 @@ interface AutomateModalProps {
   open: boolean;
   onClose: () => void;
   target: AutomateTarget | null;
-  onConfirm: (payload: { cadence: Cadence; statuses?: Risk[]; retention?: ScopeRetention }) => void;
+  onConfirm: (payload: { cadence: Cadence; statuses?: Risk[]; retention?: ScopeRetention; intent?: string }) => void;
   /** 'create' (default) opens with defaults. 'edit' preselects initial values
    *  and disables the primary CTA until something changes. */
   mode?: 'create' | 'edit';
@@ -44,6 +45,9 @@ interface AutomateModalProps {
   /** BATCH-only. Edit mode: initial retention rule. Create mode: ignored,
    *  defaults to 'monitor' (keep re-scanning when a status stops matching). */
   initialRetention?: ScopeRetention;
+  /** Edit mode: initial intended occupancy. Create mode: defaults to the
+   *  org's universal default (owner-occupied). Always overridable. */
+  initialIntent?: string;
   /** BATCH-only. Per-status counts from the latest scan; drives the live
    *  scope card + the "(N)" suffix on each status pill. */
   scopeCounts?: { risk: number; warn: number; clean: number };
@@ -104,6 +108,7 @@ function AutomateModal({
   initialCadence,
   initialStatuses,
   initialRetention,
+  initialIntent,
   scopeCounts,
   scopeTotal,
   scopeCountsPending = false,
@@ -119,10 +124,16 @@ function AutomateModal({
       : DEFAULT_STATUSES;
   const seedRetention: ScopeRetention =
     isEdit && initialRetention ? initialRetention : DEFAULT_RETENTION;
+  // Intended occupancy — defaults to the org's universal default so the
+  // common case is zero clicks; the user overrides it only when this
+  // automation targets a different kind of property.
+  const seedIntent: string =
+    isEdit && initialIntent ? initialIntent : DEFAULT_OCC_CONFIG.defaultIntent;
 
   const [cadence, setCadence] = React.useState<Cadence>(seedCadence);
   const [statuses, setStatuses] = React.useState<Risk[]>(seedStatuses);
   const [retention, setRetention] = React.useState<ScopeRetention>(seedRetention);
+  const [intent, setIntent] = React.useState<string>(seedIntent);
 
   // Reset selection each time the modal reopens so it reflects fresh seeds.
   // Keyed on `open` only — the seed values are recomputed every render
@@ -133,6 +144,7 @@ function AutomateModal({
       setCadence(seedCadence);
       setStatuses(seedStatuses);
       setRetention(seedRetention);
+      setIntent(seedIntent);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -163,6 +175,16 @@ function AutomateModal({
       : true;
     primaryDisabled = cadenceUnchanged && statusesUnchanged && retentionUnchanged;
   }
+
+  // Warn (but allow) when creating a manual schedule for a red address
+  // that already has an org-level recurring scan.
+  const { isRedStopped } = useAppState();
+  const isRedDuplicate =
+    !isEdit &&
+    !isBatch &&
+    target?.address &&
+    isRedAddress(target.address) &&
+    !isRedStopped(target.address);
 
   const counts = scopeCounts ?? { risk: 0, warn: 0, clean: 0 };
   const total = scopeTotal ?? 0;
@@ -222,6 +244,7 @@ function AutomateModal({
                 cadence,
                 statuses: isBatch ? statuses : undefined,
                 retention: isBatch ? effectiveRetention : undefined,
+                intent,
               })
             }
             icon={<Icon name="cal" size={14} />}
@@ -246,11 +269,33 @@ function AutomateModal({
         </div>
       )}
 
+      {isRedDuplicate && (
+        <div className="mb-4 px-4 py-3 rounded-md border bg-warn-soft border-warn text-warn-ink text-body-sm leading-relaxed flex items-start gap-2">
+          <Icon name="alert-triangle" size={16} className="mt-0.5 flex-shrink-0" />
+          <span>This address already has a monthly recurring scan from the red-flag monitoring system. Creating a manual schedule will scan it twice per cycle.</span>
+        </div>
+      )}
+
       <p className="text-body-sm text-ink-2 leading-relaxed m-0 mb-4">
         {isEdit
           ? `We'll re-scan ${isBatch ? 'matching properties in this batch' : 'this address'} on the new cadence going forward.`
           : `We'll re-scan ${isBatch ? 'the properties you pick below' : 'this address'} on the cadence you choose and surface new matches in your queue.`}
       </p>
+
+      {/* ---- Section: Intended occupancy ------------------------------ */}
+      <div className="mb-section-sub">
+        <ChipRow
+          label="Intended occupancy"
+          value={intent}
+          onChange={setIntent}
+          options={OCC_INTENTS.map((i: string) => ({ value: i, label: OCC_INTENT_LABEL[i] }))}
+        />
+        <p className="font-sans text-caption mt-2" style={{ color: 'var(--ink-3)' }}>
+          Applied to every scan this automation runs. Defaults to your
+          organisation&rsquo;s setting — change it only if these properties are
+          a different kind.
+        </p>
+      </div>
 
       {/* ---- Section: Cadence ----------------------------------------- */}
       {isBatch && (

@@ -1,4 +1,4 @@
-/* global React, Icon, Pill, ReactRouterDOM */
+/* global React, Icon, Pill, ReactRouterDOM, AppStateContext */
 // Halcyon side navigation. Persistent left rail on md+, slide-out drawer
 // on mobile triggered by a small top bar with the Halcyon mark + hamburger.
 
@@ -17,6 +17,20 @@ const PRIMARY: NavItem[] = [
   { to: '/batch', label: 'Batch Upload', icon: 'layers' },
   { to: '/history', label: 'History', icon: 'history' },
   { to: '/scheduled', label: 'Scheduled', icon: 'cal' },
+];
+// Red addresses is NOT a nav destination — it lives as the third tab on
+// History, after Single and Batch, because it is a derived view of scans
+// already listed there rather than a separate place to go.
+
+// Pinned above the profile block rather than sitting in PRIMARY. Configuration
+// is a destination you visit occasionally and leave, not part of the daily
+// scan workflow — and it must be reachable from every screen, since the moment
+// you want to change a threshold is usually while looking at a result.
+//
+// "Configuration" not "Preferences": these are organisation-wide rules that
+// change how everyone's scans are scored. Personal settings live in /profile.
+const SECONDARY: NavItem[] = [
+  { to: '/settings/scan', label: 'Configuration', icon: 'sliders' },
 ];
 
 const NAV_WIDTH = 'var(--width-nav)';
@@ -93,6 +107,11 @@ function BrandLockup({
 function SideNav() {
   const [open, setOpen] = React.useState(false);
   const history = ReactRouterDOM.useHistory();
+  // Configuration is Staff-Admin-only. Read the context directly (not the
+  // throwing useAppState) so hosts without a provider default to 'staff'.
+  const ctx: any = React.useContext(AppStateContext);
+  const role = ctx?.role ?? 'staff';
+  const secondaryItems = role === 'staff' ? SECONDARY : [];
 
   React.useEffect(() => {
     if (!open) return;
@@ -131,6 +150,14 @@ function SideNav() {
             <NavLinkRow key={item.to + item.label} item={item} />
           ))}
         </nav>
+
+        {secondaryItems.length > 0 && (
+          <div className="px-3 py-2 border-t border-line flex flex-col gap-1">
+            {secondaryItems.map((item) => (
+              <NavLinkRow key={item.to + item.label} item={item} />
+            ))}
+          </div>
+        )}
 
         <div className="px-3 py-3 border-t border-line">
           <button
@@ -241,6 +268,18 @@ function SideNav() {
                   onNavigate={() => setOpen(false)}
                 />
               ))}
+              {secondaryItems.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-line flex flex-col gap-1">
+                  {secondaryItems.map((item) => (
+                    <NavLinkRow
+                      key={item.to + item.label}
+                      item={item}
+                      size="mobile"
+                      onNavigate={() => setOpen(false)}
+                    />
+                  ))}
+                </div>
+              )}
             </nav>
           </aside>
         </>

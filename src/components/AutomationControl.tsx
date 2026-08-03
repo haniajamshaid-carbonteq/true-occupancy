@@ -68,13 +68,14 @@ function AutomationControl({ target }: AutomationControlProps) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
-  function handleCreate({ cadence, statuses, retention }: { cadence: Cadence; statuses?: Risk[]; retention?: ScopeRetention }) {
+  function handleCreate({ cadence, statuses, retention, intent }: { cadence: Cadence; statuses?: Risk[]; retention?: ScopeRetention; intent?: string }) {
     if (target.kind === 'single') {
       addSchedule({
         kind: 'single',
         address: target.address,
         scenario: target.scenario,
         cadence,
+        intent,
       });
       pushTransient(`Automation scheduled · ${cadenceLabel(cadence)}`);
     } else {
@@ -88,6 +89,7 @@ function AutomationControl({ target }: AutomationControlProps) {
         cadence,
         statuses: finalStatuses,
         retention: retention ?? 'monitor',
+        intent,
       });
       const scopeWord = describeScope(finalStatuses);
       pushTransient(`Automation scheduled · ${cadenceLabel(cadence)} · ${scopeWord}`);

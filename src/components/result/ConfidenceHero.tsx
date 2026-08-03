@@ -1,4 +1,4 @@
-/* global React, Card, Icon, SCENARIOS, ReferenceCell, useAppState */
+/* global React, Card, Icon, SCENARIOS, ReferenceCell, useAppState, ServedStamp, formatUsDateTime */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
@@ -212,36 +212,168 @@ const VERDICT_TEXT: Record<ScenarioKey, string> = {
   low:    'Not Rented',
 };
 
+function RescanButton({ label, icon, disabled, disabledReason }: {
+  label: string;
+  icon: string;
+  disabled?: boolean;
+  disabledReason?: string;
+}) {
+  const [running, setRunning] = React.useState(false);
+  const [confirm, setConfirm] = React.useState(false);
+  const [hover, setHover] = React.useState(false);
+  const isDisabled = disabled || running;
+  const tooltip = isDisabled
+    ? (running ? 'Running…' : disabledReason || label)
+    : label;
+
+  const lastServed =
+    typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem('resultServedAt')
+      : null;
+
+  function handleClick() {
+    if (isDisabled) return;
+    setConfirm(true);
+  }
+
+  function handleConfirm() {
+    setConfirm(false);
+    setRunning(true);
+    window.dispatchEvent(new Event('halcyon:rescan-start'));
+    window.setTimeout(() => {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('resultServedAt', new Date().toISOString());
+        sessionStorage.removeItem('resultCached');
+      }
+      window.dispatchEvent(new Event('halcyon:served-updated'));
+      window.dispatchEvent(new Event('halcyon:rescan-end'));
+      setRunning(false);
+    }, 2200);
+  }
+
+  return (
+    <div
+      className="relative inline-flex"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isDisabled}
+        aria-label={tooltip}
+        className={`inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors shrink-0 ${
+          isDisabled
+            ? 'text-ink-4 opacity-40 cursor-not-allowed'
+            : 'text-ink-3 hover:bg-surface-2 hover:text-brand-deep cursor-pointer'
+        } ${running ? 'cursor-wait' : ''}`}
+      >
+        <span className={`[&>svg]:w-3 [&>svg]:h-3 ${running ? 'motion-safe:animate-spin' : ''}`}>
+          <Icon name={icon} size={12} />
+        </span>
+      </button>
+      {hover && !confirm && (
+        <div
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-sans font-medium leading-tight whitespace-nowrap pointer-events-none z-50"
+          style={{ background: 'var(--navy)', color: '#fff' }}
+        >
+          {tooltip}
+          <div
+            className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
+            style={{ borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '4px solid var(--navy)' }}
+          />
+        </div>
+      )}
+      {confirm && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setConfirm(false)} />
+          <div
+            className="absolute top-full right-0 mt-2 w-64 rounded-lg shadow-lg border border-line z-50 font-sans"
+            style={{ background: 'var(--surface)' }}
+          >
+            <div className="p-4">
+              <div className="text-label font-semibold" style={{ color: 'var(--navy)' }}>{label}</div>
+              {lastServed && (
+                <div className="mt-1.5 text-caption" style={{ color: 'var(--ink-3)' }}>
+                  Last report served {formatUsDateTime(lastServed)}
+                </div>
+              )}
+              <div className="mt-3 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setConfirm(false)}
+                  className="px-3 py-1.5 text-caption font-medium rounded-md border border-line cursor-pointer hover:bg-surface-2 transition-colors"
+                  style={{ color: 'var(--ink-2)', background: 'transparent' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  className="px-3 py-1.5 text-caption font-medium rounded-md cursor-pointer transition-colors text-white"
+                  style={{ background: 'var(--brand)' }}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
   const animatedScore = useCountUp(sc.score, 800);
 
+  const [rescanning, setRescanning] = React.useState(false);
+  React.useEffect(() => {
+    const onStart = () => setRescanning(true);
+    const onEnd = () => setRescanning(false);
+    window.addEventListener('halcyon:rescan-start', onStart);
+    window.addEventListener('halcyon:rescan-end', onEnd);
+    return () => {
+      window.removeEventListener('halcyon:rescan-start', onStart);
+      window.removeEventListener('halcyon:rescan-end', onEnd);
+    };
+  }, []);
+
   return (
-    // Unpadded so the disclosure row below can run full-bleed to the card
-    // edges, the same as the occupancy-report slot. The hero body carries
-    // its own padding instead.
     <Card>
-      <div className="px-6 py-5">
-      {/* Two-column hero. Left column owns the scan identity stack
-          (verdict → score → reference pinned to the bottom). Right column
-          carries the descriptive copy (headline + summary). A 1 px
-          --line divider separates the two so each side reads as its own
-          block — matches DESIGN.md §13.3 hairline rhythm. Collapses to a
-          stacked layout below md so the verdict stays the lead read on
-          narrow viewports. */}
+      <div className="px-6 py-5" style={{ position: 'relative' }}>
+      {rescanning && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center rounded-xl"
+          style={{ background: 'rgba(var(--surface-rgb, 255,255,255), 0.85)', backdropFilter: 'blur(2px)' }}
+        >
+          <div className="flex items-center gap-3 font-sans text-label font-semibold" style={{ color: 'var(--brand)' }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" className="animate-spin">
+              <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="40 20" strokeLinecap="round" />
+            </svg>
+            Rescanning listings…
+          </div>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row md:items-stretch gap-6 md:gap-8">
-        {/* Left — identity stack (narrower 1:2 column ratio shifts the
-            divider left of geometric centre so the divider feels balanced
-            against the dense right-side description). */}
         <div className="flex flex-col md:flex-[1] md:min-w-0">
+          <div className="flex items-start justify-between gap-2">
           <div
             className="font-sans font-semibold leading-[0.95] tracking-[-0.012em]"
             style={{ fontSize: "var(--text-h1)", color: 'var(--navy)' }}
           >
             {VERDICT_TEXT[scenario]}
           </div>
+          <RescanButton label="Re-scan listings" icon="spark" />
+          </div>
           <div className="mt-3 font-sans text-label text-ink-3 tabular-nums">
             <span className="font-semibold text-ink-2">{animatedScore}%</span> confidence
+          </div>
+
+          {/* Canonical report timestamp — directly beneath the verdict/status. */}
+          <div className="mt-4">
+            <ServedStamp />
           </div>
 
           {/* Reference pinned to the bottom-left corner. `mt-auto` floats

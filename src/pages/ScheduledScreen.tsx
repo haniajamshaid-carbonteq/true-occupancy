@@ -1,6 +1,7 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, Drawer, ChipRow, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress, deriveTitleFromFilename, ScreenError, ScreenEmpty,
-   cadenceLabel, cadenceShort */
+   cadenceLabel, cadenceShort, RED_ADDRESS_SEED, RedPropertyDrawer,
+   isRedAddress, RedFlag, RedFilterToggle, BatchRedBadge, timeAgo */
 
 type Filter = 'all' | 'single' | 'batch';
 // Cadence filter values match cadenceShort() output ("1wk", "3mo", …).
@@ -15,18 +16,65 @@ function nextRunTime(label: string | undefined | null): number {
   return Number.isNaN(t) ? Infinity : t;
 }
 
+// A plausible "next run" ~30 days out, for the auto-created red-address
+// recurring scans (monthly cadence).
+function nextMonthLabel(): string {
+  const d = new Date(Date.now() + 30 * 86400000);
+  return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+}
+
 function ScheduledScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
-  const { schedules, loading, error } = useAppState();
+  const { schedules, history, loading, error, isRedStopped, setRedStopped } = useAppState();
+
+  // How many properties in a batch schedule are flagged red. Cross-references
+  // the batch's latest run (matched by filename) since the schedule entry
+  // itself doesn't carry per-row addresses.
+  const batchRedCount = (s: any): number => {
+    if (s.kind !== 'batch') return 0;
+    const run = history.find((h: any) => h.kind === 'batch' && h.filename === s.filename);
+    return (run?.rows || []).filter((r: any) => isRedAddress(r.address)).length;
+  };
+  // A schedule row involves red when it's a red-property automation OR a batch
+  // that contains red properties.
+  const scheduleIsRed = (s: any): boolean => s._isRed || batchRedCount(s) > 0;
   const [filter, setFilter] = React.useState<Filter>('all');
   const [query, setQuery] = React.useState('');
   const [cadence, setCadence] = React.useState<CadenceFilter>('all');
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  // "Red only" filter. Red-address recurring scans ARE automations, so they
+  // live in this one list rather than a separate tab; the toggle isolates
+  // them. Managing one (stop scan) opens the red drawer below.
+  const [redOnly, setRedOnly] = React.useState(false);
+  const [redSelected, setRedSelected] = React.useState<any>(null);
+  const [redMode, setRedMode] = React.useState('detail');
 
   const advancedCount = (filter !== 'all' ? 1 : 0) + (cadence !== 'all' ? 1 : 0);
 
-  const rows = schedules
+  // Active red-address recurring scans, shaped like schedule rows so they
+  // render in the same list. A stopped one isn't an automation, so it drops
+  // out. `_red` carries the original for the drawer.
+  const redSchedules = RED_ADDRESS_SEED
+    .filter((r: any) => !isRedStopped(r.address))
+    .map((r: any) => ({
+      id: `redsch-${r.id}`,
+      kind: 'single',
+      address: r.address,
+      cadence: { every: 1, unit: 'month' },
+      nextRunLabel: nextMonthLabel(),
+      createdAt: 0,
+      _isRed: true,
+      _red: r,
+    }));
+  // Red-flag count for the toggle: per-property red automations plus any
+  // batch automation that contains red properties.
+  const redCount =
+    redSchedules.length +
+    schedules.filter((s: any) => s.kind === 'batch' && batchRedCount(s) > 0).length;
+
+  const rows = [...schedules, ...redSchedules]
     .filter((s: any) => {
+      if (redOnly && !scheduleIsRed(s)) return false;
       if (filter !== 'all' && s.kind !== filter) return false;
       if (cadence !== 'all' && cadenceShort(s.cadence) !== cadence) return false;
       if (query) {
@@ -72,13 +120,28 @@ function ScheduledScreen() {
       cell: (r: any) => {
         if (r.kind === 'batch') {
           const title = r.title?.trim() || deriveTitleFromFilename(r.filename);
+          const nRed = batchRedCount(r);
           return (
             <div className="min-w-0">
-              <div
-                className="font-sans font-semibold text-body-sm leading-tight truncate"
-                style={{ color: 'var(--navy)' }}
-              >
-                {title}
+              <div className="flex items-center gap-inline min-w-0">
+                <span
+                  className="font-sans font-semibold text-body-sm leading-tight truncate"
+                  style={{ color: 'var(--navy)' }}
+                >
+                  {title}
+                </span>
+                <BatchRedBadge
+                  count={nRed}
+                  onClick={() => {
+                    // Jump to this batch's latest run, red filter pre-applied,
+                    // so the user lands on just the red properties.
+                    const runId = r.runHistoryIds?.[0];
+                    if (runId) {
+                      sessionStorage.setItem('batchOpenRedFilter', '1');
+                      routerHistory.push(`/batch/${runId}`);
+                    }
+                  }}
+                />
               </div>
               <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
                 {r.filename} · {r.total} properties
@@ -89,11 +152,14 @@ function ScheduledScreen() {
         const [street, locality] = splitAddress(r.address);
         return (
           <div className="min-w-0">
-            <div
-              className="font-sans font-semibold text-body-sm leading-tight truncate"
-              style={{ color: 'var(--navy)' }}
-            >
-              {street}
+            <div className="flex items-center gap-inline min-w-0">
+              <span
+                className="font-sans font-semibold text-body-sm leading-tight truncate"
+                style={{ color: 'var(--navy)' }}
+              >
+                {street}
+              </span>
+              {isRedAddress(r.address) && <RedFlag />}
             </div>
             {locality && (
               <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
@@ -131,11 +197,22 @@ function ScheduledScreen() {
       label: 'Created',
       width: '100px',
       hideBelow: 'md' as const,
-      cell: (r: any) => (
-        <span className="font-mono tabular-nums text-caption text-ink-3">
-          {r.createdAgo}
-        </span>
-      ),
+      cell: (r: any) =>
+        r.createdAt === 0 ? (
+          // System-generated row (red-address auto-monitor) — no real creation
+          // date. A shield glyph marks it as system-created; the native title
+          // explains why the automation exists on hover.
+          <span
+            className="inline-flex items-center text-ink-3"
+            title="Created automatically — this address is flagged red, so it's monitored on a recurring scan."
+          >
+            <Icon name="shield" size={14} aria-label="Created automatically by the system" />
+          </span>
+        ) : (
+          <span className="font-mono tabular-nums text-caption text-ink-3">
+            {timeAgo(r.createdAt)}
+          </span>
+        ),
     },
   ];
 
@@ -156,8 +233,19 @@ function ScheduledScreen() {
         </div>
       </header>
 
-      {/* Filter + search bar — Type filter lives in the drawer to keep this row uncluttered. */}
-      <section className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
+      {/* Filter + search bar — Type filter lives in the drawer to keep this row
+          uncluttered. The "Red flags" toggle (left) isolates red-address
+          automations; search + Filters sit on the right. */}
+      <section className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center">
+          {redCount > 0 && (
+            <RedFilterToggle
+              active={redOnly}
+              count={redCount}
+              onToggle={() => setRedOnly((v) => !v)}
+            />
+          )}
+        </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial sm:w-[260px]">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
@@ -243,27 +331,52 @@ function ScheduledScreen() {
           message={error}
           onRetry={() => window.location.reload()}
         />
-      ) : !loading && schedules.length === 0 ? (
+      ) : !loading && schedules.length === 0 && redCount === 0 ? (
         <ScreenEmpty
           icon="cal"
           title="No automations yet"
           message="Schedule a recurring scan from any property or batch — they'll show up here."
+          actionLabel="Scan a property"
+          onAction={() => routerHistory.push('/')}
         />
       ) : (
         <DataTable
           columns={COLUMNS}
           rows={rows}
           rowKey={(r: any) => r.id}
-          onRowClick={(r: any) => routerHistory.push(`/scheduled/${r.id}`)}
+          onRowClick={(r: any) => {
+            // Red-address automations open the property drawer (to stop the
+            // scan); user-created schedules open their run-history detail.
+            if (r._isRed) {
+              setRedSelected(r._red);
+              setRedMode('detail');
+            } else {
+              routerHistory.push(`/scheduled/${r.id}`);
+            }
+          }}
           pageSize={10}
           loading={loading}
           empty={
             <div className="px-5 py-12 text-center text-label text-ink-3">
-              No schedules match your filters.
+              {redOnly ? 'No red-address automations.' : 'No schedules match your filters.'}
             </div>
           }
         />
       )}
+
+      <RedPropertyDrawer
+        open={!!redSelected}
+        onClose={() => {
+          setRedSelected(null);
+          setRedMode('detail');
+        }}
+        property={
+          redSelected ? { ...redSelected, scansStopped: isRedStopped(redSelected.address) } : null
+        }
+        mode={redMode as any}
+        onModeChange={setRedMode}
+        onApply={setRedStopped}
+      />
     </AppShell>
   );
 }

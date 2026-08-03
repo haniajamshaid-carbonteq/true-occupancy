@@ -36,12 +36,19 @@ function MockAppStateProvider({
     clearBatch: noop,
     dismissBatch: noop,
     retryBatchRow: noop,
+    rescanBatchRow: noop,
+    rerunRowAIReport: noop,
     addSchedule: noop,
     updateScheduleCadence: noop,
     updateScheduleStatuses: noop,
     updateScheduleRetention: noop,
     cancelSchedule: noop,
     findScheduleByTarget: () => null,
+    role: value.role ?? 'staff',
+    setRole: noop,
+    redStoppedAddrs: [],
+    isRedStopped: () => false,
+    setRedStopped: noop,
   }), [value]);
   return (
     <AppStateContext.Provider value={mock as any}>

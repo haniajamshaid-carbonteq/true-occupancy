@@ -1,4 +1,4 @@
-/* global React, AppShell, Avatar, Button, Icon, Input, Pill, ReactRouterDOM */
+/* global React, AppShell, Avatar, Button, Icon, Input, Pill, ChipRow, ReactRouterDOM, AppStateContext */
 // Profile — two-column account screen.
 // Left rail: avatar with edit affordance, name/role, vertical section nav
 // (Personal Information / Login & Password / Log Out).
@@ -82,9 +82,45 @@ function ProfileScreen() {
           onLogout={logout}
         />
 
-        <PersonalInformationPanel />
+        <div className="flex flex-col gap-6 min-w-0">
+          <RoleSwitcher />
+          <PersonalInformationPanel />
+        </div>
       </div>
     </AppShell>
+  );
+}
+
+// Demo-only role switcher (no real auth). Staff Admin is the only role that
+// can see the Configuration page — flip this to preview what Admin/User see.
+function RoleSwitcher() {
+  const ctx: any = React.useContext(AppStateContext);
+  if (!ctx?.setRole) return null;
+  const role = ctx.role ?? 'staff';
+  return (
+    <div className="bg-surface border border-line rounded-2xl shadow-sm p-5">
+      <div className="flex items-center gap-inline mb-1">
+        <span className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase" style={{ color: 'var(--brand)' }}>
+          Demo
+        </span>
+        <span className="font-sans text-h4 font-semibold" style={{ color: 'var(--navy)' }}>
+          View as
+        </span>
+      </div>
+      <p className="font-sans text-caption mb-stack-md" style={{ color: 'var(--ink-3)' }}>
+        Switch role to preview access. Only a Staff Admin sees Configuration.
+      </p>
+      <ChipRow
+        label=""
+        value={role}
+        onChange={(v: string) => ctx.setRole(v)}
+        options={[
+          { value: 'staff', label: 'Staff Admin' },
+          { value: 'admin', label: 'Admin' },
+          { value: 'user', label: 'User' },
+        ]}
+      />
+    </div>
   );
 }
 

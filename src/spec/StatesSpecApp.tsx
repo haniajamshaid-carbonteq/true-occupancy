@@ -1,7 +1,7 @@
 /* global React, ReactRouterDOM, Screen, SpecSection, MockAppStateProvider,
    TableSkeleton, ScreenEmpty, ScreenError, AIInvestigator, AI_INVESTIGATIONS,
    HomeScreen, HistoryScreen, ScheduledScreen, ScheduleDetailScreen,
-   NotificationDock, ScanIntentHero */
+   NotificationDock, ScanIntentHero, seedTime */
 
 const { Route } = ReactRouterDOM;
 
@@ -23,15 +23,15 @@ function ScheduleDetailFrame() {
 // Single seed used by the "Populated" reference frames so the variants
 // read against a real data shape, not a fixture stub.
 const SAMPLE_HISTORY: any[] = [
-  { id: 'p1', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAgo: '8 min ago' },
-  { id: 'p2', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',   scenario: 'medium', platforms: 2, scannedAgo: '24 min ago' },
-  { id: 'p3', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 3, scannedAgo: '3 h ago' },
-  { id: 'p4', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAgo: '4 h ago' },
+  { id: 'p1', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('8min') },
+  { id: 'p2', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',   scenario: 'medium', platforms: 2, scannedAt: seedTime('24min') },
+  { id: 'p3', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 3, scannedAt: seedTime('3h') },
+  { id: 'p4', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAt: seedTime('4h') },
 ];
 
 const SAMPLE_SCHEDULES: any[] = [
-  { id: 'sp1', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadence: { every: 6, unit: 'month' }, nextRunLabel: 'Nov 12, 2026', createdAgo: '8 min ago', runHistoryIds: ['p1'] },
-  { id: 'sp2', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadence: { every: 3, unit: 'month' }, nextRunLabel: 'Aug 12, 2026', createdAgo: '2 h ago',   runHistoryIds: [], statuses: ['risk', 'warn'], retention: 'monitor' },
+  { id: 'sp1', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadence: { every: 6, unit: 'month' }, nextRunLabel: 'Nov 12, 2026', createdAt: seedTime('8min'), runHistoryIds: ['p1'] },
+  { id: 'sp2', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadence: { every: 3, unit: 'month' }, nextRunLabel: 'Aug 12, 2026', createdAt: seedTime('2h'),   runHistoryIds: [], statuses: ['risk', 'warn'], retention: 'monitor' },
 ];
 
 function StatesSpecApp() {

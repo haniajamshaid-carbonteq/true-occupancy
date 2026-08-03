@@ -1,38 +1,25 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, DropdownMenu, Drawer, Tabs, ReactRouterDOM, SCENARIOS,
    HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
    SCAN_COLUMNS, scanLeadingAccent, useAppState, splitAddress, ChipRow, DateRangePicker, parseAgoHours,
-   deriveTitleFromFilename, ScreenError, ScreenEmpty */
+   deriveTitleFromFilename, ScreenError, ScreenEmpty,
+   isRedAddress, RedFlag, RedFilterToggle, BatchRedBadge */
 
-function scannedAgoToHours(label: string): number {
-  if (!label) return NaN;
-  const s = label.toLowerCase().trim();
-  if (s === 'just now') return 0;
-  if (s === 'yesterday') return 24;
-  const m = s.match(/^(\d+)\s*(min|h|d|w|mo|y)\b/);
-  if (!m) return NaN;
-  const n = parseInt(m[1], 10);
-  switch (m[2]) {
-    case 'min': return n / 60;
-    case 'h':   return n;
-    case 'd':   return n * 24;
-    case 'w':   return n * 24 * 7;
-    case 'mo':  return n * 24 * 30;
-    case 'y':   return n * 24 * 365;
-    default:    return NaN;
-  }
-}
-
-function formatScannedDate(scannedAgo: string): string {
-  const hrs = scannedAgoToHours(scannedAgo);
-  if (!Number.isFinite(hrs)) return scannedAgo;
-  const d = new Date(Date.now() - hrs * 60 * 60 * 1000);
-  return d.toLocaleDateString('en-US', {
+function formatScannedDate(ts: number): string {
+  return new Date(ts).toLocaleDateString('en-US', {
     month: 'short', day: '2-digit', year: 'numeric',
   });
 }
 
 type Verdict = 'all' | 'high' | 'medium' | 'low';
 type Kind = 'single' | 'batch';
+
+// A history row is "red" when it involves a red address. For a single scan
+// that's the address itself; for a batch it's any row inside it. Red is a
+// filter over the existing Single/Batch lists, not a separate tab.
+function rowIsRed(r: any): boolean {
+  if (r.kind === 'batch') return (r.rows || []).some((x: any) => isRedAddress(x.address));
+  return isRedAddress(r.address);
+}
 type BatchStatus = 'all' | 'complete' | 'partial' | 'failed';
 type DateRange = { from?: string; to?: string };
 type PlatformsBucket = 'all' | 'none' | 'any' | 'multi';
@@ -43,13 +30,9 @@ function rowScore(row: any): number | null {
   return sc ? sc.score : null;
 }
 
-// Derive a scanned-date ISO string from a row's relative-time seed value.
-// Uses the same hour conversion as formatScannedDate so display + filter
-// stay in lockstep.
 function scannedIso(row: any): string {
-  const hrs = scannedAgoToHours(row.scannedAgo);
-  if (!Number.isFinite(hrs)) return '';
-  const d = new Date(Date.now() - hrs * 60 * 60 * 1000);
+  if (!row.scannedAt) return '';
+  const d = new Date(row.scannedAt);
   d.setHours(0, 0, 0, 0);
   return d.toISOString().slice(0, 10);
 }
@@ -65,6 +48,8 @@ function HistoryScreen() {
   const [platformsBucket, setPlatformsBucket] = React.useState<PlatformsBucket>('all');
   const [scoreRange, setScoreRange] = React.useState<ScoreRange>({});
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  // "Red only" filter — isolates the red subset of the current tab.
+  const [redOnly, setRedOnly] = React.useState(false);
 
   // Platforms filter only makes sense on the single tab; it disappears
   // from the drawer on batch, so don't count it toward the badge there.
@@ -82,7 +67,12 @@ function HistoryScreen() {
   const singleRows = rows.filter((r: any) => r.kind !== 'batch');
   const batchRows  = rows.filter((r: any) => r.kind === 'batch');
 
-  const filtered = (kind === 'single' ? singleRows : batchRows).filter((r: any) => {
+  const baseRows = kind === 'single' ? singleRows : batchRows;
+  // Count of red rows in the current tab — drives the toggle's badge.
+  const redCount = baseRows.filter(rowIsRed).length;
+
+  const filtered = baseRows.filter((r: any) => {
+    if (redOnly && !rowIsRed(r)) return false;
     if (kind === 'single' && verdict !== 'all' && r.scenario !== verdict) return false;
     if (kind === 'batch' && batchStatus !== 'all') {
       const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
@@ -149,6 +139,14 @@ function HistoryScreen() {
     }
     sessionStorage.setItem('scanScenario', row.scenario);
     sessionStorage.setItem('scanAddress', row.address);
+    // Stamp when the report was served so the result's freshness banner can
+    // show fresh vs stale. Derived from the row's age; old rows read stale.
+    const servedIso = scannedIso(row);
+    sessionStorage.setItem(
+      'resultServedAt',
+      servedIso ? `${servedIso}T09:00:00` : new Date().toISOString()
+    );
+    sessionStorage.removeItem('resultCached');
     // Thread the entry's id + reference so the result page can show the
     // saved reference (if any) and route inline edits back to this entry
     // via setSingleScanReference(historyId, ref).
@@ -186,14 +184,26 @@ function HistoryScreen() {
           drawer on the right. All status filtering lives inside the drawer
           to keep the table breathing room. */}
       <section className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <Tabs
-          value={kind}
-          onChange={(v: any) => setKind(v)}
-          items={[
-            { value: 'single', label: 'Single', count: singleRows.length },
-            { value: 'batch',  label: 'Batch',  count: batchRows.length },
-          ]}
-        />
+        <div className="flex items-center gap-3 min-w-0">
+          <Tabs
+            value={kind}
+            onChange={(v: any) => setKind(v)}
+            items={[
+              { value: 'single', label: 'Single', count: singleRows.length },
+              { value: 'batch',  label: 'Batch',  count: batchRows.length },
+            ]}
+          />
+          {redCount > 0 && (
+            <>
+              <span className="h-5 w-px bg-line shrink-0" aria-hidden />
+              <RedFilterToggle
+                active={redOnly}
+                count={redCount}
+                onToggle={() => setRedOnly((v) => !v)}
+              />
+            </>
+          )}
+        </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial sm:w-[260px]">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
@@ -249,14 +259,15 @@ function HistoryScreen() {
         }
       >
         <div className="flex flex-col gap-6">
-          {kind === 'single' ? (
+          {kind === 'single' && (
             <ChipRow
               label="Verdict"
               value={verdict}
               onChange={(v: string) => setVerdict(v as Verdict)}
               options={VERDICT_FILTERS.map((f) => ({ value: f.id, label: f.label }))}
             />
-          ) : (
+          )}
+          {kind === 'batch' && (
             <ChipRow
               label="Status"
               value={batchStatus}
@@ -298,7 +309,7 @@ function HistoryScreen() {
           message={error}
           onRetry={() => window.location.reload()}
         />
-      ) : !loading && rows.length === 0 ? (
+      ) : !loading && baseRows.length === 0 ? (
         <ScreenEmpty
           icon="history"
           title="No scans yet"
@@ -316,7 +327,7 @@ function HistoryScreen() {
           loading={loading}
           empty={
             <div className="px-5 py-12 text-center text-label text-ink-3">
-              No scans match your filters.
+              {redOnly ? 'No red addresses in this tab.' : 'No scans match your filters.'}
             </div>
           }
         />
@@ -328,9 +339,13 @@ function HistoryScreen() {
           className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
           style={{ color: 'var(--ink-3)' }}
         >
-          {filtered.length} of {rows.length} {rows.length === 1 ? 'entry' : 'entries'}
+          {filtered.length} of {baseRows.length} {baseRows.length === 1 ? 'entry' : 'entries'}
         </span>
-        <span>Older scans archived after 90 days.</span>
+        <span>
+          {kind === 'red'
+            ? 'Cleared exceptions leave this list.'
+            : 'Older scans archived after 90 days.'}
+        </span>
       </div>
     </AppShell>
   );
@@ -349,11 +364,14 @@ const HISTORY_SINGLE_COLUMNS: any[] = [
       const [street, locality] = splitAddress(r.address);
       return (
         <div className="min-w-0">
-          <div
-            className="font-sans font-semibold text-body-sm leading-tight truncate"
-            style={{ color: 'var(--navy)' }}
-          >
-            {street}
+          <div className="flex items-center gap-inline min-w-0">
+            <span
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {street}
+            </span>
+            {isRedAddress(r.address) && <RedFlag />}
           </div>
           {locality && (
             <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
@@ -424,7 +442,7 @@ const HISTORY_SINGLE_COLUMNS: any[] = [
     hideBelow: 'md' as const,
     cell: (r: any) => (
       <span className="font-mono tabular-nums text-caption text-ink-3">
-        {formatScannedDate(r.scannedAgo)}
+        {formatScannedDate(r.scannedAt)}
       </span>
     ),
   },
@@ -439,13 +457,17 @@ const HISTORY_BATCH_COLUMNS: any[] = [
       // Title is now the primary cell; filename + counts get demoted to a
       // caption so the row reads as a named entity, not a CSV path.
       const title = r.title?.trim() || deriveTitleFromFilename(r.filename);
+      const nRed = (r.rows || []).filter((x: any) => isRedAddress(x.address)).length;
       return (
         <div className="min-w-0">
-          <div
-            className="font-sans font-semibold text-body-sm leading-tight truncate"
-            style={{ color: 'var(--navy)' }}
-          >
-            {title}
+          <div className="flex items-center gap-inline min-w-0">
+            <span
+              className="font-sans font-semibold text-body-sm leading-tight truncate"
+              style={{ color: 'var(--navy)' }}
+            >
+              {title}
+            </span>
+            <BatchRedBadge count={nRed} />
           </div>
           <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
             {r.filename} · {r.total} properties · {r.flagged} flagged
@@ -472,7 +494,7 @@ const HISTORY_BATCH_COLUMNS: any[] = [
     hideBelow: 'md' as const,
     cell: (r: any) => (
       <span className="font-mono tabular-nums text-caption text-ink-3">
-        {formatScannedDate(r.scannedAgo)}
+        {formatScannedDate(r.scannedAt)}
       </span>
     ),
   },

@@ -85,28 +85,8 @@ function certTimestamp(d: Date): string {
     : `${date} ${time} ${offset}`;
 }
 
-// Convert the human-relative `scannedAgo` strings the seed data uses
-// ('8 min ago', '6 mo ago', 'Yesterday', …) into an approximate absolute
-// Date. Used only by the history report so each prior run shows a concrete
-// calendar date instead of "8 min ago" — lenders archive these PDFs years
-// later, when "8 min ago" loses meaning.
-const CERT_HISTORY_UNIT_MS: Record<string, number> = {
-  min: 60_000,
-  h: 3_600_000,
-  d: 86_400_000,
-  w: 7 * 86_400_000,
-  mo: 30 * 86_400_000,
-  y: 365 * 86_400_000,
-};
-function certParseScannedAgo(scannedAgo: string, now: Date = new Date()): Date {
-  const s = scannedAgo.trim().toLowerCase();
-  if (s === 'just now') return now;
-  if (s === 'yesterday') return new Date(now.getTime() - CERT_HISTORY_UNIT_MS.d);
-  const m = s.match(/^(\d+)\s*(min|h|d|w|mo|y)\s*ago$/);
-  if (!m) return now;
-  const n = parseInt(m[1], 10);
-  const unit = m[2];
-  return new Date(now.getTime() - n * (CERT_HISTORY_UNIT_MS[unit] ?? 0));
+function certParseScannedAt(ts: number): Date {
+  return new Date(ts);
 }
 
 function certFormatHistoryDate(d: Date): string {
@@ -732,7 +712,7 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
       const sc = h.scenario as CertScenarioKey;
       const listings = certScenarioListings(sc);
       return {
-        date: certFormatHistoryDate(certParseScannedAgo(h.scannedAgo)),
+        date: certFormatHistoryDate(certParseScannedAt(h.scannedAt)),
         verdict: certScenarioVerdict(sc),
         scorePct: SCENARIOS[sc].score,
         listingCount: listings.length,

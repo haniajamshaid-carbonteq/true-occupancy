@@ -1,4 +1,4 @@
-/* global React */
+/* global React, DEFAULT_OCC_CONFIG */
 // AppState — a single source of truth for the three cross-cutting datasets
 // the prototype now spans:
 //   * live batch (one at a time; running or complete)
@@ -19,13 +19,49 @@
 type Scenario = 'low' | 'medium' | 'high';
 type Risk = 'clean' | 'warn' | 'risk';
 
+// Converts an epoch timestamp to a human-relative label ("Just now", "8 min ago", "Yesterday", …).
+function timeAgo(ts: number): string {
+  const elapsed = Date.now() - ts;
+  if (elapsed < 60_000) return 'Just now';
+  const min = Math.floor(elapsed / 60_000);
+  if (min < 60) return `${min} min ago`;
+  const hrs = Math.floor(min / 60);
+  if (hrs < 24) return `${hrs} h ago`;
+  if (hrs < 48) return 'Yesterday';
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days} d ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks <= 4) return `${weeks} w ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} mo ago`;
+  const years = Math.floor(days / 365);
+  return `${years} y ago`;
+}
+
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+const WEEK = 7 * DAY;
+const MONTH = 30 * DAY;
+const YEAR = 365 * DAY;
+function seedTime(offset: string): number {
+  const m = offset.match(/^(\d+)\s*(min|h|d|w|mo|y)$/);
+  if (!m) return Date.now();
+  const n = parseInt(m[1], 10);
+  const units: Record<string, number> = { min: MINUTE, h: HOUR, d: DAY, w: WEEK, mo: MONTH, y: YEAR };
+  return Date.now() - n * (units[m[2]] ?? 0);
+}
+
 interface SingleHistoryEntry {
   id: string;
   kind: 'single';
   address: string;
   scenario: Scenario;
   platforms: number;
-  scannedAgo: string;
+  scannedAt: number;
+  /** OccConfig.version in effect when this scan ran. Lets verdicts be
+   *  re-derived against historical thresholds, not whatever's current. */
+  configVersion?: number;
   /** Optional user-supplied identifier (loan #, client ID, case file…)
    *  set at scan-time and editable on the history page. Surfaces on the
    *  PDF certificate header when present. Never replaces our internal UUID
@@ -47,7 +83,7 @@ interface BatchHistoryEntry {
    *  failed = every row errored. Drives the History status pill and the
    *  banner CTA copy. */
   status: 'complete' | 'partial' | 'failed';
-  scannedAgo: string;
+  scannedAt: number;
   /** Snapshot of the per-address scan rows so the batch-detail page can
    *  render the full table without keeping the LiveBatch around in state. */
   rows: LiveBatchRow[];
@@ -88,7 +124,7 @@ interface SingleScheduleEntry {
   scenario: Scenario;
   cadence: Cadence;
   nextRunLabel: string;
-  createdAgo: string;
+  createdAt: number;
   /** History entry ids for all prior runs of this schedule, newest first.
    *  At minimum holds the originating scan that allowed the user to
    *  automate this address. Empty arrays only occur for legacy seeds. */
@@ -102,7 +138,7 @@ interface BatchScheduleEntry {
   total: number;
   cadence: Cadence;
   nextRunLabel: string;
-  createdAgo: string;
+  createdAt: number;
   /** History entry ids for all prior runs of this schedule, newest first. */
   runHistoryIds: string[];
   /** Which verdict bands seed the re-scan set. Defaults to ['risk','warn']
@@ -181,6 +217,10 @@ interface LiveBatchRow {
   listings?: number;
   /** Short reason populated when status === 'failed' (e.g. "Geocoder timeout"). */
   errorReason?: string;
+  /** Epoch ms when the listing scan last completed (status → done). */
+  lastScanAt?: number;
+  /** OccConfig.version in effect when this row's scan completed. */
+  configVersion?: number;
   /** The agentic AI report for this row — a SECOND, independent lifecycle
    *  layered on top of the occupancy scan. Absent until the user runs AI on
    *  this row (via the batch AI phase or a per-row "run now"). The occupancy
@@ -194,6 +234,8 @@ interface LiveBatchRow {
     verdictBand?: AIVerdictBand;
     /** Populated when status === 'failed'. */
     errorReason?: string;
+    /** Epoch ms when the AI report last completed (status → done). */
+    lastAIReportAt?: number;
   };
 }
 
@@ -241,10 +283,10 @@ interface LiveBatch {
 // Curated row snapshots for the two seeded batch entries so the batch-
 // detail page has something to render before the user has run a batch.
 const SEED_BATCH_Q1_ROWS: LiveBatchRow[] = [
-  { id: 1,  address: '1428 Maplewood Drive, Asheville, NC 28804', status: 'done', score: 87, risk: 'risk',  listings: 4 },
+  { id: 1,  address: '412 Cumberland Ave, Asheville, NC 28801',   status: 'done', score: 87, risk: 'risk',  listings: 4 },
   { id: 2,  address: '502 N Liberty St, Asheville, NC 28801',     status: 'done', score: 12, risk: 'clean', listings: 0 },
   { id: 3,  address: '800 Hilliard Ave, Asheville, NC 28801',     status: 'done', score: 54, risk: 'warn',  listings: 1 },
-  { id: 4,  address: '145 Westchester Dr, Asheville, NC 28803',   status: 'done', score: 76, risk: 'risk',  listings: 3 },
+  { id: 4,  address: '7 Beaucatcher Rd, Asheville, NC 28805',     status: 'done', score: 76, risk: 'risk',  listings: 3 },
   { id: 5,  address: '23 Tunnel Rd, Asheville, NC 28805',         status: 'done', score: 8,  risk: 'clean', listings: 0 },
   { id: 6,  address: '67 Charlotte Hwy, Asheville, NC 28803',     status: 'done', score: 91, risk: 'risk',  listings: 5 },
   { id: 7,  address: '215 Edgewood Rd, Asheville, NC 28804',      status: 'done', score: 42, risk: 'warn',  listings: 1 },
@@ -303,37 +345,44 @@ const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i)
 });
 
 const SEED_HISTORY: HistoryEntry[] = [
-  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAgo: '8 min ago',  reference: 'LOAN-2026-0042' },
-  { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAgo: '24 min ago', reference: 'CASE-FILE-7714' },
-  { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAgo: '52 min ago', rows: SEED_BATCH_FAILED_ROWS },
-  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAgo: '2 h ago', rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', description: 'Quarterly compliance scan for the spring 2026 lender portfolio.' },
-  { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAgo: '3 h ago'    },
-  { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAgo: '4 h ago'    },
-  { id: 'h05', kind: 'single', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAgo: '5 h ago'    },
-  { id: 'h06', kind: 'single', address: '301 Merrimon Ave, Asheville, NC 28804',      scenario: 'medium', platforms: 1, scannedAgo: '7 h ago'    },
-  { id: 'h07', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',    scenario: 'high',   platforms: 3, scannedAgo: 'Yesterday' },
-  { id: 'h08', kind: 'single', address: '23 Tunnel Rd, Asheville, NC 28805',          scenario: 'low',    platforms: 0, scannedAgo: 'Yesterday' },
-  { id: 'h09', kind: 'single', address: '215 Edgewood Rd, Asheville, NC 28804',       scenario: 'medium', platforms: 1, scannedAgo: 'Yesterday' },
-  { id: 'hb2', kind: 'batch',  filename: 'lender-portfolio-jan.csv', total: 42, flagged: 9, warn: 8, clean: 25, failed: 0, status: 'complete', scannedAgo: '2 d ago', rows: SEED_BATCH_LENDER_ROWS },
-  { id: 'hb3', kind: 'batch',  filename: 'permit-sweep-dec.csv',     total: 8,  flagged: 2, warn: 1, clean: 3, failed: 2, status: 'partial', scannedAgo: '3 d ago', rows: SEED_BATCH_PARTIAL_ROWS },
-  { id: 'hb4', kind: 'batch',  filename: 'short-sweep-nov.csv',      total: 4,  flagged: 0, warn: 0, clean: 0, failed: 4, status: 'failed',  scannedAgo: '5 d ago', rows: SEED_BATCH_FAILED_ROWS },
-  { id: 'h10', kind: 'single', address: '450 Patton Ave, Asheville, NC 28806',        scenario: 'high',   platforms: 2, scannedAgo: '2 d ago'   },
-  { id: 'h11', kind: 'single', address: '12 Hillside St, Asheville, NC 28801',        scenario: 'low',    platforms: 0, scannedAgo: '2 d ago'   },
-  { id: 'h12', kind: 'single', address: '156 Sand Hill Rd, Asheville, NC 28806',      scenario: 'high',   platforms: 3, scannedAgo: '3 d ago'   },
-  { id: 'h13', kind: 'single', address: '89 Beverly Rd, Asheville, NC 28805',         scenario: 'medium', platforms: 1, scannedAgo: '3 d ago'   },
-  { id: 'h14', kind: 'single', address: '720 Haywood Rd, Asheville, NC 28806',        scenario: 'low',    platforms: 0, scannedAgo: '4 d ago'   },
-  { id: 'h15', kind: 'single', address: '301 Lakeshore Dr, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAgo: '5 d ago'   },
-  { id: 'h16', kind: 'single', address: '44 Pine Cone Ln, Asheville, NC 28803',       scenario: 'medium', platforms: 1, scannedAgo: '6 d ago'   },
-  { id: 'h17', kind: 'single', address: '987 Sunset Pkwy, Asheville, NC 28806',       scenario: 'low',    platforms: 0, scannedAgo: '1 w ago'   },
-  { id: 'h18', kind: 'single', address: '50 Ridgeview Ct, Asheville, NC 28805',       scenario: 'high',   platforms: 3, scannedAgo: '1 w ago'   },
+  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAt: seedTime('8min'),  reference: 'LOAN-2026-0042' },
+  { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAt: seedTime('24min'), reference: 'CASE-FILE-7714' },
+  // Deliberately old, so its report demonstrates the stale-freshness flow.
+  { id: 'h00', kind: 'single', address: '19 Rankin Ave, Asheville, NC 28801',         scenario: 'high',   platforms: 3, scannedAt: seedTime('46d'),   reference: 'LOAN-2026-0099' },
+  // These three are also red addresses (see RED_ADDRESS_SEED), so they carry
+  // the danger flag wherever they appear outside the Red-addresses tab.
+  { id: 'hr1', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',    scenario: 'high',   platforms: 4, scannedAt: seedTime('1h'),    reference: 'LOAN-2026-0071' },
+  { id: 'hr2', kind: 'single', address: '7 Beaucatcher Rd, Asheville, NC 28805',      scenario: 'high',   platforms: 3, scannedAt: seedTime('6h'),    reference: 'LOAN-2026-0058' },
+  { id: 'hr3', kind: 'single', address: '153 Merrimon Ave, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAt: seedTime('2d') },
+  { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAt: seedTime('47d'), rows: SEED_BATCH_FAILED_ROWS },
+  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAt: seedTime('2h'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', description: 'Quarterly compliance scan for the spring 2026 lender portfolio.' },
+  { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAt: seedTime('3h')    },
+  { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAt: seedTime('4h')    },
+  { id: 'h05', kind: 'single', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAt: seedTime('5h')    },
+  { id: 'h06', kind: 'single', address: '301 Merrimon Ave, Asheville, NC 28804',      scenario: 'medium', platforms: 1, scannedAt: seedTime('7h')    },
+  { id: 'h07', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',    scenario: 'high',   platforms: 3, scannedAt: seedTime('1d') },
+  { id: 'h08', kind: 'single', address: '23 Tunnel Rd, Asheville, NC 28805',          scenario: 'low',    platforms: 0, scannedAt: seedTime('1d') },
+  { id: 'h09', kind: 'single', address: '215 Edgewood Rd, Asheville, NC 28804',       scenario: 'medium', platforms: 1, scannedAt: seedTime('1d') },
+  { id: 'hb2', kind: 'batch',  filename: 'lender-portfolio-jan.csv', total: 42, flagged: 9, warn: 8, clean: 25, failed: 0, status: 'complete', scannedAt: seedTime('2d'), rows: SEED_BATCH_LENDER_ROWS },
+  { id: 'hb3', kind: 'batch',  filename: 'permit-sweep-dec.csv',     total: 8,  flagged: 2, warn: 1, clean: 3, failed: 2, status: 'partial', scannedAt: seedTime('3d'), rows: SEED_BATCH_PARTIAL_ROWS },
+  { id: 'hb4', kind: 'batch',  filename: 'short-sweep-nov.csv',      total: 4,  flagged: 0, warn: 0, clean: 0, failed: 4, status: 'failed',  scannedAt: seedTime('5d'), rows: SEED_BATCH_FAILED_ROWS },
+  { id: 'h10', kind: 'single', address: '450 Patton Ave, Asheville, NC 28806',        scenario: 'high',   platforms: 2, scannedAt: seedTime('2d')   },
+  { id: 'h11', kind: 'single', address: '12 Hillside St, Asheville, NC 28801',        scenario: 'low',    platforms: 0, scannedAt: seedTime('2d')   },
+  { id: 'h12', kind: 'single', address: '156 Sand Hill Rd, Asheville, NC 28806',      scenario: 'high',   platforms: 3, scannedAt: seedTime('3d')   },
+  { id: 'h13', kind: 'single', address: '89 Beverly Rd, Asheville, NC 28805',         scenario: 'medium', platforms: 1, scannedAt: seedTime('3d')   },
+  { id: 'h14', kind: 'single', address: '720 Haywood Rd, Asheville, NC 28806',        scenario: 'low',    platforms: 0, scannedAt: seedTime('4d')   },
+  { id: 'h15', kind: 'single', address: '301 Lakeshore Dr, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAt: seedTime('5d')   },
+  { id: 'h16', kind: 'single', address: '44 Pine Cone Ln, Asheville, NC 28803',       scenario: 'medium', platforms: 1, scannedAt: seedTime('6d')   },
+  { id: 'h17', kind: 'single', address: '987 Sunset Pkwy, Asheville, NC 28806',       scenario: 'low',    platforms: 0, scannedAt: seedTime('1w')   },
+  { id: 'h18', kind: 'single', address: '50 Ridgeview Ct, Asheville, NC 28805',       scenario: 'high',   platforms: 3, scannedAt: seedTime('1w')   },
   // ---- Prior automation runs ---------------------------------------------
   // Synthetic history entries that act as previous executions of seeded
   // schedules, so the schedule-detail page shows a real run history.
-  { id: 'hr01a', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAgo: '6 mo ago' },
-  { id: 'hr01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAgo: '1 y ago'  },
-  { id: 'hr02a', kind: 'batch',  filename: 'asheville-q4-2025.csv', total: 22, flagged: 4, warn: 5, clean: 13, failed: 0, status: 'complete', scannedAgo: '3 mo ago', rows: SEED_BATCH_Q1_ROWS.slice(0, 22) },
-  { id: 'hr03a', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 2, scannedAgo: '1 y ago' },
-  { id: 'hr04a', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'medium', platforms: 1, scannedAgo: '4 mo ago' },
+  { id: 'hr01a', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('6mo') },
+  { id: 'hr01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('1y')  },
+  { id: 'hr02a', kind: 'batch',  filename: 'asheville-q4-2025.csv', total: 22, flagged: 4, warn: 5, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS.slice(0, 22) },
+  { id: 'hr03a', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 2, scannedAt: seedTime('1y') },
+  { id: 'hr04a', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'medium', platforms: 1, scannedAt: seedTime('4mo') },
 ];
 
 // ---- cadence helpers ----------------------------------------------------
@@ -402,10 +451,10 @@ const CAD_3MO: Cadence = { every: 3, unit: 'month' };
 const CAD_6MO: Cadence = { every: 6, unit: 'month' };
 
 const SEED_SCHEDULES: ScheduleEntry[] = [
-  { id: 's01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadence: CAD_6MO,     nextRunLabel: formatNextRun(CAD_6MO),     createdAgo: '8 min ago', runHistoryIds: ['h01', 'hr01a', 'hr01b'] },
-  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadence: CAD_3MO,     nextRunLabel: formatNextRun(CAD_3MO),     createdAgo: '2 h ago',   runHistoryIds: ['hb1', 'hr02a'], statuses: ['risk', 'warn'], retention: 'monitor', title: 'Asheville Spring Sweep' },
-  { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadence: CAD_MONTHLY, nextRunLabel: formatNextRun(CAD_MONTHLY), createdAgo: '3 h ago',   runHistoryIds: ['h03', 'hr03a'] },
-  { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadence: CAD_WEEKLY,  nextRunLabel: formatNextRun(CAD_WEEKLY),  createdAgo: 'Yesterday', runHistoryIds: ['h07', 'hr04a'] },
+  { id: 's01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high', cadence: CAD_6MO,     nextRunLabel: formatNextRun(CAD_6MO),     createdAt: seedTime('8min'), runHistoryIds: ['h01', 'hr01a', 'hr01b'] },
+  { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadence: CAD_3MO,     nextRunLabel: formatNextRun(CAD_3MO),     createdAt: seedTime('2h'),   runHistoryIds: ['hb1', 'hr02a'], statuses: ['risk', 'warn'], retention: 'monitor', title: 'Asheville Spring Sweep' },
+  { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadence: CAD_MONTHLY, nextRunLabel: formatNextRun(CAD_MONTHLY), createdAt: seedTime('3h'),   runHistoryIds: ['h03', 'hr03a'] },
+  { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadence: CAD_WEEKLY,  nextRunLabel: formatNextRun(CAD_WEEKLY),  createdAt: seedTime('1d'), runHistoryIds: ['h07', 'hr04a'] },
 ];
 
 // Batch sample addresses — kept identical to the previous BatchScreen mock
@@ -515,6 +564,8 @@ interface AppStateValue {
   clearBatch: () => void;
   dismissBatch: () => void;
   retryBatchRow: (id: number) => void;
+  rescanBatchRow: (id: number) => void;
+  rerunRowAIReport: (rowId: number) => void;
   /** Kick off the AI-report batch phase over the live batch: queues an AI
    *  report on every completed row whose occupancy verdict falls in `scope`
    *  (rows already carrying a done AI report are left alone; failed ones
@@ -537,7 +588,8 @@ interface AppStateValue {
    *  carries one optional user-supplied identifier (loan #, client ID, case
    *  file…) that travels onto its PDF certificate. */
   setSingleScanReference: (historyId: string, reference?: string) => void;
-  addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAgo' | 'nextRunLabel' | 'runHistoryIds'> & { cadence: Cadence; runHistoryIds?: string[]; statuses?: Risk[]; retention?: ScopeRetention }) => void;
+  addSingleScanToHistory: (address: string, scenario: Scenario, platforms: number, reference?: string) => string;
+  addSchedule: (entry: Omit<ScheduleEntry, 'id' | 'createdAt' | 'nextRunLabel' | 'runHistoryIds'> & { cadence: Cadence; runHistoryIds?: string[]; statuses?: Risk[]; retention?: ScopeRetention }) => void;
   updateScheduleCadence: (id: string, cadence: Cadence) => void;
   /** Update which verdict bands a batch schedule rescans each cycle. No-op
    *  for single-property schedules (their scope is implicitly that address). */
@@ -567,6 +619,30 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [history, setHistory] = React.useState<HistoryEntry[]>(SEED_HISTORY);
   const [transients, setTransients] = React.useState<TransientNotification[]>([]);
 
+  // Demo role (no real auth). Staff Admin is the only role that can view the
+  // Configuration page; Admin and User cannot. Switched from the Profile page.
+  const [role, setRole] = React.useState<'staff' | 'admin' | 'user'>('staff');
+
+  // Single source of truth for which red-flagged properties have had their
+  // recurring scan stopped. Every surface (History, Scheduled, batch drawer)
+  // reads + writes this, so a Stop/Restart in one place reflects everywhere.
+  // Seeded with 153 Merrimon (matches the red seed's scansStopped). Keyed by
+  // normalized address so a string is a stable id in the prototype.
+  const normRedAddr = (a: string) => (a || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const [redStoppedAddrs, setRedStoppedAddrs] = React.useState<string[]>([
+    '153 merrimon ave, asheville, nc 28804',
+  ]);
+  const setRedStopped = React.useCallback((address: string, stopped: boolean) => {
+    const key = normRedAddr(address);
+    setRedStoppedAddrs((prev) =>
+      stopped ? Array.from(new Set([...prev, key])) : prev.filter((a) => a !== key)
+    );
+  }, []);
+  const isRedStopped = React.useCallback(
+    (address: string) => redStoppedAddrs.includes(normRedAddr(address)),
+    [redStoppedAddrs]
+  );
+
   // Sim: tick the live batch forward one row at a time. Each tick moves
   // the first 'queued' row to 'running' and the first 'running' row to
   // 'done' (so we briefly see ~2 in-flight scans at a time, which reads
@@ -584,7 +660,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
             { kind: 'done', score: 50, risk: 'warn', listings: 1 };
           rows[runningIdx] = o.kind === 'failed'
             ? { ...rows[runningIdx], status: 'failed', errorReason: o.reason }
-            : { ...rows[runningIdx], status: 'done', score: o.score, risk: o.risk, listings: o.listings };
+            : { ...rows[runningIdx], status: 'done', score: o.score, risk: o.risk, listings: o.listings, lastScanAt: Date.now(), configVersion: DEFAULT_OCC_CONFIG.version };
         }
         const queuedIdx = rows.findIndex((r) => r.status === 'queued');
         if (queuedIdx >= 0) {
@@ -613,7 +689,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
               clean,
               failed: failedCount,
               status: batchStatus,
-              scannedAgo: 'Just now',
+              scannedAt: Date.now(),
               rows: rows.slice(),
               title: prev.title,
               description: prev.description,
@@ -648,7 +724,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
             aiReport:
               o.kind === 'failed'
                 ? { status: 'failed', errorReason: o.reason }
-                : { status: 'done', verdictBand: o.verdictBand },
+                : { status: 'done', verdictBand: o.verdictBand, lastAIReportAt: Date.now() },
           };
         }
         const queuedIdx = rows.findIndex((r) => r.aiReport?.status === 'queued');
@@ -718,15 +794,32 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const clearBatch = React.useCallback(() => setLiveBatch(null), []);
 
-  const retryBatchRow = React.useCallback((id: number) => {
+  const rescanBatchRow = React.useCallback((id: number) => {
     setLiveBatch((prev) => {
       if (!prev) return prev;
       const rows = prev.rows.map((r) =>
         r.id === id
-          ? { id: r.id, address: r.address, status: 'queued' as const, intent: r.intent }
+          ? { id: r.id, address: r.address, status: 'queued' as const, intent: r.intent, aiReport: undefined }
           : r
       );
       return { ...prev, rows, status: 'running' };
+    });
+  }, []);
+  const retryBatchRow = rescanBatchRow;
+
+  const rerunRowAIReport = React.useCallback((rowId: number) => {
+    setLiveBatch((prev) => {
+      if (!prev) return prev;
+      const rows = prev.rows.map((r) =>
+        r.id === rowId && r.status === 'done'
+          ? { ...r, aiReport: { status: 'running' as const } }
+          : r
+      );
+      const aiPhase =
+        prev.aiPhase && prev.aiPhase.status === 'running'
+          ? prev.aiPhase
+          : { status: 'running' as const, scope: prev.aiPhase?.scope ?? [] };
+      return { ...prev, rows, aiPhase };
     });
   }, []);
 
@@ -842,6 +935,21 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const addSingleScanToHistory = React.useCallback(
+    (address: string, scenario: Scenario, platforms: number, reference?: string): string => {
+      const id = uid('h');
+      const entry: SingleHistoryEntry = {
+        id, kind: 'single', address, scenario, platforms,
+        scannedAt: Date.now(),
+        configVersion: DEFAULT_OCC_CONFIG.version,
+        ...(reference ? { reference } : {}),
+      };
+      setHistory((h) => [entry, ...h]);
+      return id;
+    },
+    []
+  );
+
   const addSchedule = React.useCallback(
     (entry: any) => {
       const id = uid('s');
@@ -856,7 +964,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       // Retention defaults to 'monitor' (keep re-scanning) for batches.
       const retention: ScopeRetention | undefined =
         entry.kind === 'batch' ? (entry.retention ?? 'monitor') : undefined;
-      setSchedules((s) => [{ ...entry, id, nextRunLabel, createdAgo: 'Just now', runHistoryIds, statuses, retention }, ...s]);
+      setSchedules((s) => [{ ...entry, id, nextRunLabel, createdAt: Date.now(), runHistoryIds, statuses, retention }, ...s]);
     },
     []
   );
@@ -952,11 +1060,14 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     clearBatch,
     dismissBatch,
     retryBatchRow,
+    rescanBatchRow,
+    rerunRowAIReport,
     startBatchAIReports,
     runRowAIReport,
     renameBatch,
     setBatchDescription,
     setSingleScanReference,
+    addSingleScanToHistory,
     addSchedule,
     updateScheduleCadence,
     updateScheduleStatuses,
@@ -966,6 +1077,11 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     getHistoryForAddress,
     pushTransient,
     dismissTransient,
+    role,
+    setRole,
+    redStoppedAddrs,
+    setRedStopped,
+    isRedStopped,
   };
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

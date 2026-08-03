@@ -1,4 +1,4 @@
-/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, DropdownMenu, useAppState */
+/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, DropdownMenu, useAppState, isRedAddress, RedFlag */
 // ScanContextBar — replaces the persistent search trigger on detail
 // pages (result + why-expanded). Shows a back button plus the address
 // currently being viewed, so the user knows what scan they're looking at
@@ -72,6 +72,8 @@ function ScanContextBar({
     automateScenario ||
     ((typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanScenario')) as any) ||
     'high';
+  // The report freshness timestamp lives beneath the verdict now (ConfidenceHero
+  // → ServedStamp), not in this top bar.
 
   return (
     <div className="flex items-center gap-3 sm:gap-4 mb-1">
@@ -106,10 +108,11 @@ function ScanContextBar({
           </div>
         )}
         <div
-          className={`${eyebrow ? 'mt-0.5' : ''} truncate font-sans font-semibold text-body sm:text-body leading-tight tracking-[-0.005em]`}
+          className={`${eyebrow ? 'mt-0.5' : ''} flex items-center gap-inline min-w-0 font-sans font-semibold text-body sm:text-body leading-tight tracking-[-0.005em]`}
           style={{ color: 'var(--navy)' }}
         >
-          {resolvedAddress}
+          <span className="truncate">{resolvedAddress}</span>
+          {isRedAddress(resolvedAddress) && <RedFlag />}
         </div>
       </div>
 
