@@ -2,7 +2,7 @@
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
    deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
    ChipRow, reconcileOccupancy, INTENDED_OCCUPANCY_LABEL, isRedAddress, RedFlag, RedFilterToggle,
-   redRecordFor, RedPropertyDrawer, OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo */
+   redRecordFor, OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -364,8 +364,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
     findScheduleByTarget,
     renameBatch,
     setBatchDescription,
-    isRedStopped,
-    setRedStopped,
   } = useAppState();
   const rows: BatchRow[] = batch.rows;
   const total = rows.length;
@@ -444,10 +442,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const [query, setQuery] = React.useState('');
   const [verdictFilter, setVerdictFilter] = React.useState<VerdictFilter>('all');
   const [redOnly, setRedOnly] = React.useState(false);
-  // Red property drawer (same one single-property + Scheduled use), opened
-  // when a red row inside the batch is clicked.
-  const [redSelected, setRedSelected] = React.useState<any>(null);
-  const [redMode, setRedMode] = React.useState('detail');
   // How many properties in THIS batch are flagged red (scan contradicts the
   // declared occupancy). Drives the scoped "Red flags" filter on the table.
   const redCount = rows.filter((r) => isRedAddress(r.address)).length;
@@ -461,14 +455,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const openRedRow = (row: BatchRow) => {
-    const rec = redRecordFor(row.address);
-    setRedSelected(
-      rec || { address: row.address, intent: batch.defaultIntent, verdict: 'rented', confidence: row.score }
-    );
-    setRedMode('detail');
-  };
 
   const filteredRows = rows.filter((r) => {
     if (redOnly && !isRedAddress(r.address)) return false;
@@ -733,6 +719,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         flagged={flagged}
         warn={warn}
         clean={clean}
+        redCount={redCount}
         onSelect={toggleVerdict}
         selected={verdictFilter === 'all' ? null : verdictFilter}
       />
@@ -787,28 +774,9 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           rows={filteredRows}
           onRunRowAI={canRunAI ? runRowAIReport : undefined}
           defaultIntent={batch.defaultIntent}
-          onOpenRed={openRedRow}
           redView={redOnly}
         />
       </div>
-
-      {/* Red property drawer — a red row opens the same panel as a single
-          property, so the user can stop its (globally-driven) scan here. */}
-      <RedPropertyDrawer
-        open={!!redSelected}
-        onClose={() => {
-          setRedSelected(null);
-          setRedMode('detail');
-        }}
-        property={
-          redSelected
-            ? { ...redSelected, scansStopped: isRedStopped?.(redSelected.address) }
-            : null
-        }
-        mode={redMode as any}
-        onModeChange={setRedMode}
-        onApply={setRedStopped}
-      />
 
       {/* Run occupancy reports — pick ANY combination of verdict statuses to
           reason over, then run. Multi-select replaces the old cumulative-only
@@ -883,7 +851,6 @@ function BatchTable({
   rows,
   onRunRowAI,
   defaultIntent,
-  onOpenRed,
   redView,
 }: {
   rows: BatchRow[];
@@ -892,8 +859,6 @@ function BatchTable({
   onRunRowAI?: (rowId: number) => void;
   /** Batch-level occupancy default — applied to rows with no mapped intent. */
   defaultIntent?: IntendedOccupancy;
-  /** A red row opens the red property drawer instead of the result screen. */
-  onOpenRed?: (row: BatchRow) => void;
   /** Red-flags filter is active — show Declared vs Found instead of the
    *  score/AI columns, so the user can see WHY each row is red. */
   redView?: boolean;
@@ -901,11 +866,8 @@ function BatchTable({
   const history = ReactRouterDOM.useHistory();
 
   function openIfDone(row: BatchRow) {
-    // Red rows open the red drawer (stop its scan) — same as a single property.
-    if (onOpenRed && isRedAddress(row.address)) {
-      onOpenRed(row);
-      return;
-    }
+    // Every done row — red or not — opens its occupancy report. Red rows keep
+    // their flag in the cell; the report is where the finding is reviewed.
     if (row.status === 'done' && row.risk) {
       history.push(ROUTE_FOR_RISK[row.risk]);
     }
@@ -968,7 +930,7 @@ function buildBatchRedColumns(defaultIntent?: IntendedOccupancy): any[] {
               <span className="font-sans font-semibold text-body-sm leading-tight truncate" style={{ color: 'var(--navy)' }}>
                 {street}
               </span>
-              {isRedAddress(row.address) && <RedFlag />}
+              {isRedAddress(row.address) && <RedFlag address={row.address} />}
             </div>
             {locality && (
               <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">{locality}</div>
@@ -1056,7 +1018,7 @@ function buildBatchColumns(
             >
               {street}
             </span>
-            {isRedAddress(row.address) && <RedFlag />}
+            {isRedAddress(row.address) && <RedFlag address={row.address} />}
           </div>
           {locality && (
             <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">

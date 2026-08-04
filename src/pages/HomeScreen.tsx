@@ -244,7 +244,7 @@ function buildScanColumns<T extends { address: string; scenario: 'low' | 'medium
               >
                 {street}
               </span>
-              {isRedAddress(row.address) && <RedFlag />}
+              {isRedAddress(row.address) && <RedFlag address={row.address} />}
             </div>
             {locality && (
               <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
@@ -498,7 +498,7 @@ const DASHBOARD_SINGLE_COLUMNS: any[] = [
             >
               {street}
             </span>
-            {isRedAddress(r.address) && <RedFlag />}
+            {isRedAddress(r.address) && <RedFlag address={r.address} />}
           </div>
           {locality && (
             <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">

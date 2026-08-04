@@ -112,7 +112,7 @@ function ScanContextBar({
           style={{ color: 'var(--navy)' }}
         >
           <span className="truncate">{resolvedAddress}</span>
-          {isRedAddress(resolvedAddress) && <RedFlag />}
+          {isRedAddress(resolvedAddress) && <RedFlag address={resolvedAddress} />}
         </div>
       </div>
 

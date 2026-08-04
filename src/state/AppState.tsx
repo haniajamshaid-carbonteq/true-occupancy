@@ -623,26 +623,6 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   // Configuration page; Admin and User cannot. Switched from the Profile page.
   const [role, setRole] = React.useState<'staff' | 'admin' | 'user'>('staff');
 
-  // Single source of truth for which red-flagged properties have had their
-  // recurring scan stopped. Every surface (History, Scheduled, batch drawer)
-  // reads + writes this, so a Stop/Restart in one place reflects everywhere.
-  // Seeded with 153 Merrimon (matches the red seed's scansStopped). Keyed by
-  // normalized address so a string is a stable id in the prototype.
-  const normRedAddr = (a: string) => (a || '').toLowerCase().replace(/\s+/g, ' ').trim();
-  const [redStoppedAddrs, setRedStoppedAddrs] = React.useState<string[]>([
-    '153 merrimon ave, asheville, nc 28804',
-  ]);
-  const setRedStopped = React.useCallback((address: string, stopped: boolean) => {
-    const key = normRedAddr(address);
-    setRedStoppedAddrs((prev) =>
-      stopped ? Array.from(new Set([...prev, key])) : prev.filter((a) => a !== key)
-    );
-  }, []);
-  const isRedStopped = React.useCallback(
-    (address: string) => redStoppedAddrs.includes(normRedAddr(address)),
-    [redStoppedAddrs]
-  );
-
   // Sim: tick the live batch forward one row at a time. Each tick moves
   // the first 'queued' row to 'running' and the first 'running' row to
   // 'done' (so we briefly see ~2 in-flight scans at a time, which reads
@@ -1079,9 +1059,6 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     dismissTransient,
     role,
     setRole,
-    redStoppedAddrs,
-    setRedStopped,
-    isRedStopped,
   };
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

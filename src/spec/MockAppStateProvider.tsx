@@ -46,9 +46,6 @@ function MockAppStateProvider({
     findScheduleByTarget: () => null,
     role: value.role ?? 'staff',
     setRole: noop,
-    redStoppedAddrs: [],
-    isRedStopped: () => false,
-    setRedStopped: noop,
   }), [value]);
   return (
     <AppStateContext.Provider value={mock as any}>

@@ -322,10 +322,11 @@ function ScheduleDetailScreen() {
           </div>
         </Card>
 
-        {/* Red-flag note — clarifies that any red-flagged addresses in this
-            schedule are re-scanned by the global rule in Configuration, not by
-            this automation. Resolves the "why is this red / what triggers it"
-            confusion between normal schedules and red-flag automations. */}
+        {/* Red-flag note — flags any red-flagged addresses in this schedule.
+            This schedule already re-runs on its own cadence, so these addresses
+            are re-scanned here along with the rest; the note just says so and
+            (for batches) links to the red-filtered rows. No separate re-scan
+            automation is needed — that older per-address rule was removed. */}
         {redInSchedule > 0 && (
           <div className="rounded-lg p-3 flex items-start gap-inline bg-risk-soft">
             <span className="shrink-0 mt-0.5 [&>svg]:w-4 [&>svg]:h-4" style={{ color: 'var(--risk)' }} aria-hidden>
@@ -335,17 +336,11 @@ function ScheduleDetailScreen() {
               <span className="tabular-nums font-medium">{redInSchedule}</span>{' '}
               {redInSchedule === 1 ? 'address' : 'addresses'} in this{' '}
               {isBatch ? 'batch' : 'schedule'}{' '}
-              {redInSchedule === 1 ? 'is' : 'are'} flagged red. Red-flagged addresses
-              are re-scanned automatically under the rule set in{' '}
-              <button
-                type="button"
-                className="underline underline-offset-2 hover:no-underline font-medium"
-                onClick={() => routerHistory.push('/settings/scan')}
-                style={{ color: 'var(--risk-ink)' }}
-              >
-                Configuration &rarr; Recurring scans
-              </button>
-              , separate from this schedule.
+              {redInSchedule === 1 ? 'is' : 'are'} flagged red — the scan
+              contradicts the declared occupancy.{' '}
+              {redInSchedule === 1 ? 'It is' : 'They are'} re-scanned on this{' '}
+              {isBatch ? 'batch' : 'schedule'}&rsquo;s cadence along with the
+              rest; review the finding on each run.
               {isBatch && runs[0] && (
                 <>
                   {' '}

@@ -11,6 +11,10 @@ interface VerdictTilesProps {
   flagged: number;
   warn: number;
   clean: number;
+  /** Count of red addresses (scan contradicts declared occupancy). When > 0,
+   *  shown as a footer sub-count inside the Rented tile so it reads as a
+   *  subset of `flagged`, not a separate parallel number. */
+  redCount?: number;
   /** When provided, each tile becomes a button that toggles its verdict. */
   onSelect?: (v: Verdict) => void;
   /** Currently selected verdict (highlights the matching tile). */
@@ -22,6 +26,7 @@ function VerdictTiles({
   flagged,
   warn,
   clean,
+  redCount = 0,
   onSelect,
   selected = null,
   className = '',
@@ -32,6 +37,7 @@ function VerdictTiles({
       <MetricCard
         label="Rented"
         value={flagged}
+        hint={redCount > 0 ? `${redCount} red` : undefined}
         icon={<Icon name="flag" />}
         onClick={handle('risk')}
         selected={selected === 'risk'}

@@ -1,5 +1,5 @@
 /* global React, AppShell, DataTable, Pill, Button, Icon, ScreenEmpty, ScreenError,
-   useAppState, RedPropertyDrawer, OCC_INTENT_SHORT, OCC_VERDICT_LABEL, OCC_STATUS_TONE,
+   useAppState, OCC_INTENT_SHORT, OCC_VERDICT_LABEL, OCC_STATUS_TONE,
    formatUsDate, occDaysSince */
 
 // Red addresses — every property whose scan contradicts what was declared
@@ -256,15 +256,31 @@ function redRecordFor(address: string): RedRow | undefined {
   return RED_ADDRESS_SEED.find((r) => normalizeAddress(r.address) === normalizeAddress(address));
 }
 
+// Builds the red-flag explanation: what was declared, what the scan found, and
+// that Red is the outcome your occupancy rules assign to that pairing — not a
+// verdict of the finding itself. Falls back to a generic line when the record
+// (declared/found) isn't available for the address.
+function redFlagTooltip(address?: string): string {
+  const rec = address ? redRecordFor(address) : undefined;
+  if (!rec) return 'Flagged red — contradicts declared occupancy. Set by your occupancy rules (Config).';
+  const declared = OCC_INTENT_SHORT[rec.intent] ?? rec.intent;
+  const found = OCC_VERDICT_LABEL[rec.verdict] ?? rec.verdict;
+  // e.g. "Declared Owner-occupied, but the scan found it Rented — flagged Red
+  // by your occupancy rules (Config)."
+  return `Declared ${declared}, but the scan found it ${found} — flagged Red by your occupancy rules (Config).`;
+}
+
 // The danger marker. Native title tooltip keeps it dependency-free so it can
-// drop into any address cell. `risk` tone, never the verdict palette.
-function RedFlag({ className = '' }: { className?: string }) {
+// drop into any address cell. `risk` tone, never the verdict palette. Pass the
+// `address` so the tooltip names the declared-vs-found mismatch and points at
+// the config rule that made it Red.
+function RedFlag({ className = '', address }: { className?: string; address?: string }) {
   return (
     <span
       className={`inline-flex items-center shrink-0 [&>svg]:w-3.5 [&>svg]:h-3.5 ${className}`}
       style={{ color: 'var(--risk)' }}
-      title="Flagged red — contradicts declared occupancy"
-      aria-label="Flagged red"
+      title={redFlagTooltip(address)}
+      aria-label={redFlagTooltip(address)}
     >
       <Icon name="warning" size={14} />
     </span>

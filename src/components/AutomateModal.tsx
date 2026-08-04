@@ -1,7 +1,6 @@
 /* global React, Modal, Button, Icon, Radio, RadioGroup, StatusPillSelector,
    AutomationScopeCard, Cadence, ScopeRetention, sameCadence, cadenceLabel,
-   formatNextRun, ChipRow, OCC_INTENTS, OCC_INTENT_LABEL, DEFAULT_OCC_CONFIG,
-   isRedAddress, useAppState */
+   formatNextRun, ChipRow, OCC_INTENTS, OCC_INTENT_LABEL, DEFAULT_OCC_CONFIG */
 // AutomateModal — shared dialog for creating OR editing an automation.
 //
 // Create mode: shows the cadence radio cards (and, for batches, the new
@@ -176,16 +175,6 @@ function AutomateModal({
     primaryDisabled = cadenceUnchanged && statusesUnchanged && retentionUnchanged;
   }
 
-  // Warn (but allow) when creating a manual schedule for a red address
-  // that already has an org-level recurring scan.
-  const { isRedStopped } = useAppState();
-  const isRedDuplicate =
-    !isEdit &&
-    !isBatch &&
-    target?.address &&
-    isRedAddress(target.address) &&
-    !isRedStopped(target.address);
-
   const counts = scopeCounts ?? { risk: 0, warn: 0, clean: 0 };
   const total = scopeTotal ?? 0;
   const nextRunLabel = formatNextRun(cadence);
@@ -266,13 +255,6 @@ function AutomateModal({
           <div className="font-sans font-semibold text-body-sm" style={{ color: 'var(--navy)' }}>
             {target.address}
           </div>
-        </div>
-      )}
-
-      {isRedDuplicate && (
-        <div className="mb-4 px-4 py-3 rounded-md border bg-warn-soft border-warn text-warn-ink text-body-sm leading-relaxed flex items-start gap-2">
-          <Icon name="alert-triangle" size={16} className="mt-0.5 flex-shrink-0" />
-          <span>This address already has a monthly recurring scan from the red-flag monitoring system. Creating a manual schedule will scan it twice per cycle.</span>
         </div>
       )}
 

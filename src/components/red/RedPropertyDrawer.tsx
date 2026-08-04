@@ -1,26 +1,18 @@
-/* global React, Drawer, Button, Pill, Icon, Textarea, OCC_INTENT_LABEL,
+/* global React, Button, Pill, Icon, Textarea, OCC_INTENT_LABEL,
    OCC_VERDICT_LABEL, OCC_CADENCE_LABEL, formatUsDateTime, formatUsRelative */
 
-// Red property detail — opens from the red addresses list.
+// Red property detail panel — framed by the occupancy-spec canvas.
 //
 // One action: stop the recurring scan. This says "the finding stands, stop
 // re-checking it" — the property stays red, only the automation stops. It
 // carries a reason and its own audit record. (An earlier design also let you
 // "clear" the red status; that was removed — a red finding is a fact, not
 // something an operator dismisses.)
+//
+// NOTE: the live app no longer opens this as a drawer — red properties don't
+// auto-recur, so there's nothing to stop there. This remains a spec-only panel.
 
 type RedDrawerMode = 'detail' | 'stop' | 'done-stop' | 'done-restart';
-
-interface RedPropertyDrawerProps {
-  open: boolean;
-  onClose: () => void;
-  property?: any;
-  /** Spec frames drive this directly; the live app starts at 'detail'. */
-  mode?: RedDrawerMode;
-  onModeChange?: (next: RedDrawerMode) => void;
-  /** Apply a stop/restart to the shared store. address, stopped. */
-  onApply?: (address: string, stopped: boolean) => void;
-}
 
 // Scan history — the recurring red-flag scans that have run for this property.
 // Answers "when was this last checked?": the two most recent by date, with a
@@ -74,10 +66,10 @@ function MetaRow({ label, children }: { label: string; children?: React.ReactNod
   );
 }
 
-// Content is split out from the Drawer shell for one concrete reason: Drawer
-// portals to document.body, so a spec frame can never contain it. The spec
-// canvas renders RedPropertyPanel directly; the app renders RedPropertyDrawer.
-// Both share this one implementation, so the canvas cannot drift from the app.
+// Content is split into a hook so the panel body has one implementation. The
+// spec canvas renders RedPropertyPanel directly (a spec frame can't contain a
+// document.body-portalled drawer). The live app no longer renders this at all —
+// its stop-scan drawer was removed once red properties stopped auto-recurring.
 function useRedPropertyContent({
   property,
   mode,
@@ -353,29 +345,11 @@ function useRedPropertyContent({
 }
 
 /** The real app surface. */
-function RedPropertyDrawer({
-  open,
-  onClose,
-  property,
-  mode = 'detail',
-  onModeChange,
-  onApply,
-}: RedPropertyDrawerProps) {
-  const { header, body, footer } = useRedPropertyContent({
-    property,
-    mode,
-    onModeChange,
-    onClose,
-    onApply,
-  });
-  return (
-    <Drawer open={open} onClose={onClose} title={header} footer={footer} width={440}>
-      {body}
-    </Drawer>
-  );
-}
-
-/** Same content, rendered inline — for spec frames, which a portal escapes. */
+/** The red-property content, rendered inline. Consumed by the occupancy-spec
+ *  canvas (occupancy-spec.html) via OccupancySpecApp. The old Drawer wrapper
+ *  (RedPropertyDrawer) was removed when the app stopped opening a stop-scan
+ *  drawer from Batch/Scheduled — red properties no longer auto-recur, so there
+ *  is nothing to stop. Kept as a panel because the spec still frames it. */
 function RedPropertyPanel({
   property,
   mode = 'detail',

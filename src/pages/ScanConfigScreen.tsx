@@ -69,10 +69,13 @@ function ConfigSection({
 function ThresholdBandPreview({ lo, hi }: { lo: number; hi: number }) {
   const safeLo = Math.max(0, Math.min(100, lo));
   const safeHi = Math.max(safeLo, Math.min(100, hi));
+  // Verdicts are a categorical finding, not a severity — so the band uses the
+  // verdict palette (blue / yellow / purple), matching the canonical verdict
+  // Pill everywhere else, not the clean/warn/risk status palette.
   const bands = [
-    { tone: 'clean', label: OCC_VERDICT_LABEL['not-rented'], width: safeLo },
-    { tone: 'warn', label: OCC_VERDICT_LABEL['possibly-rented'], width: safeHi - safeLo },
-    { tone: 'risk', label: OCC_VERDICT_LABEL.rented, width: 100 - safeHi },
+    { tone: 'verdict-low', label: OCC_VERDICT_LABEL['not-rented'], width: safeLo },
+    { tone: 'verdict-med', label: OCC_VERDICT_LABEL['possibly-rented'], width: safeHi - safeLo },
+    { tone: 'verdict-high', label: OCC_VERDICT_LABEL.rented, width: 100 - safeHi },
   ];
   return (
     <div>
@@ -181,14 +184,8 @@ function ScanConfigScreen({
   return (
     <AppShell>
     <div className="pb-section">
-      <div className="mt-section">
-        <div
-          className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase"
-          style={{ color: 'var(--brand)' }}
-        >
-          Organisation settings
-        </div>
-        <h1 className="font-sans text-h2 font-semibold mt-1" style={{ color: 'var(--navy)' }}>
+      <div>
+        <h1 className="font-sans text-h2 font-semibold" style={{ color: 'var(--navy)' }}>
           Scan configuration
         </h1>
         <p className="font-sans text-body-sm mt-2 max-w-[68ch]" style={{ color: 'var(--ink-2)' }}>
@@ -319,34 +316,14 @@ function ScanConfigScreen({
         })}
       </ConfigSection>
 
-      {/* ---- 4. Recurring scans ---- */}
-      <ConfigSection
-        title="Recurring scans"
-        desc="Which statuses keep getting re-scanned. Only red recurs by default — yellow and green are one-off unless you change it."
-      >
-        <div className="flex flex-col gap-stack">
-          {OCC_STATUSES.slice().reverse().map((s: string) => (
-            <div key={s} className="flex flex-wrap items-center gap-stack">
-              <span className="w-[92px] shrink-0">
-                <Pill variant={OCC_STATUS_TONE[s]} size="md">
-                  {OCC_STATUS_LABEL[s]}
-                </Pill>
-              </span>
-              <div className="flex-1 min-w-[260px]">
-                <ChipRow
-                  label=""
-                  value={recurring[s]}
-                  onChange={(next: string) => setRecurring((r: any) => ({ ...r, [s]: next }))}
-                  options={(['none', 'quarterly', 'monthly', 'weekly'] as string[]).map((c) => ({
-                    value: c,
-                    label: OCC_CADENCE_LABEL[c],
-                  }))}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </ConfigSection>
+      {/* ---- 4. Recurring scans — REMOVED ----
+           Per-status recurring cadence was retired: it duplicated the
+           Automation feature (scheduled scans), where recurrence now lives
+           exclusively. Red properties are still detected and flagged in
+           single and batch scans; re-checking them happens through a normal
+           automation (batch) or an individual re-scan, each of which logs its
+           own History entry. The `recurring` field stays on OccConfig so the
+           saved config shape is unchanged — only the control is gone. */}
 
       {/* ---- 5. Investigation depth (cost / quality) — DEFERRED ----
            Pulled from the UI for this week's review, not cancelled. The
