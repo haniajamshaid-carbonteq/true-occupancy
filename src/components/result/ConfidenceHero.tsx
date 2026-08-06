@@ -1,4 +1,5 @@
-/* global React, Card, Icon, SCENARIOS, ReferenceCell, useAppState, ServedStamp, formatUsDateTime */
+/* global React, Card, Icon, SCENARIOS, ReferenceCell, useAppState, ServedStamp, formatUsDateTime,
+   occMatchForRisk, INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
@@ -212,6 +213,32 @@ const VERDICT_TEXT: Record<ScenarioKey, string> = {
   low:    'Not Rented',
 };
 
+// Tone → the ink colour used for the small status dot in the "why" block.
+const TONE_INK: Record<'clean' | 'warn' | 'risk', string> = {
+  clean: 'var(--clean-ink)',
+  warn: 'var(--warn-deep)',
+  risk: 'var(--risk-ink)',
+};
+
+// Plain-language "why" — reconciles the declared intent against what the scan
+// found. `intentLabel` is undefined when nothing was declared (quick-scan).
+function reconciliationWhy(
+  status: 'green' | 'yellow' | 'red',
+  verdictLabel: string,
+  intentLabel?: string
+): string {
+  if (!intentLabel) {
+    return `No occupancy was declared for this property, so the finding (${verdictLabel}) can’t be reconciled — treat it as informational.`;
+  }
+  if (status === 'green') {
+    return `The scan found ${verdictLabel}, which is consistent with the declared ${intentLabel}.`;
+  }
+  if (status === 'red') {
+    return `The scan found ${verdictLabel}, which contradicts the declared ${intentLabel} — worth a human review.`;
+  }
+  return `The scan found ${verdictLabel}; against the declared ${intentLabel} this is inconclusive and may need a closer look.`;
+}
+
 function RescanButton({ label, icon, disabled, disabledReason }: {
   label: string;
   icon: string;
@@ -328,6 +355,14 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
   const animatedScore = useCountUp(sc.score, 800);
 
+  // Reconciliation is the headline now — declared intent × what the scan found.
+  // Intent is stamped in sessionStorage at scan/open time; absent = quick-scan.
+  const rawIntent =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanIntent') : null;
+  const intent = rawIntent && INTENDED_OCCUPANCY_LABEL[rawIntent] ? rawIntent : undefined;
+  const match = occMatchForRisk(intent, sc.risk);
+  const verdictLabel = match ? OCC_VERDICT_LABEL[match.verdict] : VERDICT_TEXT[scenario];
+
   const [rescanning, setRescanning] = React.useState(false);
   React.useEffect(() => {
     const onStart = () => setRescanning(true);
@@ -363,13 +398,56 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
             className="font-sans font-semibold leading-[0.95] tracking-[-0.012em]"
             style={{ fontSize: "var(--text-h1)", color: 'var(--navy)' }}
           >
-            {VERDICT_TEXT[scenario]}
+            {match ? match.label : VERDICT_TEXT[scenario]}
           </div>
           <RescanButton label="Re-scan listings" icon="spark" />
           </div>
           <div className="mt-3 font-sans text-label text-ink-3 tabular-nums">
             <span className="font-semibold text-ink-2">{animatedScore}%</span> confidence
           </div>
+
+          {/* Why this result — the reconciliation explained. What the label
+              means: declared intent vs. what the scan actually found. This is
+              the only place the raw verdict (Rented / Possibly / Not rented)
+              is spelled out now that lists show the reconciliation instead. */}
+          {match && (
+            <div className="mt-4">
+              <div
+                className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
+                style={{ color: 'var(--ink-3)' }}
+              >
+                Why this result
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-sans text-caption tabular-nums">
+                {intent && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-ink-3">Declared</span>
+                    <span className="font-semibold" style={{ color: 'var(--navy)' }}>
+                      {INTENDED_OCCUPANCY_LABEL[intent]}
+                    </span>
+                  </span>
+                )}
+                {intent && <span className="text-ink-4" aria-hidden>·</span>}
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-ink-3">Scan found</span>
+                  <span
+                    className="inline-flex items-center gap-1.5 font-semibold"
+                    style={{ color: TONE_INK[match.tone] }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ background: TONE_INK[match.tone] }}
+                      aria-hidden
+                    />
+                    {verdictLabel}
+                  </span>
+                </span>
+              </div>
+              <p className="mt-1.5 font-sans text-caption text-ink-2 leading-snug m-0">
+                {reconciliationWhy(match.status, verdictLabel, intent ? INTENDED_OCCUPANCY_LABEL[intent] : undefined)}
+              </p>
+            </div>
+          )}
 
           {/* Canonical report timestamp — directly beneath the verdict/status. */}
           <div className="mt-4">

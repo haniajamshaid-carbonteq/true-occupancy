@@ -166,6 +166,49 @@ function resolveOccupancy(
   return { verdict, status: deriveOccStatus(config, intent, verdict) };
 }
 
+// ---- Reconciliation label — the ONE display of "declared vs found" ------
+// Every card, table and result page shows THIS instead of the raw verdict.
+// It is the outcomeMatrix status (green/yellow/red) relabelled. Deliberately
+// non-absolute wording — "Consistent" (not "Decisive": we can't guarantee
+// certainty), "Inconclusive", "Needs review". Colours reuse the existing
+// status tokens via OCC_STATUS_TONE (no new colour family). "Needs review"
+// IS the red tier — the Red-flag flow is the same value, filtered to red.
+const OCC_STATUS_MATCH_LABEL: Record<OccStatus, string> = {
+  green: 'Consistent',
+  yellow: 'Inconclusive',
+  red: 'Needs review',
+};
+
+// Existing app rows carry `risk` (clean/warn/risk) / scenario, not OccVerdict.
+// This is the 1:1 bridge to the config's verdict vocabulary.
+const RISK_TO_OCC_VERDICT: Record<'clean' | 'warn' | 'risk', OccVerdict> = {
+  clean: 'not-rented',
+  warn: 'possibly-rented',
+  risk: 'rented',
+};
+
+interface OccMatch {
+  status: OccStatus;                 // green | yellow | red
+  label: string;                     // Consistent | Inconclusive | Needs review
+  tone: 'clean' | 'warn' | 'risk';   // Pill variant / colour
+  verdict: OccVerdict;               // the raw finding, for the "why" line
+}
+
+// (declared intent, observed risk) -> the reconciliation shown everywhere.
+// An absent intent falls back to 'not-sure', which can only be green/yellow —
+// so an undeclared scan is NEVER shown as "Needs review". Returns null only
+// when the row hasn't been scanned yet (no risk).
+function occMatchForRisk(
+  intent: OccIntent | undefined,
+  risk: 'clean' | 'warn' | 'risk' | undefined,
+  config: OccConfig = DEFAULT_OCC_CONFIG
+): OccMatch | null {
+  if (!risk) return null;
+  const verdict = RISK_TO_OCC_VERDICT[risk];
+  const status = deriveOccStatus(config, intent || 'not-sure', verdict);
+  return { status, label: OCC_STATUS_MATCH_LABEL[status], tone: OCC_STATUS_TONE[status], verdict };
+}
+
 /** Thresholds are invalid if the bands cross or leave no middle band. */
 function occThresholdError(t: OccThresholds): string | null {
   const { rentedAtOrAbove: hi, notRentedAtOrBelow: lo } = t;

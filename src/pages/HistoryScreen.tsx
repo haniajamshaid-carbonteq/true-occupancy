@@ -2,7 +2,7 @@
    HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
    SCAN_COLUMNS, scanLeadingAccent, useAppState, splitAddress, ChipRow, DateRangePicker, parseAgoHours,
    deriveTitleFromFilename, ScreenError, ScreenEmpty,
-   isRedAddress, RedFlag, RedFilterToggle, BatchRedBadge */
+   isRedAddress, RedFlag, RedFilterToggle, BatchRedBadge, occMatchForRisk */
 
 function formatScannedDate(ts: number): string {
   return new Date(ts).toLocaleDateString('en-US', {
@@ -139,6 +139,10 @@ function HistoryScreen() {
     }
     sessionStorage.setItem('scanScenario', row.scenario);
     sessionStorage.setItem('scanAddress', row.address);
+    // Carry the declared intent so the result page reconciles it against the
+    // verdict. Cleared when absent so a prior scan's intent never leaks in.
+    if (row.intent) sessionStorage.setItem('scanIntent', row.intent);
+    else sessionStorage.removeItem('scanIntent');
     // Stamp when the report was served so the result's freshness banner can
     // show fresh vs stale. Derived from the row's age; old rows read stale.
     const servedIso = scannedIso(row);
@@ -383,16 +387,16 @@ const HISTORY_SINGLE_COLUMNS: any[] = [
     },
   },
   {
-    key: 'verdict',
-    label: 'Verdict',
+    // Result — reconciliation of declared intent × scan verdict. The raw
+    // Rented/Possibly/Not-rented finding now lives on the property page.
+    key: 'result',
+    label: 'Result',
     width: '156px',
     hideBelow: 'sm' as const,
     cell: (r: any) => {
-      const variant =
-        r.scenario === 'high'  ? 'verdict-high'
-        : r.scenario === 'medium' ? 'verdict-med'
-        : 'verdict-low';
-      return <Pill variant={variant as any}>{HOME_VERDICT_LABEL[r.scenario]}</Pill>;
+      const risk = SCENARIOS[r.scenario].risk;
+      const m = occMatchForRisk(r.intent, risk);
+      return m ? <Pill variant={m.tone as any}>{m.label}</Pill> : <span className="text-ink-4">—</span>;
     },
   },
   {

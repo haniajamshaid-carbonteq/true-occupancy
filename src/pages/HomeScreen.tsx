@@ -1,4 +1,4 @@
-/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, ScanIntentHero, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty, isRedAddress, RedFlag, BatchRedBadge, timeAgo, seedTime */
+/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, ScanIntentHero, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty, isRedAddress, RedFlag, BatchRedBadge, timeAgo, seedTime, occMatchForRisk */
 // Home — product-first dashboard. The user lands directly on the working
 // scanner with real evidence visible (KPI strip, recent scans, flagged for
 // review, methodology note). Marketing-landing surfaces (photo hero,
@@ -384,6 +384,8 @@ function RecentScansPanel() {
   function openSingleRow(row: any) {
     sessionStorage.setItem('scanScenario', row.scenario);
     sessionStorage.setItem('scanAddress', row.address);
+    if (row.intent) sessionStorage.setItem('scanIntent', row.intent);
+    else sessionStorage.removeItem('scanIntent');
     // Dashboard's recent scans are all current — clear any stale stamp left
     // by a previously-opened old report so this reads fresh.
     sessionStorage.removeItem('resultServedAt');
@@ -510,16 +512,15 @@ const DASHBOARD_SINGLE_COLUMNS: any[] = [
     },
   },
   {
-    key: 'verdict',
-    label: 'Verdict',
+    // Result — reconciliation of declared intent × scan verdict. Raw verdict
+    // moved to the property page.
+    key: 'result',
+    label: 'Result',
     width: '156px',
     hideBelow: 'sm' as const,
     cell: (r: any) => {
-      const variant =
-        r.scenario === 'high'  ? 'verdict-high'
-        : r.scenario === 'medium' ? 'verdict-med'
-        : 'verdict-low';
-      return <Pill variant={variant as any}>{HOME_VERDICT_LABEL[r.scenario]}</Pill>;
+      const m = occMatchForRisk(r.intent, SCENARIOS[r.scenario].risk);
+      return m ? <Pill variant={m.tone as any}>{m.label}</Pill> : <span className="text-ink-4">—</span>;
     },
   },
   {

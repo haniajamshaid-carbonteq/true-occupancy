@@ -95,6 +95,8 @@ function CommandPalette() {
     const final = next || '1428 Maplewood Drive, Asheville, NC 28804';
     sessionStorage.setItem('scanScenario', pickScenario(final));
     sessionStorage.setItem('scanAddress', final);
+    // Quick-scan declares no intended occupancy — clear any stale value.
+    sessionStorage.removeItem('scanIntent');
     setCommandPaletteOpen(false);
     history.push('/scan/start');
   }

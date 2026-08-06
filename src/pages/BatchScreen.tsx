@@ -2,7 +2,7 @@
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
    deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
    ChipRow, reconcileOccupancy, INTENDED_OCCUPANCY_LABEL, isRedAddress, RedFlag, RedFilterToggle,
-   redRecordFor, OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo */
+   redRecordFor, OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -372,6 +372,14 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   const flagged = rows.filter((r) => r.risk === 'risk').length;
   const warn = rows.filter((r) => r.risk === 'warn').length;
   const clean = rows.filter((r) => r.risk === 'clean').length;
+  // Reconciliation status per scanned row (declared intent × verdict), the
+  // number the tiles + filters now key off. green/yellow/red → Consistent /
+  // Inconclusive / Needs review.
+  const matchStatusOf = (r: BatchRow) =>
+    r.status === 'done' ? occMatchForRisk(r.intent ?? batch.defaultIntent, r.risk)?.status : undefined;
+  const consistentCount = rows.filter((r) => matchStatusOf(r) === 'green').length;
+  const inconclusiveCount = rows.filter((r) => matchStatusOf(r) === 'yellow').length;
+  const needsReviewCount = rows.filter((r) => matchStatusOf(r) === 'red').length;
   const progress = Math.round((done / total) * 100);
   const isComplete = batch.status === 'complete';
 
@@ -438,9 +446,14 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         failedRows.forEach((r) => retryBatchRow(r.id));
       };
 
-  type VerdictFilter = 'all' | 'risk' | 'warn' | 'clean';
+  type MatchFilter = 'all' | 'consistent' | 'inconclusive' | 'needsReview';
+  const MATCH_FILTER_STATUS: Record<Exclude<MatchFilter, 'all'>, 'green' | 'yellow' | 'red'> = {
+    consistent: 'green',
+    inconclusive: 'yellow',
+    needsReview: 'red',
+  };
   const [query, setQuery] = React.useState('');
-  const [verdictFilter, setVerdictFilter] = React.useState<VerdictFilter>('all');
+  const [matchFilter, setMatchFilter] = React.useState<MatchFilter>('all');
   const [redOnly, setRedOnly] = React.useState(false);
   // How many properties in THIS batch are flagged red (scan contradicts the
   // declared occupancy). Drives the scoped "Red flags" filter on the table.
@@ -458,15 +471,15 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
 
   const filteredRows = rows.filter((r) => {
     if (redOnly && !isRedAddress(r.address)) return false;
-    if (verdictFilter !== 'all') {
-      if (r.status !== 'done' || r.risk !== verdictFilter) return false;
+    if (matchFilter !== 'all') {
+      if (r.status !== 'done' || matchStatusOf(r) !== MATCH_FILTER_STATUS[matchFilter]) return false;
     }
     if (query && !r.address.toLowerCase().includes(query.toLowerCase())) return false;
     return true;
   });
 
-  const toggleVerdict = (v: 'risk' | 'warn' | 'clean') =>
-    setVerdictFilter((cur) => (cur === v ? 'all' : v));
+  const toggleMatch = (v: 'consistent' | 'inconclusive' | 'needsReview') =>
+    setMatchFilter((cur) => (cur === v ? 'all' : v));
 
   const uploadedLabel: string =
     batch.scannedAt ? timeAgo(batch.scannedAt) : (batch.startedAt ? formatStartedAgo(batch.startedAt) : 'Just now');
@@ -714,14 +727,15 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         </div>
       </Card>
 
-      {/* Status counts — sit outside the summary card, mirroring the dashboard KPI strip */}
+      {/* Reconciliation counts — sit outside the summary card, mirroring the
+          dashboard KPI strip. Declared intent × verdict, not raw verdict. */}
       <VerdictTiles
-        flagged={flagged}
-        warn={warn}
-        clean={clean}
+        consistent={consistentCount}
+        inconclusive={inconclusiveCount}
+        needsReview={needsReviewCount}
         redCount={redCount}
-        onSelect={toggleVerdict}
-        selected={verdictFilter === 'all' ? null : verdictFilter}
+        onSelect={toggleMatch}
+        selected={matchFilter === 'all' ? null : matchFilter}
       />
 
       {/* Properties — same DataTable primitive as Home + History */}
@@ -980,8 +994,11 @@ const ROUTE_FOR_RISK: Record<Risk, string> = {
 // the table↔card switch via the global DataTable primitive.
 // Reconciliation tag styling — a secondary annotation under the declared
 // value, deliberately quieter than the Verdict pill beside it.
+// Wording kept in lockstep with the reconciliation labels shown everywhere
+// else (OCC_STATUS_MATCH_LABEL) so one row never reads "Exception" here and
+// "Needs review" in the Result column.
 const RECONCILIATION_META: Record<string, { label: string; color: string }> = {
-  exception:    { label: 'Exception',    color: 'var(--warn-deep)' },
+  exception:    { label: 'Needs review', color: 'var(--warn-deep)' },
   consistent:   { label: 'Consistent',   color: 'var(--clean-ink)' },
   inconclusive: { label: 'Inconclusive', color: 'var(--ink-3)' },
 };
@@ -1062,17 +1079,17 @@ function buildBatchColumns(
     },
   },
   {
-    key: 'verdict',
-    label: 'Verdict',
-    width: '150px',
+    // Result — the reconciliation of declared intent vs. what the scan found
+    // (Consistent / Inconclusive / Needs review), NOT the raw verdict. The raw
+    // Rented/Possibly/Not-rented finding lives on the property page now.
+    key: 'result',
+    label: 'Result',
+    width: '156px',
     hideBelow: 'sm' as const,
     cell: (row: BatchRow) => {
       if (row.status === 'done' && row.risk) {
-        const variant =
-          row.risk === 'risk'  ? 'verdict-high'
-          : row.risk === 'warn'  ? 'verdict-med'
-          : 'verdict-low';
-        return <Pill variant={variant as any}>{VERDICT_LABEL[row.risk]}</Pill>;
+        const m = occMatchForRisk(row.intent ?? defaultIntent, row.risk);
+        return m ? <Pill variant={m.tone as any}>{m.label}</Pill> : <span className="text-ink-4">—</span>;
       }
       if (row.status === 'running') {
         return <Pill variant="brand" dot>Scanning</Pill>;

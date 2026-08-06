@@ -67,6 +67,9 @@ interface SingleHistoryEntry {
    *  PDF certificate header when present. Never replaces our internal UUID
    *  — see CertificateSheet footer. */
   reference?: string;
+  /** Declared "as per loan" occupancy captured at scan time, reconciled
+   *  against the observed verdict. Absent on scans that predate intake. */
+  intent?: IntendedOccupancy;
 }
 
 interface BatchHistoryEntry {
@@ -94,6 +97,9 @@ interface BatchHistoryEntry {
   /** Optional free-text description, surfaced on the batch detail page only
    *  (not in list rows). Up to 280 chars; editable inline. */
   description?: string;
+  /** Batch-level declared occupancy — applied to any row without its own
+   *  intent when reconciling the batch. */
+  defaultIntent?: IntendedOccupancy;
 }
 
 type HistoryEntry = SingleHistoryEntry | BatchHistoryEntry;
@@ -345,26 +351,26 @@ const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i)
 });
 
 const SEED_HISTORY: HistoryEntry[] = [
-  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAt: seedTime('8min'),  reference: 'LOAN-2026-0042' },
-  { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAt: seedTime('24min'), reference: 'CASE-FILE-7714' },
+  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAt: seedTime('8min'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied' },
+  { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAt: seedTime('24min'), reference: 'CASE-FILE-7714', intent: 'owner-occupied' },
   // Deliberately old, so its report demonstrates the stale-freshness flow.
   { id: 'h00', kind: 'single', address: '19 Rankin Ave, Asheville, NC 28801',         scenario: 'high',   platforms: 3, scannedAt: seedTime('46d'),   reference: 'LOAN-2026-0099' },
   // These three are also red addresses (see RED_ADDRESS_SEED), so they carry
   // the danger flag wherever they appear outside the Red-addresses tab.
-  { id: 'hr1', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',    scenario: 'high',   platforms: 4, scannedAt: seedTime('1h'),    reference: 'LOAN-2026-0071' },
-  { id: 'hr2', kind: 'single', address: '7 Beaucatcher Rd, Asheville, NC 28805',      scenario: 'high',   platforms: 3, scannedAt: seedTime('6h'),    reference: 'LOAN-2026-0058' },
-  { id: 'hr3', kind: 'single', address: '153 Merrimon Ave, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAt: seedTime('2d') },
+  { id: 'hr1', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',    scenario: 'high',   platforms: 4, scannedAt: seedTime('1h'),    reference: 'LOAN-2026-0071', intent: 'owner-occupied' },
+  { id: 'hr2', kind: 'single', address: '7 Beaucatcher Rd, Asheville, NC 28805',      scenario: 'high',   platforms: 3, scannedAt: seedTime('6h'),    reference: 'LOAN-2026-0058', intent: 'rental' },
+  { id: 'hr3', kind: 'single', address: '153 Merrimon Ave, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAt: seedTime('2d'), intent: 'owner-occupied' },
   { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAt: seedTime('47d'), rows: SEED_BATCH_FAILED_ROWS },
-  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAt: seedTime('2h'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', description: 'Quarterly compliance scan for the spring 2026 lender portfolio.' },
-  { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAt: seedTime('3h')    },
-  { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAt: seedTime('4h')    },
-  { id: 'h05', kind: 'single', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAt: seedTime('5h')    },
-  { id: 'h06', kind: 'single', address: '301 Merrimon Ave, Asheville, NC 28804',      scenario: 'medium', platforms: 1, scannedAt: seedTime('7h')    },
-  { id: 'h07', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',    scenario: 'high',   platforms: 3, scannedAt: seedTime('1d') },
+  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAt: seedTime('2h'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', description: 'Quarterly compliance scan for the spring 2026 lender portfolio.', defaultIntent: 'owner-occupied' },
+  { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAt: seedTime('3h'), intent: 'rental'    },
+  { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAt: seedTime('4h'), intent: 'owner-occupied'    },
+  { id: 'h05', kind: 'single', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAt: seedTime('5h'), intent: 'owner-occupied'    },
+  { id: 'h06', kind: 'single', address: '301 Merrimon Ave, Asheville, NC 28804',      scenario: 'medium', platforms: 1, scannedAt: seedTime('7h'), intent: 'owner-occupied'    },
+  { id: 'h07', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',    scenario: 'high',   platforms: 3, scannedAt: seedTime('1d'), intent: 'owner-occupied' },
   { id: 'h08', kind: 'single', address: '23 Tunnel Rd, Asheville, NC 28805',          scenario: 'low',    platforms: 0, scannedAt: seedTime('1d') },
   { id: 'h09', kind: 'single', address: '215 Edgewood Rd, Asheville, NC 28804',       scenario: 'medium', platforms: 1, scannedAt: seedTime('1d') },
-  { id: 'hb2', kind: 'batch',  filename: 'lender-portfolio-jan.csv', total: 42, flagged: 9, warn: 8, clean: 25, failed: 0, status: 'complete', scannedAt: seedTime('2d'), rows: SEED_BATCH_LENDER_ROWS },
-  { id: 'hb3', kind: 'batch',  filename: 'permit-sweep-dec.csv',     total: 8,  flagged: 2, warn: 1, clean: 3, failed: 2, status: 'partial', scannedAt: seedTime('3d'), rows: SEED_BATCH_PARTIAL_ROWS },
+  { id: 'hb2', kind: 'batch',  filename: 'lender-portfolio-jan.csv', total: 42, flagged: 9, warn: 8, clean: 25, failed: 0, status: 'complete', scannedAt: seedTime('2d'), rows: SEED_BATCH_LENDER_ROWS, defaultIntent: 'owner-occupied' },
+  { id: 'hb3', kind: 'batch',  filename: 'permit-sweep-dec.csv',     total: 8,  flagged: 2, warn: 1, clean: 3, failed: 2, status: 'partial', scannedAt: seedTime('3d'), rows: SEED_BATCH_PARTIAL_ROWS, defaultIntent: 'rental' },
   { id: 'hb4', kind: 'batch',  filename: 'short-sweep-nov.csv',      total: 4,  flagged: 0, warn: 0, clean: 0, failed: 4, status: 'failed',  scannedAt: seedTime('5d'), rows: SEED_BATCH_FAILED_ROWS },
   { id: 'h10', kind: 'single', address: '450 Patton Ave, Asheville, NC 28806',        scenario: 'high',   platforms: 2, scannedAt: seedTime('2d')   },
   { id: 'h11', kind: 'single', address: '12 Hillside St, Asheville, NC 28801',        scenario: 'low',    platforms: 0, scannedAt: seedTime('2d')   },
@@ -380,7 +386,7 @@ const SEED_HISTORY: HistoryEntry[] = [
   // schedules, so the schedule-detail page shows a real run history.
   { id: 'hr01a', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('6mo') },
   { id: 'hr01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('1y')  },
-  { id: 'hr02a', kind: 'batch',  filename: 'asheville-q4-2025.csv', total: 22, flagged: 4, warn: 5, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS.slice(0, 22) },
+  { id: 'hr02a', kind: 'batch',  filename: 'asheville-q4-2025.csv', total: 22, flagged: 4, warn: 5, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS.slice(0, 22), defaultIntent: 'owner-occupied' },
   { id: 'hr03a', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 2, scannedAt: seedTime('1y') },
   { id: 'hr04a', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'medium', platforms: 1, scannedAt: seedTime('4mo') },
 ];
