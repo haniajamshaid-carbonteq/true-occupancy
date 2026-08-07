@@ -239,119 +239,6 @@ function reconciliationWhy(
   return `The scan found ${verdictLabel}; against the declared ${intentLabel} this is inconclusive and may need a closer look.`;
 }
 
-function RescanButton({ label, icon, disabled, disabledReason }: {
-  label: string;
-  icon: string;
-  disabled?: boolean;
-  disabledReason?: string;
-}) {
-  const [running, setRunning] = React.useState(false);
-  const [confirm, setConfirm] = React.useState(false);
-  const [hover, setHover] = React.useState(false);
-  const isDisabled = disabled || running;
-  const tooltip = isDisabled
-    ? (running ? 'Running…' : disabledReason || label)
-    : label;
-
-  const lastServed =
-    typeof sessionStorage !== 'undefined'
-      ? sessionStorage.getItem('resultServedAt')
-      : null;
-
-  function handleClick() {
-    if (isDisabled) return;
-    setConfirm(true);
-  }
-
-  function handleConfirm() {
-    setConfirm(false);
-    setRunning(true);
-    window.dispatchEvent(new Event('halcyon:rescan-start'));
-    window.setTimeout(() => {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('resultServedAt', new Date().toISOString());
-        sessionStorage.removeItem('resultCached');
-      }
-      window.dispatchEvent(new Event('halcyon:served-updated'));
-      window.dispatchEvent(new Event('halcyon:rescan-end'));
-      setRunning(false);
-    }, 2200);
-  }
-
-  return (
-    <div
-      className="relative inline-flex"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={isDisabled}
-        aria-label={tooltip}
-        className={`inline-flex items-center justify-center w-6 h-6 rounded-full transition-colors shrink-0 ${
-          isDisabled
-            ? 'text-ink-4 opacity-40 cursor-not-allowed'
-            : 'text-ink-3 hover:bg-surface-2 hover:text-brand-deep cursor-pointer'
-        } ${running ? 'cursor-wait' : ''}`}
-      >
-        <span className={`[&>svg]:w-3 [&>svg]:h-3 ${running ? 'motion-safe:animate-spin' : ''}`}>
-          <Icon name={icon} size={12} />
-        </span>
-      </button>
-      {hover && !confirm && (
-        // Canonical tooltip bubble — matches src/components/ui/Tooltip.tsx
-        // (navy / white, px-2 py-1, rounded-md, text-caption, shadow-md,
-        // z-popover, no caret). Was a one-off bubble with a hardcoded 11px
-        // size and an arrow; realigned to the design-system tooltip.
-        <div
-          role="tooltip"
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md text-caption font-sans shadow-md whitespace-nowrap pointer-events-none z-popover"
-          style={{ background: 'var(--navy)', color: 'white' }}
-        >
-          {tooltip}
-        </div>
-      )}
-      {confirm && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setConfirm(false)} />
-          <div
-            className="absolute top-full right-0 mt-2 w-64 rounded-lg shadow-lg border border-line z-50 font-sans"
-            style={{ background: 'var(--surface)' }}
-          >
-            <div className="p-4">
-              <div className="text-label font-semibold" style={{ color: 'var(--navy)' }}>{label}</div>
-              {lastServed && (
-                <div className="mt-1.5 text-caption" style={{ color: 'var(--ink-3)' }}>
-                  Last report served {formatUsDateTime(lastServed)}
-                </div>
-              )}
-              <div className="mt-3 flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setConfirm(false)}
-                  className="px-3 py-1.5 text-caption font-medium rounded-md border border-line cursor-pointer hover:bg-surface-2 transition-colors"
-                  style={{ color: 'var(--ink-2)', background: 'transparent' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  className="px-3 py-1.5 text-caption font-medium rounded-md cursor-pointer transition-colors text-white"
-                  style={{ background: 'var(--brand)' }}
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
   const animatedScore = useCountUp(sc.score, 800);
@@ -364,34 +251,9 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const match = occMatchForRisk(intent, sc.risk);
   const verdictLabel = match ? OCC_VERDICT_LABEL[match.verdict] : VERDICT_TEXT[scenario];
 
-  const [rescanning, setRescanning] = React.useState(false);
-  React.useEffect(() => {
-    const onStart = () => setRescanning(true);
-    const onEnd = () => setRescanning(false);
-    window.addEventListener('halcyon:rescan-start', onStart);
-    window.addEventListener('halcyon:rescan-end', onEnd);
-    return () => {
-      window.removeEventListener('halcyon:rescan-start', onStart);
-      window.removeEventListener('halcyon:rescan-end', onEnd);
-    };
-  }, []);
-
   return (
     <Card>
       <div className="px-6 py-5" style={{ position: 'relative' }}>
-      {rescanning && (
-        <div
-          className="absolute inset-0 z-10 flex items-center justify-center rounded-xl"
-          style={{ background: 'rgba(var(--surface-rgb, 255,255,255), 0.85)', backdropFilter: 'blur(2px)' }}
-        >
-          <div className="flex items-center gap-3 font-sans text-label font-semibold" style={{ color: 'var(--brand)' }}>
-            <svg width="20" height="20" viewBox="0 0 20 20" className="animate-spin">
-              <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="40 20" strokeLinecap="round" />
-            </svg>
-            Rescanning listings…
-          </div>
-        </div>
-      )}
       <div className="flex flex-col md:flex-row md:items-stretch gap-6 md:gap-8">
         <div className="flex flex-col md:flex-[1] md:min-w-0">
           <div className="flex items-start justify-between gap-2">
@@ -401,7 +263,6 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
           >
             {match ? match.label : VERDICT_TEXT[scenario]}
           </div>
-          <RescanButton label="Re-scan listings" icon="spark" />
           </div>
           <div className="mt-3 font-sans text-label text-ink-3 tabular-nums">
             <span className="font-semibold text-ink-2">{animatedScore}%</span> confidence

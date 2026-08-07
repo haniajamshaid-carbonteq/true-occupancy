@@ -102,12 +102,29 @@ function BatchScreen() {
 // post-results AutomationControl / AutomationBanner.
 
 function BatchUpload() {
-  const { startBatch, startSampleBatch } = useAppState();
+  const { startBatch, startSampleBatch, history } = useAppState();
+
+  // A batch's identity is its filename — re-running the same file groups every
+  // execution under one run history. So an upload whose filename collides with
+  // an existing batch is ambiguous: it can't be a new batch (the name is
+  // taken) and a fresh file isn't how you re-run one. Block it and ask for a
+  // different name. Set is case-insensitive on the trimmed filename.
+  const existingBatchNames = React.useMemo(() => {
+    const names = new Set<string>();
+    history.forEach((h) => {
+      if (h.kind === 'batch' && h.filename) {
+        names.add(h.filename.trim().toLowerCase());
+      }
+    });
+    return names;
+  }, [history]);
 
   // File state is just the filename for now — the no-build prototype doesn't
   // actually parse CSVs. Real wiring would expose row count + header
   // detection from here and feed them into the form.
   const [filename, setFilename] = React.useState<string>('');
+  // Set when the picked file's name already exists in batch history.
+  const [nameError, setNameError] = React.useState<string>('');
   const [title, setTitle] = React.useState<string>('');
   // Track whether the user has hand-edited the title since the last file
   // drop. We auto-fill from the filename on drop, but never clobber a
@@ -123,12 +140,23 @@ function BatchUpload() {
   function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Reset the picker so re-selecting the same file still fires onChange.
+    e.target.value = '';
+    if (existingBatchNames.has(file.name.trim().toLowerCase())) {
+      // Collision — keep the drop zone empty and surface the error instead.
+      setFilename('');
+      setNameError(
+        `A batch named “${file.name}” already exists. Rename the file and upload it again.`,
+      );
+      return;
+    }
+    setNameError('');
     setFilename(file.name);
     if (!titleTouched) setTitle(deriveTitleFromFilename(file.name));
   }
 
   function onSubmit() {
-    if (!filename) return;
+    if (!filename || nameError) return;
     startBatch({
       filename,
       title: title.trim() || undefined,
@@ -138,7 +166,7 @@ function BatchUpload() {
     });
   }
 
-  const canSubmit = filename.length > 0;
+  const canSubmit = filename.length > 0 && !nameError;
 
   return (
     <>
@@ -170,7 +198,9 @@ function BatchUpload() {
           <label
             htmlFor="batch-csv"
             className={`w-full max-w-[560px] min-h-[220px] cursor-pointer flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors px-card py-section text-center ${
-              filename
+              nameError
+                ? 'border-error bg-error-soft/40'
+                : filename
                 ? 'border-brand bg-brand-soft/40'
                 : 'border-line bg-surface hover:bg-brand-soft hover:border-brand'
             }`}
@@ -205,6 +235,20 @@ function BatchUpload() {
               onChange={onFilePicked}
             />
           </label>
+
+          {/* Duplicate-name guard — a batch is identified by its filename, so a
+              name already in history can't start a new batch. */}
+          {nameError && (
+            <div
+              role="alert"
+              className="w-full max-w-[560px] mt-stack-tight flex items-start gap-2 rounded-lg bg-error-soft px-3 py-2.5 text-body-sm text-error-ink"
+            >
+              <span className="shrink-0 mt-0.5 [&>svg]:w-4 [&>svg]:h-4" aria-hidden>
+                <Icon name="alert" size={16} />
+              </span>
+              <span>{nameError}</span>
+            </div>
+          )}
 
           {/* ----- About this batch ----- */}
           <FormSection label="About this batch" className="mt-section-sub w-full max-w-[560px]">

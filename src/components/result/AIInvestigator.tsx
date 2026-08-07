@@ -1,6 +1,6 @@
 /* global React, ReactRouterDOM, Card, Button, Icon, Drawer, AI_INVESTIGATIONS,
    useAIInvestigator, startAIInvestigation, resetAIInvestigation,
-   parseAIDemoStatus, formatReportDate, formatUsDateTime, ServedStamp, RescanButton */
+   parseAIDemoStatus, formatReportDate, formatUsDateTime, ServedStamp */
 // AIInvestigator — a second-opinion module that runs after the rule-based
 // verdict has rendered. Sits between ConfidenceHero and ListingsPanel on
 // the three result screens.
@@ -571,7 +571,6 @@ function ReportCard({
             <SlotEyebrow />
             <SlotTitle>{result.caseArchetype}</SlotTitle>
           </div>
-          <RescanButton label="Re-run occupancy report" icon="ai-star" />
         </div>
         <div className="mt-2">
           <ServedStamp />
