@@ -41,6 +41,10 @@ interface MetricCardProps {
   accent?: MetricAccent;
   /** Optional decorative icon — rendered top-right in a soft tinted square. */
   icon?: React.ReactNode;
+  /** Tint of the icon square. Defaults to brand. The status tones map to the
+   *  config's reconciliation colours — 'clean' green, 'warn' amber, 'risk' red —
+   *  so a row of reconciliation tiles reads as Green / Yellow / Red at a glance. */
+  iconTone?: 'brand' | 'clean' | 'warn' | 'risk';
   /** Optional inline sparkline data — renders as a mini line chart between
    *  the value and the footer. Trend direction colours the stroke. */
   sparkline?: number[];
@@ -111,6 +115,7 @@ function MetricCard({
   primary = false,
   accent,
   icon,
+  iconTone = 'brand',
   sparkline,
   sparklineTone,
   className = '',
@@ -179,6 +184,12 @@ function MetricCard({
     : 'rgba(15,143,184,0.10)';
   const iconWrap = primary
     ? 'bg-white/15 text-white'
+    : iconTone === 'risk'
+    ? 'bg-risk-soft text-risk'
+    : iconTone === 'warn'
+    ? 'bg-warn-soft text-warn-ink'
+    : iconTone === 'clean'
+    ? 'bg-clean-soft text-clean-ink'
     : 'bg-brand-soft text-brand';
 
   return (

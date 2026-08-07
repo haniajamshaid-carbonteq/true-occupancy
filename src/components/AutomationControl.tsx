@@ -68,6 +68,17 @@ function AutomationControl({ target }: AutomationControlProps) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
+  // Open the automation flow from elsewhere on the page (e.g. the
+  // "Automation recommended" link under a red reconciliation tile). Opens the
+  // edit modal when a schedule already exists, else the create modal — same as
+  // clicking this control directly. Window event keeps the tile decoupled from
+  // this component's internal state, matching the app's other halcyon:* events.
+  React.useEffect(() => {
+    const open = () => (existing ? setEditOpen(true) : setCreateOpen(true));
+    window.addEventListener('halcyon:open-automate', open);
+    return () => window.removeEventListener('halcyon:open-automate', open);
+  }, [existing]);
+
   function handleCreate({ cadence, statuses, retention, intent }: { cadence: Cadence; statuses?: Risk[]; retention?: ScopeRetention; intent?: string }) {
     if (target.kind === 'single') {
       addSchedule({

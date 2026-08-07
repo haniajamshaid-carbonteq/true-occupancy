@@ -1,4 +1,4 @@
-/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, DropdownMenu, useAppState, isRedAddress, RedFlag */
+/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, DropdownMenu, useAppState, RedFlag, INTENDED_OCCUPANCY_LABEL, occMatchForRisk, SCENARIOS */
 // ScanContextBar — replaces the persistent search trigger on detail
 // pages (result + why-expanded). Shows a back button plus the address
 // currently being viewed, so the user knows what scan they're looking at
@@ -43,6 +43,23 @@ function ScanContextBar({
     address ||
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
     PROPERTY.address;
+
+  // The declared "as per loan" occupancy for this scan, stamped in
+  // sessionStorage at scan/open time. Shown as an eyebrow above the address so
+  // every property page states what was intended before what was found. Falls
+  // back to any explicit `eyebrow` the parent passed.
+  const rawIntent =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanIntent') : null;
+  const intent = rawIntent && INTENDED_OCCUPANCY_LABEL[rawIntent] ? rawIntent : undefined;
+  const resolvedEyebrow =
+    eyebrow || (intent ? `Intended · ${INTENDED_OCCUPANCY_LABEL[intent]}` : undefined);
+
+  // Red flag beside the address follows the config matrix (declared × found),
+  // not a hardcoded list — so it agrees with the batch, History and Scheduled.
+  const rawScenario =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanScenario') : null;
+  const risk = rawScenario ? SCENARIOS[rawScenario as keyof typeof SCENARIOS]?.risk : undefined;
+  const isRed = occMatchForRisk(intent, risk)?.status === 'red';
 
   // The history report stays clickable even when only one scan is on file —
   // a single-row report is still a useful audit record. The hint just
@@ -99,20 +116,20 @@ function ScanContextBar({
       </button>
 
       <div className="flex-1 min-w-0">
-        {eyebrow && (
+        {resolvedEyebrow && (
           <div
             className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
             style={{ color: 'var(--ink-3)' }}
           >
-            {eyebrow}
+            {resolvedEyebrow}
           </div>
         )}
         <div
-          className={`${eyebrow ? 'mt-0.5' : ''} flex items-center gap-inline min-w-0 font-sans font-semibold text-body sm:text-body leading-tight tracking-[-0.005em]`}
+          className={`${resolvedEyebrow ? 'mt-0.5' : ''} flex items-center gap-inline min-w-0 font-sans font-semibold text-body sm:text-body leading-tight tracking-[-0.005em]`}
           style={{ color: 'var(--navy)' }}
         >
           <span className="truncate">{resolvedAddress}</span>
-          {isRedAddress(resolvedAddress) && <RedFlag address={resolvedAddress} />}
+          {isRed && <RedFlag address={resolvedAddress} />}
         </div>
       </div>
 

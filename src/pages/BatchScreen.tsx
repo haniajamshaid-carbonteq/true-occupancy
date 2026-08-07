@@ -1,8 +1,8 @@
 /* global React, AppShell, Card, Button, Pill, Icon, Input, Textarea, DataTable, DropdownMenu, ReactRouterDOM,
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
    deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
-   ChipRow, reconcileOccupancy, INTENDED_OCCUPANCY_LABEL, isRedAddress, RedFlag, RedFilterToggle,
-   redRecordFor, OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk */
+   ChipRow, reconcileOccupancy, INTENDED_OCCUPANCY_LABEL, RedFlag,
+   OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk, RunHistory */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -57,6 +57,16 @@ const SAMPLE_BATCH: BatchRow[] = [
   { id: 13, address: '89 Beverly Rd, Asheville, NC 28805',        status: 'queued' },
   { id: 14, address: '720 Haywood Rd, Asheville, NC 28806',       status: 'queued' },
 ];
+
+// A row is "red" when the config matrix reconciles its declared intent against
+// what the scan found as Needs-review (status 'red'). Single source of truth:
+// the Needs-review tile's count, the table filter, and the per-row ⚠ marker all
+// read from this — so no address is red in one place and not another. Replaces
+// the old hand-curated isRedAddress seed on this screen.
+function isRowRed(row: BatchRow, defaultIntent?: IntendedOccupancy): boolean {
+  if (row.status !== 'done') return false;
+  return occMatchForRisk(row.intent ?? defaultIntent, row.risk)?.status === 'red';
+}
 
 // "Just now" within a minute, "N min ago" / "N h ago" / "N d ago" after.
 // Relative-label formatter for the live batch identity strip; once the
@@ -454,23 +464,22 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   };
   const [query, setQuery] = React.useState('');
   const [matchFilter, setMatchFilter] = React.useState<MatchFilter>('all');
-  const [redOnly, setRedOnly] = React.useState(false);
-  // How many properties in THIS batch are flagged red (scan contradicts the
-  // declared occupancy). Drives the scoped "Red flags" filter on the table.
-  const redCount = rows.filter((r) => isRedAddress(r.address)).length;
+  // How many properties in THIS batch are flagged red. Red = the config
+  // matrix's "Needs review" status, so this is the same number the tile shows
+  // and the same rows that carry the ⚠ marker — one definition, everywhere.
+  const redCount = needsReviewCount;
 
-  // Arriving from a "N red" badge pre-applies the red filter so the user lands
-  // on just the red properties. One-shot: cleared once read.
+  // Arriving from a "N red" badge pre-applies the red (Needs-review) filter so
+  // the user lands on just the red properties. One-shot: cleared once read.
   React.useEffect(() => {
     if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('batchOpenRedFilter') === '1') {
       sessionStorage.removeItem('batchOpenRedFilter');
-      if (redCount > 0) setRedOnly(true);
+      if (redCount > 0) setMatchFilter('needsReview');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredRows = rows.filter((r) => {
-    if (redOnly && !isRedAddress(r.address)) return false;
     if (matchFilter !== 'all') {
       if (r.status !== 'done' || matchStatusOf(r) !== MATCH_FILTER_STATUS[matchFilter]) return false;
     }
@@ -529,6 +538,24 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           >
             {batch.filename} · {total} {total === 1 ? 'property' : 'properties'} · Uploaded {uploadedLabel}
           </div>
+          {/* Batch-level intended occupancy — one declaration for the whole
+              batch (per the client: intent is a batch-level fact). Stated up top
+              so the reconciliation counts below read against a known baseline. */}
+          {batch.defaultIntent && INTENDED_OCCUPANCY_LABEL[batch.defaultIntent] && (
+            <div className="mt-1.5 inline-flex items-center gap-1.5 font-sans text-caption">
+              <span
+                className="text-eyebrow font-semibold tracking-[0.14em] uppercase"
+                style={{ color: 'var(--ink-3)' }}
+              >
+                Intended occupancy
+              </span>
+              <span className="font-semibold" style={{ color: 'var(--navy)' }}>
+                {INTENDED_OCCUPANCY_LABEL[batch.defaultIntent]}
+              </span>
+              <span className="text-ink-4" aria-hidden>·</span>
+              <span className="text-ink-3">applies to all {total}</span>
+            </div>
+          )}
         </div>
         <div className="flex gap-2 shrink-0 mt-1">
           {!activeSchedule && (
@@ -736,6 +763,11 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         redCount={redCount}
         onSelect={toggleMatch}
         selected={matchFilter === 'all' ? null : matchFilter}
+        onAutomate={
+          !activeSchedule && isComplete
+            ? () => window.dispatchEvent(new Event('halcyon:open-automate'))
+            : undefined
+        }
       />
 
       {/* Properties — same DataTable primitive as Home + History */}
@@ -748,13 +780,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             Properties
           </h3>
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            {redCount > 0 && (
-              <RedFilterToggle
-                active={redOnly}
-                count={redCount}
-                onToggle={() => setRedOnly((v) => !v)}
-              />
-            )}
             {onRetryAllFailed && failedCount > 0 && (
               <button
                 type="button"
@@ -788,7 +813,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           rows={filteredRows}
           onRunRowAI={canRunAI ? runRowAIReport : undefined}
           defaultIntent={batch.defaultIntent}
-          redView={redOnly}
+          redView={matchFilter === 'needsReview'}
         />
       </div>
 
@@ -856,6 +881,10 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           </p>
         )}
       </Modal>
+
+      {/* Run history — prior runs of this same CSV. Re-runs don't stack new
+          History rows; they collapse to one and the timeline lives here. */}
+      <RunHistory kind="batch" filename={batch.filename} />
 
     </div>
   );
@@ -925,12 +954,9 @@ const VERDICT_LABEL: Record<Risk, string> = {
 // is visible in-line (mirrors the standalone red list). Few, modest widths so
 // the address track keeps its room.
 function buildBatchRedColumns(defaultIntent?: IntendedOccupancy): any[] {
-  const verdictOf = (row: BatchRow): string => {
-    const rec = redRecordFor(row.address);
-    if (rec?.verdict) return rec.verdict;
-    return row.risk === 'risk' ? 'rented' : row.risk === 'warn' ? 'possibly-rented' : 'not-rented';
-  };
-  const intentOf = (row: BatchRow): string => redRecordFor(row.address)?.intent ?? defaultIntent ?? 'owner-occupied';
+  const verdictOf = (row: BatchRow): string =>
+    row.risk === 'risk' ? 'rented' : row.risk === 'warn' ? 'possibly-rented' : 'not-rented';
+  const intentOf = (row: BatchRow): string => row.intent ?? defaultIntent ?? 'owner-occupied';
   return [
     {
       key: 'address',
@@ -944,7 +970,7 @@ function buildBatchRedColumns(defaultIntent?: IntendedOccupancy): any[] {
               <span className="font-sans font-semibold text-body-sm leading-tight truncate" style={{ color: 'var(--navy)' }}>
                 {street}
               </span>
-              {isRedAddress(row.address) && <RedFlag address={row.address} />}
+              {isRowRed(row, defaultIntent) && <RedFlag address={row.address} />}
             </div>
             {locality && (
               <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">{locality}</div>
@@ -1035,7 +1061,7 @@ function buildBatchColumns(
             >
               {street}
             </span>
-            {isRedAddress(row.address) && <RedFlag address={row.address} />}
+            {isRowRed(row, defaultIntent) && <RedFlag address={row.address} />}
           </div>
           {locality && (
             <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">

@@ -1,4 +1,4 @@
-/* global React, AppShell, ScanContextBar, ConfidenceHero, AIInvestigator, PropertyOverview, ListingsPanel, CertificateSheet */
+/* global React, AppShell, ScanContextBar, ConfidenceHero, AIInvestigator, PropertyOverview, ListingsPanel, CertificateSheet, RunHistory */
 // Screen 05 — Result · "Rented · High confidence" (strong signal).
 
 function ResultHighScreen() {
@@ -11,6 +11,9 @@ function ResultHighScreen() {
         <ListingsPanel scenario="high" />
         <PropertyOverview />
       </div>
+      {/* Re-scans of this same address don't spawn new History rows — they
+          collapse to one row and the timeline lives here. */}
+      <RunHistory kind="single" />
       <CertificateSheet scenario="high" />
     </AppShell>
   );

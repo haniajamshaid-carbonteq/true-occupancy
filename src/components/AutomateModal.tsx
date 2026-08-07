@@ -305,10 +305,18 @@ function AutomateModal({
             Which properties to re-scan?
           </div>
           <StatusPillSelector
-            options={STATUS_OPTIONS_BASE.map((opt) => ({
-              ...opt,
-              count: scopeCountsPending ? null : counts[opt.value],
-            }))}
+            options={STATUS_OPTIONS_BASE.map((opt) => {
+              // Label each band by how it reconciles against the declared
+              // intent (Consistent / Inconclusive / Needs review), and flag the
+              // red one — same language + red marker as the tiles and rows.
+              const m = occMatchForRisk(intent, opt.value);
+              return {
+                value: opt.value,
+                label: m ? m.label : opt.label,
+                red: m?.status === 'red',
+                count: scopeCountsPending ? null : counts[opt.value],
+              };
+            })}
             value={statuses}
             onChange={setStatuses}
             countsPending={scopeCountsPending}

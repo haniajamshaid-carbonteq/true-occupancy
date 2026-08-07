@@ -8,9 +8,9 @@ Hypertokens and motion are NOT on this bar. They're optional layers that earn th
 
 ## Status
 
-**Not yet viable.** Floor 1 is green. Floor 3 is green. **Floor 2 is not** — but it moved: **5 of 24** required components have no implementation, down from 8.
+**Not yet viable.** Floor 1 is green. Floor 3 is green. **Floor 2 is not** — but it moved: **4 of 24** required components have no implementation, down from 8.
 
-`field-scaffold`, `textarea` and `radio` were extracted from inline duplicates into real primitives; `tooltip` and `pagination` were promoted from private helpers to shared components. The five remaining gaps genuinely do not exist in any form, so closing them means **designing**, not extracting.
+`field-scaffold`, `textarea` and `radio` were extracted from inline duplicates into real primitives; `tooltip` and `pagination` were promoted from private helpers to shared components; `toggle` was designed and built (owner-requested). The four remaining gaps genuinely do not exist in any form, so closing them means **designing**, not extracting.
 
 This is a status report on a real, shipping product, not a scaffold waiting to be filled. Every entry below reflects what is actually in `src/`.
 
@@ -52,7 +52,7 @@ Input
 - [~] textarea — **extracted** to `Textarea.tsx`. Deliberately does not match Input's focus recipe (pure CSS focus, no resting shadow, vs Input's React focus state + resting `--shadow-sm`). Converging the two is an open visual decision.
 - [ ] select — no `<select>`, no combobox, no listbox anywhere in `src/`
 - [~] radio — **extracted** to `Radio.tsx` (`RadioGroup` + `Radio`). Still `role="radio"` on `<button>` cards with no roving tabindex, no arrow keys and no focus ring — not the ARIA radiogroup pattern.
-- [ ] toggle — no `role="switch"`, no track/thumb component
+- [x] toggle — implemented (owner-requested): `src/components/ui/Toggle.tsx`, `role="switch"` track+thumb, token-bound motion + reduced-motion fallback. See `components/core/toggle.md` r2.
 - [~] field-scaffold — **extracted** to `Field.tsx`. Owns label + hint + error-colour only; the control's error styling stays in Input. No `aria-invalid`, `role="alert"` or `aria-describedby`.
 
 Overlay
@@ -121,7 +121,7 @@ In the order that unblocks the most work:
 3. **Decide the four DESIGN.md ↔ code conflicts** rather than letting them sit: card radius/shadow, table hover tint, KPI tile borders, and the missing side-nav brand strip. Each is doc-says-X, code-does-Y. The harness records both; only you can pick.
 4. **Pick one scrim.** Modal and Drawer use `bg-ink/40`, DropdownMenu's mobile sheet uses `bg-ink-2/40`, SideNav's drawer uses `black/40`. Only the last matches `--scrim`. Three overlay treatments is two too many.
 5. **Wire `motion.css` into `components.html` and `design-spec.html`.** Neither loads it, so every `var(--motion-*)` and `var(--ease-*)` silently no-ops there and shared animations don't run. Fixing it is a visible change, which is why it was left.
-6. **Close the remaining gaps** — select, toggle, list, link, toast. These need designing, not extracting.
+6. **Close the remaining gaps** — select, list, link, toast. These need designing, not extracting. (`toggle` is now done.)
 7. **Resolve the toast contradiction** before building it. DESIGN.md §14.9 routes ephemeral confirmations to `AutomationControl.Toast`, which does not exist; they go to the dock instead — the exact thing §14.9 says not to do. Either build the component or amend the doc.
 8. **Fix the two z-index names that now read wrong.** DropdownMenu's desktop popover sits on `z-scrim` and its mobile scrim on `z-popover` (they were inverted in the original values, and were mapped by value to stay neutral). SideNav's mobile bar also sits on `z-scrim`.
 9. **Consolidate the motion scale.** Eleven durations are named at their shipped values; that records drift rather than resolving it. Collapsing toward fast/mid/slow re-times animations — a design call.

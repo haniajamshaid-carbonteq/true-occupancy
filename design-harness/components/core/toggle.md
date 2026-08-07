@@ -1,25 +1,34 @@
 name: toggle
 status: draft
-version: 1
+version: 2
 extends: none
 class: Input
 
 ## Anatomy
-⚠ GAP — no implementation exists in this codebase.
+`src/components/ui/Toggle.tsx`. A track+thumb switch for a single on/off boolean.
+- **track** — `h-6 w-10` rounded-full `<button role="switch">`. Fill is `--brand` when on, `--line-strong` when off.
+- **thumb** — `h-5 w-5` rounded-full, `--on-brand` fill, `shadow-sm`. Slides `translateX(16px)` on → off.
+- **label / description** (optional) — sit to the right; clicking them toggles too. Omit both and the bare switch is returned (pass `ariaLabel`).
 
-Nothing in `src/components/` provides this. There is no `role="switch"` and no switch/toggle-track component anywhere in `src/` — every "toggle" in the code is either a disclosure button (`aria-expanded`, e.g. the Advanced section in `src/pages/BatchScreen.tsx`, the map reveal in `src/components/result/PropertyOverview.tsx`) or React Router's `Switch`. Do not build from this file.
-Closest existing thing: `src/components/ui/Checkbox.tsx` — the same on/off boolean semantics, but a 16 px square check, not a sliding track.
-Delta required: a track+thumb switch with its own on/off token pair, sliding motion (`--ease-out` / `--ease-spring` from `src/styles/motion.css`), and a `prefers-reduced-motion` fallback per `docs/DESIGN.md` §"strips all transforms / animations except opacity".
+Distinct from `checkbox.md` (a 16 px square check): use Toggle for enabling/disabling a setting (e.g. Session timeout in Scan configuration), Checkbox for selection in a set.
 
 ## States
-Required for class Input: default · hover · focus · active · disabled · empty · filled · error · read-only. None specced.
+- **default** — off (line-strong track, thumb left) / on (brand track, thumb right).
+- **hover** — cursor-pointer; no colour change (the fill already carries state).
+- **focus** — `focus-visible` brand ring + offset on the track button.
+- **active** — click flips `aria-checked`.
+- **disabled** — `opacity-50`, `cursor-not-allowed`, click no-ops.
+- **filled / empty** — n/a for a boolean; on = filled, off = empty.
+- **error / read-only** — ⚠ NOT IMPLEMENTED. No error or read-only styling yet; add if a form needs it.
 
 ## Variants
 —
 
 ## Rules
-Per the creation gate, this component must be designed by the owner before use.
-Claude may not improvise it.
+- Motion binds to tokens: `--motion-fast` duration, `--ease-out` easing, on both the track colour and the thumb transform. `motion-reduce:transition-none` drops both under `prefers-reduced-motion`, per DESIGN.md.
+- Renders a real `<button role="switch" aria-checked>` — never a styled div — so AT and keyboard get native switch semantics.
+- No hardcoded colours: track `--brand` / `--line-strong`, thumb `--on-brand`.
 
 ## Revisions
 - r1: logged as a gap during harness transcription.
+- r2: implemented at owner's request (session-timeout control). track+thumb switch with token-bound sliding motion + reduced-motion fallback. status stays draft until proven across more screens. Re-check error/read-only if a validated form adopts it.

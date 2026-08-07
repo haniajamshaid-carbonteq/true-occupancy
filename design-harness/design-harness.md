@@ -179,7 +179,7 @@ The smallest set that makes composition possible. Common screen types (form, lis
 
 Each has a stub in `components/core/`. A component isn't done until it covers every state its class requires (§5).
 
-**Current width: 5 of the 24 required components are gaps** — link, select, toggle, toast, list. Down from 8: `field-scaffold`, `textarea` and `radio` were extracted from inline duplicates into real primitives.
+**Current width: 4 of the 24 required components are gaps** — link, select, toast, list. Down from 8: `field-scaffold`, `textarea` and `radio` were extracted from inline duplicates into real primitives, and `toggle` was implemented (owner-requested, for the Session-timeout control — `src/components/ui/Toggle.tsx`, `components/core/toggle.md` r2).
 
 The five that remain genuinely do not exist in any form, so closing them means designing, not extracting. Exact status in `VIABILITY.md`.
 

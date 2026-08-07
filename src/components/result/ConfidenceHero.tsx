@@ -300,15 +300,16 @@ function RescanButton({ label, icon, disabled, disabledReason }: {
         </span>
       </button>
       {hover && !confirm && (
+        // Canonical tooltip bubble — matches src/components/ui/Tooltip.tsx
+        // (navy / white, px-2 py-1, rounded-md, text-caption, shadow-md,
+        // z-popover, no caret). Was a one-off bubble with a hardcoded 11px
+        // size and an arrow; realigned to the design-system tooltip.
         <div
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-sans font-medium leading-tight whitespace-nowrap pointer-events-none z-50"
-          style={{ background: 'var(--navy)', color: '#fff' }}
+          role="tooltip"
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md text-caption font-sans shadow-md whitespace-nowrap pointer-events-none z-popover"
+          style={{ background: 'var(--navy)', color: 'white' }}
         >
           {tooltip}
-          <div
-            className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
-            style={{ borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '4px solid var(--navy)' }}
-          />
         </div>
       )}
       {confirm && (
@@ -446,6 +447,25 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               <p className="mt-1.5 font-sans text-caption text-ink-2 leading-snug m-0">
                 {reconciliationWhy(match.status, verdictLabel, intent ? INTENDED_OCCUPANCY_LABEL[intent] : undefined)}
               </p>
+              {/* Red single scan → advise setting up a recurring re-scan. Opens
+                  the same Automate modal the top-bar button uses (via the shared
+                  halcyon:open-automate event handled by AutomationControl). */}
+              {match.status === 'red' && (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event('halcyon:open-automate'))}
+                  className="mt-2 self-start inline-flex items-center gap-1 rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
+                  style={{ color: 'var(--brand-link)' }}
+                >
+                  <span className="[&>svg]:w-3 [&>svg]:h-3" aria-hidden>
+                    <Icon name="cal" size={12} />
+                  </span>
+                  Automation recommended
+                  <span className="[&>svg]:w-3 [&>svg]:h-3" aria-hidden>
+                    <Icon name="arrow-right" size={12} />
+                  </span>
+                </button>
+              )}
             </div>
           )}
 

@@ -113,6 +113,20 @@ interface OccConfig {
   stalenessDays: number;
   /** Cost/quality trade-off. */
   depth: OccDepth;
+  /** Force-logout after a period of inactivity. Off by default; when on, the
+   *  org picks the idle window in minutes (any positive value; 30 is the seed).
+   *  Per the client (Jim McGowan): a flip on/off, and if on, "how long", since
+   *  policies range from 10 minutes to an hour to never. */
+  sessionTimeout: OccSessionTimeout;
+}
+
+type OccTimeoutUnit = 'minutes' | 'hours' | 'days';
+
+interface OccSessionTimeout {
+  enabled: boolean;
+  /** Idle window length, in `unit`s. Any positive number. */
+  value: number;
+  unit: OccTimeoutUnit;
 }
 
 // Shipped defaults. Owner-occupied and second-home start identical but are
@@ -135,6 +149,9 @@ const DEFAULT_OCC_CONFIG: OccConfig = {
   recurring: { red: 'monthly', yellow: 'none', green: 'none' },
   stalenessDays: 30,
   depth: 'deep-ambiguous',
+  // Off by default — orgs opt in. 30 minutes is the seed the client named as
+  // the sensible default once it's turned on; unit is configurable.
+  sessionTimeout: { enabled: false, value: 30, unit: 'minutes' },
 };
 
 // ---- Derivation (pure) --------------------------------------------------

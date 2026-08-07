@@ -352,16 +352,25 @@ const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i)
 
 const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAt: seedTime('8min'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied' },
+  // Prior re-scans of the SAME two addresses. These do NOT show as extra rows in
+  // History (it dedups to the latest); they populate the "Run history" section
+  // on the property's detail view — demonstrating the collapse.
+  { id: 'h01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('40d'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied' },
+  { id: 'h01c', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('120d'), reference: 'LOAN-2026-0042', intent: 'owner-occupied' },
   { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAt: seedTime('24min'), reference: 'CASE-FILE-7714', intent: 'owner-occupied' },
   // Deliberately old, so its report demonstrates the stale-freshness flow.
   { id: 'h00', kind: 'single', address: '19 Rankin Ave, Asheville, NC 28801',         scenario: 'high',   platforms: 3, scannedAt: seedTime('46d'),   reference: 'LOAN-2026-0099' },
   // These three are also red addresses (see RED_ADDRESS_SEED), so they carry
   // the danger flag wherever they appear outside the Red-addresses tab.
   { id: 'hr1', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',    scenario: 'high',   platforms: 4, scannedAt: seedTime('1h'),    reference: 'LOAN-2026-0071', intent: 'owner-occupied' },
+  { id: 'hr1b', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',   scenario: 'medium', platforms: 3, scannedAt: seedTime('60d'),   reference: 'LOAN-2026-0071', intent: 'owner-occupied' },
   { id: 'hr2', kind: 'single', address: '7 Beaucatcher Rd, Asheville, NC 28805',      scenario: 'high',   platforms: 3, scannedAt: seedTime('6h'),    reference: 'LOAN-2026-0058', intent: 'rental' },
   { id: 'hr3', kind: 'single', address: '153 Merrimon Ave, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAt: seedTime('2d'), intent: 'owner-occupied' },
   { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAt: seedTime('47d'), rows: SEED_BATCH_FAILED_ROWS },
   { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAt: seedTime('2h'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', description: 'Quarterly compliance scan for the spring 2026 lender portfolio.', defaultIntent: 'owner-occupied' },
+  // A prior run of the SAME CSV — collapses in the History tab (one row), and
+  // surfaces in the batch's "Run history" section on its detail view.
+  { id: 'hb1b', kind: 'batch', filename: 'asheville-q1-2026.csv', total: 24, flagged: 4, warn: 7, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', defaultIntent: 'owner-occupied' },
   { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAt: seedTime('3h'), intent: 'rental'    },
   { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAt: seedTime('4h'), intent: 'owner-occupied'    },
   { id: 'h05', kind: 'single', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAt: seedTime('5h'), intent: 'owner-occupied'    },
@@ -739,7 +748,10 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
       startedAt: Date.now(),
       // Stands in for a detected occupancy column; unset rows fall to the default.
       intentColumn: 'occupancy_type',
-      defaultIntent: 'not-sure',
+      // Owner-occupied (matching the seeded history batches) so the reconciliation
+      // matrix actually produces red "Needs review" rows for the sample — with
+      // 'not-sure' the matrix never yields red and the demo would show none.
+      defaultIntent: 'owner-occupied',
       // Sample flow bypasses the form, so the title is derived (not user-set)
       // and there's no description or cadence. The header still reads cleanly
       // because BatchResults falls back to deriveTitleFromFilename().

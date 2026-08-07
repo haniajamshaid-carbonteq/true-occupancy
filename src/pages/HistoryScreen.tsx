@@ -2,7 +2,19 @@
    HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
    SCAN_COLUMNS, scanLeadingAccent, useAppState, splitAddress, ChipRow, DateRangePicker, parseAgoHours,
    deriveTitleFromFilename, ScreenError, ScreenEmpty,
-   isRedAddress, RedFlag, RedFilterToggle, BatchRedBadge, occMatchForRisk */
+   RedFlag, BatchRedBadge, occMatchForRisk, OCC_STATUS_LABEL, OCC_STATUS_TONE */
+
+// Keep one row per key — the most recently scanned. Stable enough for the
+// History list (re-scans collapse; the full run list lives on the detail view).
+function dedupeLatest<T extends { scannedAt?: number }>(rows: T[], keyFn: (r: T) => string): T[] {
+  const latest = new Map<string, T>();
+  for (const r of rows) {
+    const k = keyFn(r);
+    const cur = latest.get(k);
+    if (!cur || (r.scannedAt || 0) > (cur.scannedAt || 0)) latest.set(k, r);
+  }
+  return [...latest.values()];
+}
 
 function formatScannedDate(ts: number): string {
   return new Date(ts).toLocaleDateString('en-US', {
@@ -13,12 +25,36 @@ function formatScannedDate(ts: number): string {
 type Verdict = 'all' | 'high' | 'medium' | 'low';
 type Kind = 'single' | 'batch';
 
-// A history row is "red" when it involves a red address. For a single scan
-// that's the address itself; for a batch it's any row inside it. Red is a
-// filter over the existing Single/Batch lists, not a separate tab.
-function rowIsRed(r: any): boolean {
-  if (r.kind === 'batch') return (r.rows || []).some((x: any) => isRedAddress(x.address));
-  return isRedAddress(r.address);
+// Reconciliation status of a history row, straight from the config matrix
+// (declared intent × what the scan found → green | yellow | red). This is the
+// single source of truth the "Flagged" filter, the red ⚠ marker, and the batch
+// red badge all read from — so History agrees with Config and with the batch
+// screen. For a single scan it's the row's own status; for a batch it's the
+// worst status across its properties (any red → red, else any yellow, else
+// green), matching the old "any red row makes the batch red" behaviour.
+type OccStatus = 'green' | 'yellow' | 'red';
+
+function singleStatus(r: any): OccStatus | null {
+  const risk = SCENARIOS[r.scenario as keyof typeof SCENARIOS]?.risk;
+  return (occMatchForRisk(r.intent, risk)?.status as OccStatus) ?? null;
+}
+function batchStatusAgg(r: any): OccStatus | null {
+  const subs: OccStatus[] = (r.rows || [])
+    .map((x: any) => occMatchForRisk(x.intent ?? r.defaultIntent, x.risk)?.status as OccStatus)
+    .filter(Boolean);
+  if (subs.includes('red')) return 'red';
+  if (subs.includes('yellow')) return 'yellow';
+  if (subs.includes('green')) return 'green';
+  return null;
+}
+function rowStatus(r: any): OccStatus | null {
+  return r.kind === 'batch' ? batchStatusAgg(r) : singleStatus(r);
+}
+// Count of red subrows in a batch — drives the inline red badge on batch rows.
+function batchRedCount(r: any): number {
+  return (r.rows || []).filter(
+    (x: any) => occMatchForRisk(x.intent ?? r.defaultIntent, x.risk)?.status === 'red'
+  ).length;
 }
 type BatchStatus = 'all' | 'complete' | 'partial' | 'failed';
 type DateRange = { from?: string; to?: string };
@@ -48,8 +84,9 @@ function HistoryScreen() {
   const [platformsBucket, setPlatformsBucket] = React.useState<PlatformsBucket>('all');
   const [scoreRange, setScoreRange] = React.useState<ScoreRange>({});
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  // "Red only" filter — isolates the red subset of the current tab.
-  const [redOnly, setRedOnly] = React.useState(false);
+  // Reconciliation "Flagged" filter — Green / Yellow / Red, straight from the
+  // config outcome matrix. Lives in the Filters drawer, not as a top-level tab.
+  const [flagged, setFlagged] = React.useState<'all' | OccStatus>('all');
 
   // Platforms filter only makes sense on the single tab; it disappears
   // from the drawer on batch, so don't count it toward the badge there.
@@ -59,20 +96,36 @@ function HistoryScreen() {
     scoreRange.min !== undefined || scoreRange.max !== undefined;
   const advancedCount =
     (dateRangeActive ? 1 : 0) +
+    (flagged !== 'all' ? 1 : 0) +
     (kind === 'single' && verdict !== 'all' ? 1 : 0) +
     (kind === 'batch'  && batchStatus !== 'all' ? 1 : 0) +
     (kind === 'single' && platformsBucket !== 'all' ? 1 : 0) +
     (kind === 'single' && scoreRangeActive ? 1 : 0);
 
-  const singleRows = rows.filter((r: any) => r.kind !== 'batch');
-  const batchRows  = rows.filter((r: any) => r.kind === 'batch');
+  // Collapse repeated scans of the same target to ONE row (the latest run), so
+  // re-scanning a property or re-running a batch never stacks new rows. The full
+  // timeline lives in the "Run history" section on each detail view. Single =
+  // by address, batch = by filename. Display-only: every run stays in `history`
+  // so Run history can list them all.
+  const singleRows = dedupeLatest(
+    rows.filter((r: any) => r.kind !== 'batch'),
+    (r: any) => (r.address || '').toLowerCase().replace(/\s+/g, ' ').trim()
+  );
+  const batchRows = dedupeLatest(
+    rows.filter((r: any) => r.kind === 'batch'),
+    (r: any) => r.filename
+  );
 
   const baseRows = kind === 'single' ? singleRows : batchRows;
-  // Count of red rows in the current tab — drives the toggle's badge.
-  const redCount = baseRows.filter(rowIsRed).length;
+  // Per-status counts in the current tab — shown beside each Flagged chip.
+  const flaggedCounts: Record<OccStatus, number> = {
+    green:  baseRows.filter((r: any) => rowStatus(r) === 'green').length,
+    yellow: baseRows.filter((r: any) => rowStatus(r) === 'yellow').length,
+    red:    baseRows.filter((r: any) => rowStatus(r) === 'red').length,
+  };
 
   const filtered = baseRows.filter((r: any) => {
-    if (redOnly && !rowIsRed(r)) return false;
+    if (flagged !== 'all' && rowStatus(r) !== flagged) return false;
     if (kind === 'single' && verdict !== 'all' && r.scenario !== verdict) return false;
     if (kind === 'batch' && batchStatus !== 'all') {
       const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
@@ -116,6 +169,7 @@ function HistoryScreen() {
     setVerdict('all');
     setBatchStatus('all');
     setScoreRange({});
+    setFlagged('all');
   }
 
   const VERDICT_FILTERS: { id: Verdict; label: string; count: number }[] = [
@@ -197,16 +251,6 @@ function HistoryScreen() {
               { value: 'batch',  label: 'Batch',  count: batchRows.length },
             ]}
           />
-          {redCount > 0 && (
-            <>
-              <span className="h-5 w-px bg-line shrink-0" aria-hidden />
-              <RedFilterToggle
-                active={redOnly}
-                count={redCount}
-                onToggle={() => setRedOnly((v) => !v)}
-              />
-            </>
-          )}
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial sm:w-[260px]">
@@ -279,6 +323,20 @@ function HistoryScreen() {
               options={STATUS_FILTERS.map((f) => ({ value: f.id, label: f.label }))}
             />
           )}
+          {/* Flagged — the config outcome-matrix status (Green / Yellow / Red).
+              Same labels as the Config screen, so what's "red" here is exactly
+              what the matrix defines. Replaces the old top-level Red-flags tab. */}
+          <ChipRow
+            label="Flagged"
+            value={flagged}
+            onChange={(v: string) => setFlagged(v as 'all' | OccStatus)}
+            options={[
+              { value: 'all',    label: 'All' },
+              { value: 'green',  label: OCC_STATUS_LABEL.green,  count: flaggedCounts.green },
+              { value: 'yellow', label: OCC_STATUS_LABEL.yellow, count: flaggedCounts.yellow },
+              { value: 'red',    label: OCC_STATUS_LABEL.red,    count: flaggedCounts.red },
+            ]}
+          />
           <DateRangePicker
             label="When scanned"
             value={dateRange}
@@ -331,7 +389,9 @@ function HistoryScreen() {
           loading={loading}
           empty={
             <div className="px-5 py-12 text-center text-label text-ink-3">
-              {redOnly ? 'No red addresses in this tab.' : 'No scans match your filters.'}
+              {flagged !== 'all'
+                ? `No ${OCC_STATUS_LABEL[flagged].toLowerCase()} entries in this tab.`
+                : 'No scans match your filters.'}
             </div>
           }
         />
@@ -345,11 +405,7 @@ function HistoryScreen() {
         >
           {filtered.length} of {baseRows.length} {baseRows.length === 1 ? 'entry' : 'entries'}
         </span>
-        <span>
-          {kind === 'red'
-            ? 'Cleared exceptions leave this list.'
-            : 'Older scans archived after 90 days.'}
-        </span>
+        <span>Older scans archived after 90 days.</span>
       </div>
     </AppShell>
   );
@@ -375,7 +431,7 @@ const HISTORY_SINGLE_COLUMNS: any[] = [
             >
               {street}
             </span>
-            {isRedAddress(r.address) && <RedFlag address={r.address} />}
+            {singleStatus(r) === 'red' && <RedFlag address={r.address} />}
           </div>
           {locality && (
             <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
@@ -461,7 +517,7 @@ const HISTORY_BATCH_COLUMNS: any[] = [
       // Title is now the primary cell; filename + counts get demoted to a
       // caption so the row reads as a named entity, not a CSV path.
       const title = r.title?.trim() || deriveTitleFromFilename(r.filename);
-      const nRed = (r.rows || []).filter((x: any) => isRedAddress(x.address)).length;
+      const nRed = batchRedCount(r);
       return (
         <div className="min-w-0">
           <div className="flex items-center gap-inline min-w-0">

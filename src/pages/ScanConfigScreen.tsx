@@ -1,4 +1,4 @@
-/* global React, AppShell, AppStateContext, Card, ChipRow, Input, Button, Pill, Modal,
+/* global React, AppShell, AppStateContext, Card, ChipRow, Input, Toggle, Button, Pill, Modal,
    Icon, ScreenEmpty, OCC_INTENTS, OCC_VERDICTS, OCC_STATUSES, OCC_INTENT_LABEL,
    OCC_VERDICT_LABEL, OCC_STATUS_LABEL, OCC_STATUS_TONE, OCC_CADENCE_LABEL,
    DEFAULT_OCC_CONFIG, occThresholdError, occThresholdsFor */
@@ -40,6 +40,23 @@ function clampDays(raw: string): number {
   if (!Number.isFinite(n)) return 1;
   return Math.max(1, Math.min(365, n));
 }
+// Session-timeout minutes. The client asked to "let them put whatever they
+// want", so there's no upper cap — only a floor of 1 so the window is real.
+function clampMinutes(raw: string): number {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, n);
+}
+
+// Outcome-matrix column headers. Per the owner, the three columns read as the
+// reconciliation labels (Consistent / Needs review / Inconclusive) rather than
+// the raw scan-finding verdicts. Scoped to this screen so OCC_VERDICT_LABEL —
+// used across the result page and lists — is untouched.
+const MATRIX_HEADER_LABEL: Record<string, string> = {
+  'not-rented': 'Consistent',
+  'possibly-rented': 'Needs review',
+  rented: 'Inconclusive',
+};
 
 function ConfigSection({
   title,
@@ -122,11 +139,16 @@ function ScanConfigScreen({
   const [matrix, setMatrix] = React.useState(seed.outcomeMatrix);
   const [recurring, setRecurring] = React.useState(seed.recurring);
   const [staleDays, setStaleDays] = React.useState(seed.stalenessDays);
+  // Session timeout — a toggle plus, when on, the idle window as a number + unit.
+  const [timeoutOn, setTimeoutOn] = React.useState(seed.sessionTimeout?.enabled ?? false);
+  const [timeoutValue, setTimeoutValue] = React.useState(seed.sessionTimeout?.value ?? 30);
+  const [timeoutUnit, setTimeoutUnit] = React.useState<string>(seed.sessionTimeout?.unit ?? 'minutes');
   const [openIntent, setOpenIntent] = React.useState<string | null>(defaultOpenIntent);
 
   // Save flow: confirm → saving → saved. `baseline` is the last-saved snapshot;
   // dirty compares the live values against it so the footer collapses on save.
-  const snapshot = () => JSON.stringify({ defaultIntent, hi, lo, matrix, recurring, staleDays });
+  const snapshot = () =>
+    JSON.stringify({ defaultIntent, hi, lo, matrix, recurring, staleDays, timeoutOn, timeoutValue, timeoutUnit });
   const [baseline, setBaseline] = React.useState(() =>
     JSON.stringify({
       defaultIntent: seed.defaultIntent,
@@ -135,6 +157,9 @@ function ScanConfigScreen({
       matrix: seed.outcomeMatrix,
       recurring: seed.recurring,
       staleDays: seed.stalenessDays,
+      timeoutOn: seed.sessionTimeout?.enabled ?? false,
+      timeoutValue: seed.sessionTimeout?.value ?? 30,
+      timeoutUnit: seed.sessionTimeout?.unit ?? 'minutes',
     })
   );
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -152,6 +177,9 @@ function ScanConfigScreen({
     setMatrix(b.matrix);
     setRecurring(b.recurring);
     setStaleDays(b.staleDays);
+    setTimeoutOn(b.timeoutOn);
+    setTimeoutValue(b.timeoutValue);
+    setTimeoutUnit(b.timeoutUnit);
   }
   function doSave() {
     setSaving(true);
@@ -207,46 +235,13 @@ function ScanConfigScreen({
         />
       </ConfigSection>
 
-      {/* ---- 2. Confidence thresholds ---- */}
-      <ConfigSection
-        title="Confidence thresholds"
-        desc="Where the score stops being one verdict and becomes the next."
-      >
-        <div className="flex flex-wrap gap-stack">
-          <div className="flex-1 min-w-[180px]">
-            <Input
-              label="Rented at or above"
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={String(hi)}
-              error={!!thresholdError}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHi(clamp0to100(e.target.value))}
-            />
-          </div>
-          <div className="flex-1 min-w-[180px]">
-            <Input
-              label="Not rented at or below"
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={String(lo)}
-              error={!!thresholdError}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLo(clamp0to100(e.target.value))}
-            />
-          </div>
-        </div>
-        {thresholdError && (
-          <p className="font-sans text-caption mt-stack-tight" role="alert" style={{ color: 'var(--error-ink)' }}>
-            {thresholdError}
-          </p>
-        )}
-        <div className="mt-stack-md">
-          <ThresholdBandPreview lo={lo} hi={hi} />
-        </div>
-      </ConfigSection>
+      {/* ---- 2. Confidence thresholds — REMOVED ----
+           The threshold editor card was pulled from the UI at the owner's
+           request. The `thresholds` (hi/lo) stay on OccConfig and in this
+           screen's state so the saved config shape and dirty-tracking are
+           unchanged — only the control is gone (same pattern as the retired
+           Recurring-scans and Investigation-depth sections). The band preview
+           (ThresholdBandPreview) is likewise dormant, not deleted. */}
 
       {/* ---- 3. Outcome matrix ---- */}
       <ConfigSection
@@ -259,7 +254,7 @@ function ScanConfigScreen({
         >
           <span>Declared</span>
           {OCC_VERDICTS.map((v: string) => (
-            <span key={v}>{OCC_VERDICT_LABEL[v]}</span>
+            <span key={v}>{MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v]}</span>
           ))}
         </div>
 
@@ -349,6 +344,54 @@ function ScanConfigScreen({
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStaleDays(clampDays(e.target.value))}
           />
         </div>
+      </ConfigSection>
+
+      {/* ---- 7. Session timeout ----
+           Client ask (Jim McGowan): a flip on/off, and when on, "how long",
+           because org policies range from 10 minutes to an hour to never.
+           Composed from registered primitives — ChipRow for the on/off flip
+           (the design system has no `toggle` yet — logged gap) and Input for
+           the minutes, mirroring the Report-freshness pattern above. */}
+      <ConfigSection
+        title="Session timeout"
+        desc="Automatically sign users out after a period of inactivity."
+      >
+        <Toggle
+          checked={timeoutOn}
+          onChange={setTimeoutOn}
+          label="Force sign-out after inactivity"
+          description="Ties into single sign-on forced-logout. Off = users stay signed in until they sign out."
+        />
+        {timeoutOn && (
+          <div className="mt-stack-md">
+            {/* Number + unit — "sign out after N minutes / hours / days". */}
+            <div className="flex flex-wrap items-start gap-stack">
+              <div className="w-[120px]">
+                <Input
+                  label="Sign out after"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={String(timeoutValue)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimeoutValue(clampMinutes(e.target.value))}
+                />
+              </div>
+              <ChipRow
+                label="Unit"
+                value={timeoutUnit}
+                onChange={setTimeoutUnit}
+                options={[
+                  { value: 'minutes', label: 'Minutes' },
+                  { value: 'hours', label: 'Hours' },
+                  { value: 'days', label: 'Days' },
+                ]}
+              />
+            </div>
+            <p className="font-sans text-caption mt-stack-tight" style={{ color: 'var(--ink-3)' }}>
+              Applies org-wide. 30 minutes is typical — set whatever your policy requires.
+            </p>
+          </div>
+        )}
       </ConfigSection>
 
       {/* ---- Footer: impact preview + save ---- */}

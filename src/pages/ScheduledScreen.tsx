@@ -1,9 +1,10 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, Drawer, ChipRow, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress, deriveTitleFromFilename, ScreenError, ScreenEmpty,
-   cadenceLabel, cadenceShort,
-   isRedAddress, RedFlag, RedFilterToggle, BatchRedBadge, timeAgo */
+   cadenceLabel, cadenceShort, SCENARIOS, occMatchForRisk, OCC_STATUS_LABEL,
+   RedFlag, BatchRedBadge, timeAgo */
 
 type Filter = 'all' | 'single' | 'batch';
+type OccStatus = 'green' | 'yellow' | 'red';
 // Cadence filter values match cadenceShort() output ("1wk", "3mo", …).
 type CadenceFilter = 'all' | '1wk' | '1mo' | '3mo' | '6mo';
 
@@ -20,37 +21,56 @@ function ScheduledScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
   const { schedules, history, loading, error } = useAppState();
 
-  // How many properties in a batch schedule are flagged red. Cross-references
-  // the batch's latest run (matched by filename) since the schedule entry
-  // itself doesn't carry per-row addresses.
+  // Reconciliation status of a schedule row, from the config matrix — the same
+  // Green / Yellow / Red the History "Flagged" filter and the batch screen use.
+  // A schedule entry doesn't store the finding itself, so we read it off the
+  // originating run: for a single, its scan; for a batch, the worst status
+  // across the matched run's properties.
+  const batchRunFor = (s: any) =>
+    history.find((h: any) => h.kind === 'batch' && h.filename === s.filename);
   const batchRedCount = (s: any): number => {
     if (s.kind !== 'batch') return 0;
-    const run = history.find((h: any) => h.kind === 'batch' && h.filename === s.filename);
-    return (run?.rows || []).filter((r: any) => isRedAddress(r.address)).length;
+    const run = batchRunFor(s);
+    return (run?.rows || []).filter(
+      (r: any) => occMatchForRisk(r.intent ?? run.defaultIntent, r.risk)?.status === 'red'
+    ).length;
   };
-  // A schedule row involves red when it's a batch that contains red properties.
-  const scheduleIsRed = (s: any): boolean => batchRedCount(s) > 0;
+  const scheduleStatus = (s: any): OccStatus | null => {
+    if (s.kind === 'batch') {
+      const run = batchRunFor(s);
+      const subs: OccStatus[] = (run?.rows || [])
+        .map((r: any) => occMatchForRisk(r.intent ?? run.defaultIntent, r.risk)?.status as OccStatus)
+        .filter(Boolean);
+      if (subs.includes('red')) return 'red';
+      if (subs.includes('yellow')) return 'yellow';
+      if (subs.includes('green')) return 'green';
+      return null;
+    }
+    const run = history.find((h: any) => h.id === s.runHistoryIds?.[0]);
+    const risk = SCENARIOS[s.scenario as keyof typeof SCENARIOS]?.risk;
+    return (occMatchForRisk(run?.intent, risk)?.status as OccStatus) ?? null;
+  };
   const [filter, setFilter] = React.useState<Filter>('all');
   const [query, setQuery] = React.useState('');
   const [cadence, setCadence] = React.useState<CadenceFilter>('all');
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  // "Red only" filter. Red isn't a separate automation any more — recurrence
-  // for a red property runs through a normal batch automation or an individual
-  // re-scan — so this toggle simply isolates the schedules that touch red
-  // properties (batches that contain them).
-  const [redOnly, setRedOnly] = React.useState(false);
+  // Reconciliation "Flagged" filter — Green / Yellow / Red, straight from the
+  // config outcome matrix. Lives in the Filters drawer, not as a top-level pill.
+  const [flagged, setFlagged] = React.useState<'all' | OccStatus>('all');
 
-  const advancedCount = (filter !== 'all' ? 1 : 0) + (cadence !== 'all' ? 1 : 0);
+  const advancedCount =
+    (filter !== 'all' ? 1 : 0) + (cadence !== 'all' ? 1 : 0) + (flagged !== 'all' ? 1 : 0);
 
-  // Red-flag count for the toggle: batch automations that contain red
-  // properties. (Red properties no longer generate their own recurring scan.)
-  const redCount = schedules.filter(
-    (s: any) => s.kind === 'batch' && batchRedCount(s) > 0
-  ).length;
+  // Per-status counts across all schedules — shown beside each Flagged chip.
+  const flaggedCounts: Record<OccStatus, number> = {
+    green:  schedules.filter((s: any) => scheduleStatus(s) === 'green').length,
+    yellow: schedules.filter((s: any) => scheduleStatus(s) === 'yellow').length,
+    red:    schedules.filter((s: any) => scheduleStatus(s) === 'red').length,
+  };
 
   const rows = [...schedules]
     .filter((s: any) => {
-      if (redOnly && !scheduleIsRed(s)) return false;
+      if (flagged !== 'all' && scheduleStatus(s) !== flagged) return false;
       if (filter !== 'all' && s.kind !== filter) return false;
       if (cadence !== 'all' && cadenceShort(s.cadence) !== cadence) return false;
       if (query) {
@@ -80,6 +100,7 @@ function ScheduledScreen() {
   function clearAdvanced() {
     setFilter('all');
     setCadence('all');
+    setFlagged('all');
   }
 
   const COLUMNS: any[] = [
@@ -135,7 +156,7 @@ function ScheduledScreen() {
               >
                 {street}
               </span>
-              {isRedAddress(r.address) && <RedFlag address={r.address} />}
+              {scheduleStatus(r) === 'red' && <RedFlag address={r.address} />}
             </div>
             {locality && (
               <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
@@ -198,19 +219,9 @@ function ScheduledScreen() {
         </div>
       </header>
 
-      {/* Filter + search bar — Type filter lives in the drawer to keep this row
-          uncluttered. The "Red flags" toggle (left) isolates red-address
-          automations; search + Filters sit on the right. */}
-      <section className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center">
-          {redCount > 0 && (
-            <RedFilterToggle
-              active={redOnly}
-              count={redCount}
-              onToggle={() => setRedOnly((v) => !v)}
-            />
-          )}
-        </div>
+      {/* Filter + search bar — Type / Cadence / Flagged all live in the drawer
+          to keep this row uncluttered; search + Filters sit on the right. */}
+      <section className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial sm:w-[260px]">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5">
@@ -275,6 +286,19 @@ function ScheduledScreen() {
               { value: 'batch',  label: 'Batch' },
             ]}
           />
+          {/* Flagged — the config outcome-matrix status (Green / Yellow / Red),
+              same labels as the Config screen and the History filter. */}
+          <ChipRow
+            label="Flagged"
+            value={flagged}
+            onChange={(v: string) => setFlagged(v as 'all' | OccStatus)}
+            options={[
+              { value: 'all',    label: 'All' },
+              { value: 'green',  label: OCC_STATUS_LABEL.green,  count: flaggedCounts.green },
+              { value: 'yellow', label: OCC_STATUS_LABEL.yellow, count: flaggedCounts.yellow },
+              { value: 'red',    label: OCC_STATUS_LABEL.red,    count: flaggedCounts.red },
+            ]}
+          />
           <ChipRow
             label="Cadence"
             value={cadence}
@@ -296,7 +320,7 @@ function ScheduledScreen() {
           message={error}
           onRetry={() => window.location.reload()}
         />
-      ) : !loading && schedules.length === 0 && redCount === 0 ? (
+      ) : !loading && schedules.length === 0 ? (
         <ScreenEmpty
           icon="cal"
           title="No automations yet"
@@ -316,7 +340,9 @@ function ScheduledScreen() {
           loading={loading}
           empty={
             <div className="px-5 py-12 text-center text-label text-ink-3">
-              {redOnly ? 'No schedules touch red properties.' : 'No schedules match your filters.'}
+              {flagged !== 'all'
+                ? `No ${OCC_STATUS_LABEL[flagged].toLowerCase()} schedules.`
+                : 'No schedules match your filters.'}
             </div>
           }
         />

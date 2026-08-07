@@ -17,6 +17,10 @@ interface StatusOption {
   label: string;
   /** Count in the latest scan. `null` = pending. */
   count: number | null;
+  /** When true, shows a red flag beside the label — this status reconciles to
+   *  "Needs review" (red) under the current declared intent, matching the red
+   *  marker used on the tiles and rows. */
+  red?: boolean;
 }
 
 interface StatusPillSelectorProps {
@@ -106,6 +110,16 @@ function StatusPillSelector({
             className={cls}
           >
             <span>{opt.label}</span>
+            {opt.red && (
+              <span
+                className="inline-flex items-center shrink-0 [&>svg]:w-3.5 [&>svg]:h-3.5"
+                style={{ color: 'var(--risk)' }}
+                title="Flagged red — reconciles to Needs review under the declared occupancy."
+                aria-label="Flagged red"
+              >
+                <Icon name="warning" size={13} />
+              </span>
+            )}
             <span className="tabular-nums text-ink-4">({countLabel})</span>
             {selected && (
               <span
