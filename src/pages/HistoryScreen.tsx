@@ -22,7 +22,6 @@ function formatScannedDate(ts: number): string {
   });
 }
 
-type Verdict = 'all' | 'high' | 'medium' | 'low';
 type Kind = 'single' | 'batch';
 
 // Reconciliation status of a history row, straight from the config matrix
@@ -77,7 +76,6 @@ function HistoryScreen() {
   const history = ReactRouterDOM.useHistory();
   const { history: rows, loading, error } = useAppState();
   const [kind, setKind] = React.useState<Kind>('single');
-  const [verdict, setVerdict] = React.useState<Verdict>('all');
   const [batchStatus, setBatchStatus] = React.useState<BatchStatus>('all');
   const [query, setQuery] = React.useState('');
   const [dateRange, setDateRange] = React.useState<DateRange>({});
@@ -90,14 +88,14 @@ function HistoryScreen() {
 
   // Platforms filter only makes sense on the single tab; it disappears
   // from the drawer on batch, so don't count it toward the badge there.
-  // Verdict (single) / batch status (batch) also live in the drawer now.
+  // Status filtering is the reconciliation "Flagged" filter (single + batch);
+  // batch also has its scan-status filter. Raw verdicts are no longer a filter.
   const dateRangeActive = Boolean(dateRange.from || dateRange.to);
   const scoreRangeActive =
     scoreRange.min !== undefined || scoreRange.max !== undefined;
   const advancedCount =
     (dateRangeActive ? 1 : 0) +
     (flagged !== 'all' ? 1 : 0) +
-    (kind === 'single' && verdict !== 'all' ? 1 : 0) +
     (kind === 'batch'  && batchStatus !== 'all' ? 1 : 0) +
     (kind === 'single' && platformsBucket !== 'all' ? 1 : 0) +
     (kind === 'single' && scoreRangeActive ? 1 : 0);
@@ -126,7 +124,6 @@ function HistoryScreen() {
 
   const filtered = baseRows.filter((r: any) => {
     if (flagged !== 'all' && rowStatus(r) !== flagged) return false;
-    if (kind === 'single' && verdict !== 'all' && r.scenario !== verdict) return false;
     if (kind === 'batch' && batchStatus !== 'all') {
       const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
       if (status !== batchStatus) return false;
@@ -166,18 +163,10 @@ function HistoryScreen() {
   function clearAdvanced() {
     setDateRange({});
     setPlatformsBucket('all');
-    setVerdict('all');
     setBatchStatus('all');
     setScoreRange({});
     setFlagged('all');
   }
-
-  const VERDICT_FILTERS: { id: Verdict; label: string; count: number }[] = [
-    { id: 'all',    label: 'All',              count: singleRows.length },
-    { id: 'high',   label: 'Rented',           count: singleRows.filter((r: any) => r.scenario === 'high').length },
-    { id: 'medium', label: 'Possibly Rented',  count: singleRows.filter((r: any) => r.scenario === 'medium').length },
-    { id: 'low',    label: 'Not Rented',       count: singleRows.filter((r: any) => r.scenario === 'low').length },
-  ];
 
   const STATUS_FILTERS: { id: BatchStatus; label: string; count: number }[] = [
     { id: 'all',      label: 'All',             count: batchRows.length },
@@ -307,14 +296,6 @@ function HistoryScreen() {
         }
       >
         <div className="flex flex-col gap-6">
-          {kind === 'single' && (
-            <ChipRow
-              label="Verdict"
-              value={verdict}
-              onChange={(v: string) => setVerdict(v as Verdict)}
-              options={VERDICT_FILTERS.map((f) => ({ value: f.id, label: f.label }))}
-            />
-          )}
           {kind === 'batch' && (
             <ChipRow
               label="Status"
