@@ -6,7 +6,7 @@ type IconName =
   | 'search' | 'history' | 'flag' | 'globe' | 'pdf' | 'settings'
   | 'check' | 'x' | 'alert' | 'warning' | 'info' | 'chevron'
   | 'pin' | 'bed' | 'bath' | 'square' | 'shield' | 'cal' | 'price' | 'star'
-  | 'spark' | 'ai-star' | 'replay' | 'share' | 'trend-up' | 'trend-down' | 'external'
+  | 'spark' | 'ai-star' | 'replay' | 'zap' | 'share' | 'trend-up' | 'trend-down' | 'external'
   | 'arrow-right' | 'upload' | 'layers' | 'sliders' | 'download' | 'folder'
   | 'mail' | 'lock' | 'eye' | 'eye-off' | 'google' | 'microsoft' | 'okta' | 'user'
   | 'key' | 'pencil';
@@ -53,6 +53,12 @@ function Icon({ name, size = 16, className = '', ...rest }: IconProps) {
     case 'spark':      return <svg {...common}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/></svg>;
     case 'ai-star':    return <svg {...common} fill="currentColor" stroke="none"><path d="M12 2.5c.3 2.6 1 4.5 2 5.6 1 1 2.9 1.7 5.5 2-2.6.3-4.5 1-5.5 2-1 1.1-1.7 3-2 5.5-.3-2.6-1-4.5-2-5.5-1-1-3-1.7-5.5-2 2.6-.3 4.5-1 5.5-2 1-1.1 1.7-3 2-5.6z"/><path d="M19 14.5c.15 1.3.5 2.2 1 2.75.5.5 1.45.85 2.75 1-1.3.15-2.25.5-2.75 1-.5.55-.85 1.45-1 2.75-.15-1.3-.5-2.2-1-2.75-.5-.5-1.45-.85-2.75-1 1.3-.15 2.25-.5 2.75-1 .5-.55.85-1.45 1-2.75z"/></svg>;
     case 'replay':     return <svg {...common}><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>;
+    // 'zap' marks a run the system triggered rather than a person. Deliberately
+    // NOT 'replay' (a circular arrow in a table row reads as a re-scan button —
+    // exactly what was removed in e4c5a9a) and not 'cal' (that's the cadence
+    // control). Owner-requested Aug-2026: "lightning type or some general
+    // automation symbol" for automated rows in Run history.
+    case 'zap':        return <svg {...common}><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>;
     case 'pencil':     return <svg {...common}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
     case 'share':      return <svg {...common}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>;
     case 'trend-up':   return <svg {...common}><path d="m3 17 6-6 4 4 8-9"/><path d="M14 6h7v7"/></svg>;

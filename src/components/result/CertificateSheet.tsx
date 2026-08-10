@@ -1,4 +1,5 @@
-/* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState */
+/* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState,
+   occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -107,6 +108,17 @@ function certScenarioListingCount(scenario: CertScenarioKey): number {
   return total;
 }
 
+// Reconciliation status → the ink colour used on the "Intended occupancy"
+// sub-line. Text colour (not a soft background) so the status survives a
+// print with "Background graphics" turned off. Mirrors ConfidenceHero's
+// TONE_INK, and the word itself always carries the meaning — never colour
+// alone.
+const CERT_TONE_INK: Record<'clean' | 'warn' | 'risk', string> = {
+  clean: 'var(--clean-ink)',
+  warn: 'var(--warn-deep)',
+  risk: 'var(--risk-ink)',
+};
+
 interface CertHistoryListing {
   platform: string;
   url: string;
@@ -173,6 +185,17 @@ function CertificateBody({
   const verdictHeadline =
     scenario === 'high' ? 'Rented' : scenario === 'medium' ? 'Likely Rented' : 'Not Rented';
 
+  // The intent this scan was reconciled against: whatever was declared, else
+  // the org's universal default (there is always a baseline). Same derivation
+  // as the Scan History Report and the on-screen result, so all three agree.
+  const rawIntent =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanIntent') : null;
+  const intent =
+    rawIntent && (INTENDED_OCCUPANCY_LABEL as any)[rawIntent]
+      ? rawIntent
+      : DEFAULT_OCC_CONFIG.defaultIntent;
+  const match = occMatchForRisk(intent as any, s.risk);
+
   return (
     <article className="certificate-sheet">
       <header className="cert-head">
@@ -216,6 +239,18 @@ function CertificateBody({
           <div className="cert-verdict-sub">
             <span className="cert-verdict-pct">{s.score}%</span> confidence
           </div>
+          {/* Intended occupancy this finding was reconciled against, and the
+              result — kept to one plain line: declared X, this is Y. */}
+          {match && (
+            <div className="cert-verdict-recon">
+              <span className="cert-recon-label">Intended occupancy</span>
+              <span className="cert-recon-value">{(INTENDED_OCCUPANCY_LABEL as any)[intent]}</span>
+              <span className="cert-recon-sep">·</span>
+              <span className="cert-recon-status" style={{ color: CERT_TONE_INK[match.tone] }}>
+                {match.label}
+              </span>
+            </div>
+          )}
         </div>
         <div className="cert-verdict-body">
           <div className="cert-eyebrow">Summary</div>
@@ -298,6 +333,15 @@ interface CertificateHistoryRow {
   listingCount: number;
   platformCount: number;
   listings: CertHistoryListing[];
+  /** The declared intent for this scan — the row's own if it carried one,
+   *  otherwise the org's universal default (there is always a baseline to
+   *  reconcile against). */
+  intentLabel: string;
+  /** Reconciliation of the finding against that intent: Consistent /
+   *  Inconclusive / Needs review. */
+  matchLabel: string;
+  /** Ink colour for the status word, keyed off the reconciliation tone. */
+  matchInk: string;
 }
 
 function CertificateHistoryBody({
@@ -367,6 +411,18 @@ function CertificateHistoryBody({
                       ? 'No listings detected'
                       : `${r.listingCount} listing${r.listingCount === 1 ? '' : 's'} on ${r.platformCount} platform${r.platformCount === 1 ? '' : 's'}`}
                   </span>
+                </div>
+                <div className="cert-history-occ">
+                  <span className="cert-history-occ-label">Intended occupancy:</span>
+                  <span className="cert-history-occ-intent">{r.intentLabel}</span>
+                  {r.matchLabel && (
+                    <>
+                      <span className="cert-history-sep">·</span>
+                      <span className="cert-history-occ-status" style={{ color: r.matchInk }}>
+                        {r.matchLabel}
+                      </span>
+                    </>
+                  )}
                 </div>
                 {r.listings.length > 0 && (
                   <ul className="cert-history-urls">
@@ -711,6 +767,12 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
     return getHistoryForAddress(resolvedAddress).map((h: any) => {
       const sc = h.scenario as CertScenarioKey;
       const listings = certScenarioListings(sc);
+      // Every scan reconciles against a declared intent: the row's own if it
+      // carried one, otherwise the org's universal default. Derived through
+      // occMatchForRisk — the same helper the on-screen Run history uses — so
+      // the PDF and the app never disagree on a row's status.
+      const intent = h.intent || DEFAULT_OCC_CONFIG.defaultIntent;
+      const match = occMatchForRisk(intent, SCENARIOS[sc].risk);
       return {
         date: certFormatHistoryDate(certParseScannedAt(h.scannedAt)),
         verdict: certScenarioVerdict(sc),
@@ -718,6 +780,9 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
         listingCount: listings.length,
         platformCount: h.platforms,
         listings,
+        intentLabel: INTENDED_OCCUPANCY_LABEL[intent],
+        matchLabel: match ? match.label : '',
+        matchInk: match ? CERT_TONE_INK[match.tone] : 'var(--ink-3)',
       };
     });
   }, [variant, resolvedAddress, getHistoryForAddress]);

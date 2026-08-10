@@ -84,6 +84,129 @@ function ConfigSection({
   );
 }
 
+// Key to the outcome matrix, rendered as the last block inside its card.
+//
+// Every cell above is the org's to set, so this explains the two axes and the
+// three statuses — never the shipped values, which would read as rules the
+// moment someone edited them. Each status carries one worked example, naming
+// the cell it comes from ("declared Owner-occupied × returned Needs review")
+// and picked out of live state, so an example can never describe a setting
+// that has changed. A status no cell currently uses shows no example.
+//
+// Deliberately does NOT gloss the statuses with their downstream labels
+// (green = "Consistent", red = "Needs review"). Those words are already the
+// column headers here, keyed to a different axis — see the collision noted on
+// MATRIX_HEADER_LABEL — so restating them would make one screen use the same
+// three words two ways. Described by consequence instead.
+//
+// A disclosure: the one-line summary is always visible and is itself the
+// toggle; the colour key expands below on demand. The ⓘ glyph marks it as
+// explanatory, the trailing chevron marks it as openable — the same
+// leading-glyph + rotating-chevron button idiom the matrix rows above use, so
+// the card reads as one interaction grammar. `open` is local view state, never
+// config, so it sits outside dirty-tracking and Save entirely. Defaults open
+// (`defaultOpen`) because this block exists for the first-time admin, who is
+// exactly the person who would never think to expand it.
+function MatrixLegend({
+  matrix,
+  defaultOpen = true,
+}: {
+  matrix: Record<string, Record<string, string>>;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = React.useState(defaultOpen);
+  const bodyId = React.useId();
+
+  const MEANING: Record<string, string> = {
+    green: 'Agrees with the file. No action.',
+    yellow: 'Neither confirmed nor contradicted. An analyst decides.',
+    red: 'Contradicts the file. Flagged and tracked until worked.',
+  };
+
+  // First cell using each status, in reading order — so every example names a
+  // pairing that is on screen directly above it.
+  const EXAMPLE: Record<string, string> = {};
+  OCC_INTENTS.forEach((intent: string) => {
+    OCC_VERDICTS.forEach((v: string) => {
+      const s = matrix[intent][v];
+      if (!EXAMPLE[s]) {
+        const col = MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v];
+        EXAMPLE[s] = `declared ${OCC_INTENT_LABEL[intent]}, returned ${col}`;
+      }
+    });
+  });
+
+  return (
+    <div
+      className="mt-stack-md rounded-lg px-card-tight py-card-tight"
+      style={{ background: 'var(--surface-2)' }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={bodyId}
+        className="w-full flex items-center gap-inline text-left rounded-md transition-colors hover:bg-hover-bg"
+      >
+        <span
+          className="shrink-0 [&>svg]:w-4 [&>svg]:h-4"
+          style={{ color: 'var(--ink-3)' }}
+          aria-hidden
+        >
+          <Icon name="info" size={16} />
+        </span>
+        <span className="min-w-0 flex-1 font-sans text-caption" style={{ color: 'var(--ink-2)' }}>
+          Rows: what was declared. Columns: what came back. The cell is your call.
+        </span>
+        <span
+          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
+          style={{ color: 'var(--ink-3)' }}
+          aria-hidden
+        >
+          <Icon name="chevron" size={12} />
+        </span>
+      </button>
+
+      {open && (
+        // Indented under the summary text (icon width + gap) so the key lines
+        // up with the sentence it explains, mirroring the matrix rows' pl-5.
+        <div id={bodyId} className="mt-stack pl-6 flex flex-col gap-stack">
+          {/* auto/1fr so every description starts at the same x whatever the
+              widest status label happens to be — computed layout, not a value. */}
+          <dl
+            className="grid items-baseline gap-x-inline gap-y-stack-tight"
+            style={{ gridTemplateColumns: 'auto 1fr' }}
+          >
+            {OCC_STATUSES.map((s: string) => (
+              <React.Fragment key={s}>
+                <dt>
+                  <Pill variant={OCC_STATUS_TONE[s]} size="sm">
+                    {OCC_STATUS_LABEL[s]}
+                  </Pill>
+                </dt>
+                {/* Example recedes one ink step, not two: --ink-4 on --surface-2
+                    is ~2.4:1 and fails AA, so --ink-3 is the floor here. */}
+                <dd className="font-sans text-caption" style={{ color: 'var(--ink-2)' }}>
+                  {MEANING[s]}
+                  {EXAMPLE[s] && (
+                    <span className="block" style={{ color: 'var(--ink-3)' }}>
+                      e.g. {EXAMPLE[s]}
+                    </span>
+                  )}
+                </dd>
+              </React.Fragment>
+            ))}
+          </dl>
+
+          <p className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>
+            Every cell is yours to set. These are starting points.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** The 0-100 band preview. Widths are computed layout, not design values. */
 function ThresholdBandPreview({ lo, hi }: { lo: number; hi: number }) {
   const safeLo = Math.max(0, Math.min(100, lo));
@@ -311,6 +434,8 @@ function ScanConfigScreen({
             </div>
           );
         })}
+
+        <MatrixLegend matrix={matrix} />
       </ConfigSection>
 
       {/* ---- 4. Recurring scans — REMOVED ----

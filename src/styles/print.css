@@ -166,6 +166,22 @@
   font-weight: 600;
   color: var(--ink-2);
 }
+/* "Intended occupancy  Owner-occupied · Needs review" — one plain line under
+   the confidence figure. Status word is coloured via inline ink but always
+   carries its label, so it survives a print with backgrounds off. */
+.certificate-sheet .cert-verdict-recon {
+  margin-top: 6pt;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6pt;
+  font-size: 9.5pt;
+  line-height: 1.3;
+}
+.certificate-sheet .cert-recon-label  { color: var(--ink-3); }
+.certificate-sheet .cert-recon-value  { color: var(--navy); font-weight: 600; }
+.certificate-sheet .cert-recon-sep    { color: var(--ink-4); }
+.certificate-sheet .cert-recon-status { font-weight: 600; }
 .certificate-sheet .cert-verdict-body {
   display: flex;
   flex-direction: column;
@@ -261,6 +277,23 @@
 .certificate-sheet .cert-history-score   { color: var(--navy); font-weight: 600; }
 .certificate-sheet .cert-history-sep     { color: var(--ink-4); }
 .certificate-sheet .cert-history-meta    { color: var(--ink-3); font-size: 8.5pt; margin-left: auto; }
+/* "Intended occupancy: Owner-occupied · Inconclusive" — the reconciliation
+   baseline for each scan, sitting just under the date/verdict/score head.
+   The status word is coloured via inline ink (CERT_TONE_INK) but always
+   carries its label, so it reads with "Background graphics" off. */
+.certificate-sheet .cert-history-occ {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5pt;
+  margin-top: 2.5pt;
+  font-size: 8.5pt;
+  line-height: 1.3;
+  color: var(--ink-3);
+}
+.certificate-sheet .cert-history-occ-label  { color: var(--ink-3); }
+.certificate-sheet .cert-history-occ-intent { color: var(--navy); font-weight: 600; }
+.certificate-sheet .cert-history-occ-status { font-weight: 600; }
 .certificate-sheet .cert-history-urls {
   list-style: none;
   margin: 4pt 0 0;

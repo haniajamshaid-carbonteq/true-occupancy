@@ -52,6 +52,12 @@ function seedTime(offset: string): number {
   return Date.now() - n * (units[m[2]] ?? 0);
 }
 
+// What fired a scan. A property's timeline mixes both: a person scans an
+// address, then an automation keeps re-scanning it on a cadence (or the
+// reverse — an officer re-checks a property the schedule already covers).
+// Without this the two are indistinguishable in Run history.
+type ScanTrigger = 'manual' | 'automation';
+
 interface SingleHistoryEntry {
   id: string;
   kind: 'single';
@@ -70,6 +76,12 @@ interface SingleHistoryEntry {
   /** Declared "as per loan" occupancy captured at scan time, reconciled
    *  against the observed verdict. Absent on scans that predate intake. */
   intent?: IntendedOccupancy;
+  /** Who fired this run. 'automation' = a schedule ran it unattended;
+   *  absent or 'manual' = a person hit Scan. Surfaces as the zap marker in
+   *  RunHistory so a property's timeline reads unambiguously — the same
+   *  address can be scanned both ways. Absent is the safe default: every
+   *  in-session scan is user-triggered, so only seeded/scheduled runs set it. */
+  trigger?: ScanTrigger;
 }
 
 interface BatchHistoryEntry {
@@ -100,6 +112,10 @@ interface BatchHistoryEntry {
   /** Batch-level declared occupancy — applied to any row without its own
    *  intent when reconciling the batch. */
   defaultIntent?: IntendedOccupancy;
+  /** Same as SingleHistoryEntry.trigger. Batch re-runs are automation-driven
+   *  by definition (only the first upload is manual), so RunHistory states
+   *  that once in copy rather than marking every row — see that file. */
+  trigger?: ScanTrigger;
 }
 
 type HistoryEntry = SingleHistoryEntry | BatchHistoryEntry;
@@ -354,8 +370,10 @@ const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAt: seedTime('8min'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied' },
   // Prior re-scans of the SAME two addresses. These do NOT show as extra rows in
   // History (it dedups to the latest); they populate the "Run history" section
-  // on the property's detail view — demonstrating the collapse.
-  { id: 'h01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('40d'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied' },
+  // on the property's detail view — demonstrating the collapse. Mixed triggers
+  // on purpose: this address is on a 6-month automation AND gets manually
+  // re-checked, which is the case the zap marker exists to disambiguate.
+  { id: 'h01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('40d'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied', trigger: 'automation' },
   { id: 'h01c', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('120d'), reference: 'LOAN-2026-0042', intent: 'owner-occupied' },
   { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAt: seedTime('24min'), reference: 'CASE-FILE-7714', intent: 'owner-occupied' },
   // Deliberately old, so its report demonstrates the stale-freshness flow.
@@ -367,9 +385,10 @@ const SEED_HISTORY: HistoryEntry[] = [
   { id: 'hr2', kind: 'single', address: '7 Beaucatcher Rd, Asheville, NC 28805',      scenario: 'high',   platforms: 3, scannedAt: seedTime('6h'),    reference: 'LOAN-2026-0058', intent: 'rental' },
   { id: 'hr3', kind: 'single', address: '153 Merrimon Ave, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAt: seedTime('2d'), intent: 'owner-occupied' },
   { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAt: seedTime('47d'), rows: SEED_BATCH_FAILED_ROWS },
-  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAt: seedTime('2h'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', description: 'Quarterly compliance scan for the spring 2026 lender portfolio.', defaultIntent: 'owner-occupied' },
+  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAt: seedTime('2h'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', description: 'Quarterly compliance scan for the spring 2026 lender portfolio.', defaultIntent: 'owner-occupied', trigger: 'automation' },
   // A prior run of the SAME CSV — collapses in the History tab (one row), and
-  // surfaces in the batch's "Run history" section on its detail view.
+  // surfaces in the batch's "Run history" section on its detail view. This is
+  // the original upload (manual); everything after it is the automation.
   { id: 'hb1b', kind: 'batch', filename: 'asheville-q1-2026.csv', total: 24, flagged: 4, warn: 7, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', defaultIntent: 'owner-occupied' },
   { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAt: seedTime('3h'), intent: 'rental'    },
   { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAt: seedTime('4h'), intent: 'owner-occupied'    },
@@ -392,12 +411,13 @@ const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h18', kind: 'single', address: '50 Ridgeview Ct, Asheville, NC 28805',       scenario: 'high',   platforms: 3, scannedAt: seedTime('1w')   },
   // ---- Prior automation runs ---------------------------------------------
   // Synthetic history entries that act as previous executions of seeded
-  // schedules, so the schedule-detail page shows a real run history.
-  { id: 'hr01a', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('6mo') },
-  { id: 'hr01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('1y')  },
-  { id: 'hr02a', kind: 'batch',  filename: 'asheville-q4-2025.csv', total: 22, flagged: 4, warn: 5, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS.slice(0, 22), defaultIntent: 'owner-occupied' },
-  { id: 'hr03a', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 2, scannedAt: seedTime('1y') },
-  { id: 'hr04a', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'medium', platforms: 1, scannedAt: seedTime('4mo') },
+  // schedules, so the schedule-detail page shows a real run history. All of
+  // these ran unattended, so they carry trigger: 'automation'.
+  { id: 'hr01a', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('6mo'), trigger: 'automation' },
+  { id: 'hr01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('1y'),  trigger: 'automation' },
+  { id: 'hr02a', kind: 'batch',  filename: 'asheville-q4-2025.csv', total: 22, flagged: 4, warn: 5, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS.slice(0, 22), defaultIntent: 'owner-occupied', trigger: 'automation' },
+  { id: 'hr03a', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 2, scannedAt: seedTime('1y'),  trigger: 'automation' },
+  { id: 'hr04a', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'medium', platforms: 1, scannedAt: seedTime('4mo'), trigger: 'automation' },
 ];
 
 // ---- cadence helpers ----------------------------------------------------
