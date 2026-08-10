@@ -48,10 +48,12 @@ function clampMinutes(raw: string): number {
   return Math.max(1, n);
 }
 
-// Outcome-matrix column headers. Per the owner, the three columns read as the
-// reconciliation labels (Consistent / Needs review / Inconclusive) rather than
-// the raw scan-finding verdicts. Scoped to this screen so OCC_VERDICT_LABEL —
-// used across the result page and lists — is untouched.
+// Outcome-matrix labels. Per the owner, the matrix reads as the reconciliation
+// labels (Consistent / Needs review / Inconclusive) rather than the raw
+// scan-finding verdicts — in the column headers *and* in the expanded per-row
+// editor ("If consistent — treat as"), which used to restate the raw verdict
+// and so read as a second, contradicting vocabulary. Scoped to this screen so
+// OCC_VERDICT_LABEL — used across the result page and lists — is untouched.
 const MATRIX_HEADER_LABEL: Record<string, string> = {
   'not-rented': 'Consistent',
   'possibly-rented': 'Needs review',
@@ -295,7 +297,7 @@ function ScanConfigScreen({
                   {OCC_VERDICTS.map((v: string) => (
                     <ChipRow
                       key={v}
-                      label={`Found ${OCC_VERDICT_LABEL[v].toLowerCase()} — treat as`}
+                      label={`If ${(MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v]).toLowerCase()} — treat as`}
                       value={matrix[intent][v]}
                       onChange={(next: string) => setCell(intent, v, next)}
                       options={OCC_STATUSES.map((s: string) => ({

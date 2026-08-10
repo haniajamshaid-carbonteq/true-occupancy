@@ -132,19 +132,32 @@ interface OccSessionTimeout {
 // Shipped defaults. Owner-occupied and second-home start identical but are
 // separately editable — whether a seasonal let is legitimate on a second
 // home is the lender's policy call, not ours.
+//
+// The matrix below is the owner's table of 2026-08-10, set so the Config
+// screen is already correct for an org that never opens a row. Read the keys
+// through the Config column headers: not-rented = CONSISTENT,
+// possibly-rented = NEEDS REVIEW, rented = INCONCLUSIVE.
+//
+// ⚠ That header mapping is the collision recorded on Trello #18: the column
+// called NEEDS REVIEW is keyed on `possibly-rented`, so these defaults make a
+// *possibly*-rented finding red and a confirmed `rented` finding yellow.
+// Deliberate per the owner's table — do not "fix" it here. If #18 ratifies a
+// different header mapping, this block moves with it.
 const DEFAULT_OCC_CONFIG: OccConfig = {
   version: 1,
   defaultIntent: 'owner-occupied',
   thresholds: { rentedAtOrAbove: 70, notRentedAtOrBelow: 30 },
   categoryThresholds: {},
   outcomeMatrix: {
-    'owner-occupied': { 'not-rented': 'green', 'possibly-rented': 'yellow', rented: 'red' },
-    'second-home': { 'not-rented': 'green', 'possibly-rented': 'yellow', rented: 'red' },
-    // Non-owner occupancy is expected here, so a Rented finding is the
-    // declaration being met. A Not-rented finding is not fraud — it is
-    // absent expected income, which is a softer signal.
-    rental: { 'not-rented': 'yellow', 'possibly-rented': 'yellow', rented: 'green' },
-    'not-sure': { 'not-rented': 'green', 'possibly-rented': 'yellow', rented: 'yellow' },
+    'owner-occupied': { 'not-rented': 'green', 'possibly-rented': 'red', rented: 'yellow' },
+    'second-home': { 'not-rented': 'green', 'possibly-rented': 'red', rented: 'yellow' },
+    // Non-owner occupancy is expected here, so nothing this row finds clears
+    // the property outright — a Not-rented finding is not fraud, it is absent
+    // expected income, which is still worth a look.
+    rental: { 'not-rented': 'yellow', 'possibly-rented': 'red', rented: 'yellow' },
+    // Nothing was declared, so nothing can be confirmed against it: this row
+    // never starts green.
+    'not-sure': { 'not-rented': 'yellow', 'possibly-rented': 'red', rented: 'red' },
   },
   recurring: { red: 'monthly', yellow: 'none', green: 'none' },
   stalenessDays: 30,
