@@ -1,4 +1,4 @@
-/* global React, AppShell, AppStateContext, Card, ChipRow, Input, Toggle, Button, Pill, Modal,
+/* global React, ReactRouterDOM, AppShell, AppStateContext, Card, ChipRow, Input, Toggle, Button, Pill, Modal,
    Icon, ScreenEmpty, OCC_INTENTS, OCC_VERDICTS, OCC_STATUSES, OCC_INTENT_LABEL,
    OCC_VERDICT_LABEL, OCC_STATUS_LABEL, OCC_STATUS_TONE, OCC_CADENCE_LABEL,
    DEFAULT_OCC_CONFIG, occThresholdError, occThresholdsFor */
@@ -128,8 +128,8 @@ function MatrixLegend({
   const EXAMPLE: Record<string, string> = {};
   OCC_INTENTS.forEach((intent: string) => {
     OCC_VERDICTS.forEach((v: string) => {
-      const s = matrix[intent][v];
-      if (!EXAMPLE[s]) {
+      const s = matrix[intent]?.[v];
+      if (s && !EXAMPLE[s]) {
         const col = MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v];
         EXAMPLE[s] = `declared ${OCC_INTENT_LABEL[intent]}, returned ${col}`;
       }
@@ -294,6 +294,8 @@ function ScanConfigScreen({
   const thresholdError = occThresholdError({ rentedAtOrAbove: hi, notRentedAtOrBelow: lo });
   const dirty = forceDirty || snapshot() !== baseline;
 
+  const Prompt = ReactRouterDOM?.Prompt;
+
   function discard() {
     const b = JSON.parse(baseline);
     setDefaultIntent(b.defaultIntent);
@@ -314,6 +316,12 @@ function ScanConfigScreen({
       setConfirmOpen(false);
       setJustSaved(true);
       window.setTimeout(() => setJustSaved(false), 3000);
+      try {
+        localStorage.setItem('to-sessionTimeout', JSON.stringify({
+          enabled: timeoutOn, value: timeoutValue, unit: timeoutUnit,
+        }));
+        window.dispatchEvent(new Event('to-timeout-changed'));
+      } catch (_) {}
     }, 800);
   }
 
@@ -336,6 +344,7 @@ function ScanConfigScreen({
 
   return (
     <AppShell>
+    {Prompt && <Prompt when={dirty} message="You have unsaved configuration changes. Leave this page?" />}
     <div className="pb-section">
       <div>
         <h1 className="font-sans text-h2 font-semibold" style={{ color: 'var(--navy)' }}>
@@ -523,7 +532,7 @@ function ScanConfigScreen({
 
       {/* ---- Footer: impact preview + save ---- */}
       {dirty && (
-        <Card padded className="mt-section-sub">
+        <Card padded className="mt-section-sub sticky bottom-0 z-sticky">
           <div className="flex flex-wrap items-center justify-between gap-stack">
             <div className="flex items-start gap-inline">
               <span className="shrink-0 mt-0.5 [&>svg]:w-4 [&>svg]:h-4" style={{ color: 'var(--warn-ink)' }} aria-hidden>
@@ -568,7 +577,7 @@ function ScanConfigScreen({
               <Icon name="check" size={16} />
             </span>
             <p className="font-sans text-label font-medium" style={{ color: 'var(--ink)' }}>
-              Configuration saved. New scans use these rules; issued reports keep their original scoring.
+              Configuration saved.
             </p>
           </div>
         </Card>
@@ -586,23 +595,13 @@ function ScanConfigScreen({
               Cancel
             </Button>
             <Button variant="primary" onClick={doSave} disabled={saving} icon={saving ? undefined : <Icon name="check" size={14} />}>
-              {saving ? 'Saving…' : 'Save changes'}
+              {saving ? 'Saving…' : 'Save'}
             </Button>
           </>
         }
       >
         <p className="font-sans text-body-sm" style={{ color: 'var(--ink-2)' }}>
-          {typeof impactCount === 'number' ? (
-            <>
-              This will reclassify{' '}
-              <span className="tabular-nums font-medium" style={{ color: 'var(--ink)' }}>
-                {impactCount}
-              </span>{' '}
-              properties under the new rules. Reports already issued keep their original scoring.
-            </>
-          ) : (
-            <>These rules apply to every new scan. Reports already issued keep their original scoring.</>
-          )}
+          Save the current configuration?
         </p>
       </Modal>
     </div>
