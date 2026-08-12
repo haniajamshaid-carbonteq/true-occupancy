@@ -2,7 +2,7 @@
    HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
    SCAN_COLUMNS, scanLeadingAccent, useAppState, splitAddress, ChipRow, DateRangePicker, parseAgoHours,
    deriveTitleFromFilename, ScreenError, ScreenEmpty,
-   RedFlag, BatchRedBadge, occMatchForRisk, OCC_STATUS_LABEL, OCC_STATUS_TONE */
+   RedFlag, BatchRedBadge, occMatchForRisk, OCC_STATUS_LABEL, OCC_STATUS_MATCH_LABEL, OCC_STATUS_TONE */
 
 // Keep one row per key — the most recently scanned. Stable enough for the
 // History list (re-scans collapse; the full run list lives on the detail view).
@@ -308,14 +308,14 @@ function HistoryScreen() {
               Same labels as the Config screen, so what's "red" here is exactly
               what the matrix defines. Replaces the old top-level Red-flags tab. */}
           <ChipRow
-            label="Flagged"
+            label="Verdict"
             value={flagged}
             onChange={(v: string) => setFlagged(v as 'all' | OccStatus)}
             options={[
               { value: 'all',    label: 'All' },
-              { value: 'green',  label: OCC_STATUS_LABEL.green,  count: flaggedCounts.green },
-              { value: 'yellow', label: OCC_STATUS_LABEL.yellow, count: flaggedCounts.yellow },
-              { value: 'red',    label: OCC_STATUS_LABEL.red,    count: flaggedCounts.red },
+              { value: 'green',  label: OCC_STATUS_MATCH_LABEL.green,  count: flaggedCounts.green },
+              { value: 'yellow', label: OCC_STATUS_MATCH_LABEL.yellow, count: flaggedCounts.yellow },
+              { value: 'red',    label: OCC_STATUS_MATCH_LABEL.red,    count: flaggedCounts.red },
             ]}
           />
           <DateRangePicker
