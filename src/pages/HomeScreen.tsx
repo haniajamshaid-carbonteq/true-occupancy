@@ -515,7 +515,7 @@ const DASHBOARD_SINGLE_COLUMNS: any[] = [
     // Result — reconciliation of declared intent × scan verdict. Raw verdict
     // moved to the property page.
     key: 'result',
-    label: 'Result',
+    label: 'Verdict',
     width: '156px',
     hideBelow: 'sm' as const,
     cell: (r: any) => {
@@ -708,6 +708,9 @@ function MonitoringPanel() {
   function openChange(row: StateChange) {
     sessionStorage.setItem('scanScenario', row.to);
     sessionStorage.setItem('scanAddress', row.address);
+    // Monitoring rows carry no declared intent — clear any prior scan's so it
+    // never leaks onto this report's reconciliation line.
+    sessionStorage.removeItem('scanIntent');
     const path = row.to === 'low' ? '/result/clean' : row.to === 'medium' ? '/result/medium' : '/result/high';
     history.push(path);
   }

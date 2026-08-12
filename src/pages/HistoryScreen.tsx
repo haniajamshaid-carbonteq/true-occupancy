@@ -427,7 +427,7 @@ const HISTORY_SINGLE_COLUMNS: any[] = [
     // Result — reconciliation of declared intent × scan verdict. The raw
     // Rented/Possibly/Not-rented finding now lives on the property page.
     key: 'result',
-    label: 'Result',
+    label: 'Verdict',
     width: '156px',
     hideBelow: 'sm' as const,
     cell: (r: any) => {
