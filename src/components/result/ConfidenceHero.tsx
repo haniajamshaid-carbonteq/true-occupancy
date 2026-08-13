@@ -1,5 +1,5 @@
-/* global React, Card, Icon, SCENARIOS, ReferenceCell, useAppState, ServedStamp, formatUsDateTime,
-   occMatchForRisk, INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL */
+/* global React, Card, Icon, SCENARIOS, PROPERTY, ReferenceCell, useAppState, ServedStamp,
+   formatUsDateTime, occMatchForRisk, INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
@@ -242,6 +242,15 @@ function reconciliationWhy(
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
   const animatedScore = useCountUp(sc.score, 800);
+  const { findScheduleByTarget } = useAppState();
+
+  // Is this property already on a recurring re-scan? Resolved the same way
+  // ScanContextBar resolves its Automate target, so the hero and the top-bar
+  // control can never disagree about whether automation is running.
+  const heroAddress =
+    (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
+    PROPERTY.address;
+  const activeSchedule = findScheduleByTarget({ kind: 'single', address: heroAddress });
 
   // Reconciliation is the headline now — declared intent × what the scan found.
   // Intent is stamped in sessionStorage at scan/open time; absent = quick-scan.
@@ -310,8 +319,11 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               </p>
               {/* Red single scan → advise setting up a recurring re-scan. Opens
                   the same Automate modal the top-bar button uses (via the shared
-                  halcyon:open-automate event handled by AutomationControl). */}
-              {match.status === 'red' && (
+                  halcyon:open-automate event handled by AutomationControl).
+                  Suppressed once a schedule exists — the top-bar "Automated ·
+                  every Nmo" control already carries that status, so a second
+                  in-hero indicator would duplicate it on the same screen. */}
+              {match.status === 'red' && !activeSchedule && (
                 <button
                   type="button"
                   onClick={() => window.dispatchEvent(new Event('halcyon:open-automate'))}

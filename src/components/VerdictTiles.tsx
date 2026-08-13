@@ -5,6 +5,13 @@
 // "Needs review" tile is the red-flag card (risk-toned icon). Optional onSelect
 // makes tiles one-click reconciliation filters; optional onAutomate renders an
 // "Automation recommended" link under any red tile with a non-zero count.
+//
+// The nudge is a recommendation, so it resolves once acted on: callers pass
+// onAutomate only while nothing is scheduled (BatchScreen gates it on
+// !activeSchedule), so the link simply disappears once automation is running.
+// It is NOT replaced by a second "Automated" label — the page already shows
+// that status once at the top (the AutomationBanner), and repeating it under
+// the tile would duplicate it on the same screen.
 
 type MatchKey = 'consistent' | 'inconclusive' | 'needsReview';
 
@@ -19,7 +26,10 @@ interface VerdictTilesProps {
   /** Currently selected key (highlights the matching tile). */
   selected?: MatchKey | null;
   /** When provided, a red tile with a non-zero count shows an
-   *  "Automation recommended" link beneath it that calls this. */
+   *  "Automation recommended" link beneath it that calls this. Pass it only
+   *  while no schedule exists for the target — once automation is running the
+   *  caller drops it, and the nudge disappears (the status is shown at the top
+   *  of the page, so there is no in-tile confirmation to avoid duplication). */
   onAutomate?: () => void;
   className?: string;
 }
@@ -52,6 +62,8 @@ function VerdictTiles({
         const value = valueOf[t.key];
         // The automation nudge belongs under a red tile that actually has
         // properties in it — no point recommending automation for zero rows.
+        // The caller only passes onAutomate while nothing is scheduled, so once
+        // automation runs this goes false and the link disappears.
         const showAutomate = t.tone === 'risk' && value > 0 && typeof onAutomate === 'function';
         return (
           <div key={t.key} className="flex flex-col gap-1.5">
