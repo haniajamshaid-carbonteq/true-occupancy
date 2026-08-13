@@ -1220,7 +1220,7 @@ function buildBatchColumns(
     // (Consistent / Inconclusive / Needs review), NOT the raw verdict. The raw
     // Rented/Possibly/Not-rented finding lives on the property page now.
     key: 'result',
-    label: 'Result',
+    label: 'Verdict',
     width: '156px',
     hideBelow: 'sm' as const,
     cell: (row: BatchRow) => {
