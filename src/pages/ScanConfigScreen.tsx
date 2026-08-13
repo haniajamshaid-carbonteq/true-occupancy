@@ -543,15 +543,7 @@ function ScanConfigScreen({
                   Unsaved changes
                 </p>
                 <p className="font-sans text-caption mt-0.5" style={{ color: 'var(--ink-3)' }}>
-                  {typeof impactCount === 'number' ? (
-                    <>
-                      Saving would reclassify{' '}
-                      <span className="tabular-nums font-medium">{impactCount}</span> properties.
-                      Reports already issued keep their original scoring.
-                    </>
-                  ) : (
-                    <>Reports already issued keep their original scoring.</>
-                  )}
+                  Do you want to keep the changes?
                 </p>
               </div>
             </div>
