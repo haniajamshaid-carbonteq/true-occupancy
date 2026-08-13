@@ -1,6 +1,7 @@
 /* global React, Modal, Button, Icon, Radio, RadioGroup, StatusPillSelector,
    AutomationScopeCard, Cadence, ScopeRetention, sameCadence, cadenceLabel,
-   formatNextRun, ChipRow, OCC_INTENTS, OCC_INTENT_LABEL, DEFAULT_OCC_CONFIG */
+   formatNextRun, ChipRow, OCC_INTENTS, OCC_INTENT_LABEL, DEFAULT_OCC_CONFIG,
+   occMatchForRisk */
 // AutomateModal — shared dialog for creating OR editing an automation.
 //
 // Create mode: shows the cadence radio cards (and, for batches, the new
@@ -70,6 +71,19 @@ const DEFAULT_CADENCE: Cadence = { every: 6, unit: 'month' };
 const DEFAULT_RETENTION: ScopeRetention = 'monitor';
 const DEFAULT_STATUSES: Risk[] = ['risk', 'warn'];
 
+// The re-scan set defaults to the raw bands that reconcile to "Needs review"
+// (red) against the declared intent — the properties an officer most needs to
+// keep watching. Which raw bands are red depends on the intent (per the config
+// outcome matrix), so it's derived, not fixed: e.g. owner-occupied → just
+// Possibly-rented; not-sure → Rented + Possibly-rented. Falls back to the
+// non-consistent bands if the matrix marks nothing red for this intent. The
+// user can freely change the selection afterwards.
+const ALL_BANDS: Risk[] = ['risk', 'warn', 'clean'];
+function redBandsFor(intent: string): Risk[] {
+  const red = ALL_BANDS.filter((b) => occMatchForRisk(intent, b)?.status === 'red');
+  return red.length > 0 ? red : DEFAULT_STATUSES;
+}
+
 // Retention rule cards — what happens to a property once its status no longer
 // matches the selected bands. Plain-language, consequence-first copy (locked
 // with design): never "static / dynamic / scope".
@@ -117,22 +131,32 @@ function AutomateModal({
   const isBatch = target?.kind === 'batch';
 
   const seedCadence: Cadence = isEdit && initialCadence ? initialCadence : DEFAULT_CADENCE;
+  // Intended occupancy — defaults to the org's universal default so the
+  // common case is zero clicks; the user overrides it only when this
+  // automation targets a different kind of property. Declared before
+  // seedStatuses because the default re-scan set is derived from it.
+  const seedIntent: string =
+    isEdit && initialIntent ? initialIntent : DEFAULT_OCC_CONFIG.defaultIntent;
   const seedStatuses: Risk[] =
     isEdit && initialStatuses && initialStatuses.length > 0
       ? initialStatuses
-      : DEFAULT_STATUSES;
+      : redBandsFor(seedIntent);
   const seedRetention: ScopeRetention =
     isEdit && initialRetention ? initialRetention : DEFAULT_RETENTION;
-  // Intended occupancy — defaults to the org's universal default so the
-  // common case is zero clicks; the user overrides it only when this
-  // automation targets a different kind of property.
-  const seedIntent: string =
-    isEdit && initialIntent ? initialIntent : DEFAULT_OCC_CONFIG.defaultIntent;
 
   const [cadence, setCadence] = React.useState<Cadence>(seedCadence);
   const [statuses, setStatuses] = React.useState<Risk[]>(seedStatuses);
   const [retention, setRetention] = React.useState<ScopeRetention>(seedRetention);
   const [intent, setIntent] = React.useState<string>(seedIntent);
+
+  // The re-scan default tracks the declared intent (Needs-review bands) only
+  // until the user touches the pills. Once they've made a manual choice we
+  // stop auto-deriving, so changing intent afterwards never wipes their pick.
+  const statusesDirty = React.useRef(false);
+  const handleStatusesChange = (next: Risk[]) => {
+    statusesDirty.current = true;
+    setStatuses(next);
+  };
 
   // Reset selection each time the modal reopens so it reflects fresh seeds.
   // Keyed on `open` only — the seed values are recomputed every render
@@ -144,9 +168,21 @@ function AutomateModal({
       setStatuses(seedStatuses);
       setRetention(seedRetention);
       setIntent(seedIntent);
+      statusesDirty.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Changing the declared intent re-derives the Needs-review default so the
+  // pre-selection stays meaningful against the new intent — unless the user
+  // has already hand-picked the pills. Create + batch only (single scans and
+  // edit mode carry their own scope).
+  React.useEffect(() => {
+    if (!open || isEdit || !isBatch) return;
+    if (statusesDirty.current) return;
+    setStatuses(redBandsFor(intent));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intent]);
 
   // When every status is selected, a property can never STOP matching — so the
   // retention choice is moot (the whole batch is always re-scanned). We hide
@@ -318,7 +354,7 @@ function AutomateModal({
               };
             })}
             value={statuses}
-            onChange={setStatuses}
+            onChange={handleStatusesChange}
             countsPending={scopeCountsPending}
           />
 
