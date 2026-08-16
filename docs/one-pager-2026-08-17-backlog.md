@@ -1,7 +1,7 @@
 # True Occupancy — Backlog One-Pager
 **Date:** August 17, 2026 · **Board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) · **Cards:** #32 + #34–#52 (20, all in Backlog, all with screenshots)
 
-Every card follows the house format (Navigation → Why → What changes → Edge cases → Acceptance criteria) and carries its screen label. Reference implementation for ✅-marked items is live in `app.html` — **commit `dc0f0af` on `main`** (#32's fix is commit `49f95f0`).
+Every card follows the house format (Navigation → Why → What changes → Edge cases → Acceptance criteria) and carries its screen label. Reference implementation for ✅-marked items is live in `app.html` — commits **`dc0f0af`** (flip / Not-sure / AI toggle / red-list) and **`d68861c`** (Intended columns) on `main`; #32's fix is `49f95f0`.
 
 ---
 
@@ -10,13 +10,13 @@ Every card follows the house format (Navigation → Why → What changes → Edg
 **1 · Declared / Intended occupancy everywhere** *(meeting action point — compare declared vs detected at a glance)*
 | # | Card | Prototype |
 |---|---|---|
-| 34 | [Foundation: per-address resolver + batch "Mixed" summary](https://trello.com/c/xyqiiuap) | — |
-| 35 | [Dashboard: Intended column on Recent Scans](https://trello.com/c/37LTqJ6g) | — |
-| 36 | [History: Intended column](https://trello.com/c/3Av2nYBQ) | — |
-| 37 | [Batch: per-address Declared column in default view](https://trello.com/c/PFCSdCXv) | — |
-| 38 | [Scheduled: Intended column](https://trello.com/c/HAcJudRO) | — |
-| 39 | [Schedule detail: per-address intended for batch schedules](https://trello.com/c/bUxalHBb) | — |
-| 48 | [Run history: per-run intended on the timeline](https://trello.com/c/zGPKwVgL) | — |
+| 34 | [Foundation: per-address resolver + batch "Mixed" summary](https://trello.com/c/xyqiiuap) | ✅ built (`d68861c`) |
+| 35 | [Dashboard: Intended column on Recent Scans](https://trello.com/c/37LTqJ6g) | ✅ built |
+| 36 | [History: Intended column](https://trello.com/c/3Av2nYBQ) | ✅ built |
+| 37 | [Batch: per-address Declared column in default view](https://trello.com/c/PFCSdCXv) | ✅ built |
+| 38 | [Scheduled: Intended column](https://trello.com/c/HAcJudRO) | ✅ built |
+| 39 | [Schedule detail: per-address intended for batch schedules](https://trello.com/c/bUxalHBb) | ✅ built |
+| 48 | [Run history: per-run intended on the timeline](https://trello.com/c/zGPKwVgL) | ✅ built |
 
 **2 · Confidence score flip** *(the % always reads as confidence IN the finding)*
 | # | Card | Prototype |

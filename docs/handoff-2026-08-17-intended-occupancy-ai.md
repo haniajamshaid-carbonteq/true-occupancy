@@ -3,7 +3,7 @@
 **Date:** August 17, 2026
 **Author:** Zarlish Khan
 **Trello board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) — cards #32 + #34–#52 (20)
-**Reference implementation:** this repo, `app.html` — **commit `dc0f0af` on `main`** (everything marked ✅ below is in that commit; #32's fix is the earlier `49f95f0`). Every card carries a screenshot of the target screen; the same images are embedded below and live in [`ticket-screenshots/`](../ticket-screenshots/).
+**Reference implementation:** this repo, `app.html` — commits **`dc0f0af`** (confidence flip, Not-sure config, AI toggle, red-list retirement) and **`d68861c`** (Intended-occupancy columns, W1+W2) on `main`; #32's fix is the earlier `49f95f0`. Every card carries a screenshot of the implemented screen; the same images are embedded below and live in [`ticket-screenshots/`](../ticket-screenshots/).
 
 ---
 
@@ -33,30 +33,32 @@ Grounding: the [July-23 scope note](../TrueOccupancy-Scope-2026-07-23.pdf notes 
 
 ## Workstreams
 
-### W1 — Declared-occupancy resolver *(land first)*
+### W1 — Declared-occupancy resolver *(land first)* · **✅ implemented (`d68861c`)**
 **Closes:** #34 · **Prerequisite for:** W2
-One pure helper + batch summary. Edge contract: undeclared → "Not sure", never blank; failed/unscanned rows still count toward the declared summary; historical batches resolve (per-row `intent` is retained on `BatchHistoryEntry.rows`).
+`resolveIntent` / `summarizeBatchIntent` / `batchIntentBreakdown` in `AppState.tsx`. Edge contract: undeclared → "Not sure", never blank; failed/unscanned rows still count toward the declared summary; historical batches resolve (per-row `intent` is retained on `BatchHistoryEntry.rows`).
 
-### W2 — Intended columns across the surfaces
+### W2 — Intended columns across the surfaces · **✅ implemented (`d68861c`)**
 **Closes:** #35 #36 #37 #38 #39 #48 · **Depends on:** W1
 
-**How it is today (the "before" — no declared column anywhere):**
+**Implemented state (port these):**
 
-*Dashboard → Recent Scans (Address · Verdict · Scanned — Intended column goes beside Verdict):*
-![Dashboard before](../ticket-screenshots/35-dashboard-recent-scans.png)
+*Dashboard → Recent Scans — Intended beside Verdict:*
+![Dashboard after](../ticket-screenshots/35-dashboard-recent-scans.png)
 
-*History list (same shared builder as Dashboard — one change feeds both):*
-![History before](../ticket-screenshots/36-history-list.png)
+*History list — Address · Intended · Verdict (same shared builder pattern as Dashboard):*
+![History after](../ticket-screenshots/36-history-list.png)
 
-*Batch results (per-address Declared column currently exists only under the red filter):*
-![Batch before](../ticket-screenshots/37-batch-results-table.png)
+*Batch results — per-address Declared in the default view (Permit Sweep seed shows an override → the batch reads "Mixed" in lists):*
+![Batch after](../ticket-screenshots/37-batch-results-table.png)
 
-*Scheduled list and batch-schedule detail (intent used for rollups, never displayed):*
-![Scheduled before](../ticket-screenshots/38-scheduled-list.png)
-![Schedule detail before](../ticket-screenshots/39-schedule-detail-batch.png)
+*Scheduled list (single via originating run; batch = summary/"Mixed" with hover breakdown) and batch-schedule detail (summary RuleField):*
+![Scheduled after](../ticket-screenshots/38-scheduled-list.png)
+![Schedule detail after](../ticket-screenshots/39-schedule-detail-batch.png)
 
-*Run history rows (verdict + date + ⚡ only — per-run intent goes here):*
-![Run history before](../ticket-screenshots/48-run-history.png)
+*Run history — per-run Intended on both timeline kinds:*
+![Run history after](../ticket-screenshots/48-run-history.png)
+
+Production notes: the "Mixed" hover uses a native `title` in the prototype — production should use the `InfoHover` extension once signed off. CSV junk-intent intake notice (#37 edge case) is **not** in the prototype; build from the card.
 - #35/#36 are **one change** — the shared `buildScanColumns` (`HomeScreen.tsx:208`) feeds both Dashboard and History.
 - #37 promotes the per-address Declared column from the red-filtered set (`buildBatchRedColumns`) into the default batch columns — don't duplicate it in the red view. CSV junk intents (`normalizeIntent` returns null) must surface an intake notice, not a silent fallback.
 - #38/#39: schedules list + batch-schedule detail show the batch summary ("Mixed"), per-address on the opened run.
