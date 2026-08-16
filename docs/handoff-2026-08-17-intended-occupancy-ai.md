@@ -2,8 +2,8 @@
 
 **Date:** August 17, 2026
 **Author:** Zarlish Khan
-**Trello board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) — cards #34–#52 (19)
-**Reference implementation:** this repo, `app.html` (branch `main`). Every card carries a screenshot of the target screen.
+**Trello board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) — cards #32 + #34–#52 (20)
+**Reference implementation:** this repo, `app.html` — **commit `dc0f0af` on `main`** (everything marked ✅ below is in that commit; #32's fix is the earlier `49f95f0`). Every card carries a screenshot of the target screen; the same images are embedded below and live in [`ticket-screenshots/`](../ticket-screenshots/).
 
 ---
 
@@ -39,6 +39,24 @@ One pure helper + batch summary. Edge contract: undeclared → "Not sure", never
 
 ### W2 — Intended columns across the surfaces
 **Closes:** #35 #36 #37 #38 #39 #48 · **Depends on:** W1
+
+**How it is today (the "before" — no declared column anywhere):**
+
+*Dashboard → Recent Scans (Address · Verdict · Scanned — Intended column goes beside Verdict):*
+![Dashboard before](../ticket-screenshots/35-dashboard-recent-scans.png)
+
+*History list (same shared builder as Dashboard — one change feeds both):*
+![History before](../ticket-screenshots/36-history-list.png)
+
+*Batch results (per-address Declared column currently exists only under the red filter):*
+![Batch before](../ticket-screenshots/37-batch-results-table.png)
+
+*Scheduled list and batch-schedule detail (intent used for rollups, never displayed):*
+![Scheduled before](../ticket-screenshots/38-scheduled-list.png)
+![Schedule detail before](../ticket-screenshots/39-schedule-detail-batch.png)
+
+*Run history rows (verdict + date + ⚡ only — per-run intent goes here):*
+![Run history before](../ticket-screenshots/48-run-history.png)
 - #35/#36 are **one change** — the shared `buildScanColumns` (`HomeScreen.tsx:208`) feeds both Dashboard and History.
 - #37 promotes the per-address Declared column from the red-filtered set (`buildBatchRedColumns`) into the default batch columns — don't duplicate it in the red view. CSV junk intents (`normalizeIntent` returns null) must surface an intake notice, not a silent fallback.
 - #38/#39: schedules list + batch-schedule detail show the batch summary ("Mixed"), per-address on the opened run.
@@ -48,9 +66,21 @@ One pure helper + batch summary. Edge contract: undeclared → "Not sure", never
 **Closes:** #40 #41 · **Independent** · **✅ fully implemented in the prototype**
 `ConfidenceHero.tsx` (flip + finding-labelled copy) and `CertificateSheet.tsx` (`:240` main finding, `:779` per-row history — each row flips on **its own** verdict). Port verbatim. Do **not** flip: `RedPropertyDrawer:212` (always the rented branch), `ListingsPanel` Confidence (listing-match, different number), `AIInvestigator` scores.
 
+**Before:** a not-rented result showed the raw rented-probability — `12% confidence` — under a "Consistent"/"Not Rented" headline, reading as if we were unsure. **After (built):**
+
+*Hero — "88% confident this property is not rented", with the Declared line intact:*
+![Hero after](../ticket-screenshots/40-confidence-flip-hero.png)
+
+*PDF certificate — same rule, same figure ("Not Rented · 88% confidence"), screen and PDF can never disagree:*
+![Certificate after](../ticket-screenshots/41-certificate-flip.png)
+
 ### W4 — "Not sure" config
 **Closes:** #42 · **Independent** · **✅ implemented in the prototype**
 ⓘ tooltip + toggle + "likely to look like" dropdown + the three outcome filters. **The two controls are different jobs**: the dropdown = the scan/treatment baseline for an undeclared property; the three filters = Not-sure's *own* definition of red/yellow/green — they may differ, neither disables the other. OFF → binary rented check. Production: new `OccConfig` fields (`notSureResemblesIntent`, `notSureByResemblance`) wired into `occMatchForRisk`, Save and dirty-tracking (the prototype does not persist them).
+
+**Before:** "Not sure" was a plain matrix row identical to the others — no guidance, no resemblance control, no on/off. **After (built):**
+
+![Not-sure config after](../ticket-screenshots/42-notsure-config.png)
 
 ### W5 — AI report core
 **Closes:** #46 → #43 #44 (#45 after decision 1) · #46 ✅ in prototype
@@ -59,11 +89,21 @@ One pure helper + batch summary. Edge contract: undeclared → "Not sure", never
 - #44: run-now must bypass the batch queue; add a cost hint at the CTA.
 - AI-report **scheduling stays deferred** (human-in-the-loop, per scope).
 
+**Before:** no AI settings existed anywhere in Config. **After (built) — the #46 toggle, OFF by default, with the single+batch+cost copy:**
+
+![AI report config after](../ticket-screenshots/46-ai-report-config.png)
+
+*The existing on-demand AI slot on the result page (#44's starting point — "Run occupancy report"):*
+![AI slot today](../ticket-screenshots/44-run-now-ai-slot.png)
+
 ### W6 — Provenance & AI visibility
 **Closes:** #47 #49 #50 · **Depends on:** W5
 - #47: cached serve + "last ran / last confirmed" + "re-checked on X — identical result". Applies to the **transparency certificate** only; the AI-report PDF is deferred scope.
 - #49: AI status on schedule-detail run rows (only when #46 is ON; absence renders nothing).
 - #50: quiet "AI report available" marker on list rows — strictly informational, never changes verdict/tone/counts.
+
+*Today's provenance surface — the UPDATED stamp under the hero that #47 extends into "last ran / last confirmed / re-checked, identical":*
+![Provenance today](../ticket-screenshots/47-provenance-updated-stamp.png)
 
 ### W7 — Status-change reaction *(cross-cutting)*
 **Closes:** #52 · **Depends on:** W5
@@ -71,13 +111,18 @@ Source-agnostic rule: any effective-status change (re-scan or AI) re-evaluates a
 
 ### W8 — Red-list retirement *(debt)*
 **Closes:** #51 · **Independent** · **✅ implemented in the prototype**
-`HomeScreen` ⚠ flags + batch "N red" badge and `ScheduleDetailScreen` red-count banner are now matrix-derived (`occMatchForRisk`). Production: port, then **delete `isRedAddress`** (`RedAddressesScreen.tsx:250`). Headline regression: same address, same run → same red status on every screen; no row with a red ⚠ and a non-red pill.
+`HomeScreen` ⚠ flags + batch "N red" badge and `ScheduleDetailScreen` red-count banner are now matrix-derived (`occMatchForRisk`). Production: port, then **delete `isRedAddress`** (`RedAddressesScreen.tsx:250`). Headline regression: same address, same run → same red status on every screen; no row with a red ⚠ and a non-red pill. (The dashboard/schedule-detail shots under W2 above show the affected ⚠/badge/banner surfaces.)
+
+### W9 — Config banner copy *(pre-existing card, already done)*
+**Closes:** [#32](https://trello.com/c/ZRH4dYGi) · **✅ on `main` — commit `49f95f0`**
+`ScanConfigScreen.tsx` sticky footer: the stale scoring-detail line replaced with a plain "Do you want to keep the changes?" prompt (+1/−9). Nothing left to build — verify against the card and move it to Ready for Test.
 
 ---
 
 ## Suggested build order
 
 ```
+PR 0  W9           (#32 — already on main at 49f95f0; verify + move to Ready for Test)
 PR 1  W1 + W8      (helper + debt port — small, unblocks everything)
 PR 2  W2           (all Intended columns in one PR — shared builder means split PRs drift)
 PR 3  W3           (hero + PDF together; never ship one without the other)

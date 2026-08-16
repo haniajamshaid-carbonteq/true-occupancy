@@ -1,7 +1,7 @@
 # True Occupancy — Backlog One-Pager
-**Date:** August 17, 2026 · **Board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) · **Cards:** #34–#52 (19, all in Backlog, all with screenshots)
+**Date:** August 17, 2026 · **Board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) · **Cards:** #32 + #34–#52 (20, all in Backlog, all with screenshots)
 
-Every card follows the house format (Navigation → Why → What changes → Edge cases → Acceptance criteria) and carries its screen label. Reference implementation for ✅-marked items is live in `app.html`.
+Every card follows the house format (Navigation → Why → What changes → Edge cases → Acceptance criteria) and carries its screen label. Reference implementation for ✅-marked items is live in `app.html` — **commit `dc0f0af` on `main`** (#32's fix is commit `49f95f0`).
 
 ---
 
@@ -43,6 +43,7 @@ Every card follows the house format (Navigation → Why → What changes → Edg
 **Cross-cutting / debt**
 | # | Card | Prototype |
 |---|---|---|
+| 32 | [Config: simplify unsaved-changes banner copy](https://trello.com/c/ZRH4dYGi) *(pre-existing card)* | ✅ built — commit `49f95f0` |
 | 51 | [Retire the curated red list (matrix-derived ⚠ everywhere)](https://trello.com/c/kofV8lgq) | ✅ built |
 | 52 | [Automation reacts to status changes (incl. AI); retention decides](https://trello.com/c/kejxjYtF) | mechanism exists (`retention`) |
 
@@ -51,6 +52,7 @@ Every card follows the house format (Navigation → Why → What changes → Edg
 ## Recommended dev sequence (dependency-ordered)
 
 ```
+PR 0  #32 banner copy                    → already on main (49f95f0); verify + move to Ready for Test
 PR 1  #34 foundation + #51 port          → tiny, unblocks everything; #51 keeps ⚠ consistent
 PR 2  #35 #36 #37 #38 #39 #48            → the Intended columns (one shared builder feeds 35+36)
 PR 3  #40 #41                            → confidence flip (hero + PDF must land together)
