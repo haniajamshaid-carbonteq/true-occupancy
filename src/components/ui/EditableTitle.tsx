@@ -22,6 +22,12 @@ interface EditableTitleProps {
    *  value is unchanged. For multiline variants Shift+Enter inserts a newline
    *  rather than committing. */
   onSave: (next: string) => void;
+  /** Optional synchronous validator run BEFORE onSave on every commit. Return
+   *  an error string to REJECT the edit — the field stays in edit mode, keeps
+   *  focus, and shows the message in the design-system error style; onSave is
+   *  not called. Return null/undefined to accept. Used to enforce unique batch
+   *  titles (Trello #12). Not run when the value is unchanged. */
+  validate?: (next: string) => string | null | undefined;
   /** Renders when `value` is empty / undefined. Italic, ink-4 — visually
    *  recedes so the page doesn't read "incomplete" by default. */
   placeholder?: string;
@@ -59,6 +65,7 @@ const VARIANT_INPUT_CLASS: Record<Variant, string> = {
 function EditableTitle({
   value,
   onSave,
+  validate,
   placeholder = 'Untitled',
   multiline = false,
   maxLength,
@@ -69,6 +76,9 @@ function EditableTitle({
 }: EditableTitleProps) {
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(value ?? '');
+  // Validation error for the current edit. Cleared on typing, cancel, and a
+  // fresh edit; set when `validate` rejects a commit (keeps the field open).
+  const [error, setError] = React.useState<string | null>(null);
   // Two refs because TS doesn't let a single MutableRefObject straddle
   // HTMLInputElement | HTMLTextAreaElement cleanly in this no-build setup.
   // Matches the per-element ref pattern in CommandSearch / ReferenceCell.
@@ -80,10 +90,16 @@ function EditableTitle({
     if (!editing) setDraft(value ?? '');
   }, [value, editing]);
 
+  function focusField() {
+    const el = multiline ? textareaRef.current : inputRef.current;
+    el?.focus();
+  }
+
   function beginEdit() {
     if (readOnly) return;
     initialValueRef.current = value ?? '';
     setDraft(value ?? '');
+    setError(null);
     setEditing(true);
     // Focus + select on next paint so the user can overwrite immediately.
     window.requestAnimationFrame(() => {
@@ -97,12 +113,30 @@ function EditableTitle({
   function commit() {
     const next = draft.trim();
     const prev = initialValueRef.current.trim();
+    // Unchanged — close without validating or saving (re-saving your own
+    // title must never read as a self-collision).
+    if (next === prev) {
+      setError(null);
+      setEditing(false);
+      return;
+    }
+    const validationError = validate ? validate(next) : null;
+    if (validationError) {
+      // Reject: stay open, surface the error, and re-focus so the user can fix
+      // the value in place (this path also fires when the rejection came from
+      // a blur, where focus has already left the field).
+      setError(validationError);
+      window.requestAnimationFrame(focusField);
+      return;
+    }
+    setError(null);
     setEditing(false);
-    if (next !== prev) onSave(next);
+    onSave(next);
   }
 
   function cancel() {
     setDraft(initialValueRef.current);
+    setError(null);
     setEditing(false);
   }
 
@@ -166,30 +200,51 @@ function EditableTitle({
   // (brand-soft glow, brand border) so the affordance feels native to the
   // rest of the form system.
   const sharedInputCls = `block w-full bg-surface border rounded-md px-2 py-1.5 outline-none transition-shadow ${VARIANT_INPUT_CLASS[variant]}`;
+  // Error state recolors the border + ring to the design-system error tone,
+  // matching the field-level error idiom used elsewhere (Input.tsx family).
   const inputStyle: React.CSSProperties = {
     color: variant === 'body-sm' ? 'var(--ink-2)' : 'var(--navy)',
-    borderColor: 'var(--brand)',
-    boxShadow: '0 0 0 3px var(--brand-soft), var(--shadow-sm)',
+    borderColor: error ? 'var(--error)' : 'var(--brand)',
+    boxShadow: error
+      ? '0 0 0 3px var(--error-soft), var(--shadow-sm)'
+      : '0 0 0 3px var(--brand-soft), var(--shadow-sm)',
   };
 
-  if (multiline) {
-    return (
-      <textarea
-        ref={textareaRef}
-        className={sharedInputCls + ' resize-none'}
-        style={inputStyle}
-        value={draft}
-        rows={2}
-        maxLength={maxLength}
-        aria-label={ariaLabel ?? placeholder}
-        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={onKey}
-      />
-    );
-  }
+  // Typing clears a standing error so the message doesn't linger while the
+  // user is actively fixing the value.
+  const onDraftChange = (v: string) => {
+    setDraft(v);
+    if (error) setError(null);
+  };
 
-  return (
+  const errorNode = error ? (
+    <div
+      role="alert"
+      className="mt-1 flex items-start gap-1 font-sans text-caption"
+      style={{ color: 'var(--error-ink)' }}
+    >
+      <span className="shrink-0 mt-0.5 [&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
+        <Icon name="alert" size={14} />
+      </span>
+      <span>{error}</span>
+    </div>
+  ) : null;
+
+  const field = multiline ? (
+    <textarea
+      ref={textareaRef}
+      className={sharedInputCls + ' resize-none'}
+      style={inputStyle}
+      value={draft}
+      rows={2}
+      maxLength={maxLength}
+      aria-label={ariaLabel ?? placeholder}
+      aria-invalid={!!error}
+      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onDraftChange(e.target.value)}
+      onBlur={commit}
+      onKeyDown={onKey}
+    />
+  ) : (
     <input
       ref={inputRef}
       className={sharedInputCls}
@@ -197,9 +252,17 @@ function EditableTitle({
       value={draft}
       maxLength={maxLength}
       aria-label={ariaLabel ?? placeholder}
-      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)}
+      aria-invalid={!!error}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onDraftChange(e.target.value)}
       onBlur={commit}
       onKeyDown={onKey}
     />
+  );
+
+  return (
+    <div className="w-full">
+      {field}
+      {errorNode}
+    </div>
   );
 }

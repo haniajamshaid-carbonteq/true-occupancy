@@ -1,6 +1,6 @@
 /* global React, AppShell, Card, Icon, Pill, Modal, Button, DataTable, AutomateModal, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress, deriveTitleFromFilename, ScreenError,
-   Cadence, ScopeRetention, cadenceLabel, sameCadence, isRedAddress, OCC_INTENT_LABEL, timeAgo */
+   Cadence, ScopeRetention, cadenceLabel, sameCadence, occMatchForRisk, SCENARIOS, OCC_INTENT_LABEL, timeAgo */
 // Schedule detail — full page for a scheduled automation.
 // Layout:
 //   1. Header bar  — back link (left) + Cancel automation (right, destructive)
@@ -53,12 +53,18 @@ function ScheduleDetailScreen() {
     .map((rid) => history.find((h: any) => h.id === rid))
     .filter(Boolean);
 
-  // How many addresses in this schedule are flagged red. Their automatic
-  // re-scans are driven by the global red-flag rule (Configuration), not by
-  // this schedule — the note below spells that out.
+  // How many addresses in this schedule are flagged red. Derived from the
+  // config matrix (declared × found) — the same derivation every list uses —
+  // never the curated red list, so this banner can't disagree with the rows.
+  // Their automatic re-scans are driven by the global red-flag rule
+  // (Configuration), not by this schedule — the note below spells that out.
   const redInSchedule = isBatch
-    ? (runs[0]?.rows || []).filter((r: any) => isRedAddress(r.address)).length
-    : schedule && isRedAddress(schedule.address) ? 1 : 0;
+    ? (runs[0]?.rows || []).filter(
+        (r: any) => occMatchForRisk(r.intent ?? runs[0]?.defaultIntent, r.risk)?.status === 'red'
+      ).length
+    : schedule && occMatchForRisk(schedule.intent, SCENARIOS[schedule.scenario]?.risk)?.status === 'red'
+      ? 1
+      : 0;
 
   function openRun(run: any) {
     if (run.kind === 'batch') {
@@ -67,6 +73,10 @@ function ScheduleDetailScreen() {
     }
     sessionStorage.setItem('scanScenario', run.scenario);
     sessionStorage.setItem('scanAddress', run.address);
+    // Carry this run's declared intent onto the report; clear when absent so a
+    // previously-opened property's intent never leaks into reconciliation.
+    if (run.intent) sessionStorage.setItem('scanIntent', run.intent);
+    else sessionStorage.removeItem('scanIntent');
     const path =
       run.scenario === 'low'    ? '/result/clean'
       : run.scenario === 'medium' ? '/result/medium'

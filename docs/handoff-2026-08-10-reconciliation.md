@@ -3,7 +3,7 @@
 **Date:** August 10, 2026
 **Author:** Zarlish Khan
 **Trello board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) — 18 cards
-**Reference implementation:** this repo, `app.html` (branch `main`, HEAD `a01c51e`)
+**Reference implementation:** this repo, `app.html` (branch `main`, HEAD includes uncommitted changes on top of `48f4a80`)
 
 ---
 
@@ -385,20 +385,43 @@ Scheduled page alongside batch automations.
 
 Two unrelated fixes that both live in the batch intake form.
 
-**Duplicate filename guard ([#12](https://trello.com/c/Ei1yGQhZ)).**
-[BatchScreen.tsx:104–169](src/pages/BatchScreen.tsx:104)
+**Duplicate title guard ([#12](https://trello.com/c/Ei1yGQhZ)).**
 
-A batch's identity is its filename, so a colliding upload is genuinely ambiguous — it cannot
-be a new batch (name taken) and a fresh file is not how you re-run an old one. Block it.
+A batch is identified **to the user** by its **title**, not its filename. Two batches must
+never share a title. The same CSV file may back multiple batches with distinct titles — the
+filename is not part of the uniqueness check.
 
-- Match on **trimmed, lower-cased** filename against existing batch history — `"Q2.csv"` and
-  `"q2.csv "` collide.
-- On collision: clear the drop zone, set `nameError`, block submit
-  ([:159](src/pages/BatchScreen.tsx:159), [:169](src/pages/BatchScreen.tsx:169)). Use the
-  design system's error component — no ad-hoc message.
-- Error clears the moment the name is unique.
-- **Legitimate re-runs are not blocked** — only *new same-named uploads*. Re-running through
-  Run history is a different path and must stay open.
+The guard lives in two places, covering both creation and rename:
+
+1. **Upload form** — [BatchScreen.tsx:~127–165](src/pages/BatchScreen.tsx). The effective
+   title is the user-typed value or, if empty, the derived-from-filename fallback. If that
+   effective title collides (case-insensitive, trimmed) with any existing batch, submit is
+   blocked and the design-system `Input` error state surfaces on the Title field — not on the
+   drop zone. The error message names the colliding title. The file itself is **not** checked
+   for uniqueness.
+
+2. **Inline rename** — [BatchScreen.tsx:~549](src/pages/BatchScreen.tsx). `EditableTitle`'s
+   new `validate` prop runs `isBatchTitleTaken(next, batch.filename)` before `onSave`. On
+   collision: the field stays open, shows the error, and re-focuses so the user can fix in
+   place. `excludeFilename` prevents a batch from colliding with itself.
+
+**Central helper:** `isBatchTitleTaken(title, excludeFilename?)` on `AppStateValue`
+([AppState.tsx:~637](src/state/AppState.tsx)). Compares against every batch's **resolved
+display title** (user title, else derived-from-filename fallback) across `liveBatch`,
+`history`, and `schedules`. `excludeFilename` drops every row sharing that filename — a
+batch's runs all share its filename, so this removes every "self" row in one pass, letting a
+rename keep or case-adjust its own title without a false collision.
+
+**EditableTitle validation** — [EditableTitle.tsx](src/components/ui/EditableTitle.tsx) now
+accepts an optional `validate?: (next: string) => string | null` prop. On commit: if the
+value is unchanged, close without validating (your own title is never a collision). Otherwise
+run `validate`; if it returns a string, reject — stay in edit mode, show the error with
+`role="alert"` and the design-system error tones (`--error`, `--error-soft`, `--error-ink`),
+re-focus the field. Typing clears the error. This is a generic component enhancement — any
+future inline-editable field can use it.
+
+- **Legitimate re-runs are not blocked** — only new batches or renames that collide. Re-running
+  through Run history is a different path and stays open.
 - *Not yet in the prototype:* when the colliding batch has automation ON, also surface its run
   history (last scanned + cadence) so the user can see it is an active recurring batch. Build
   this from the card; there is no reference implementation.
@@ -493,6 +516,52 @@ guarding against:
 
 ---
 
+### W10 — Intent leak prevention *(cross-cutting, no card)*
+
+**Depends on:** W1
+**Independent of** W2–W9
+
+The prototype stores `scanIntent` in `sessionStorage` so the result page can reconcile. When
+a navigation path does **not** carry a declared intent (red property drawer, monitoring panel,
+schedule-detail rows without intent), any previously-stored intent leaks into the next report
+and produces a wrong reconciliation line.
+
+**Fix pattern:** every navigation that opens a result page must either set `scanIntent` to the
+row's intent or `removeItem('scanIntent')` when no intent exists.
+
+| Call site | File | Change |
+|---|---|---|
+| Red property drawer "View report" | [RedPropertyDrawer.tsx:~328](src/components/red/RedPropertyDrawer.tsx) | `sessionStorage.removeItem('scanIntent')` — red rows carry no declared intent |
+| Monitoring panel "openChange" | [HomeScreen.tsx:~711](src/pages/HomeScreen.tsx) | Same `removeItem` |
+| Schedule detail "view run" | [ScheduleDetailScreen.tsx:~70](src/pages/ScheduleDetailScreen.tsx) | Set if `run.intent` exists, remove otherwise |
+
+Production must enforce this at the routing layer — any entry point to a result page that
+doesn't explicitly pass intent should clear it. The prototype's `sessionStorage` approach is a
+stand-in; production should thread intent through the route/query/state rather than ambient
+storage.
+
+---
+
+### W11 — Matrix legend null-safety *(minor, no card)*
+
+[ScanConfigScreen.tsx:~131](src/pages/ScanConfigScreen.tsx) — the `MatrixLegend` component
+crashed when iterating an outcome matrix with missing intent rows (possible if a saved config
+predates a newly added intent). Added optional chaining (`matrix[intent]?.[v]`) and a
+truthiness check. One-line fix; port it to avoid a crash on legacy configs.
+
+---
+
+### W12 — Demo state toggle *(prototype-only, do not port)*
+
+[app.html:~64](app.html) sets `window.__TO_DEMO_STATES__ = true` at boot. This enables the
+in-app "Demo · preview states" affordances (e.g. `DemoStateToggle`) so a dev reviewing the
+prototype can see a state (like the duplicate-title error) without reproducing it manually.
+Set only in `app.html` — `states-spec.html` and `occupancy-spec.html` leave it unset.
+
+**This is prototype-only infrastructure. Do not port to production.**
+
+---
+
 ## Ticket → workstream index
 
 Pick up a card, find where the code lives. **A card is done when every workstream listed
@@ -510,7 +579,7 @@ against it has landed.**
 | [8](https://trello.com/c/SiZBONtJ) | Tiles + RESULT column + ⚠ | Batch | W1, W2, W3, W4 | Blocked on D1 |
 | [9](https://trello.com/c/PrzoWTst) | Hero Result + "Why this result" | Property detail | W1, W3, W5 | Blocked on D1 |
 | [11](https://trello.com/c/hAO9RdD4) | "Download" → "Download PDF" | Property detail | W9 | Ready |
-| [12](https://trello.com/c/Ei1yGQhZ) | Duplicate batch filename guard | Batch upload | W6 | Ready |
+| [12](https://trello.com/c/Ei1yGQhZ) | Duplicate batch title guard | Batch upload + inline rename | W6 | Ready |
 | [13](https://trello.com/c/HA0H56SG) | De-duplicate History rows | History | W7 | Ready |
 | [14](https://trello.com/c/LM7BPmLX) | Red pill → Flagged drawer filter | History | W2, W4 | Ready after W1 |
 | [15](https://trello.com/c/bb1hlQXn) | Verdict column + filter → Result | History | W3, W4 | Blocked on D1 |
@@ -525,28 +594,64 @@ against it has landed.**
 
 - The two `isRedAddress` leftovers on Dashboard and Schedule Detail (W2).
 - Resolving each row against **its own** `configVersion` rather than the current config (W1).
+- Intent leak prevention across all navigation paths into result pages (W10).
+- Matrix legend null-safety on legacy configs (W11).
 
 ---
 
 ## Suggested build order
 
-Four PRs. The first is small and unblocks everything; the last three are independent of it and
-of each other, so they can run in parallel from day one.
+Five PRs. The first is small and unblocks everything; the rest can run in parallel from day
+one (with a dependency note on PR 2). The numbered sequence below is the recommended order if
+only one developer is working serially.
+
+### Step-by-step sequence (single developer)
+
+```
+Step 1 → PR 1: Reconciliation core (W1 + Decisions 1 & 2)
+         Pure module, unit tests, no UI. Closes #18.
+         ↓ unblocks everything below
+Step 2 → PR 2: Reconciliation across the surfaces (W2 + W3 + W4 + W10)
+         The bulk of the release — every screen deriving from the helper.
+         W10 (intent leak fix) must land with this or before it.
+         Closes #1, #4, #6, #8, #9, #14, #15, #17, #19.
+         ↓ can start in parallel with Steps 3–4 once PR 1 lands
+Step 3 → PR 3: Automation reach (W5)
+         Independent of PR 2. Closes #5, #16, and #9's nudge.
+Step 4 → PR 4: Independent screen work (W6 + W7 + W8 + W9 + W11)
+         W6 is the title-based duplicate guard (upload + inline rename).
+         W11 is the one-line matrix legend fix.
+         Safe to batch or split by reviewer preference.
+         Closes #2, #7, #11, #12, #13.
+Step 5 → Regression checklist (below) against all PRs together.
+```
+
+### If parallelising across developers
+
+| Dev A | Dev B | Dev C |
+|---|---|---|
+| PR 1 (day 1) | PR 4 (day 1 — fully independent) | PR 3 (day 1 — fully independent) |
+| PR 2 (day 2+ — needs PR 1) | — | — |
+
+PR 4 and PR 3 need no dependency on anything and can start immediately. PR 2 is the critical
+path and the largest — it should start the moment PR 1 merges.
+
+### PR details
 
 **PR 1 — Reconciliation core** *(blocks 8 cards; land first)*
 W1 + Decisions 1 & 2. Pure module, unit tests, no UI. Closes #18.
 
 **PR 2 — Reconciliation across the surfaces** *(the bulk of the release)*
-W2 + W3 + W4 together, including the two `isRedAddress` leftovers. Splitting these by screen
-means shipping a build where the Dashboard ⚠ and the Dashboard Result pill disagree — they
-read from the same data and should change in the same commit. Closes #1, #4, #6, #8, #9, #14,
-#15, #17, #19.
+W2 + W3 + W4 + W10 together, including the two `isRedAddress` leftovers and the intent-leak
+fixes. Splitting these by screen means shipping a build where the Dashboard ⚠ and the
+Dashboard Result pill disagree — they read from the same data and should change in the same
+commit. Closes #1, #4, #6, #8, #9, #14, #15, #17, #19.
 
 **PR 3 — Automation reach**
 W5. Independent of PRs 1–2. Closes #5, #16, and #9's nudge.
 
 **PR 4 — Independent screen work**
-W6 + W7 + W8 + W9. Four unrelated changes, no shared code, safe to batch or split by
+W6 + W7 + W8 + W9 + W11. Five unrelated changes, no shared code, safe to batch or split by
 reviewer preference. Closes #2, #7, #11, #12, #13.
 
 ---
@@ -576,6 +681,14 @@ migration — they pass on any single screen and fail across the app.
 - [ ] An unscanned or failed row is excluded from every tile count, filter count and tab
       badge — never bucketed as green.
 - [ ] Nothing in the UI words or colours a verdict as pass/fail. *Rented* is a finding.
+- [ ] Opening a result page from the red property drawer, monitoring panel, or a schedule row
+      with no intent does NOT show a stale intent from a previous scan (W10 — intent leak).
+
+**Batch title uniqueness**
+- [ ] Two batches with the same title (case-insensitive) cannot both exist — blocked at upload
+      and at inline rename.
+- [ ] A batch can be renamed to its own current title (case-adjusted) without a false collision.
+- [ ] The error appears on the Title field (not the drop zone) and clears on typing.
 
 **Filters and empty states**
 - [ ] Each list screen has exactly one status filter. Grep for any surviving `RedFilterToggle`
@@ -618,6 +731,10 @@ add a file, add it to every host that renders it, above its consumers; a missing
    rollups
 5. [src/pages/ScanConfigScreen.tsx](src/pages/ScanConfigScreen.tsx) — matrix editor, session
    timeout, the removed-but-retained thresholds pattern
+6. [src/state/AppState.tsx](src/state/AppState.tsx) — `isBatchTitleTaken` helper, intent
+   threading
+7. [src/components/ui/EditableTitle.tsx](src/components/ui/EditableTitle.tsx) — inline
+   validation pattern (generic, reusable)
 
 For visual states of every screen without clicking through flows:
 

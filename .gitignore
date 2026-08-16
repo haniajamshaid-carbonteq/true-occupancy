@@ -37,3 +37,6 @@ blob-report/
 
 # OS / misc
 Thumbs.db
+
+# Playwright MCP session artifacts (snapshots/console logs)
+.playwright-mcp/

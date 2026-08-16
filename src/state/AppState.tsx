@@ -634,6 +634,12 @@ interface AppStateValue {
   updateScheduleRetention: (id: string, retention: ScopeRetention) => void;
   cancelSchedule: (id: string) => void;
   findScheduleByTarget: (target: ScheduleTarget) => ScheduleEntry | null;
+  /** True when `title` (case-insensitive, trimmed) already names a batch —
+   *  compared against every batch's resolved display title (user title, else
+   *  the derived-from-filename fallback). Pass `excludeFilename` to ignore the
+   *  batch being renamed so it can keep its own title. Enforces the "batch
+   *  titles are unique" rule at both upload and inline-edit. */
+  isBatchTitleTaken: (title: string, excludeFilename?: string) => boolean;
   /** Return every prior single-scan history entry for the given address,
    *  sorted newest-first. Drives the Scan History Report (PDF download)
    *  reached from the result-page download dropdown. */
@@ -1066,6 +1072,42 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     [history]
   );
 
+  // A batch is identified TO THE USER by its title — two batches must never
+  // share one (Trello #12). The uploaded filename is irrelevant to this rule.
+  // Uniqueness is checked against the RESOLVED display title (user-set title,
+  // else the derived-from-filename fallback), so an untitled batch still can't
+  // collide with another batch that happens to derive the same name.
+  //
+  // `excludeFilename` drops the batch being edited from the comparison: a
+  // batch's runs all share its filename, so excluding by filename removes every
+  // "self" row (live + history snapshots + schedule) in one pass — letting a
+  // rename keep (or case-adjust) its own title without a false collision.
+  const isBatchTitleTaken = React.useCallback(
+    (title: string, excludeFilename?: string): boolean => {
+      const needle = title.trim().toLowerCase();
+      if (!needle) return false;
+      const norm = (t?: string, filename?: string) =>
+        (t?.trim() || deriveTitleFromFilename(filename ?? '')).trim().toLowerCase();
+      const skip = excludeFilename?.trim().toLowerCase();
+      const sameBatch = (filename?: string) =>
+        skip !== undefined && (filename ?? '').trim().toLowerCase() === skip;
+
+      if (liveBatch && !sameBatch(liveBatch.filename)) {
+        if (norm(liveBatch.title, liveBatch.filename) === needle) return true;
+      }
+      for (const h of history) {
+        if (h.kind !== 'batch' || sameBatch(h.filename)) continue;
+        if (norm(h.title, h.filename) === needle) return true;
+      }
+      for (const s of schedules) {
+        if (s.kind !== 'batch' || sameBatch(s.filename)) continue;
+        if (norm(s.title, s.filename) === needle) return true;
+      }
+      return false;
+    },
+    [history, liveBatch, schedules]
+  );
+
   const value: AppStateValue = {
     liveBatch,
     schedules,
@@ -1092,6 +1134,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     updateScheduleRetention,
     cancelSchedule,
     findScheduleByTarget,
+    isBatchTitleTaken,
     getHistoryForAddress,
     pushTransient,
     dismissTransient,

@@ -196,6 +196,12 @@ function CertificateBody({
       : DEFAULT_OCC_CONFIG.defaultIntent;
   const match = occMatchForRisk(intent as any, s.risk);
 
+  // Confidence is stored as P(rented); flip to the complement when the finding
+  // is "not rented" so the % agrees with the finding headline directly above
+  // it. Mirrors ConfidenceHero. Possibly-rented keeps the raw score.
+  const certConfidence =
+    match && match.verdict === 'not-rented' ? 100 - s.score : s.score;
+
   return (
     <article className="certificate-sheet">
       <header className="cert-head">
@@ -237,7 +243,7 @@ function CertificateBody({
           <div className="cert-eyebrow">Finding</div>
           <div className="cert-verdict-headline">{verdictHeadline}</div>
           <div className="cert-verdict-sub">
-            <span className="cert-verdict-pct">{s.score}%</span> confidence
+            <span className="cert-verdict-pct">{certConfidence}%</span> confidence
           </div>
           {/* Intended occupancy this finding was reconciled against, and the
               result — kept to one plain line: declared X, this is Y. */}
@@ -776,7 +782,10 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
       return {
         date: certFormatHistoryDate(certParseScannedAt(h.scannedAt)),
         verdict: certScenarioVerdict(sc),
-        scorePct: SCENARIOS[sc].score,
+        // Flip to the complement for a "not rented" run so the % agrees with
+        // the verdict printed beside it (matches ConfidenceHero / the main
+        // finding above). Possibly-rented keeps its raw score.
+        scorePct: match && match.verdict === 'not-rented' ? 100 - SCENARIOS[sc].score : SCENARIOS[sc].score,
         listingCount: listings.length,
         platformCount: h.platforms,
         listings,

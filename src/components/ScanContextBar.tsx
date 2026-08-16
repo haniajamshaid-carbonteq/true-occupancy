@@ -1,4 +1,4 @@
-/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, DropdownMenu, useAppState, RedFlag, INTENDED_OCCUPANCY_LABEL, occMatchForRisk, SCENARIOS */
+/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, DropdownMenu, useAppState, RedFlag, INTENDED_OCCUPANCY_LABEL, occMatchForRisk, SCENARIOS, DEFAULT_OCC_CONFIG */
 // ScanContextBar — replaces the persistent search trigger on detail
 // pages (result + why-expanded). Shows a back button plus the address
 // currently being viewed, so the user knows what scan they're looking at
@@ -50,7 +50,17 @@ function ScanContextBar({
   // back to any explicit `eyebrow` the parent passed.
   const rawIntent =
     typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanIntent') : null;
-  const intent = rawIntent && INTENDED_OCCUPANCY_LABEL[rawIntent] ? rawIntent : undefined;
+  // Demo-only (app.html sets window.__TO_DEMO_STATES__): fall back to the org
+  // default when nothing was declared, so the "Intended · …" eyebrow always
+  // renders during review and agrees with ConfidenceHero. Production leaves the
+  // flag unset, so a genuine quick-scan shows no eyebrow.
+  const demoIntent =
+    typeof window !== 'undefined' && (window as any).__TO_DEMO_STATES__
+      ? DEFAULT_OCC_CONFIG.defaultIntent
+      : null;
+  const resolvedRawIntent = rawIntent || demoIntent;
+  const intent =
+    resolvedRawIntent && INTENDED_OCCUPANCY_LABEL[resolvedRawIntent] ? resolvedRawIntent : undefined;
   const resolvedEyebrow =
     eyebrow || (intent ? `Intended · ${INTENDED_OCCUPANCY_LABEL[intent]}` : undefined);
 

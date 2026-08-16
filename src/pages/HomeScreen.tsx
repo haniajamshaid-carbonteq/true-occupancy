@@ -1,4 +1,4 @@
-/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, ScanIntentHero, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty, isRedAddress, RedFlag, BatchRedBadge, timeAgo, seedTime, occMatchForRisk */
+/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, ScanIntentHero, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty, RedFlag, BatchRedBadge, timeAgo, seedTime, occMatchForRisk */
 // Home — product-first dashboard. The user lands directly on the working
 // scanner with real evidence visible (KPI strip, recent scans, flagged for
 // review, methodology note). Marketing-landing surfaces (photo hero,
@@ -244,7 +244,12 @@ function buildScanColumns<T extends { address: string; scenario: 'low' | 'medium
               >
                 {street}
               </span>
-              {isRedAddress(row.address) && <RedFlag address={row.address} />}
+              {/* ⚠ derives from the config matrix (declared × found), same as
+                  the Verdict pill below — never the curated red list, so the
+                  two can't contradict on one row. */}
+              {occMatchForRisk(row.intent, SCENARIOS[row.scenario]?.risk)?.status === 'red' && (
+                <RedFlag address={row.address} />
+              )}
             </div>
             {locality && (
               <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
@@ -500,7 +505,10 @@ const DASHBOARD_SINGLE_COLUMNS: any[] = [
             >
               {street}
             </span>
-            {isRedAddress(r.address) && <RedFlag address={r.address} />}
+            {/* Matrix-derived, matching the Result pill in the next column. */}
+            {occMatchForRisk(r.intent, SCENARIOS[r.scenario]?.risk)?.status === 'red' && (
+              <RedFlag address={r.address} />
+            )}
           </div>
           {locality && (
             <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">
@@ -541,7 +549,11 @@ const DASHBOARD_BATCH_COLUMNS: any[] = [
     label: 'File',
     primary: true,
     cell: (r: any) => {
-      const nRed = (r.rows || []).filter((x: any) => isRedAddress(x.address)).length;
+      // Matrix-derived red count — same derivation as the batch tiles, so the
+      // badge and the tile can never disagree.
+      const nRed = (r.rows || []).filter(
+        (x: any) => occMatchForRisk(x.intent ?? r.defaultIntent, x.risk)?.status === 'red'
+      ).length;
       return (
         <div className="min-w-0">
           <div className="flex items-center gap-inline min-w-0">

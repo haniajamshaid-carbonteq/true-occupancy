@@ -61,6 +61,12 @@
  */
 (async () => {
   const status = document.getElementById('boot-status');
+  // Prototype-only: enables the in-app "Demo · preview states" affordances so a
+  // dev reviewing app.html can SEE a state (e.g. the duplicate-title error)
+  // without reproducing it. Set ONLY here — the states-spec / occupancy-spec
+  // hosts leave it unset, so those handoff canvases stay clean, and it never
+  // reaches Prod (which doesn't ship this prototype at all). See DemoStateToggle.
+  window.__TO_DEMO_STATES__ = true;
   const files = [
     // 1. Domain
     'src/data/scenarios.tsx',
@@ -164,6 +170,7 @@
     'src/pages/ScanConfigScreen.tsx',
     'src/pages/RedAddressesScreen.tsx',
     // 7. Router
+    'src/components/InactivityGuard.tsx',
     'src/App.tsx',
   ];
 

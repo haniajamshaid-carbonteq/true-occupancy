@@ -1,5 +1,6 @@
 /* global React, Card, Icon, SCENARIOS, PROPERTY, ReferenceCell, useAppState, ServedStamp,
-   formatUsDateTime, occMatchForRisk, INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL */
+   formatUsDateTime, occMatchForRisk, INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL,
+   DEFAULT_OCC_CONFIG */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
@@ -241,7 +242,6 @@ function reconciliationWhy(
 
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
-  const animatedScore = useCountUp(sc.score, 800);
   const { findScheduleByTarget } = useAppState();
 
   // Is this property already on a recurring re-scan? Resolved the same way
@@ -256,9 +256,38 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   // Intent is stamped in sessionStorage at scan/open time; absent = quick-scan.
   const rawIntent =
     typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanIntent') : null;
-  const intent = rawIntent && INTENDED_OCCUPANCY_LABEL[rawIntent] ? rawIntent : undefined;
+  // Demo-only (app.html sets window.__TO_DEMO_STATES__): when a result page is
+  // opened without a declared intent, fall back to the org default so the
+  // Declared line always renders during review. Production leaves the flag
+  // unset, so a genuine quick-scan still shows the "no occupancy declared"
+  // informational state — the real no-intent case stays correct.
+  const demoIntent =
+    typeof window !== 'undefined' && (window as any).__TO_DEMO_STATES__
+      ? DEFAULT_OCC_CONFIG.defaultIntent
+      : undefined;
+  const resolvedRawIntent = rawIntent || demoIntent;
+  const intent =
+    resolvedRawIntent && INTENDED_OCCUPANCY_LABEL[resolvedRawIntent]
+      ? resolvedRawIntent
+      : undefined;
   const match = occMatchForRisk(intent, sc.risk);
   const verdictLabel = match ? OCC_VERDICT_LABEL[match.verdict] : VERDICT_TEXT[scenario];
+
+  // Confidence is stored as P(rented). When the finding is "not rented", show
+  // the complement (100 − score) so the % always reads as confidence IN the
+  // finding, never a misleadingly low rented-probability. "Possibly rented" is
+  // the uncertain middle band — no flip; it reads as inconclusive. Declared
+  // intent drives the reconciliation headline/tone above, not this number.
+  const detectedVerdict = match ? match.verdict : undefined;
+  const confidenceValue =
+    detectedVerdict === 'not-rented' ? 100 - sc.score : sc.score;
+  const confidenceLine =
+    detectedVerdict === 'rented'
+      ? 'confident this property is being rented'
+      : detectedVerdict === 'not-rented'
+      ? 'confident this property is not rented'
+      : 'likely rented · inconclusive';
+  const animatedScore = useCountUp(confidenceValue, 800);
 
   return (
     <Card>
@@ -274,7 +303,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
           </div>
           </div>
           <div className="mt-3 font-sans text-label text-ink-3 tabular-nums">
-            <span className="font-semibold text-ink-2">{animatedScore}%</span> confidence
+            <span className="font-semibold text-ink-2">{animatedScore}%</span> {confidenceLine}
           </div>
 
           {/* Why this result — the reconciliation explained. What the label

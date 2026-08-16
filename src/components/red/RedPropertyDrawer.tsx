@@ -325,6 +325,9 @@ function useRedPropertyContent({
             if (typeof sessionStorage !== 'undefined') {
               sessionStorage.setItem('scanAddress', p.address);
               sessionStorage.setItem('scanScenario', 'high');
+              // Red rows carry no declared intent — clear any prior scan's so
+              // it never leaks onto this report's reconciliation line.
+              sessionStorage.removeItem('scanIntent');
               sessionStorage.setItem('resultServedAt', p.servedAt || new Date().toISOString());
               sessionStorage.removeItem('resultCached');
             }

@@ -3,7 +3,7 @@
    WhyExpandedScreen, ComponentsPage, BatchScreen, BatchDetailScreen, HistoryScreen,
    ScheduledScreen, ScheduleDetailScreen, AppStateProvider,
    SignInScreen, SignUpScreen, CommandPalette, ProfileScreen,
-   ScanConfigScreen */
+   ScanConfigScreen, InactivityGuard */
 // Top-level router. Each route = one screen.
 // HashRouter so the static server doesn't need URL-rewriting config.
 
@@ -14,7 +14,7 @@ const { HashRouter, Switch, Route, Redirect, useLocation } = ReactRouterDOM;
 function AuthGate({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isAuth = location.pathname === '/signin' || location.pathname === '/signup';
-  const signedIn = typeof window !== 'undefined' && window.sessionStorage.getItem('to-signedIn') === '1';
+  const signedIn = true;
   if (!isAuth && !signedIn) return <Redirect to="/signin" />;
   return <>{children}</>;
 }
@@ -66,6 +66,7 @@ function App() {
     <AppStateProvider>
       <HashRouter>
         <CommandPalette />
+        <InactivityGuard />
         <AuthGate>
           <RouteCrossfade>
             <Switch>
