@@ -1,4 +1,4 @@
-/* global React, DEFAULT_OCC_CONFIG */
+/* global React, DEFAULT_OCC_CONFIG, OCC_INTENT_SHORT */
 // AppState — a single source of truth for the three cross-cutting datasets
 // the prototype now spans:
 //   * live batch (one at a time; running or complete)
@@ -209,6 +209,42 @@ function normalizeIntent(raw: string): IntendedOccupancy | null {
   return null;
 }
 
+// ---- Declared-occupancy resolver (Trello #34) ---------------------------
+// The declared twin of occMatchForRisk: one source of truth for "what was
+// this address intended as", consumed by every list column and run row.
+// Never returns blank — an undeclared address resolves to 'not-sure'.
+function resolveIntent(row: { intent?: IntendedOccupancy } | undefined, defaultIntent?: IntendedOccupancy): IntendedOccupancy {
+  return row?.intent ?? defaultIntent ?? 'not-sure';
+}
+
+// Summarise a batch's declared side for a one-row list cell: every address
+// shares one resolved intent → that intent; they differ → 'mixed' with
+// per-intent counts (surfaced on hover). Empty rows fall back to the default.
+function summarizeBatchIntent(
+  rows: Array<{ intent?: IntendedOccupancy }> | undefined,
+  defaultIntent?: IntendedOccupancy
+): { kind: 'uniform'; intent: IntendedOccupancy; counts: Record<string, number> } | { kind: 'mixed'; counts: Record<string, number> } {
+  const counts: Record<string, number> = {};
+  (rows || []).forEach((r) => {
+    const i = resolveIntent(r, defaultIntent);
+    counts[i] = (counts[i] || 0) + 1;
+  });
+  const keys = Object.keys(counts);
+  if (keys.length <= 1) {
+    return { kind: 'uniform', intent: (keys[0] as IntendedOccupancy) ?? defaultIntent ?? 'not-sure', counts };
+  }
+  return { kind: 'mixed', counts };
+}
+
+// "8 Owner-occupied · 4 Rental · 2 Not sure" — the hover breakdown for a
+// Mixed cell. Sorted by count so the dominant intent leads.
+function batchIntentBreakdown(summary: { counts: Record<string, number> }): string {
+  return Object.entries(summary.counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([i, n]) => `${n} ${OCC_INTENT_SHORT[i as IntendedOccupancy] ?? i}`)
+    .join(' · ');
+}
+
 // Declared × observed → reconciliation. null when the row isn't scanned yet.
 // 'not-sure' never yields an exception (no reference to judge against). risk:
 // 'risk' = Rented (tenants), 'warn' = Possibly rented, 'clean' = Not rented.
@@ -334,7 +370,9 @@ const SEED_BATCH_Q1_ROWS: LiveBatchRow[] = [
 // Smaller batch with a handful of failed rows — demonstrates the "partial"
 // completion state in History.
 const SEED_BATCH_PARTIAL_ROWS: LiveBatchRow[] = [
-  { id: 1, address: '88 Cumberland Ave, Asheville, NC 28801',   status: 'done',   score: 18, risk: 'clean', listings: 0 },
+  // Row 1 overrides the batch default (rental) — keeps this seed batch
+  // "Mixed" so the declared-summary cell is demonstrable without running one.
+  { id: 1, address: '88 Cumberland Ave, Asheville, NC 28801',   status: 'done',   score: 18, risk: 'clean', listings: 0, intent: 'owner-occupied' },
   { id: 2, address: '301 Merrimon Ave, Asheville, NC 28804',    status: 'failed', errorReason: 'Geocoder timeout — retry later' },
   { id: 3, address: '145 Westchester Dr, Asheville, NC 28803',  status: 'done',   score: 76, risk: 'risk',  listings: 3 },
   { id: 4, address: '23 Tunnel Rd, Asheville, NC 28805',        status: 'done',   score: 8,  risk: 'clean', listings: 0 },

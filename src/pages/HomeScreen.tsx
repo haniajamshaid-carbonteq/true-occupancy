@@ -1,4 +1,4 @@
-/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, ScanIntentHero, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty, RedFlag, BatchRedBadge, timeAgo, seedTime, occMatchForRisk */
+/* global React, AppShell, Button, Icon, SearchBar, CommandSearch, ScanIntentHero, Pill, DataTable, MetricCard, Tabs, Card, ReactRouterDOM, SCENARIOS, useAppState, ScreenError, ScreenEmpty, RedFlag, BatchRedBadge, timeAgo, seedTime, occMatchForRisk, OCC_INTENT_SHORT, resolveIntent, summarizeBatchIntent, batchIntentBreakdown */
 // Home — product-first dashboard. The user lands directly on the working
 // scanner with real evidence visible (KPI strip, recent scans, flagged for
 // review, methodology note). Marketing-landing surfaces (photo hero,
@@ -261,6 +261,19 @@ function buildScanColumns<T extends { address: string; scenario: 'low' | 'medium
       },
     },
     {
+      // Declared side of the reconciliation — always shown next to the
+      // detected Verdict so the two read as a comparison (Trello #35/#36).
+      key: 'intended',
+      label: 'Intended',
+      width: '130px',
+      hideBelow: 'md' as const,
+      cell: (row: T) => (
+        <span className="font-sans text-caption text-ink-2">
+          {OCC_INTENT_SHORT[resolveIntent(row)]}
+        </span>
+      ),
+    },
+    {
       key: 'verdict',
       label: 'Verdict',
       width: '140px',
@@ -520,6 +533,16 @@ const DASHBOARD_SINGLE_COLUMNS: any[] = [
     },
   },
   {
+    // Declared side, beside the detected Verdict (Trello #35).
+    key: 'intended',
+    label: 'Intended',
+    width: '130px',
+    hideBelow: 'md' as const,
+    cell: (r: any) => (
+      <span className="font-sans text-caption text-ink-2">{OCC_INTENT_SHORT[resolveIntent(r)]}</span>
+    ),
+  },
+  {
     // Result — reconciliation of declared intent × scan verdict. Raw verdict
     // moved to the property page.
     key: 'result',
@@ -569,6 +592,22 @@ const DASHBOARD_BATCH_COLUMNS: any[] = [
             {r.total} properties · {r.flagged} flagged
           </div>
         </div>
+      );
+    },
+  },
+  {
+    // Batch summary of the declared side (Trello #35): every address shares
+    // one intent → that label; they differ → "Mixed" (hover = the breakdown).
+    key: 'intended',
+    label: 'Intended',
+    width: '130px',
+    hideBelow: 'md' as const,
+    cell: (r: any) => {
+      const s = summarizeBatchIntent(r.rows, r.defaultIntent);
+      return (
+        <span className="font-sans text-caption text-ink-2" title={batchIntentBreakdown(s)}>
+          {s.kind === 'mixed' ? 'Mixed' : OCC_INTENT_SHORT[s.intent]}
+        </span>
       );
     },
   },

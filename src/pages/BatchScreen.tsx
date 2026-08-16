@@ -2,7 +2,7 @@
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
    deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
    ChipRow, reconcileOccupancy, INTENDED_OCCUPANCY_LABEL, RedFlag,
-   OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk, RunHistory */
+   OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk, RunHistory, resolveIntent */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -1182,6 +1182,21 @@ function buildBatchColumns(
         </div>
       );
     },
+  },
+  {
+    // Per-address declared occupancy in the DEFAULT view (Trello #37) —
+    // promoted from the red-filtered set so overrides of the batch default
+    // are visible without filtering. Falls back to the batch default; a
+    // batch with neither reads "Not sure", never blank.
+    key: 'declared',
+    label: 'Declared',
+    width: '130px',
+    hideBelow: 'md' as const,
+    cell: (row: BatchRow) => (
+      <span className="font-sans text-caption text-ink-2">
+        {OCC_INTENT_SHORT[resolveIntent(row, defaultIntent)]}
+      </span>
+    ),
   },
   {
     key: 'score',

@@ -2,7 +2,8 @@
    HOME_VERDICT_LABEL, VERDICT_VARIANT, VERDICT_ACCENT, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
    SCAN_COLUMNS, scanLeadingAccent, useAppState, splitAddress, ChipRow, DateRangePicker, parseAgoHours,
    deriveTitleFromFilename, ScreenError, ScreenEmpty,
-   RedFlag, BatchRedBadge, occMatchForRisk, OCC_STATUS_LABEL, OCC_STATUS_MATCH_LABEL, OCC_STATUS_TONE */
+   RedFlag, BatchRedBadge, occMatchForRisk, OCC_STATUS_LABEL, OCC_STATUS_MATCH_LABEL, OCC_STATUS_TONE,
+   OCC_INTENT_SHORT, resolveIntent, summarizeBatchIntent, batchIntentBreakdown */
 
 // Keep one row per key — the most recently scanned. Stable enough for the
 // History list (re-scans collapse; the full run list lives on the detail view).
@@ -424,6 +425,17 @@ const HISTORY_SINGLE_COLUMNS: any[] = [
     },
   },
   {
+    // Declared side of the reconciliation, beside the detected Verdict
+    // (Trello #36) — the meeting's "compare declared vs detected" column.
+    key: 'intended',
+    label: 'Intended',
+    width: '130px',
+    hideBelow: 'md' as const,
+    cell: (r: any) => (
+      <span className="font-sans text-caption text-ink-2">{OCC_INTENT_SHORT[resolveIntent(r)]}</span>
+    ),
+  },
+  {
     // Result — reconciliation of declared intent × scan verdict. The raw
     // Rented/Possibly/Not-rented finding now lives on the property page.
     key: 'result',
@@ -514,6 +526,22 @@ const HISTORY_BATCH_COLUMNS: any[] = [
             {r.filename} · {r.total} properties · {r.flagged} flagged
           </div>
         </div>
+      );
+    },
+  },
+  {
+    // Batch summary of the declared side (Trello #36): uniform → the label,
+    // differing → "Mixed" with the per-intent breakdown on hover.
+    key: 'intended',
+    label: 'Intended',
+    width: '130px',
+    hideBelow: 'md' as const,
+    cell: (r: any) => {
+      const s = summarizeBatchIntent(r.rows, r.defaultIntent);
+      return (
+        <span className="font-sans text-caption text-ink-2" title={batchIntentBreakdown(s)}>
+          {s.kind === 'mixed' ? 'Mixed' : OCC_INTENT_SHORT[s.intent]}
+        </span>
       );
     },
   },

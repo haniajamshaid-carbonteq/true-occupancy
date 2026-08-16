@@ -1,5 +1,6 @@
 /* global React, Pill, DataTable, Icon, ReactRouterDOM, useAppState, timeAgo, occMatchForRisk,
-   SCENARIOS, HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT */
+   SCENARIOS, HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
+   OCC_INTENT_SHORT, summarizeBatchIntent, batchIntentBreakdown */
 // RunHistory — the "same target, scanned again" log. Instead of History growing
 // a new row every re-scan, History shows ONE row per property/batch (the latest)
 // and the prior runs live here, at the bottom of the detail view. Each row is
@@ -112,6 +113,20 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
             ),
           },
           {
+            // The intent this run was reconciled against (Trello #48) — it can
+            // differ between runs, which is exactly when two verdicts on one
+            // property stop looking contradictory.
+            key: 'intended',
+            label: 'Intended',
+            width: '130px',
+            hideBelow: 'sm' as const,
+            cell: (r: any) => (
+              <span className="font-sans text-caption text-ink-2">
+                {OCC_INTENT_SHORT[(r.intent as any) ?? 'not-sure']}
+              </span>
+            ),
+          },
+          {
             key: 'result',
             label: 'Result',
             primary: true,
@@ -151,6 +166,22 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
             cell: (r: any) => {
               const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
               return <Pill variant={BATCH_STATUS_VARIANT[status]}>{BATCH_STATUS_LABEL[status]}</Pill>;
+            },
+          },
+          {
+            // Batch runs: the declared summary for that run (Trello #48) —
+            // uniform label, or "Mixed" with the breakdown on hover.
+            key: 'intended',
+            label: 'Intended',
+            width: '130px',
+            hideBelow: 'sm' as const,
+            cell: (r: any) => {
+              const s = summarizeBatchIntent(r.rows, r.defaultIntent);
+              return (
+                <span className="font-sans text-caption text-ink-2" title={batchIntentBreakdown(s)}>
+                  {s.kind === 'mixed' ? 'Mixed' : OCC_INTENT_SHORT[s.intent]}
+                </span>
+              );
             },
           },
           {

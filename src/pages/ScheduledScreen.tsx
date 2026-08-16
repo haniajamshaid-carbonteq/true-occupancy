@@ -1,7 +1,7 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, Drawer, ChipRow, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress, deriveTitleFromFilename, ScreenError, ScreenEmpty,
    cadenceLabel, cadenceShort, SCENARIOS, occMatchForRisk, OCC_STATUS_LABEL,
-   RedFlag, BatchRedBadge, timeAgo */
+   RedFlag, BatchRedBadge, timeAgo, OCC_INTENT_SHORT, summarizeBatchIntent, batchIntentBreakdown */
 
 type Filter = 'all' | 'single' | 'batch';
 type OccStatus = 'green' | 'yellow' | 'red';
@@ -164,6 +164,33 @@ function ScheduledScreen() {
               </div>
             )}
           </div>
+        );
+      },
+    },
+    {
+      // Declared side of the schedule's target (Trello #38). A schedule entry
+      // doesn't store intent itself, so — like scheduleStatus above — it reads
+      // off the originating run: single → that scan's intent; batch → the
+      // batch summary (uniform label, or "Mixed" with the hover breakdown).
+      key: 'intended',
+      label: 'Intended',
+      width: '130px',
+      hideBelow: 'md' as const,
+      cell: (r: any) => {
+        if (r.kind === 'batch') {
+          const run = batchRunFor(r);
+          const s = summarizeBatchIntent(run?.rows, run?.defaultIntent);
+          return (
+            <span className="font-sans text-caption text-ink-2" title={batchIntentBreakdown(s)}>
+              {s.kind === 'mixed' ? 'Mixed' : OCC_INTENT_SHORT[s.intent]}
+            </span>
+          );
+        }
+        const run = history.find((h: any) => h.id === r.runHistoryIds?.[0]);
+        return (
+          <span className="font-sans text-caption text-ink-2">
+            {OCC_INTENT_SHORT[(run?.intent as any) ?? 'not-sure']}
+          </span>
         );
       },
     },

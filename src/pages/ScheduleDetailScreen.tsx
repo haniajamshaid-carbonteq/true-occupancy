@@ -1,6 +1,7 @@
 /* global React, AppShell, Card, Icon, Pill, Modal, Button, DataTable, AutomateModal, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress, deriveTitleFromFilename, ScreenError,
-   Cadence, ScopeRetention, cadenceLabel, sameCadence, occMatchForRisk, SCENARIOS, OCC_INTENT_LABEL, timeAgo */
+   Cadence, ScopeRetention, cadenceLabel, sameCadence, occMatchForRisk, SCENARIOS, OCC_INTENT_LABEL, timeAgo,
+   summarizeBatchIntent, batchIntentBreakdown */
 // Schedule detail — full page for a scheduled automation.
 // Layout:
 //   1. Header bar  — back link (left) + Cancel automation (right, destructive)
@@ -323,6 +324,19 @@ function ScheduleDetailScreen() {
                   {schedule.intent && OCC_INTENT_LABEL[schedule.intent] && (
                     <RuleField label="Intended occupancy" value={OCC_INTENT_LABEL[schedule.intent]} />
                   )}
+                  {/* Batch schedules: one schedule-level value would mislead
+                      when addresses override the default, so show the batch
+                      summary — the shared label, or "Mixed" (Trello #39).
+                      Per-address declared lives on the opened run (#37). */}
+                  {isBatch && runs[0] && (() => {
+                    const s = summarizeBatchIntent(runs[0].rows, runs[0].defaultIntent);
+                    return (
+                      <RuleField
+                        label="Intended occupancy"
+                        value={s.kind === 'mixed' ? `Mixed — ${batchIntentBreakdown(s)}` : OCC_INTENT_LABEL[s.intent]}
+                      />
+                    );
+                  })()}
                   <RuleField label="Next run" value={schedule.nextRunLabel} />
                   <RuleField label="Created" value={timeAgo(schedule.createdAt)} />
                   <RuleField label="Runs to date" value={String(runs.length)} />
