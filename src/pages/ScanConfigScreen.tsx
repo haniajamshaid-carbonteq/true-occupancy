@@ -267,9 +267,6 @@ function ScanConfigScreen({
   // AI report — auto-run on red-flagged addresses. Opt-in (off by default)
   // because the deeper report costs more per property, so it's reserved for red.
   const [aiOnRed, setAiOnRed] = React.useState(false);
-  // Per-lender trigger (Trello #45): what a found listing means. "Every
-  // mortgage lender is a unique and beautiful snowflake" — don't hardcode.
-  const [listingMeans, setListingMeans] = React.useState<'dig-deeper' | 'stop'>('dig-deeper');
   // Session timeout — a toggle plus, when on, the idle window as a number + unit.
   const [timeoutOn, setTimeoutOn] = React.useState(seed.sessionTimeout?.enabled ?? false);
   const [timeoutValue, setTimeoutValue] = React.useState(seed.sessionTimeout?.value ?? 30);
@@ -465,25 +462,8 @@ function ScanConfigScreen({
           description="Any address that comes back red — from a single scan, or found inside a batch — automatically gets the deeper AI report. Everything else stays on demand. Off by default: the report costs more per property, so it's reserved for red."
         />
         <p className="font-sans text-micro text-ink-3 leading-relaxed m-0">
-          Applies to single scans and batch runs. Any property can still be run immediately with “Run now”. Per-lender configurable.
+          Applies to single scans and batch runs. Any property can still be run immediately with “Run now”.
         </p>
-
-        {/* Per-lender trigger (Trello #45): whether a found listing is treated
-            as conclusive on its own, or as the cue to investigate deeper. */}
-        <div className="mt-stack-md">
-          <ChipRow
-            label="When a scan finds a matched listing, treat it as"
-            value={listingMeans}
-            onChange={(v: string) => setListingMeans(v as 'dig-deeper' | 'stop')}
-            options={[
-              { value: 'dig-deeper', label: 'A cue to dig deeper — run the AI report' },
-              { value: 'stop', label: 'Conclusive on its own — flag and stop' },
-            ]}
-          />
-          <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack-tight">
-            Every lender weighs a listing differently. “Dig deeper” hands red addresses to the AI report (per the toggle above); “conclusive” flags them without spending on a deeper run.
-          </p>
-        </div>
       </ConfigSection>
 
       {/* ---- 4. Recurring scans — REMOVED ----
