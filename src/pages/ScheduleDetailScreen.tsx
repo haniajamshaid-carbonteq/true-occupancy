@@ -177,6 +177,23 @@ function ScheduleDetailScreen() {
       },
     },
     {
+      // AI-report status for runs that auto-triggered it (Trello #49) —
+      // same vocabulary as the batch results table. Runs that never
+      // triggered AI render nothing: absence stays legible, no dash noise.
+      key: 'ai',
+      label: 'AI report',
+      width: '110px',
+      hideBelow: 'sm' as const,
+      cell: (r: any) => {
+        if (!r.aiStatus) return null;
+        const variant =
+          r.aiStatus === 'done' ? 'clean' : r.aiStatus === 'failed' ? 'risk' : 'default';
+        const label =
+          r.aiStatus === 'done' ? 'Done' : r.aiStatus === 'failed' ? 'Failed' : r.aiStatus === 'running' ? 'Running' : 'Queued';
+        return <Pill variant={variant as any} size="sm">{label}</Pill>;
+      },
+    },
+    {
       key: 'detail',
       label: isBatch ? 'Flagged' : 'Platforms',
       width: '100px',

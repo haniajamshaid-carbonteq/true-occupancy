@@ -445,7 +445,18 @@ const HISTORY_SINGLE_COLUMNS: any[] = [
     cell: (r: any) => {
       const risk = SCENARIOS[r.scenario].risk;
       const m = occMatchForRisk(r.intent, risk);
-      return m ? <Pill variant={m.tone as any}>{m.label}</Pill> : <span className="text-ink-4">—</span>;
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          {m ? <Pill variant={m.tone as any}>{m.label}</Pill> : <span className="text-ink-4">—</span>}
+          {/* Quiet "we already investigated this" marker (Trello #50) —
+              informational only, never changes verdict, tone or counts. */}
+          {r.hasAIReport && (
+            <span title={`AI report · run ${formatScannedDate(r.scannedAt)}`}>
+              <Pill size="sm">AI</Pill>
+            </span>
+          )}
+        </span>
+      );
     },
   },
   {
@@ -552,7 +563,16 @@ const HISTORY_BATCH_COLUMNS: any[] = [
     hideBelow: 'sm' as const,
     cell: (r: any) => {
       const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
-      return <Pill variant={BATCH_STATUS_VARIANT[status]}>{BATCH_STATUS_LABEL[status]}</Pill>;
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <Pill variant={BATCH_STATUS_VARIANT[status]}>{BATCH_STATUS_LABEL[status]}</Pill>
+          {r.hasAIReport && (
+            <span title={`AI reports · run ${formatScannedDate(r.scannedAt)}`}>
+              <Pill size="sm">AI</Pill>
+            </span>
+          )}
+        </span>
+      );
     },
   },
   {

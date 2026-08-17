@@ -551,7 +551,17 @@ const DASHBOARD_SINGLE_COLUMNS: any[] = [
     hideBelow: 'sm' as const,
     cell: (r: any) => {
       const m = occMatchForRisk(r.intent, SCENARIOS[r.scenario].risk);
-      return m ? <Pill variant={m.tone as any}>{m.label}</Pill> : <span className="text-ink-4">—</span>;
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          {m ? <Pill variant={m.tone as any}>{m.label}</Pill> : <span className="text-ink-4">—</span>}
+          {/* "AI report available" marker (Trello #50) — informational only. */}
+          {r.hasAIReport && (
+            <span title="AI report available">
+              <Pill size="sm">AI</Pill>
+            </span>
+          )}
+        </span>
+      );
     },
   },
   {

@@ -405,7 +405,7 @@ const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i)
 });
 
 const SEED_HISTORY: HistoryEntry[] = [
-  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAt: seedTime('8min'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied' },
+  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAt: seedTime('8min'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied', hasAIReport: true },
   // Prior re-scans of the SAME two addresses. These do NOT show as extra rows in
   // History (it dedups to the latest); they populate the "Run history" section
   // on the property's detail view — demonstrating the collapse. Mixed triggers
@@ -420,10 +420,10 @@ const SEED_HISTORY: HistoryEntry[] = [
   // the danger flag wherever they appear outside the Red-addresses tab.
   { id: 'hr1', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',    scenario: 'high',   platforms: 4, scannedAt: seedTime('1h'),    reference: 'LOAN-2026-0071', intent: 'owner-occupied' },
   { id: 'hr1b', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',   scenario: 'medium', platforms: 3, scannedAt: seedTime('60d'),   reference: 'LOAN-2026-0071', intent: 'owner-occupied' },
-  { id: 'hr2', kind: 'single', address: '7 Beaucatcher Rd, Asheville, NC 28805',      scenario: 'high',   platforms: 3, scannedAt: seedTime('6h'),    reference: 'LOAN-2026-0058', intent: 'rental' },
+  { id: 'hr2', kind: 'single', address: '7 Beaucatcher Rd, Asheville, NC 28805',      scenario: 'high',   platforms: 3, scannedAt: seedTime('6h'),    reference: 'LOAN-2026-0058', intent: 'rental', hasAIReport: true },
   { id: 'hr3', kind: 'single', address: '153 Merrimon Ave, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAt: seedTime('2d'), intent: 'owner-occupied' },
   { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAt: seedTime('47d'), rows: SEED_BATCH_FAILED_ROWS },
-  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAt: seedTime('2h'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', description: 'Quarterly compliance scan for the spring 2026 lender portfolio.', defaultIntent: 'owner-occupied', trigger: 'automation' },
+  { id: 'hb1', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24, flagged: 6, warn: 6, clean: 12, failed: 0, status: 'complete', scannedAt: seedTime('2h'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', description: 'Quarterly compliance scan for the spring 2026 lender portfolio.', defaultIntent: 'owner-occupied', trigger: 'automation', aiStatus: 'done', hasAIReport: true },
   // A prior run of the SAME CSV — collapses in the History tab (one row), and
   // surfaces in the batch's "Run history" section on its detail view. This is
   // the original upload (manual); everything after it is the automation.
@@ -453,7 +453,7 @@ const SEED_HISTORY: HistoryEntry[] = [
   // these ran unattended, so they carry trigger: 'automation'.
   { id: 'hr01a', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('6mo'), trigger: 'automation' },
   { id: 'hr01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('1y'),  trigger: 'automation' },
-  { id: 'hr02a', kind: 'batch',  filename: 'asheville-q4-2025.csv', total: 22, flagged: 4, warn: 5, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS.slice(0, 22), defaultIntent: 'owner-occupied', trigger: 'automation' },
+  { id: 'hr02a', kind: 'batch',  filename: 'asheville-q4-2025.csv', total: 22, flagged: 4, warn: 5, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS.slice(0, 22), defaultIntent: 'owner-occupied', trigger: 'automation', aiStatus: 'failed' },
   { id: 'hr03a', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 2, scannedAt: seedTime('1y'),  trigger: 'automation' },
   { id: 'hr04a', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'medium', platforms: 1, scannedAt: seedTime('4mo'), trigger: 'automation' },
 ];
