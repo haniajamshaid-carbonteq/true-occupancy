@@ -242,32 +242,6 @@ function ThresholdBandPreview({ lo, hi }: { lo: number; hi: number }) {
   );
 }
 
-// Hover-info bubble. A general (non-truncation) hover tooltip — the registered
-// Tooltip is truncation-gated, so this is a candidate extension for review.
-function InfoHover({ text }: { text: string }) {
-  const [show, setShow] = React.useState(false);
-  return (
-    <span
-      className="relative inline-flex items-center"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-    >
-      <span className="inline-flex shrink-0 text-ink-3 [&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
-        <Icon name="info" size={14} />
-      </span>
-      {show && (
-        <span
-          role="tooltip"
-          className="pointer-events-none absolute left-0 top-full mt-1.5 z-popover w-64 px-2.5 py-2 rounded-md text-caption font-sans font-normal normal-case tracking-normal leading-snug shadow-md bg-surface-2 text-ink-2 border border-line"
-          style={{ whiteSpace: 'normal' }}
-        >
-          {text}
-        </span>
-      )}
-    </span>
-  );
-}
-
 function ScanConfigScreen({
   initialConfig,
   canEdit,
@@ -288,14 +262,6 @@ function ScanConfigScreen({
   const [hi, setHi] = React.useState(seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove);
   const [lo, setLo] = React.useState(seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow);
   const [matrix, setMatrix] = React.useState(seed.outcomeMatrix);
-  // "Not sure is likely to look like" — an undeclared property must resemble
-  // one real intent; it borrows that intent's outcomes. Default owner-occupied.
-  const [notSureAs, setNotSureAs] = React.useState<string>(
-    seed.defaultIntent !== 'not-sure' ? seed.defaultIntent : 'owner-occupied'
-  );
-  // The "likely to look like" layer can be switched off. Off = the backend only
-  // checks rented / not rented and follows that. On = use notSureAs.
-  const [notSureOn, setNotSureOn] = React.useState(true);
   const [recurring, setRecurring] = React.useState(seed.recurring);
   const [staleDays, setStaleDays] = React.useState(seed.stalenessDays);
   // AI report — auto-run on red-flagged addresses. Opt-in (off by default)
@@ -434,11 +400,6 @@ function ScanConfigScreen({
 
         {OCC_INTENTS.map((intent: string) => {
           const expanded = openIntent === intent;
-          const isNotSure = intent === 'not-sure';
-          // Not-sure keeps its own three outcome filters (must-have). The extra
-          // "likely to look like" dropdown is an INDEPENDENT value — it records
-          // what the property resembles and does NOT overwrite the outcomes below.
-          const notSureTip = `Not sure is ambiguous — say what it most resembles in the dropdown, and set its three outcomes independently below.`;
           return (
             <div key={intent} className="border-t border-line">
               <button
@@ -456,7 +417,6 @@ function ScanConfigScreen({
                     <Icon name="chevron" size={12} />
                   </span>
                   {OCC_INTENT_LABEL[intent]}
-                  {isNotSure && <InfoHover text={notSureTip} />}
                 </span>
                 {OCC_VERDICTS.map((v: string) => {
                   const status = matrix[intent][v];
@@ -472,38 +432,6 @@ function ScanConfigScreen({
 
               {expanded && (
                 <div className="pb-stack-md pl-5 flex flex-col gap-stack">
-                  {/* 4th control — Not-sure only. A toggleable "likely to look
-                      like" layer, independent of the three outcome filters. */}
-                  {isNotSure && (
-                    <>
-                      <Toggle
-                        checked={notSureOn}
-                        onChange={setNotSureOn}
-                        label="Resolve ambiguous “Not sure” by resemblance"
-                        description="On: use the “likely to look like” intent below. Off: only check whether the property is rented, and follow that outcome."
-                      />
-                      {notSureOn ? (
-                        <>
-                          <ChipRow
-                            label="Not sure is likely to look like"
-                            value={notSureAs}
-                            onChange={setNotSureAs}
-                            options={OCC_INTENTS.filter((i: string) => i !== 'not-sure').map((i: string) => ({
-                              value: i,
-                              label: OCC_INTENT_LABEL[i],
-                            }))}
-                          />
-                          <p className="font-sans text-micro text-ink-3 leading-relaxed m-0">
-                            Note: “Not sure” is ambiguous. This dropdown records what an undeclared property most resembles; the three outcomes below are set independently and can differ from it. Owner-occupied by default.
-                          </p>
-                        </>
-                      ) : (
-                        <p className="font-sans text-micro text-ink-3 leading-relaxed m-0">
-                          Off — “Not sure” properties are checked only for rented vs not rented, and follow that outcome. The resemblance dropdown is ignored.
-                        </p>
-                      )}
-                    </>
-                  )}
                   {OCC_VERDICTS.map((v: string) => (
                     <ChipRow
                       key={v}

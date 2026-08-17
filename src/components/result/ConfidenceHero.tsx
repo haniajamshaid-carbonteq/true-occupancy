@@ -302,8 +302,16 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
             {match ? match.label : VERDICT_TEXT[scenario]}
           </div>
           </div>
-          <div className="mt-3 font-sans text-label text-ink-3 tabular-nums">
-            <span className="font-semibold text-ink-2">{animatedScore}%</span> {confidenceLine}
+          <div className="mt-3">
+            <div
+              className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              Confidence
+            </div>
+            <div className="mt-1 font-sans text-label text-ink-3 tabular-nums">
+              <span className="font-semibold text-ink-2">{animatedScore}%</span> {confidenceLine}
+            </div>
           </div>
 
           {/* Why this result — the reconciliation explained. What the label
