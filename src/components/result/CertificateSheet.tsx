@@ -199,8 +199,15 @@ function CertificateBody({
   // Confidence is stored as P(rented); flip to the complement when the finding
   // is "not rented" so the % agrees with the finding headline directly above
   // it. Mirrors ConfidenceHero. Possibly-rented keeps the raw score.
-  const certConfidence =
-    match && match.verdict === 'not-rented' ? 100 - s.score : s.score;
+  // Exception — "Not sure" with the org toggle OFF has no baseline to flip
+  // against: show the RAW rented-probability, labelled "rental confidence".
+  const rentalConfidenceMode =
+    intent === 'not-sure' && !DEFAULT_OCC_CONFIG.notSureResolve;
+  const certConfidence = rentalConfidenceMode
+    ? s.score
+    : match && match.verdict === 'not-rented'
+    ? 100 - s.score
+    : s.score;
 
   return (
     <article className="certificate-sheet">
@@ -243,7 +250,7 @@ function CertificateBody({
           <div className="cert-eyebrow">Finding</div>
           <div className="cert-verdict-headline">{verdictHeadline}</div>
           <div className="cert-verdict-sub">
-            <span className="cert-verdict-pct">{certConfidence}%</span> confidence
+            <span className="cert-verdict-pct">{certConfidence}%</span> {rentalConfidenceMode ? 'rental confidence' : 'confidence'}
           </div>
           {/* Intended occupancy this finding was reconciled against, and the
               result — kept to one plain line: declared X, this is Y. */}
@@ -779,13 +786,20 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
       // the PDF and the app never disagree on a row's status.
       const intent = h.intent || DEFAULT_OCC_CONFIG.defaultIntent;
       const match = occMatchForRisk(intent, SCENARIOS[sc].risk);
+      // "Not sure" + toggle OFF keeps the raw rented-probability (rental
+      // confidence); every other row flips to read as confidence in the finding.
+      const rowRentalConf = intent === 'not-sure' && !DEFAULT_OCC_CONFIG.notSureResolve;
       return {
         date: certFormatHistoryDate(certParseScannedAt(h.scannedAt)),
         verdict: certScenarioVerdict(sc),
         // Flip to the complement for a "not rented" run so the % agrees with
         // the verdict printed beside it (matches ConfidenceHero / the main
         // finding above). Possibly-rented keeps its raw score.
-        scorePct: match && match.verdict === 'not-rented' ? 100 - SCENARIOS[sc].score : SCENARIOS[sc].score,
+        scorePct: rowRentalConf
+          ? SCENARIOS[sc].score
+          : match && match.verdict === 'not-rented'
+          ? 100 - SCENARIOS[sc].score
+          : SCENARIOS[sc].score,
         listingCount: listings.length,
         platformCount: h.platforms,
         listings,

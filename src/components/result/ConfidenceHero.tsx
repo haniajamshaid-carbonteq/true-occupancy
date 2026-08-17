@@ -273,20 +273,30 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const match = occMatchForRisk(intent, sc.risk);
   const verdictLabel = match ? OCC_VERDICT_LABEL[match.verdict] : VERDICT_TEXT[scenario];
 
-  // Confidence is stored as P(rented). When the finding is "not rented", show
-  // the complement (100 − score) so the % always reads as confidence IN the
-  // finding, never a misleadingly low rented-probability. "Possibly rented" is
-  // the uncertain middle band — no flip; it reads as inconclusive. Declared
-  // intent drives the reconciliation headline/tone above, not this number.
   const detectedVerdict = match ? match.verdict : undefined;
-  const confidenceValue =
-    detectedVerdict === 'not-rented' ? 100 - sc.score : sc.score;
-  const confidenceLine =
-    detectedVerdict === 'rented'
-      ? 'confident this property is being rented'
+  // "Not sure" with the org toggle OFF has no declared baseline to flip
+  // against, so the number stays the RAW rented-probability and is labelled
+  // "Rental Confidence" (how likely it is a rental). Every other state flips
+  // the number to read as confidence IN the finding, labelled "Confidence".
+  const rentalConfidenceMode =
+    intent === 'not-sure' && !DEFAULT_OCC_CONFIG.notSureResolve;
+  const confidenceLabel = rentalConfidenceMode ? 'Rental Confidence' : 'Confidence';
+  const confidenceValue = rentalConfidenceMode
+    ? sc.score
+    : detectedVerdict === 'not-rented'
+    ? 100 - sc.score
+    : sc.score;
+  const confidenceLine = rentalConfidenceMode
+    ? detectedVerdict === 'rented'
+      ? 'likely a rental'
       : detectedVerdict === 'not-rented'
-      ? 'confident this property is not rented'
-      : 'likely rented · inconclusive';
+      ? 'unlikely a rental'
+      : 'possibly a rental'
+    : detectedVerdict === 'rented'
+    ? 'confident this property is being rented'
+    : detectedVerdict === 'not-rented'
+    ? 'confident this property is not rented'
+    : 'likely rented · inconclusive';
   const animatedScore = useCountUp(confidenceValue, 800);
 
   return (
@@ -307,7 +317,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
               style={{ color: 'var(--ink-3)' }}
             >
-              Confidence
+              {confidenceLabel}
             </div>
             <div className="mt-1 font-sans text-label text-ink-3 tabular-nums">
               <span className="font-semibold text-ink-2">{animatedScore}%</span> {confidenceLine}
