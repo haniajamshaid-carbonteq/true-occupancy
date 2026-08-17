@@ -309,7 +309,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
             className="font-sans font-semibold leading-[0.95] tracking-[-0.012em]"
             style={{ fontSize: "var(--text-h1)", color: 'var(--navy)' }}
           >
-            {match ? match.label : VERDICT_TEXT[scenario]}
+            {rentalConfidenceMode ? verdictLabel : match ? match.label : VERDICT_TEXT[scenario]}
           </div>
           </div>
           <div className="mt-3">
@@ -362,7 +362,9 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                 </span>
               </div>
               <p className="mt-1.5 font-sans text-caption text-ink-2 leading-snug m-0">
-                {reconciliationWhy(match.status, verdictLabel, intent ? INTENDED_OCCUPANCY_LABEL[intent] : undefined)}
+                {rentalConfidenceMode
+                  ? '“Not sure” gives no baseline to reconcile against, so the finding is informational — the number is the observed rental likelihood.'
+                  : reconciliationWhy(match.status, verdictLabel, intent ? INTENDED_OCCUPANCY_LABEL[intent] : undefined)}
               </p>
               {/* Red single scan → advise setting up a recurring re-scan. Opens
                   the same Automate modal the top-bar button uses (via the shared
