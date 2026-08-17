@@ -10,7 +10,7 @@
 ## Repository, branch & push status
 
 - **Repo:** `github.com/haniajamshaid-carbonteq/true-occupancy` · **Branch:** `main`
-- **Push status (as of Aug 17):** all commits below are on **local `main`**; the remote `origin/main` is still at `49f95f0`. The 7 session commits are **committed but not yet pushed** — the owner runs `git push origin main` to publish them (a clean fast-forward). The GitHub commit links resolve once that push lands.
+- **Push status (as of Aug 17):** all commits below are **pushed to `origin/main`** (HEAD `f38febf`). The GitHub commit links resolve. Clone `main` to get the full prototype.
 - **Session commits, newest first:**
   - `6eb19d0` — docs(screenshots): unsaved-changes banner for #32
   - `bca6044` — docs(handoff): mark #45/#49/#50 implemented
