@@ -12,13 +12,14 @@
 - **Repo:** `github.com/haniajamshaid-carbonteq/true-occupancy` · **Branch:** `main`
 - **Push status (as of Aug 17):** all commits below are **pushed to `origin/main`** (HEAD `f38febf`). The GitHub commit links resolve. Clone `main` to get the full prototype.
 - **Session commits, newest first:**
+  - `6244459` — feat: revert Not-sure resemblance layer (#42); label hero metric "Confidence" (#40)
   - `6eb19d0` — docs(screenshots): unsaved-changes banner for #32
   - `bca6044` — docs(handoff): mark #45/#49/#50 implemented
   - `1b3f477` — feat: AI-report trigger config, schedule-run AI status, list AI marker (#45, #49, #50)
   - `872ac70` — docs(handoff): mark W1/W2 implemented
   - `d68861c` — feat: Intended-occupancy columns across every surface (#34–#39, #48)
   - `009150e` — docs(handoff): screenshots + #32 + commit references
-  - `dc0f0af` — feat: confidence flip, Not-sure config, AI-report toggle, matrix-derived red (#40–#42, #46, #51)
+  - `dc0f0af` — feat: confidence flip, AI-report toggle, matrix-derived red (#40, #46, #51) — *Not-sure config from here later reverted by `6244459`*
   - `49f95f0` — fix(config): unsaved-changes banner copy (#32) — *already on the remote (pre-session)*
 - Each card's **COMMIT** line names the specific commit its prototype lives in; find it at `github.com/haniajamshaid-carbonteq/true-occupancy/commit/<hash>` once pushed.
 
@@ -33,7 +34,7 @@ Grounding: the [July-23 scope note](../TrueOccupancy-Scope-2026-07-23.pdf notes 
 ## Read this first: three decisions block work
 
 1. **Where does per-lender AI-trigger config live?** (#45) — per-org settings on the Config page is assumed; the scope note flags it as open. Blocks #45 only.
-2. **`InfoHover` tooltip extension** — the registered `Tooltip` is truncation-gated; #42, the "Mixed" hover (#34/#36) and the AI marker hover (#50) all need a general hover tooltip. A candidate implementation ships in the prototype (`ScanConfigScreen.tsx → InfoHover`, grey bubble: `surface-2`/`ink-2`/`line` tokens). Needs design-system sign-off before reuse.
+2. **`InfoHover` tooltip extension** — the registered `Tooltip` is truncation-gated; the "Mixed" hover (#34/#36) and the AI marker hover (#50) need a general hover tooltip. (#42's tooltip was removed with the resemblance layer, so it no longer drives this.) The prototype now uses a native `title` for the "Mixed"/AI hovers; a candidate `InfoHover` from an earlier revision (grey bubble: `surface-2`/`ink-2`/`line` tokens) can be revived for production, pending design-system sign-off.
 3. **Naming: "Deep Search" vs "Occupancy report"** (#43) — the action vs the artifact. Note `OccDepth` (`standard`/`deep-ambiguous`/`deep-always`) already exists as a *scan-depth* config; do not let the feature name collide with it.
 
 ---
@@ -81,7 +82,7 @@ Production notes: the "Mixed" hover uses a native `title` in the prototype — p
 
 ### W3 — Confidence flip
 **Closes:** #40 #41 · **Independent** · **✅ fully implemented in the prototype**
-`ConfidenceHero.tsx` (flip + finding-labelled copy) and `CertificateSheet.tsx` (`:240` main finding, `:779` per-row history — each row flips on **its own** verdict). Port verbatim. Do **not** flip: `RedPropertyDrawer:212` (always the rented branch), `ListingsPanel` Confidence (listing-match, different number), `AIInvestigator` scores.
+`ConfidenceHero.tsx` (flip + finding-labelled copy, metric labelled **"Confidence"**) and `CertificateSheet.tsx` (`:240` main finding, `:779` per-row history — each row flips on **its own** verdict). Port verbatim. Nomenclature: the metric is **"Confidence"** — *not* "Rental Confidence", which the flip makes contradictory on not-rented (`6244459`). Do **not** flip: `RedPropertyDrawer:212` (always the rented branch), `ListingsPanel` Confidence (listing-match, different number), `AIInvestigator` scores.
 
 **Before:** a not-rented result showed the raw rented-probability — `12% confidence` — under a "Consistent"/"Not Rented" headline, reading as if we were unsure. **After (built):**
 
@@ -92,12 +93,8 @@ Production notes: the "Mixed" hover uses a native `title` in the prototype — p
 ![Certificate after](../ticket-screenshots/41-certificate-flip.png)
 
 ### W4 — "Not sure" config
-**Closes:** #42 · **Independent** · **✅ implemented in the prototype**
-ⓘ tooltip + toggle + "likely to look like" dropdown + the three outcome filters. **The two controls are different jobs**: the dropdown = the scan/treatment baseline for an undeclared property; the three filters = Not-sure's *own* definition of red/yellow/green — they may differ, neither disables the other. OFF → binary rented check. Production: new `OccConfig` fields (`notSureResemblesIntent`, `notSureByResemblance`) wired into `occMatchForRisk`, Save and dirty-tracking (the prototype does not persist them).
-
-**Before:** "Not sure" was a plain matrix row identical to the others — no guidance, no resemblance control, no on/off. **After (built):**
-
-![Not-sure config after](../ticket-screenshots/42-notsure-config.png)
+**Closes:** #42 · **Independent** · **✅ reverted in the prototype (`6244459`)**
+**Decision (Aug 17): the resemblance layer is dropped.** The prototyped ⓘ tooltip + "Resolve by resemblance" toggle + "likely to look like" dropdown were removed — "Not sure" is a **plain matrix row identical to the other intents**, carrying only its own three outcome filters. No new `OccConfig` fields, no `InfoHover`, no special-casing. Nothing to build here beyond making sure "Not sure" is not treated differently from Owner-occupied / Second home / Rental in the matrix editor.
 
 ### W5 — AI report core
 **Closes:** #46 → #43 #44 #45 · #46 + #45 ✅ in prototype (`dc0f0af`, `1b3f477`)
@@ -144,7 +141,7 @@ PR 0  W9           (#32 — already on main at 49f95f0; verify + move to Ready f
 PR 1  W1 + W8      (helper + debt port — small, unblocks everything)
 PR 2  W2           (all Intended columns in one PR — shared builder means split PRs drift)
 PR 3  W3           (hero + PDF together; never ship one without the other)
-PR 4  W4           (needs InfoHover sign-off)
+PR 4  W4           (trivial — just confirm "Not sure" is a plain matrix row)
 PR 5  W5           (#46 first — the toggle is the contract #43/#44 implement)
 PR 6  W6           (needs PR 5)
 PR 7  W7           (needs PR 5)
@@ -153,8 +150,8 @@ PR 7  W7           (needs PR 5)
 ## Cross-cutting regression checklist
 - [ ] Declared value for one address identical on Dashboard, History, Batch, Scheduled, run history, PDF.
 - [ ] "Mixed" appears iff a batch's resolved intents differ; counts on hover sum to the batch total.
-- [ ] Confidence % + finding label agree with the verdict pill on every surface; screen and PDF show the same figure.
-- [ ] Not-sure: toggle OFF → binary rented behaviour; ON → resemblance baseline + Not-sure's own outcome filters.
+- [ ] Confidence % + finding label agree with the verdict pill on every surface; screen and PDF show the same figure; metric labelled "Confidence".
+- [ ] "Not sure" is a plain matrix row — no toggle, dropdown, or ⓘ — with only its three outcome filters.
 - [ ] AI auto-run fires only on red, only when opted in; yellow/green stay on-demand; run-now always works.
 - [ ] A status change (any source) re-evaluates automation membership; cleared red = stopped rule, visible in the drawer.
 - [ ] `isRedAddress` deleted; grep clean; editing the outcome matrix moves every ⚠/count on next read.

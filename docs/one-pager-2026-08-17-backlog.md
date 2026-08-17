@@ -18,16 +18,16 @@ Every card follows the house format (Navigation → Why → What changes → Edg
 | 39 | [Schedule detail: per-address intended for batch schedules](https://trello.com/c/bUxalHBb) | ✅ built |
 | 48 | [Run history: per-run intended on the timeline](https://trello.com/c/zGPKwVgL) | ✅ built |
 
-**2 · Confidence score flip** *(the % always reads as confidence IN the finding)*
+**2 · Confidence score flip** *(the % always reads as confidence IN the finding; metric labelled "Confidence")*
 | # | Card | Prototype |
 |---|---|---|
-| 40 | [Property hero: flip](https://trello.com/c/SQlMsFwU) | ✅ built |
+| 40 | [Property hero: flip + "Confidence" label](https://trello.com/c/SQlMsFwU) | ✅ built (`dc0f0af` + `6244459`) |
 | 41 | [PDF certificate: flip](https://trello.com/c/QFBTIqGp) | ✅ built |
 
-**3 · "Not sure" configuration** *(resolve the ambiguous intent)*
+**3 · "Not sure" configuration**
 | # | Card | Prototype |
 |---|---|---|
-| 42 | [Config: "likely to look like" dropdown + on/off toggle + ⓘ tooltip](https://trello.com/c/HECw9VPg) | ✅ built |
+| 42 | [Config: "Not sure" — remove resemblance layer, keep plain matrix row](https://trello.com/c/HECw9VPg) | ✅ reverted (`6244459`) |
 
 **4 · AI report (Deep Search) — the July-23 confirmed scope**
 | # | Card | Prototype |
