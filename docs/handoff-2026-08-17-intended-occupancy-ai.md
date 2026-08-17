@@ -7,6 +7,21 @@
 
 ---
 
+## Repository, branch & push status
+
+- **Repo:** `github.com/haniajamshaid-carbonteq/true-occupancy` · **Branch:** `main`
+- **Push status (as of Aug 17):** all commits below are on **local `main`**; the remote `origin/main` is still at `49f95f0`. The 7 session commits are **committed but not yet pushed** — the owner runs `git push origin main` to publish them (a clean fast-forward). The GitHub commit links resolve once that push lands.
+- **Session commits, newest first:**
+  - `6eb19d0` — docs(screenshots): unsaved-changes banner for #32
+  - `bca6044` — docs(handoff): mark #45/#49/#50 implemented
+  - `1b3f477` — feat: AI-report trigger config, schedule-run AI status, list AI marker (#45, #49, #50)
+  - `872ac70` — docs(handoff): mark W1/W2 implemented
+  - `d68861c` — feat: Intended-occupancy columns across every surface (#34–#39, #48)
+  - `009150e` — docs(handoff): screenshots + #32 + commit references
+  - `dc0f0af` — feat: confidence flip, Not-sure config, AI-report toggle, matrix-derived red (#40–#42, #46, #51)
+  - `49f95f0` — fix(config): unsaved-changes banner copy (#32) — *already on the remote (pre-session)*
+- Each card's **COMMIT** line names the specific commit its prototype lives in; find it at `github.com/haniajamshaid-carbonteq/true-occupancy/commit/<hash>` once pushed.
+
 ## How to use this document
 
 Same contract as the [Aug-10 reconciliation handoff](handoff-2026-08-10-reconciliation.md): the Trello cards are per-screen because that is how QA verifies; this doc regroups them into **workstreams by shared code** so the derivation is written once, not six times. A card is done when every workstream listed against it has landed. **The prototype is the spec** — where copy or fallback behaviour is ambiguous, read `app.html` before inventing an answer.
