@@ -35,10 +35,10 @@ Every card follows the house format (Navigation → Why → What changes → Edg
 | 46 | [Config: auto-run AI on red (opt-in, cost-flagged, single + batch)](https://trello.com/c/JoxL0aay) | ✅ built |
 | 43 | [Batch: AI reports as one batch job](https://trello.com/c/9VCxJ0it) | state scaffolded |
 | 44 | [Result: on-demand "Run now"](https://trello.com/c/tq4V52GW) | ✅ mostly exists |
-| 45 | [Config: per-lender "stop vs dig deeper" trigger](https://trello.com/c/qxF1op6e) | — |
+| 45 | [Config: per-lender "stop vs dig deeper" trigger](https://trello.com/c/qxF1op6e) | ✅ built (`1b3f477`) |
 | 47 | [Result: caching + provenance "re-checked on X, identical"](https://trello.com/c/MhbruvTQ) | partial (ServedStamp) |
-| 49 | [Schedule detail: AI status on auto-triggered runs](https://trello.com/c/y8xPYnAU) | — |
-| 50 | [Lists: "AI report available" marker](https://trello.com/c/zaXBlYZf) | — |
+| 49 | [Schedule detail: AI status on auto-triggered runs](https://trello.com/c/y8xPYnAU) | ✅ built (`1b3f477`) |
+| 50 | [Lists: "AI report available" marker](https://trello.com/c/zaXBlYZf) | ✅ built (`1b3f477`) |
 
 **Cross-cutting / debt**
 | # | Card | Prototype |

@@ -85,8 +85,9 @@ Production notes: the "Mixed" hover uses a native `title` in the prototype — p
 ![Not-sure config after](../ticket-screenshots/42-notsure-config.png)
 
 ### W5 — AI report core
-**Closes:** #46 → #43 #44 (#45 after decision 1) · #46 ✅ in prototype
+**Closes:** #46 → #43 #44 #45 · #46 + #45 ✅ in prototype (`dc0f0af`, `1b3f477`)
 - #46: one opt-in toggle, OFF by default, copy states **single + batch** coverage and the **cost** reason. On: red from a single scan auto-runs the report; a batch finds its red rows and runs them.
+- #45: the per-lender trigger now sits directly under the toggle — "When a scan finds a matched listing, treat it as → *A cue to dig deeper (run the AI report)* / *Conclusive on its own (flag and stop)*". Where it lives is thereby answered: the Config "AI report" section; confirm at review.
 - #43: batch job over `LiveBatch.aiPhase` / per-row `aiReport` (state machine already in `AppState.tsx` — the sim conveyor is the seam a real backend replaces). Per-row retry for failures; notification-dock "AI reports · N of M" states need speccing.
 - #44: run-now must bypass the batch queue; add a cost hint at the CTA.
 - AI-report **scheduling stays deferred** (human-in-the-loop, per scope).
@@ -99,10 +100,10 @@ Production notes: the "Mixed" hover uses a native `title` in the prototype — p
 ![AI slot today](../ticket-screenshots/44-run-now-ai-slot.png)
 
 ### W6 — Provenance & AI visibility
-**Closes:** #47 #49 #50 · **Depends on:** W5
-- #47: cached serve + "last ran / last confirmed" + "re-checked on X — identical result". Applies to the **transparency certificate** only; the AI-report PDF is deferred scope.
-- #49: AI status on schedule-detail run rows (only when #46 is ON; absence renders nothing).
-- #50: quiet "AI report available" marker on list rows — strictly informational, never changes verdict/tone/counts.
+**Closes:** #47 #49 #50 · **Depends on:** W5 · #49 + #50 ✅ in prototype (`1b3f477`)
+- #47: cached serve + "last ran / last confirmed" + "re-checked on X — identical result". Applies to the **transparency certificate** only; the AI-report PDF is deferred scope. *(Not yet mocked.)*
+- #49: ✅ "AI report" column on schedule-detail run rows — Done / Failed / Running pills, nothing when a run never triggered AI. Demo: `#/scheduled/s02` (one Done, one Failed run).
+- #50: ✅ quiet "AI" Pill beside the verdict/status pill on rows whose latest run has a stored report — Dashboard + History in the prototype; extend to Batch/Scheduled cells with the same one-liner. Strictly informational.
 
 *Today's provenance surface — the UPDATED stamp under the hero that #47 extends into "last ran / last confirmed / re-checked, identical":*
 ![Provenance today](../ticket-screenshots/47-provenance-updated-stamp.png)
