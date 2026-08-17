@@ -104,7 +104,7 @@ function ScanIntentHero({
     msgTone = 'text-error-ink';
     msg = 'Choose an intended use to run.';
   } else if (intent === 'not-sure') {
-    msg = "No baseline declared — we'll treat it like your default intended occupancy.";
+    msg = "No baseline declared — we'll report what the scan finds.";
   } else if (intent) {
     msg = 'Running will flag any occupancy that contradicts this.';
   }

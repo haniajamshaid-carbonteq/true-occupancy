@@ -199,10 +199,10 @@ function CertificateBody({
   // Confidence is stored as P(rented); flip to the complement when the finding
   // is "not rented" so the % agrees with the finding headline directly above
   // it. Mirrors ConfidenceHero. Possibly-rented keeps the raw score.
-  // Exception — "Not sure" with the org toggle OFF has no baseline to flip
-  // against: show the RAW rented-probability, labelled "rental confidence".
-  const rentalConfidenceMode =
-    intent === 'not-sure' && !DEFAULT_OCC_CONFIG.notSureResolve;
+  // Exception — "Not sure" remains Not sure everywhere: the resolve toggle
+  // only drives triage colours, never the declared intent. A Not-sure cert
+  // ALWAYS shows the RAW rented-probability labelled "rental confidence".
+  const rentalConfidenceMode = intent === 'not-sure';
   const certConfidence = rentalConfidenceMode
     ? s.score
     : match && match.verdict === 'not-rented'
@@ -786,9 +786,10 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
       // the PDF and the app never disagree on a row's status.
       const intent = h.intent || DEFAULT_OCC_CONFIG.defaultIntent;
       const match = occMatchForRisk(intent, SCENARIOS[sc].risk);
-      // "Not sure" + toggle OFF keeps the raw rented-probability (rental
-      // confidence); every other row flips to read as confidence in the finding.
-      const rowRentalConf = intent === 'not-sure' && !DEFAULT_OCC_CONFIG.notSureResolve;
+      // "Not sure" rows keep the raw rented-probability (rental confidence)
+      // regardless of the resolve toggle — Not sure remains Not sure; every
+      // other row flips to read as confidence in the finding.
+      const rowRentalConf = intent === 'not-sure';
       return {
         date: certFormatHistoryDate(certParseScannedAt(h.scannedAt)),
         verdict: certScenarioVerdict(sc),

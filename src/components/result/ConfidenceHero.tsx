@@ -274,12 +274,13 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const verdictLabel = match ? OCC_VERDICT_LABEL[match.verdict] : VERDICT_TEXT[scenario];
 
   const detectedVerdict = match ? match.verdict : undefined;
-  // "Not sure" with the org toggle OFF has no declared baseline to flip
-  // against, so the number stays the RAW rented-probability and is labelled
-  // "Rental Confidence" (how likely it is a rental). Every other state flips
-  // the number to read as confidence IN the finding, labelled "Confidence".
-  const rentalConfidenceMode =
-    intent === 'not-sure' && !DEFAULT_OCC_CONFIG.notSureResolve;
+  // "Not sure" remains Not sure everywhere: the org's resolve toggle/choice
+  // only drives triage colours (scoring), never the declared intent. So a
+  // Not-sure result ALWAYS reports what the scan turned out to find — the RAW
+  // rented-probability labelled "Rental Confidence" — regardless of the
+  // toggle. Every other state flips the number to read as confidence IN the
+  // finding, labelled "Confidence".
+  const rentalConfidenceMode = intent === 'not-sure';
   const confidenceLabel = rentalConfidenceMode ? 'Rental Confidence' : 'Confidence';
   const confidenceValue = rentalConfidenceMode
     ? sc.score
