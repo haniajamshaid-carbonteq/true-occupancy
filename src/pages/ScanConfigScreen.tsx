@@ -259,6 +259,9 @@ function ScanConfigScreen({
   const hasAccess = canEdit !== undefined ? canEdit : role === 'staff';
 
   const [defaultIntent, setDefaultIntent] = React.useState(seed.defaultIntent);
+  // "Not sure" resolution: off = silently Owner-occupied; on = the chosen type.
+  const [notSureResolve, setNotSureResolve] = React.useState(seed.notSureResolve ?? false);
+  const [notSureResolveAs, setNotSureResolveAs] = React.useState<string>(seed.notSureResolveAs ?? 'owner-occupied');
   const [hi, setHi] = React.useState(seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove);
   const [lo, setLo] = React.useState(seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow);
   const [matrix, setMatrix] = React.useState(seed.outcomeMatrix);
@@ -276,10 +279,12 @@ function ScanConfigScreen({
   // Save flow: confirm → saving → saved. `baseline` is the last-saved snapshot;
   // dirty compares the live values against it so the footer collapses on save.
   const snapshot = () =>
-    JSON.stringify({ defaultIntent, hi, lo, matrix, recurring, staleDays, timeoutOn, timeoutValue, timeoutUnit });
+    JSON.stringify({ defaultIntent, notSureResolve, notSureResolveAs, hi, lo, matrix, recurring, staleDays, timeoutOn, timeoutValue, timeoutUnit });
   const [baseline, setBaseline] = React.useState(() =>
     JSON.stringify({
       defaultIntent: seed.defaultIntent,
+      notSureResolve: seed.notSureResolve ?? false,
+      notSureResolveAs: seed.notSureResolveAs ?? 'owner-occupied',
       hi: seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove,
       lo: seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow,
       matrix: seed.outcomeMatrix,
@@ -302,6 +307,8 @@ function ScanConfigScreen({
   function discard() {
     const b = JSON.parse(baseline);
     setDefaultIntent(b.defaultIntent);
+    setNotSureResolve(b.notSureResolve);
+    setNotSureResolveAs(b.notSureResolveAs);
     setHi(b.hi);
     setLo(b.lo);
     setMatrix(b.matrix);
@@ -397,6 +404,14 @@ function ScanConfigScreen({
 
         {OCC_INTENTS.map((intent: string) => {
           const expanded = openIntent === intent;
+          // "Not sure" has no declared baseline: it is resolved to a real type
+          // for scoring — the chosen type when the toggle is on, else
+          // Owner-occupied (silently). Its pills reflect that resolved type; it
+          // has no editable outcomes of its own.
+          const isNotSure = intent === 'not-sure';
+          const sourceIntent = isNotSure
+            ? (notSureResolve ? notSureResolveAs : 'owner-occupied')
+            : intent;
           return (
             <div key={intent} className="border-t border-line">
               <button
@@ -416,7 +431,16 @@ function ScanConfigScreen({
                   {OCC_INTENT_LABEL[intent]}
                 </span>
                 {OCC_VERDICTS.map((v: string) => {
-                  const status = matrix[intent][v];
+                  // "Not sure" with the toggle OFF is neutral — we don't surface
+                  // the silent Owner-occupied fallback as coloured outcomes.
+                  if (isNotSure && !notSureResolve) {
+                    return (
+                      <span key={v} className="font-sans text-caption text-ink-3" aria-hidden>
+                        —
+                      </span>
+                    );
+                  }
+                  const status = matrix[sourceIntent][v];
                   return (
                     <span key={v}>
                       <Pill variant={OCC_STATUS_TONE[status]} size="md">
@@ -429,18 +453,39 @@ function ScanConfigScreen({
 
               {expanded && (
                 <div className="pb-stack-md pl-5 flex flex-col gap-stack">
-                  {OCC_VERDICTS.map((v: string) => (
-                    <ChipRow
-                      key={v}
-                      label={`If ${(MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v]).toLowerCase()} — treat as`}
-                      value={matrix[intent][v]}
-                      onChange={(next: string) => setCell(intent, v, next)}
-                      options={OCC_STATUSES.map((s: string) => ({
-                        value: s,
-                        label: OCC_STATUS_LABEL[s],
-                      }))}
-                    />
-                  ))}
+                  {isNotSure ? (
+                    <>
+                      <Toggle
+                        checked={notSureResolve}
+                        onChange={setNotSureResolve}
+                        label="Resolve “Not sure” as a specific occupancy type"
+                      />
+                      {notSureResolve && (
+                        <ChipRow
+                          label="Treat “Not sure” as"
+                          value={notSureResolveAs}
+                          onChange={setNotSureResolveAs}
+                          options={OCC_INTENTS.filter((i: string) => i !== 'not-sure').map((i: string) => ({
+                            value: i,
+                            label: OCC_INTENT_LABEL[i],
+                          }))}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    OCC_VERDICTS.map((v: string) => (
+                      <ChipRow
+                        key={v}
+                        label={`If ${(MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v]).toLowerCase()} — treat as`}
+                        value={matrix[intent][v]}
+                        onChange={(next: string) => setCell(intent, v, next)}
+                        options={OCC_STATUSES.map((s: string) => ({
+                          value: s,
+                          label: OCC_STATUS_LABEL[s],
+                        }))}
+                      />
+                    ))
+                  )}
                 </div>
               )}
             </div>

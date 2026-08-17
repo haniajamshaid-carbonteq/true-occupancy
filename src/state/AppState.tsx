@@ -246,13 +246,23 @@ function batchIntentBreakdown(summary: { counts: Record<string, number> }): stri
 }
 
 // Declared × observed → reconciliation. null when the row isn't scanned yet.
-// 'not-sure' never yields an exception (no reference to judge against). risk:
+// 'not-sure' has no baseline of its own, so it mirrors the org's default
+// intended occupancy (same as the config matrix does). risk:
 // 'risk' = Rented (tenants), 'warn' = Possibly rented, 'clean' = Not rented.
 type Reconciliation = 'exception' | 'consistent' | 'inconclusive';
 function reconcileOccupancy(intent: IntendedOccupancy, risk?: Risk): Reconciliation | null {
   if (!risk) return null;
-  if (intent === 'not-sure') return 'inconclusive';
-  if (intent === 'rental') {
+  // 'Not sure' resolves to a real type (chosen type when notSureResolve is on,
+  // else Owner-occupied) — same rule as the config matrix.
+  const resolved = DEFAULT_OCC_CONFIG.notSureResolve
+    ? DEFAULT_OCC_CONFIG.notSureResolveAs
+    : 'owner-occupied';
+  const eff: IntendedOccupancy =
+    intent === 'not-sure' && resolved !== 'not-sure'
+      ? (resolved as IntendedOccupancy)
+      : intent;
+  if (eff === 'not-sure') return 'inconclusive';
+  if (eff === 'rental') {
     // Non-owner occupancy is expected; only a "not rented" reading is unclear.
     return risk === 'clean' ? 'inconclusive' : 'consistent';
   }

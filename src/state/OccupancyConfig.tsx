@@ -101,6 +101,11 @@ interface OccConfig {
   version: number;
   /** Pre-fills every scan, batch and automation. Always overridable. */
   defaultIntent: OccIntent;
+  /** How an undeclared ("Not sure") property is resolved for scoring.
+   *  Off = silently assume Owner-occupied. On = treat it as `notSureResolveAs`
+   *  (one of the three real occupancy types). It never scores as its own row. */
+  notSureResolve: boolean;
+  notSureResolveAs: OccIntent;
   /** Org-wide bands. */
   thresholds: OccThresholds;
   /** Optional per-category override. Absent = inherit `thresholds`. */
@@ -146,6 +151,10 @@ interface OccSessionTimeout {
 const DEFAULT_OCC_CONFIG: OccConfig = {
   version: 1,
   defaultIntent: 'owner-occupied',
+  // Off by default: an undeclared property is silently treated as
+  // Owner-occupied. Turn on to resolve it as a specific type instead.
+  notSureResolve: false,
+  notSureResolveAs: 'owner-occupied',
   thresholds: { rentedAtOrAbove: 70, notRentedAtOrBelow: 30 },
   categoryThresholds: {},
   outcomeMatrix: {
@@ -155,8 +164,9 @@ const DEFAULT_OCC_CONFIG: OccConfig = {
     // the property outright — a Not-rented finding is not fraud, it is absent
     // expected income, which is still worth a look.
     rental: { 'not-rented': 'yellow', 'possibly-rented': 'red', rented: 'yellow' },
-    // Nothing was declared, so nothing can be confirmed against it: this row
-    // never starts green.
+    // 'Not sure' mirrors the default intended occupancy (see
+    // effectiveOutcomeIntent), so this stored row is only a fallback for the
+    // edge case where the default is itself 'not-sure'.
     'not-sure': { 'not-rented': 'yellow', 'possibly-rented': 'red', rented: 'red' },
   },
   recurring: { red: 'monthly', yellow: 'none', green: 'none' },
@@ -181,9 +191,19 @@ function deriveOccVerdict(confidence: number, config: OccConfig, intent: OccInte
   return 'possibly-rented';
 }
 
-/** Declared x verdict -> status. A pure matrix lookup, by design. */
+// 'Not sure' has no declared baseline of its own, so it is resolved to one of
+// the three real occupancy types for scoring: the type chosen when
+// `notSureResolve` is on, else Owner-occupied by default (silently). It never
+// scores as its own row.
+function effectiveOutcomeIntent(config: OccConfig, intent: OccIntent): OccIntent {
+  if (intent !== 'not-sure') return intent;
+  const as = config.notSureResolve ? config.notSureResolveAs : 'owner-occupied';
+  return as === 'not-sure' ? 'owner-occupied' : as;
+}
+
+/** Declared x verdict -> status. A pure matrix lookup; 'not-sure' mirrors the default. */
 function deriveOccStatus(config: OccConfig, intent: OccIntent, verdict: OccVerdict): OccStatus {
-  return config.outcomeMatrix[intent][verdict];
+  return config.outcomeMatrix[effectiveOutcomeIntent(config, intent)][verdict];
 }
 
 /** The two together — what nearly every consumer actually wants. */
@@ -225,9 +245,10 @@ interface OccMatch {
 }
 
 // (declared intent, observed risk) -> the reconciliation shown everywhere.
-// An absent intent falls back to 'not-sure', which can only be green/yellow —
-// so an undeclared scan is NEVER shown as "Needs review". Returns null only
-// when the row hasn't been scanned yet (no risk).
+// An absent intent falls back to 'not-sure', which mirrors the org's default
+// intended occupancy — so undeclared scans reconcile exactly like the default
+// type (and CAN be "Needs review"). Returns null only when the row hasn't been
+// scanned yet (no risk).
 function occMatchForRisk(
   intent: OccIntent | undefined,
   risk: 'clean' | 'warn' | 'risk' | undefined,
