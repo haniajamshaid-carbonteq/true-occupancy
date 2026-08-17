@@ -165,10 +165,4 @@ PR 7  W7           (needs PR 5)
 - Deep search on yellow/green (works against the scaled-cost model).
 - Outside pictures / image matching (research only, no UI expected).
 
-## Next week (queued, in order)
-1. **Red-flag rule productized** — "red → auto-schedule" (Aug-6 intent), plus fixing the red drawer's dead link to the retired "Configuration → Recurring scans" section. Ticket to be written.
-2. **Report TTL** — deny-serve beyond N days (July-30) — confirm agreement first.
-3. **Per-intent report variants** (Aug-6 commitment) — spec-first card.
-4. Revisit outside pictures + AI↔verdict reconciliation when the client decides.
-
 **Reading order for day 1:** `src/state/OccupancyConfig.tsx` → `src/state/AppState.tsx` (resolver seams, `aiPhase` conveyor, `retention`) → `src/pages/ScanConfigScreen.tsx` (Not-sure + AI toggle mocks) → `src/components/result/ConfidenceHero.tsx` + `CertificateSheet.tsx` (the flip) → `src/pages/HomeScreen.tsx` (`buildScanColumns`, matrix-derived ⚠).

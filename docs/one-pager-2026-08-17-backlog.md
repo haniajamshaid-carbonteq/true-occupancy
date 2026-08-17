@@ -65,13 +65,3 @@ Rules that keep it safe: one shared helper per concept (no per-screen reimplemen
 
 **Open decisions before dev hits them:** where the per-lender trigger config lives (#45, flagged in the scope note) · InfoHover tooltip extension sign-off (#42, #34/#36, #50) · "Deep Search" vs "Occupancy report" naming (#43).
 
----
-
-## Next week / remaining (not started — decided-but-unbuilt first)
-
-1. **Red-flag rule productized** — "red → auto-schedule" was demoed as intent (Aug 6) but has no ticket, and the red drawer links to a retired config section (dead link). Strongest next item.
-2. **Report TTL** — "don't *serve* results older than N days" (July 30). Freshness *flag* exists; the deny-serve half doesn't. Confirm it was truly agreed before building.
-3. **Per-intent report variants** — "different versions of the report per intended occupancy — we're working on that" (Aug 6). Needs a content spec first.
-4. **Outside pictures / image disambiguation** — no decision yet in the meetings ("research, no UI expected"); revisit when the client firms it up.
-5. **AI ↔ verdict reconciliation** — the Aug-13 open question (parked as a proposal; #52 is written to be safe either way).
-6. Paperwork: retro-tickets for the already-built Report freshness section and Flagged filters, if the board should be complete.
