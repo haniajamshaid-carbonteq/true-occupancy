@@ -1,5 +1,5 @@
 # True Occupancy — Backlog One-Pager
-**Date:** August 17, 2026 · **Board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) · **Cards:** #32 + #34–#52 (20, all in Backlog, all with screenshots)
+**Date:** August 17, 2026 · **Board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) · **Cards:** #32 + #34–#52 (most in Backlog; #40/#41 now In-Progress; #45 dropped). Screenshots for #40/#42 being refreshed.
 
 Every card follows the house format (Navigation → Why → What changes → Edge cases → Acceptance criteria) and carries its screen label. Reference implementation for ✅-marked items is live in `app.html` — commits **`dc0f0af`** (flip / Not-sure / AI toggle / red-list) and **`d68861c`** (Intended columns) on `main`; #32's fix is `49f95f0`.
 
@@ -35,7 +35,7 @@ Every card follows the house format (Navigation → Why → What changes → Edg
 | 46 | [Config: auto-run AI on red (opt-in, cost-flagged, single + batch)](https://trello.com/c/JoxL0aay) | ✅ built |
 | 43 | [Batch: AI reports as one batch job](https://trello.com/c/9VCxJ0it) | state scaffolded |
 | 44 | [Result: on-demand "Run now"](https://trello.com/c/tq4V52GW) | ✅ mostly exists |
-| 45 | [Config: per-lender "stop vs dig deeper" trigger](https://trello.com/c/qxF1op6e) | ✅ built (`1b3f477`) |
+| 45 | [Config: per-lender "matched listing" trigger — **removed**](https://trello.com/c/qxF1op6e) | 🗑 dropped (`8dbf53e`) |
 | 47 | [Result: caching + provenance "re-checked on X, identical"](https://trello.com/c/MhbruvTQ) | partial (ServedStamp) |
 | 49 | [Schedule detail: AI status on auto-triggered runs](https://trello.com/c/y8xPYnAU) | ✅ built (`1b3f477`) |
 | 50 | [Lists: "AI report available" marker](https://trello.com/c/zaXBlYZf) | ✅ built (`1b3f477`) |
@@ -57,11 +57,11 @@ PR 1  #34 foundation + #51 port          → tiny, unblocks everything; #51 keep
 PR 2  #35 #36 #37 #38 #39 #48            → the Intended columns (one shared builder feeds 35+36)
 PR 3  #40 #41                            → confidence flip (hero + PDF must land together)
 PR 4  #42                                → Not-sure config (needs InfoHover sign-off)
-PR 5  #46 → #43 + #44 (+#45 if config home decided)  → AI core: toggle first, then batch + run-now
+PR 5  #46 → #43 + #44                    → AI core: toggle first, then batch + run-now
 PR 6  #47 #49 #50                        → provenance + AI visibility (need PR 5)
 PR 7  #52                                → automation reaction (needs PR 5; mechanism = existing retention)
 ```
 Rules that keep it safe: one shared helper per concept (no per-screen reimplementation) · verdict-neutral copy is locked, port verbatim · the ⚠/pill/tile derivations must always agree (see #51's regression list).
 
-**Open decisions before dev hits them:** where the per-lender trigger config lives (#45, flagged in the scope note) · InfoHover tooltip extension sign-off (#42, #34/#36, #50) · "Deep Search" vs "Occupancy report" naming (#43).
+**Open decisions before dev hits them:** InfoHover tooltip extension sign-off (#34/#36, #50) · "Deep Search" vs "Occupancy report" naming (#43).
 

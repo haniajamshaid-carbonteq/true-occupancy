@@ -13,6 +13,8 @@
 - **Push status (as of Aug 17):** all commits below are **pushed to `origin/main`** (HEAD `f38febf`). The GitHub commit links resolve. Clone `main` to get the full prototype.
 - **Session commits, newest first:**
   - `dd679a2` — feat: "Not sure" resolves to a chosen occupancy type — toggle + selector (#42)
+  - `b842741` — docs(screenshots): regen AI report config — toggle only (#45 removed)
+  - `8dbf53e` — feat: remove the per-lender "matched listing" trigger (#45)
   - `6244459` — feat: revert Not-sure resemblance layer (#42); label hero metric "Confidence" (#40)
   - `6eb19d0` — docs(screenshots): unsaved-changes banner for #32
   - `bca6044` — docs(handoff): mark #45/#49/#50 implemented
@@ -28,13 +30,13 @@
 
 Same contract as the [Aug-10 reconciliation handoff](handoff-2026-08-10-reconciliation.md): the Trello cards are per-screen because that is how QA verifies; this doc regroups them into **workstreams by shared code** so the derivation is written once, not six times. A card is done when every workstream listed against it has landed. **The prototype is the spec** — where copy or fallback behaviour is ambiguous, read `app.html` before inventing an answer.
 
-Grounding: the [July-23 scope note](../TrueOccupancy-Scope-2026-07-23.pdf notes in one-pager) fixed the AI-report scope (batch, run-now, auto-run-on-red, provenance, per-lender trigger). The Aug-13 meeting fixed the declared-occupancy column. Anything beyond those is explicitly *not* in this release (see "Not in this release").
+Grounding: the [July-23 scope note](../TrueOccupancy-Scope-2026-07-23.pdf notes in one-pager) fixed the AI-report scope (batch, run-now, auto-run-on-red, provenance; the per-lender trigger was later dropped). The Aug-13 meeting fixed the declared-occupancy column. Anything beyond those is explicitly *not* in this release (see "Not in this release").
 
 ---
 
 ## Read this first: three decisions block work
 
-1. **Where does per-lender AI-trigger config live?** (#45) — per-org settings on the Config page is assumed; the scope note flags it as open. Blocks #45 only.
+1. ~~Where does per-lender AI-trigger config live? (#45)~~ — **resolved: the per-lender trigger was removed** (#45 is now that removal, `8dbf53e`).
 2. **`InfoHover` tooltip extension** — the registered `Tooltip` is truncation-gated; the "Mixed" hover (#34/#36) and the AI marker hover (#50) need a general hover tooltip. (#42's tooltip was removed with the resemblance layer, so it no longer drives this.) The prototype now uses a native `title` for the "Mixed"/AI hovers; a candidate `InfoHover` from an earlier revision (grey bubble: `surface-2`/`ink-2`/`line` tokens) can be revived for production, pending design-system sign-off.
 3. **Naming: "Deep Search" vs "Occupancy report"** (#43) — the action vs the artifact. Note `OccDepth` (`standard`/`deep-ambiguous`/`deep-always`) already exists as a *scan-depth* config; do not let the feature name collide with it.
 
@@ -98,9 +100,9 @@ Production notes: the "Mixed" hover uses a native `title` in the prototype — p
 **Decision (Aug 17): "Not sure" resolves to a real occupancy type — it has no outcomes of its own.** The Not-sure matrix row loses its three colour selectors and gains a **toggle**: OFF (default) silently scores it as **Owner-occupied**, and the row's cells render **neutral (—)** (the fallback is never surfaced as colours/copy); ON reveals a **"Treat 'Not sure' as"** selector (Owner-occupied / Second home / Rental / investment) that drives the pills and all scoring. New `OccConfig` fields `notSureResolve` / `notSureResolveAs`. A single `effectiveOutcomeIntent()` resolves `not-sure` for **both** the config matrix (`occMatchForRisk`/`deriveOccStatus`) and the legacy `reconcileOccupancy` (BatchScreen), so Dashboard, History, batch reds, result pages and the PDF all agree — an undeclared property reconciles exactly like the resolved type (it CAN be "Needs review"). Scan-intake copy updated accordingly.
 
 ### W5 — AI report core
-**Closes:** #46 → #43 #44 #45 · #46 + #45 ✅ in prototype (`dc0f0af`, `1b3f477`)
+**Closes:** #46 → #43 #44 · #46 ✅ in prototype (`dc0f0af`). (#45 per-lender trigger was **removed** — `8dbf53e`.)
 - #46: one opt-in toggle, OFF by default, copy states **single + batch** coverage and the **cost** reason. On: red from a single scan auto-runs the report; a batch finds its red rows and runs them.
-- #45: the per-lender trigger now sits directly under the toggle — "When a scan finds a matched listing, treat it as → *A cue to dig deeper (run the AI report)* / *Conclusive on its own (flag and stop)*". Where it lives is thereby answered: the Config "AI report" section; confirm at review.
+- #45: **removed.** The per-lender "matched listing → dig deeper / flag and stop" trigger was dropped (`8dbf53e`); the AI-report section is now just the auto-run toggle.
 - #43: batch job over `LiveBatch.aiPhase` / per-row `aiReport` (state machine already in `AppState.tsx` — the sim conveyor is the seam a real backend replaces). Per-row retry for failures; notification-dock "AI reports · N of M" states need speccing.
 - #44: run-now must bypass the batch queue; add a cost hint at the CTA.
 - AI-report **scheduling stays deferred** (human-in-the-loop, per scope).
