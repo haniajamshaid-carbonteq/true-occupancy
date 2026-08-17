@@ -12,6 +12,7 @@
 - **Repo:** `github.com/haniajamshaid-carbonteq/true-occupancy` · **Branch:** `main`
 - **Push status (as of Aug 17):** all commits below are **pushed to `origin/main`** (HEAD `f38febf`). The GitHub commit links resolve. Clone `main` to get the full prototype.
 - **Session commits, newest first:**
+  - `dd679a2` — feat: "Not sure" resolves to a chosen occupancy type — toggle + selector (#42)
   - `6244459` — feat: revert Not-sure resemblance layer (#42); label hero metric "Confidence" (#40)
   - `6eb19d0` — docs(screenshots): unsaved-changes banner for #32
   - `bca6044` — docs(handoff): mark #45/#49/#50 implemented
@@ -93,8 +94,8 @@ Production notes: the "Mixed" hover uses a native `title` in the prototype — p
 ![Certificate after](../ticket-screenshots/41-certificate-flip.png)
 
 ### W4 — "Not sure" config
-**Closes:** #42 · **Independent** · **✅ reverted in the prototype (`6244459`)**
-**Decision (Aug 17): the resemblance layer is dropped.** The prototyped ⓘ tooltip + "Resolve by resemblance" toggle + "likely to look like" dropdown were removed — "Not sure" is a **plain matrix row identical to the other intents**, carrying only its own three outcome filters. No new `OccConfig` fields, no `InfoHover`, no special-casing. Nothing to build here beyond making sure "Not sure" is not treated differently from Owner-occupied / Second home / Rental in the matrix editor.
+**Closes:** #42 · **Independent** · **✅ implemented in the prototype (`dd679a2`)**
+**Decision (Aug 17): "Not sure" resolves to a real occupancy type — it has no outcomes of its own.** The Not-sure matrix row loses its three colour selectors and gains a **toggle**: OFF (default) silently scores it as **Owner-occupied**, and the row's cells render **neutral (—)** (the fallback is never surfaced as colours/copy); ON reveals a **"Treat 'Not sure' as"** selector (Owner-occupied / Second home / Rental / investment) that drives the pills and all scoring. New `OccConfig` fields `notSureResolve` / `notSureResolveAs`. A single `effectiveOutcomeIntent()` resolves `not-sure` for **both** the config matrix (`occMatchForRisk`/`deriveOccStatus`) and the legacy `reconcileOccupancy` (BatchScreen), so Dashboard, History, batch reds, result pages and the PDF all agree — an undeclared property reconciles exactly like the resolved type (it CAN be "Needs review"). Scan-intake copy updated accordingly.
 
 ### W5 — AI report core
 **Closes:** #46 → #43 #44 #45 · #46 + #45 ✅ in prototype (`dc0f0af`, `1b3f477`)
@@ -151,7 +152,7 @@ PR 7  W7           (needs PR 5)
 - [ ] Declared value for one address identical on Dashboard, History, Batch, Scheduled, run history, PDF.
 - [ ] "Mixed" appears iff a batch's resolved intents differ; counts on hover sum to the batch total.
 - [ ] Confidence % + finding label agree with the verdict pill on every surface; screen and PDF show the same figure; metric labelled "Confidence".
-- [ ] "Not sure" is a plain matrix row — no toggle, dropdown, or ⓘ — with only its three outcome filters.
+- [ ] "Not sure" row: toggle OFF → neutral (—) cells + silent Owner-occupied scoring; ON → the three-type selector drives pills and scoring; undeclared reconciles like the resolved type everywhere.
 - [ ] AI auto-run fires only on red, only when opted in; yellow/green stay on-demand; run-now always works.
 - [ ] A status change (any source) re-evaluates automation membership; cleared red = stopped rule, visible in the drawer.
 - [ ] `isRedAddress` deleted; grep clean; editing the outcome matrix moves every ⚠/count on next read.

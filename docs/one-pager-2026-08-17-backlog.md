@@ -27,7 +27,7 @@ Every card follows the house format (Navigation → Why → What changes → Edg
 **3 · "Not sure" configuration**
 | # | Card | Prototype |
 |---|---|---|
-| 42 | [Config: "Not sure" — remove resemblance layer, keep plain matrix row](https://trello.com/c/HECw9VPg) | ✅ reverted (`6244459`) |
+| 42 | [Config: "Not sure" — toggle to resolve as a set occupancy type](https://trello.com/c/HECw9VPg) | ✅ built (`dd679a2`) |
 
 **4 · AI report (Deep Search) — the July-23 confirmed scope**
 | # | Card | Prototype |
