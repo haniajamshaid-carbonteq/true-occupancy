@@ -310,7 +310,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
             className="font-sans font-semibold leading-[0.95] tracking-[-0.012em]"
             style={{ fontSize: "var(--text-h1)", color: 'var(--navy)' }}
           >
-            {rentalConfidenceMode ? verdictLabel : match ? match.label : VERDICT_TEXT[scenario]}
+            {match ? match.label : VERDICT_TEXT[scenario]}
           </div>
           </div>
           <div className="mt-3">
@@ -364,7 +364,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               </div>
               <p className="mt-1.5 font-sans text-caption text-ink-2 leading-snug m-0">
                 {rentalConfidenceMode
-                  ? '“Not sure” gives no baseline to reconcile against, so the finding is informational — the number is the observed rental likelihood.'
+                  ? `The scan found ${verdictLabel}. No baseline was declared, so this outcome follows your organisation's “Not sure” handling — the number is the observed rental likelihood.`
                   : reconciliationWhy(match.status, verdictLabel, intent ? INTENDED_OCCUPANCY_LABEL[intent] : undefined)}
               </p>
               {/* Red single scan → advise setting up a recurring re-scan. Opens
