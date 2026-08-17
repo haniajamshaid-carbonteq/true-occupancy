@@ -12,7 +12,11 @@
 - **Repo:** `github.com/haniajamshaid-carbonteq/true-occupancy` · **Branch:** `main`
 - **Push status (as of Aug 17):** all commits below are **pushed to `origin/main`** (HEAD `f38febf`). The GitHub commit links resolve. Clone `main` to get the full prototype.
 - **Session commits, newest first:**
-  - `c0ca409` — feat: neutral result headline/why for Not-sure + toggle OFF (#40)
+  - `8a58e6a` — docs(screenshots): Not-sure hero re-shoot (reconciliation headline)
+  - `7495125` — fix: Not-sure hero keeps the reconciliation headline (#40)
+  - `fa57634` — fix: Not sure remains Not sure everywhere — resolve choice drives colours only (#40–#42)
+  - `72bf6a7` — docs(screenshots): regen #40/#42 (toggle design + Confidence/Rental Confidence)
+  - `c0ca409` — feat: neutral result why-line for Not-sure (#40)
   - `c38aabf` — feat: "Rental Confidence" (raw) for Not-sure + toggle OFF (#40/#41)
   - `157ea16` — docs: scrub stale #45 (per-lender removed) references
   - `dd679a2` — feat: "Not sure" resolves to a chosen occupancy type — toggle + selector (#42)
@@ -88,7 +92,7 @@ Production notes: the "Mixed" hover uses a native `title` in the prototype — p
 
 ### W3 — Confidence flip
 **Closes:** #40 #41 · **Independent** · **✅ fully implemented in the prototype**
-`ConfidenceHero.tsx` (flip + finding-labelled copy, metric labelled **"Confidence"**) and `CertificateSheet.tsx` (main finding + per-row history — each row flips on **its own** verdict). Port verbatim. Nomenclature: the metric is **"Confidence"** — *not* "Rental Confidence", which the flip makes contradictory on not-rented (`6244459`). **Exception — "Not sure" + org toggle OFF** (`c38aabf`, `c0ca409`): no baseline to flip against, so the number stays the **raw** rented-probability labelled **"Rental Confidence"** ("12% — unlikely a rental"), and the detail page goes **neutral** — headline = raw finding, why-line = informational (no reconciliation verdict); lists keep the Owner-occupied triage colour. Do **not** flip: `RedPropertyDrawer:212` (always the rented branch), `ListingsPanel` Confidence (listing-match, different number), `AIInvestigator` scores.
+`ConfidenceHero.tsx` (flip + finding-labelled copy, metric labelled **"Confidence"**) and `CertificateSheet.tsx` (main finding + per-row history — each row flips on **its own** verdict). Port verbatim. Nomenclature: the metric is **"Confidence"** — *not* "Rental Confidence", which the flip makes contradictory on not-rented (`6244459`). **Exception — declared "Not sure", any toggle state** (`c38aabf`, `c0ca409`, `fa57634`, `7495125`): "Not sure" remains Not sure everywhere — the #42 resolve choice drives triage colours only. The number stays the **raw** rented-probability labelled **"Rental Confidence"** ("12% — unlikely a rental"); the **headline keeps the reconciliation vocabulary** (Consistent / Inconclusive / Needs review, same as the tables); the why-line names the finding and the org's Not-sure handling. Do **not** flip: `RedPropertyDrawer:212` (always the rented branch), `ListingsPanel` Confidence (listing-match, different number), `AIInvestigator` scores.
 
 **Before:** a not-rented result showed the raw rented-probability — `12% confidence` — under a "Consistent"/"Not Rented" headline, reading as if we were unsure. **After (built):**
 
