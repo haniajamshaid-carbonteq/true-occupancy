@@ -12,6 +12,9 @@
 - **Repo:** `github.com/haniajamshaid-carbonteq/true-occupancy` · **Branch:** `main`
 - **Push status (as of Aug 17):** all commits below are **pushed to `origin/main`** (HEAD `f38febf`). The GitHub commit links resolve. Clone `main` to get the full prototype.
 - **Session commits, newest first:**
+  - `c0ca409` — feat: neutral result headline/why for Not-sure + toggle OFF (#40)
+  - `c38aabf` — feat: "Rental Confidence" (raw) for Not-sure + toggle OFF (#40/#41)
+  - `157ea16` — docs: scrub stale #45 (per-lender removed) references
   - `dd679a2` — feat: "Not sure" resolves to a chosen occupancy type — toggle + selector (#42)
   - `b842741` — docs(screenshots): regen AI report config — toggle only (#45 removed)
   - `8dbf53e` — feat: remove the per-lender "matched listing" trigger (#45)
@@ -85,7 +88,7 @@ Production notes: the "Mixed" hover uses a native `title` in the prototype — p
 
 ### W3 — Confidence flip
 **Closes:** #40 #41 · **Independent** · **✅ fully implemented in the prototype**
-`ConfidenceHero.tsx` (flip + finding-labelled copy, metric labelled **"Confidence"**) and `CertificateSheet.tsx` (`:240` main finding, `:779` per-row history — each row flips on **its own** verdict). Port verbatim. Nomenclature: the metric is **"Confidence"** — *not* "Rental Confidence", which the flip makes contradictory on not-rented (`6244459`). Do **not** flip: `RedPropertyDrawer:212` (always the rented branch), `ListingsPanel` Confidence (listing-match, different number), `AIInvestigator` scores.
+`ConfidenceHero.tsx` (flip + finding-labelled copy, metric labelled **"Confidence"**) and `CertificateSheet.tsx` (main finding + per-row history — each row flips on **its own** verdict). Port verbatim. Nomenclature: the metric is **"Confidence"** — *not* "Rental Confidence", which the flip makes contradictory on not-rented (`6244459`). **Exception — "Not sure" + org toggle OFF** (`c38aabf`, `c0ca409`): no baseline to flip against, so the number stays the **raw** rented-probability labelled **"Rental Confidence"** ("12% — unlikely a rental"), and the detail page goes **neutral** — headline = raw finding, why-line = informational (no reconciliation verdict); lists keep the Owner-occupied triage colour. Do **not** flip: `RedPropertyDrawer:212` (always the rented branch), `ListingsPanel` Confidence (listing-match, different number), `AIInvestigator` scores.
 
 **Before:** a not-rented result showed the raw rented-probability — `12% confidence` — under a "Consistent"/"Not Rented" headline, reading as if we were unsure. **After (built):**
 
