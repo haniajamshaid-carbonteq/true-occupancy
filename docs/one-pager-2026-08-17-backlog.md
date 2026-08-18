@@ -1,5 +1,5 @@
 # True Occupancy — Backlog One-Pager
-**Date:** August 17, 2026 · **Board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) · **Cards:** #32 + #34–#52 (most in Backlog; #40/#41 now In-Progress; #45 dropped). Screenshots for #40/#42 being refreshed.
+**Date:** August 17, 2026 · **Board:** [True Occupancy](https://trello.com/b/U1EtLHku/true-occupancy) · **Cards:** #32 + #34–#52 (most in Backlog; **#40/#41/#42 on hold in Blocked** pending the Not-sure decisions; #45 dropped). #40/#42 screenshots refreshed.
 
 Every card follows the house format (Navigation → Why → What changes → Edge cases → Acceptance criteria) and carries its screen label. Reference implementation for ✅-marked items is live in `app.html` — commits **`dc0f0af`** (flip / Not-sure / AI toggle / red-list) and **`d68861c`** (Intended columns) on `main`; #32's fix is `49f95f0`.
 
