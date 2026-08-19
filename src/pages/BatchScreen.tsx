@@ -1061,7 +1061,7 @@ const VERDICT_LABEL: Record<Risk, string> = {
 // Map a row's risk band to the matching detail-screen route, so the demo
 // has somewhere believable to drill into.
 // Column set shown when the batch table is filtered to Red flags. Trades the
-// score/AI columns for Declared vs Found, so the reason a row is red
+// score/listings/AI columns for Declared vs Found, so the reason a row is red
 // is visible in-line (mirrors the standalone red list). Few, modest widths so
 // the address track keeps its room.
 function buildBatchRedColumns(defaultIntent?: IntendedOccupancy): any[] {
@@ -1190,7 +1190,7 @@ function buildBatchColumns(
     // batch with neither reads "Not sure", never blank.
     key: 'declared',
     label: 'Declared',
-    width: '140px',
+    width: '130px',
     hideBelow: 'md' as const,
     cell: (row: BatchRow) => (
       <span className="font-sans text-caption text-ink-2">
@@ -1201,7 +1201,7 @@ function buildBatchColumns(
   {
     key: 'score',
     label: 'Score',
-    width: '150px',
+    width: '128px',
     hideBelow: 'sm' as const,
     cell: (row: BatchRow) => {
       if (row.status !== 'done') {
@@ -1255,6 +1255,21 @@ function buildBatchColumns(
       }
       return <Pill>Queued</Pill>;
     },
+  },
+  {
+    key: 'listings',
+    label: 'Listings',
+    width: '88px',
+    align: 'right' as const,
+    hideBelow: 'md' as const,
+    cell: (row: BatchRow) =>
+      row.status === 'done' ? (
+        <span className="font-mono tabular-nums text-caption text-ink-3">
+          {row.listings} found
+        </span>
+      ) : (
+        <span className="text-ink-4">—</span>
+      ),
   },
   {
     key: 'aireport',
