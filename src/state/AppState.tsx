@@ -151,6 +151,11 @@ interface SingleScheduleEntry {
    *  At minimum holds the originating scan that allowed the user to
    *  automate this address. Empty arrays only occur for legacy seeds. */
   runHistoryIds: string[];
+  /** Lifecycle. Absent = 'active'. Cancelled entries keep their row so the
+   *  Scheduled list can still say when the automation stopped. */
+  status?: 'active' | 'cancelled';
+  /** Epoch ms of cancellation — set together with status: 'cancelled'. */
+  cancelledAt?: number;
 }
 
 interface BatchScheduleEntry {
@@ -175,6 +180,11 @@ interface BatchScheduleEntry {
    *  description does NOT mirror here — it only surfaces on the batch
    *  detail page per the locked design. */
   title?: string;
+  /** Lifecycle. Absent = 'active'. Cancelled entries keep their row so the
+   *  Scheduled list can still say when the automation stopped. */
+  status?: 'active' | 'cancelled';
+  /** Epoch ms of cancellation — set together with status: 'cancelled'. */
+  cancelledAt?: number;
 }
 
 type ScheduleEntry = SingleScheduleEntry | BatchScheduleEntry;
@@ -538,6 +548,11 @@ const SEED_SCHEDULES: ScheduleEntry[] = [
   { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadence: CAD_3MO,     nextRunLabel: formatNextRun(CAD_3MO),     createdAt: seedTime('2h'),   runHistoryIds: ['hb1', 'hr02a'], statuses: ['risk', 'warn'], retention: 'monitor', title: 'Asheville Spring Sweep' },
   { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadence: CAD_MONTHLY, nextRunLabel: formatNextRun(CAD_MONTHLY), createdAt: seedTime('3h'),   runHistoryIds: ['h03', 'hr03a'] },
   { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadence: CAD_WEEKLY,  nextRunLabel: formatNextRun(CAD_WEEKLY),  createdAt: seedTime('1d'), runHistoryIds: ['h07', 'hr04a'] },
+  // Cancelled seeds — one per kind, so the Scheduled list demos the retained
+  // cancelled row (status icon + hover fact) for both flows. The `—` label
+  // sinks them below every active row in the default next-run sort.
+  { id: 's05', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',     scenario: 'low',  cadence: CAD_MONTHLY, nextRunLabel: '—', createdAt: seedTime('2w'), runHistoryIds: ['h04'], status: 'cancelled', cancelledAt: seedTime('3d') },
+  { id: 's06', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,          cadence: CAD_3MO,     nextRunLabel: '—', createdAt: seedTime('6w'), runHistoryIds: ['hb0'], statuses: ['risk', 'warn'], retention: 'monitor', status: 'cancelled', cancelledAt: seedTime('5d') },
 ];
 
 // Batch sample addresses — kept identical to the previous BatchScreen mock
@@ -1071,8 +1086,18 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  // Cancelling keeps the row — flagged cancelled, next run cleared — so the
+  // Scheduled list can still answer "what happened to this automation?".
+  // The `—` next-run label is what the list's ascending sort keys on to sink
+  // cancelled rows to the bottom.
   const cancelSchedule = React.useCallback((id: string) => {
-    setSchedules((s) => s.filter((entry) => entry.id !== id));
+    setSchedules((s) =>
+      s.map((entry) =>
+        entry.id === id
+          ? { ...entry, status: 'cancelled' as const, cancelledAt: Date.now(), nextRunLabel: '—' }
+          : entry
+      )
+    );
   }, []);
 
   const dismissTransient = React.useCallback((id: string) => {
@@ -1096,6 +1121,9 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   const findScheduleByTarget = React.useCallback(
     (target: ScheduleTarget): ScheduleEntry | null => {
       const match = schedules.find((entry) => {
+        // A cancelled schedule no longer owns its target — the Automate CTA
+        // must reappear for that address/file rather than read as automated.
+        if (entry.status === 'cancelled') return false;
         if (entry.kind !== target.kind) return false;
         if (entry.kind === 'single' && target.kind === 'single') {
           return entry.address === target.address;

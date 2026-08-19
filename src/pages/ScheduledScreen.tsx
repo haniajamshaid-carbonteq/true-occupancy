@@ -17,6 +17,34 @@ function nextRunTime(label: string | undefined | null): number {
   return Number.isNaN(t) ? Infinity : t;
 }
 
+// "Aug 14, 2026" — same shape as the next-run labels, so the cancelled-on
+// fact in the Type cell's hover reads like the rest of the schedule dates.
+function cancelledOnLabel(ts?: number): string {
+  if (!ts) return 'an earlier date';
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Schedule lifecycle marker beside the Type pill: ✓ active / ✕ cancelled,
+// with the fact itself on hover (native title, same dependency-free idiom
+// as RedFlag). State palette, not status/verdict — this is the app talking
+// about its own automation, never about the property.
+function ScheduleStateIcon({ row }: { row: any }) {
+  const cancelled = row.status === 'cancelled';
+  const fact = cancelled
+    ? `Cancelled on ${cancelledOnLabel(row.cancelledAt)}`
+    : `Active — next run ${row.nextRunLabel}`;
+  return (
+    <span
+      className="inline-flex items-center shrink-0"
+      style={{ color: cancelled ? 'var(--ink-4)' : 'var(--success)' }}
+      title={fact}
+      aria-label={fact}
+    >
+      <Icon name={cancelled ? 'x' : 'check'} size={13} />
+    </span>
+  );
+}
+
 function ScheduledScreen() {
   const routerHistory = ReactRouterDOM.useHistory();
   const { schedules, history, loading, error } = useAppState();
@@ -107,8 +135,13 @@ function ScheduledScreen() {
     {
       key: 'type',
       label: 'Type',
-      width: '96px',
-      cell: (r: any) => <Pill>{r.kind === 'batch' ? 'Batch' : 'Single'}</Pill>,
+      width: '116px',
+      cell: (r: any) => (
+        <div className="flex items-center gap-inline">
+          <Pill>{r.kind === 'batch' ? 'Batch' : 'Single'}</Pill>
+          <ScheduleStateIcon row={r} />
+        </div>
+      ),
     },
     {
       key: 'target',
