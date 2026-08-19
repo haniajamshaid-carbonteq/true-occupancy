@@ -1,7 +1,7 @@
 /* global React, AppShell, Card, Icon, Pill, Modal, Button, DataTable, AutomateModal, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT, splitAddress, deriveTitleFromFilename, ScreenError,
    Cadence, ScopeRetention, cadenceLabel, sameCadence, occMatchForRisk, SCENARIOS, OCC_INTENT_LABEL, timeAgo,
-   summarizeBatchIntent, batchIntentBreakdown */
+   summarizeBatchIntent, batchIntentBreakdown, scheduleEndLine, scheduleEndFact */
 // Schedule detail — full page for a scheduled automation.
 // Layout:
 //   1. Header bar  — back link (left) + Cancel automation (right, destructive)
@@ -354,7 +354,14 @@ function ScheduleDetailScreen() {
                       />
                     );
                   })()}
-                  <RuleField label="Next run" value={schedule.nextRunLabel} />
+                  {/* Ended schedules show the same "Cancelled/Stopped on
+                      <date>" line (and hover reason) as the Scheduled list,
+                      via the shared AppState vocabulary — one fact everywhere. */}
+                  <RuleField
+                    label="Next run"
+                    value={scheduleEndLine(schedule) ?? schedule.nextRunLabel}
+                    title={scheduleEndFact(schedule) ?? undefined}
+                  />
                   <RuleField label="Created" value={timeAgo(schedule.createdAt)} />
                   <RuleField label="Runs to date" value={String(runs.length)} />
                 </dl>
@@ -544,7 +551,7 @@ function ScopeRuleField({
 
 // Single field cell — eyebrow label above a navy semibold value, matched
 // to the typography ramp used everywhere else (eyebrow + body-sm).
-function RuleField({ label, value }: { label: string; value: string }) {
+function RuleField({ label, value, title }: { label: string; value: string; title?: string }) {
   return (
     <div className="min-w-0">
       <dt
@@ -556,6 +563,7 @@ function RuleField({ label, value }: { label: string; value: string }) {
       <dd
         className="font-sans text-body-sm font-semibold m-0 truncate"
         style={{ color: 'var(--navy)' }}
+        title={title}
       >
         {value}
       </dd>

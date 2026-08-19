@@ -38,6 +38,35 @@ function timeAgo(ts: number): string {
   return `${years} y ago`;
 }
 
+// ---- Ended-schedule display vocabulary --------------------------------
+// Shared by the Scheduled list and the schedule detail page so the same
+// fact reads identically everywhere. 'cancelled' = the user ended the
+// automation; 'stopped' = the system did (retention 'remove', status
+// change, …). Extend the tag map when a new end reason is introduced.
+const SCHEDULE_ENDED_TAG: Record<string, string> = {
+  cancelled: 'Cancelled',
+  stopped: 'Stopped',
+};
+
+// "Aug 14, 2026" — same shape as the next-run labels.
+function scheduleEndedOn(ts?: number): string {
+  if (!ts) return 'an earlier date';
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// The visible line: "Cancelled on Aug 16, 2026". Null while active.
+function scheduleEndLine(entry: { status?: string; endedAt?: number }): string | null {
+  const tag = SCHEDULE_ENDED_TAG[entry?.status ?? ''];
+  return tag ? `${tag} on ${scheduleEndedOn(entry.endedAt)}` : null;
+}
+
+// The hover fact: the line plus the recorded reason, when there is one.
+function scheduleEndFact(entry: { status?: string; endedAt?: number; endReason?: string }): string | null {
+  const line = scheduleEndLine(entry);
+  if (!line) return null;
+  return entry.endReason ? `${line} — ${entry.endReason}` : line;
+}
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -151,11 +180,16 @@ interface SingleScheduleEntry {
    *  At minimum holds the originating scan that allowed the user to
    *  automate this address. Empty arrays only occur for legacy seeds. */
   runHistoryIds: string[];
-  /** Lifecycle. Absent = 'active'. Cancelled entries keep their row so the
-   *  Scheduled list can still say when the automation stopped. */
-  status?: 'active' | 'cancelled';
-  /** Epoch ms of cancellation — set together with status: 'cancelled'. */
-  cancelledAt?: number;
+  /** Lifecycle. Absent = 'active'. Ended entries keep their row so the
+   *  Scheduled list can still say when — and why — the automation ended:
+   *  'cancelled' = the user ended it; 'stopped' = the system ended it
+   *  (e.g. every property left the selected verdict bands under
+   *  retention 'remove'). */
+  status?: 'active' | 'cancelled' | 'stopped';
+  /** Epoch ms when the schedule ended — set with any non-active status. */
+  endedAt?: number;
+  /** Short human reason for the hover fact (mainly for 'stopped'). */
+  endReason?: string;
 }
 
 interface BatchScheduleEntry {
@@ -180,11 +214,16 @@ interface BatchScheduleEntry {
    *  description does NOT mirror here — it only surfaces on the batch
    *  detail page per the locked design. */
   title?: string;
-  /** Lifecycle. Absent = 'active'. Cancelled entries keep their row so the
-   *  Scheduled list can still say when the automation stopped. */
-  status?: 'active' | 'cancelled';
-  /** Epoch ms of cancellation — set together with status: 'cancelled'. */
-  cancelledAt?: number;
+  /** Lifecycle. Absent = 'active'. Ended entries keep their row so the
+   *  Scheduled list can still say when — and why — the automation ended:
+   *  'cancelled' = the user ended it; 'stopped' = the system ended it
+   *  (e.g. every property left the selected verdict bands under
+   *  retention 'remove'). */
+  status?: 'active' | 'cancelled' | 'stopped';
+  /** Epoch ms when the schedule ended — set with any non-active status. */
+  endedAt?: number;
+  /** Short human reason for the hover fact (mainly for 'stopped'). */
+  endReason?: string;
 }
 
 type ScheduleEntry = SingleScheduleEntry | BatchScheduleEntry;
@@ -548,11 +587,12 @@ const SEED_SCHEDULES: ScheduleEntry[] = [
   { id: 's02', kind: 'batch',  filename: 'asheville-q1-2026.csv', total: 24,         cadence: CAD_3MO,     nextRunLabel: formatNextRun(CAD_3MO),     createdAt: seedTime('2h'),   runHistoryIds: ['hb1', 'hr02a'], statuses: ['risk', 'warn'], retention: 'monitor', title: 'Asheville Spring Sweep' },
   { id: 's03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high', cadence: CAD_MONTHLY, nextRunLabel: formatNextRun(CAD_MONTHLY), createdAt: seedTime('3h'),   runHistoryIds: ['h03', 'hr03a'] },
   { id: 's04', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'high', cadence: CAD_WEEKLY,  nextRunLabel: formatNextRun(CAD_WEEKLY),  createdAt: seedTime('1d'), runHistoryIds: ['h07', 'hr04a'] },
-  // Cancelled seeds — one per kind, so the Scheduled list demos the retained
-  // cancelled row (status icon + hover fact) for both flows. The `—` label
-  // sinks them below every active row in the default next-run sort.
-  { id: 's05', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',     scenario: 'low',  cadence: CAD_MONTHLY, nextRunLabel: '—', createdAt: seedTime('2w'), runHistoryIds: ['h04'], status: 'cancelled', cancelledAt: seedTime('3d') },
-  { id: 's06', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,          cadence: CAD_3MO,     nextRunLabel: '—', createdAt: seedTime('6w'), runHistoryIds: ['hb0'], statuses: ['risk', 'warn'], retention: 'monitor', status: 'cancelled', cancelledAt: seedTime('5d') },
+  // Ended seeds — one per end reason, so the Scheduled list demos both
+  // retained-row states (tag under Next run + hover fact): a user-cancelled
+  // single, and a batch the system stopped after a status change. The `—`
+  // label sinks them below every active row in the default next-run sort.
+  { id: 's05', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',     scenario: 'low',  cadence: CAD_MONTHLY, nextRunLabel: '—', createdAt: seedTime('2w'), runHistoryIds: ['h04'], status: 'cancelled', endedAt: seedTime('3d') },
+  { id: 's06', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,          cadence: CAD_3MO,     nextRunLabel: '—', createdAt: seedTime('6w'), runHistoryIds: ['hb0'], statuses: ['risk', 'warn'], retention: 'remove', status: 'stopped', endedAt: seedTime('5d'), endReason: 'every property left the selected verdict bands' },
 ];
 
 // Batch sample addresses — kept identical to the previous BatchScreen mock
@@ -1094,7 +1134,7 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
     setSchedules((s) =>
       s.map((entry) =>
         entry.id === id
-          ? { ...entry, status: 'cancelled' as const, cancelledAt: Date.now(), nextRunLabel: '—' }
+          ? { ...entry, status: 'cancelled' as const, endedAt: Date.now(), nextRunLabel: '—' }
           : entry
       )
     );
@@ -1121,9 +1161,9 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
   const findScheduleByTarget = React.useCallback(
     (target: ScheduleTarget): ScheduleEntry | null => {
       const match = schedules.find((entry) => {
-        // A cancelled schedule no longer owns its target — the Automate CTA
+        // An ended schedule no longer owns its target — the Automate CTA
         // must reappear for that address/file rather than read as automated.
-        if (entry.status === 'cancelled') return false;
+        if (entry.status && entry.status !== 'active') return false;
         if (entry.kind !== target.kind) return false;
         if (entry.kind === 'single' && target.kind === 'single') {
           return entry.address === target.address;

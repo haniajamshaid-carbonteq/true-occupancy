@@ -1,7 +1,8 @@
 /* global React, AppShell, Button, Icon, Pill, DataTable, Drawer, ChipRow, ReactRouterDOM, useAppState,
    HOME_VERDICT_LABEL, VERDICT_ACCENT, splitAddress, deriveTitleFromFilename, ScreenError, ScreenEmpty,
    cadenceLabel, cadenceShort, SCENARIOS, occMatchForRisk, OCC_STATUS_LABEL,
-   RedFlag, BatchRedBadge, timeAgo, OCC_INTENT_SHORT, summarizeBatchIntent, batchIntentBreakdown */
+   RedFlag, BatchRedBadge, timeAgo, OCC_INTENT_SHORT, summarizeBatchIntent, batchIntentBreakdown,
+   SCHEDULE_ENDED_TAG, scheduleEndedOn, scheduleEndFact */
 
 type Filter = 'all' | 'single' | 'batch';
 type OccStatus = 'green' | 'yellow' | 'red';
@@ -17,31 +18,32 @@ function nextRunTime(label: string | undefined | null): number {
   return Number.isNaN(t) ? Infinity : t;
 }
 
-// "Aug 14, 2026" — same shape as the next-run labels, so the cancelled-on
-// fact in the Type cell's hover reads like the rest of the schedule dates.
-function cancelledOnLabel(ts?: number): string {
-  if (!ts) return 'an earlier date';
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-// Schedule lifecycle marker beside the Type pill: ✓ active / ✕ cancelled,
-// with the fact itself on hover (native title, same dependency-free idiom
-// as RedFlag). State palette, not status/verdict — this is the app talking
-// about its own automation, never about the property.
-function ScheduleStateIcon({ row }: { row: any }) {
-  const cancelled = row.status === 'cancelled';
-  const fact = cancelled
-    ? `Cancelled on ${cancelledOnLabel(row.cancelledAt)}`
-    : `Active — next run ${row.nextRunLabel}`;
+// Lifecycle lives in the Next run column: an active schedule shows its
+// date; an ended one shows "Cancelled on <date>" / "Stopped on <date>" in
+// the column's own type style — no pill, just the fact. The recorded
+// reason (mainly for system-stopped rows) sits on hover: native title, the
+// RedFlag idiom. The line and hover copy come from the shared
+// scheduleEndLine / scheduleEndFact vocabulary in AppState so the detail
+// page reads identically.
+function NextRunCell({ row }: { row: any }) {
+  const tag = SCHEDULE_ENDED_TAG[row.status ?? ''];
+  if (!tag) {
+    return (
+      <span className="font-mono tabular-nums text-caption text-ink-3">{row.nextRunLabel}</span>
+    );
+  }
+  const fact = scheduleEndFact(row) ?? '';
+  // Two fixed lines — "Cancelled on" / "Stopped on" above, the date below —
+  // so the date always lands in the column's date position.
   return (
-    <span
-      className="inline-flex items-center shrink-0"
-      style={{ color: cancelled ? 'var(--ink-4)' : 'var(--success)' }}
+    <div
+      className="min-w-0 font-mono tabular-nums text-caption text-ink-3 leading-snug"
       title={fact}
       aria-label={fact}
     >
-      <Icon name={cancelled ? 'x' : 'check'} size={13} />
-    </span>
+      <div>{tag} on</div>
+      <div>{scheduleEndedOn(row.endedAt)}</div>
+    </div>
   );
 }
 
@@ -135,13 +137,8 @@ function ScheduledScreen() {
     {
       key: 'type',
       label: 'Type',
-      width: '116px',
-      cell: (r: any) => (
-        <div className="flex items-center gap-inline">
-          <Pill>{r.kind === 'batch' ? 'Batch' : 'Single'}</Pill>
-          <ScheduleStateIcon row={r} />
-        </div>
-      ),
+      width: '96px',
+      cell: (r: any) => <Pill>{r.kind === 'batch' ? 'Batch' : 'Single'}</Pill>,
     },
     {
       key: 'target',
@@ -243,11 +240,7 @@ function ScheduledScreen() {
       label: 'Next run',
       width: '120px',
       hideBelow: 'md' as const,
-      cell: (r: any) => (
-        <span className="font-mono tabular-nums text-caption text-ink-3">
-          {r.nextRunLabel}
-        </span>
-      ),
+      cell: (r: any) => <NextRunCell row={r} />,
     },
     {
       key: 'created',
