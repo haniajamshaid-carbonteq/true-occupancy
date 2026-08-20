@@ -551,16 +551,23 @@ const DASHBOARD_SINGLE_COLUMNS: any[] = [
     hideBelow: 'sm' as const,
     cell: (r: any) => {
       const m = occMatchForRisk(r.intent, SCENARIOS[r.scenario].risk);
+      if (!m) return <span className="text-ink-4">—</span>;
+      // "AI report available" marker (Trello #50, #58) — informational
+      // only; rides inside the verdict pill as a single tag.
       return (
-        <span className="inline-flex items-center gap-1.5">
-          {m ? <Pill variant={m.tone as any}>{m.label}</Pill> : <span className="text-ink-4">—</span>}
-          {/* "AI report available" marker (Trello #50) — informational only. */}
+        <Pill variant={m.tone as any}>
+          {m.label}
           {r.hasAIReport && (
-            <span title="AI report available">
-              <Pill size="sm">AI</Pill>
+            <span
+              role="img"
+              aria-label="AI used to validate this result"
+              title="AI used to validate this result"
+              className="inline-flex shrink-0 opacity-70"
+            >
+              <Icon name="ai-star" size={12} />
             </span>
           )}
-        </span>
+        </Pill>
       );
     },
   },
