@@ -1104,7 +1104,20 @@ function buildBatchRedColumns(defaultIntent?: IntendedOccupancy): any[] {
       label: 'Found',
       width: '132px',
       cell: (row: BatchRow) => (
-        <span className="font-sans text-caption text-ink-2">{OCC_VERDICT_LABEL[verdictOf(row)]}</span>
+        <span className="inline-flex items-center gap-1.5 font-sans text-caption text-ink-2">
+          {OCC_VERDICT_LABEL[verdictOf(row)]}
+          {/* Same AI-validated sign as the History verdict pills (Trello #58). */}
+          {row.aiReport?.status === 'done' && (
+            <span
+              role="img"
+              aria-label="AI used to validate this result"
+              title="AI used to validate this result"
+              className="inline-flex shrink-0 opacity-70"
+            >
+              <Icon name="ai-star" size={12} />
+            </span>
+          )}
+        </span>
       ),
     },
     {
@@ -1241,7 +1254,18 @@ function buildBatchColumns(
     cell: (row: BatchRow) => {
       if (row.status === 'done' && row.risk) {
         const m = occMatchForRisk(row.intent ?? defaultIntent, row.risk);
-        return m ? <Pill variant={m.tone as any}>{m.label}</Pill> : <span className="text-ink-4">—</span>;
+        // Same AI-validated sign as the History verdict pills (Trello #58).
+        const aiMark = row.aiReport?.status === 'done' && (
+          <span
+            role="img"
+            aria-label="AI used to validate this result"
+            title="AI used to validate this result"
+            className="inline-flex shrink-0 opacity-70"
+          >
+            <Icon name="ai-star" size={12} />
+          </span>
+        );
+        return m ? <Pill variant={m.tone as any}>{m.label}{aiMark}</Pill> : <span className="text-ink-4">—</span>;
       }
       if (row.status === 'running') {
         return <Pill variant="brand" dot>Scanning</Pill>;

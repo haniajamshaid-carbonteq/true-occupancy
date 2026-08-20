@@ -132,10 +132,21 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
             primary: true,
             cell: (r: any) => {
               const m = occMatchForRisk(r.intent, SCENARIOS[r.scenario as keyof typeof SCENARIOS]?.risk);
+              // Same AI-validated sign as the History verdict pills (Trello #58).
+              const aiMark = r.hasAIReport && (
+                <span
+                  role="img"
+                  aria-label="AI used to validate this result"
+                  title="AI used to validate this result"
+                  className="inline-flex shrink-0 opacity-70"
+                >
+                  <Icon name="ai-star" size={12} />
+                </span>
+              );
               return m ? (
-                <Pill variant={m.tone as any}>{m.label}</Pill>
+                <Pill variant={m.tone as any}>{m.label}{aiMark}</Pill>
               ) : (
-                <Pill variant="verdict-high">{HOME_VERDICT_LABEL[r.scenario as 'low' | 'medium' | 'high']}</Pill>
+                <Pill variant="verdict-high">{HOME_VERDICT_LABEL[r.scenario as 'low' | 'medium' | 'high']}{aiMark}</Pill>
               );
             },
           },
@@ -165,7 +176,18 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
             primary: true,
             cell: (r: any) => {
               const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
-              return <Pill variant={BATCH_STATUS_VARIANT[status]}>{BATCH_STATUS_LABEL[status]}</Pill>;
+              // Same AI-validated sign as History batch rows (Trello #58).
+              const aiMark = r.hasAIReport && (
+                <span
+                  role="img"
+                  aria-label="AI used to validate these results"
+                  title="AI used to validate these results"
+                  className="inline-flex shrink-0 opacity-70"
+                >
+                  <Icon name="ai-star" size={12} />
+                </span>
+              );
+              return <Pill variant={BATCH_STATUS_VARIANT[status]}>{BATCH_STATUS_LABEL[status]}{aiMark}</Pill>;
             },
           },
           {

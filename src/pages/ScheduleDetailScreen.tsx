@@ -165,15 +165,27 @@ function ScheduleDetailScreen() {
       label: isBatch ? 'Status' : 'Verdict',
       primary: true,
       cell: (r: any) => {
+        // Same AI-validated sign as the History verdict pills (Trello #58) —
+        // rides inside the pill; the AI-report status column stays as-is.
+        const aiMark = r.aiStatus === 'done' && (
+          <span
+            role="img"
+            aria-label={r.kind === 'batch' ? 'AI used to validate these results' : 'AI used to validate this result'}
+            title={r.kind === 'batch' ? 'AI used to validate these results' : 'AI used to validate this result'}
+            className="inline-flex shrink-0 opacity-70"
+          >
+            <Icon name="ai-star" size={12} />
+          </span>
+        );
         if (r.kind === 'batch') {
           const status: 'complete' | 'partial' | 'failed' = r.status ?? 'complete';
-          return <Pill variant={BATCH_STATUS_VARIANT[status]}>{BATCH_STATUS_LABEL[status]}</Pill>;
+          return <Pill variant={BATCH_STATUS_VARIANT[status]}>{BATCH_STATUS_LABEL[status]}{aiMark}</Pill>;
         }
         const variant =
           r.scenario === 'high'  ? 'verdict-high'
           : r.scenario === 'medium' ? 'verdict-med'
           : 'verdict-low';
-        return <Pill variant={variant as any}>{HOME_VERDICT_LABEL[r.scenario as 'low' | 'medium' | 'high']}</Pill>;
+        return <Pill variant={variant as any}>{HOME_VERDICT_LABEL[r.scenario as 'low' | 'medium' | 'high']}{aiMark}</Pill>;
       },
     },
     {
