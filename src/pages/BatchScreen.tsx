@@ -1,7 +1,7 @@
 /* global React, AppShell, Card, Button, Pill, Icon, Input, Textarea, DataTable, DropdownMenu, ReactRouterDOM,
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
    deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
-   ChipRow, reconcileOccupancy, INTENDED_OCCUPANCY_LABEL, RedFlag,
+   ChipRow, INTENDED_OCCUPANCY_LABEL, RedFlag,
    OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk, RunHistory, resolveIntent */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
@@ -1142,16 +1142,6 @@ const ROUTE_FOR_RISK: Record<Risk, string> = {
 // Column definitions for the BatchTable. Mirrors the SCAN_COLUMNS shape
 // from HomeScreen so both data tables share rhythm, hover treatment, and
 // the table↔card switch via the global DataTable primitive.
-// Reconciliation tag styling — a secondary annotation under the declared
-// value, deliberately quieter than the Verdict pill beside it.
-// Wording kept in lockstep with the reconciliation labels shown everywhere
-// else (OCC_STATUS_MATCH_LABEL) so one row never reads "Exception" here and
-// "Needs review" in the Result column.
-const RECONCILIATION_META: Record<string, { label: string; color: string }> = {
-  exception:    { label: 'Needs review', color: 'var(--warn-deep)' },
-  consistent:   { label: 'Consistent',   color: 'var(--clean-ink)' },
-  inconclusive: { label: 'Inconclusive', color: 'var(--ink-3)' },
-};
 
 function buildBatchColumns(
   onRunRowAI?: (rowId: number) => void,
@@ -1337,27 +1327,11 @@ function buildBatchColumns(
           </Pill>
         );
       }
-      // done — the occupancy status declared "as per loan" on upload, plus how
-      // it reconciles against what the scan observed.
-      const intent = row.intent ?? defaultIntent ?? 'not-sure';
-      const rec = reconcileOccupancy(intent, row.risk);
-      return (
-        <div className="min-w-0 flex flex-col items-start gap-1">
-          <Pill>{INTENDED_OCCUPANCY_LABEL[intent]}</Pill>
-          {rec && (
-            <span
-              className="inline-flex items-center gap-1 font-sans text-micro font-semibold"
-              style={{ color: RECONCILIATION_META[rec].color }}
-            >
-              <span
-                className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{ background: RECONCILIATION_META[rec].color }}
-              />
-              {RECONCILIATION_META[rec].label}
-            </span>
-          )}
-        </div>
-      );
+      // done — plain workflow status, same vocabulary as the schedule-detail
+      // AI-report column. The declared-vs-found reconciliation lives in the
+      // Verdict column (with the AI-validated star), not here (owner call,
+      // Trello #58 follow-up).
+      return <Pill variant="clean">Done</Pill>;
     },
   },
 ];
