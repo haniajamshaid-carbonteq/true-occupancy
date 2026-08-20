@@ -2,7 +2,7 @@
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
    deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
    ChipRow, INTENDED_OCCUPANCY_LABEL, RedFlag,
-   OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk, RunHistory, resolveIntent */
+   OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk, RunHistory */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -649,24 +649,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           >
             {batch.filename} · {total} {total === 1 ? 'property' : 'properties'} · Uploaded {uploadedLabel}
           </div>
-          {/* Batch-level intended occupancy — one declaration for the whole
-              batch (per the client: intent is a batch-level fact). Stated up top
-              so the reconciliation counts below read against a known baseline. */}
-          {batch.defaultIntent && INTENDED_OCCUPANCY_LABEL[batch.defaultIntent] && (
-            <div className="mt-1.5 inline-flex items-center gap-1.5 font-sans text-caption">
-              <span
-                className="text-eyebrow font-semibold tracking-[0.14em] uppercase"
-                style={{ color: 'var(--ink-3)' }}
-              >
-                Intended occupancy
-              </span>
-              <span className="font-semibold" style={{ color: 'var(--navy)' }}>
-                {INTENDED_OCCUPANCY_LABEL[batch.defaultIntent]}
-              </span>
-              <span className="text-ink-4" aria-hidden>·</span>
-              <span className="text-ink-3">applies to all {total}</span>
-            </div>
-          )}
         </div>
         <div className="flex gap-2 shrink-0 mt-1">
           {!activeSchedule && (
@@ -920,6 +902,24 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
             </div>
           </div>
         </div>
+        {/* Batch-level intended occupancy — ONE declaration for the whole
+            batch (owner call: intent is a batch-level fact, one label only).
+            Moved from the page header to sit flush above the table it governs,
+            replacing the per-row Declared column (Trello #37 reversal). */}
+        {batch.defaultIntent && INTENDED_OCCUPANCY_LABEL[batch.defaultIntent] && (
+          <div className="mb-stack-sm flex items-center gap-2 font-sans">
+            <span
+              className="text-eyebrow font-semibold tracking-[0.14em] uppercase"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              Intended occupancy
+            </span>
+            <span className="text-body-sm font-semibold" style={{ color: 'var(--navy)' }}>
+              {INTENDED_OCCUPANCY_LABEL[batch.defaultIntent]}
+            </span>
+            <span className="text-caption text-ink-3">· applies to all {total}</span>
+          </div>
+        )}
         <BatchTable
           rows={filteredRows}
           onRunRowAI={canRunAI ? runRowAIReport : undefined}
@@ -1185,21 +1185,6 @@ function buildBatchColumns(
         </div>
       );
     },
-  },
-  {
-    // Per-address declared occupancy in the DEFAULT view (Trello #37) —
-    // promoted from the red-filtered set so overrides of the batch default
-    // are visible without filtering. Falls back to the batch default; a
-    // batch with neither reads "Not sure", never blank.
-    key: 'declared',
-    label: 'Declared',
-    width: '130px',
-    hideBelow: 'md' as const,
-    cell: (row: BatchRow) => (
-      <span className="font-sans text-caption text-ink-2">
-        {OCC_INTENT_SHORT[resolveIntent(row, defaultIntent)]}
-      </span>
-    ),
   },
   {
     key: 'score',
