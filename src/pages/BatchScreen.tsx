@@ -2,7 +2,7 @@
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
    deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
    ChipRow, INTENDED_OCCUPANCY_LABEL, RedFlag,
-   OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk, RunHistory */
+   OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk, RunHistory, DEFAULT_OCC_CONFIG */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -575,6 +575,20 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
   // and the same rows that carry the ⚠ marker — one definition, everywhere.
   const redCount = needsReviewCount;
 
+  // Which reconciliation categories the config recommends automation for. The
+  // occupancy config schedules automated re-scans per status (`recurring`), so
+  // any status with a cadence other than 'none' is one the admin has flagged
+  // for automation — not just red. Mapped to tile keys so the nudge can name
+  // the combo (e.g. "Needs review + Consistent") when more than one qualifies.
+  const RECURRING_TO_TILE: Record<'green' | 'yellow' | 'red', 'consistent' | 'inconclusive' | 'needsReview'> = {
+    green: 'consistent',
+    yellow: 'inconclusive',
+    red: 'needsReview',
+  };
+  const automateCategories = (['red', 'yellow', 'green'] as const)
+    .filter((s) => DEFAULT_OCC_CONFIG.recurring[s] !== 'none')
+    .map((s) => RECURRING_TO_TILE[s]);
+
   // Arriving from a "N red" badge pre-applies the red (Needs-review) filter so
   // the user lands on just the red properties. One-shot: cleared once read.
   React.useEffect(() => {
@@ -854,6 +868,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         inconclusive={inconclusiveCount}
         needsReview={needsReviewCount}
         redCount={redCount}
+        automateCategories={automateCategories}
         onSelect={toggleMatch}
         selected={matchFilter === 'all' ? null : matchFilter}
         onAutomate={
