@@ -23,6 +23,42 @@ function timelineMatchOf(run: any) {
   return occMatchForRisk(run.intent, SCENARIOS[run.scenario as keyof typeof SCENARIOS]?.risk);
 }
 
+// Scope note under the address in BOTH drawers. A report page is frozen at
+// its own date, but these drawers deliberately show the FULL record up to
+// today — this line says so, so the mismatch reads as intent, not a bug.
+// When the open report has newer siblings (i.e. the user is standing on an
+// archived report), the note names that report's date to make it pointed.
+function DrawerScopeNote({ runs }: { runs: any[] }) {
+  if (!runs.length) return null;
+  const servedRaw =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('resultServedAt') : null;
+  const served = servedRaw ? new Date(servedRaw).getTime() : NaN;
+  const currentId =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanHistoryId') : null;
+  const viewingOlder =
+    !Number.isNaN(served) && runs.some((r) => r.id !== currentId && (r.scannedAt || 0) > served);
+  return (
+    <p className="font-sans text-caption text-ink-3 leading-snug m-0 mb-4 flex items-start gap-1.5">
+      <span className="shrink-0 mt-px [&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
+        <Icon name="info" size={14} />
+      </span>
+      <span>
+        {viewingOlder ? (
+          <>
+            Showing the property&rsquo;s full history up to today — including scans newer than the{' '}
+            <span className="font-semibold text-ink-2">
+              {formatUsDate(new Date(served).toISOString())}
+            </span>{' '}
+            report you&rsquo;re viewing.
+          </>
+        ) : (
+          <>Showing the property&rsquo;s full history up to today.</>
+        )}
+      </span>
+    </p>
+  );
+}
+
 // The automated-run marker, mirrored from RunHistory so a re-scan started by
 // the schedule reads the same in both places. Fixed-width slot keeps dates on
 // one baseline whether or not a row is marked.
@@ -96,7 +132,8 @@ function PropertyTimelineDrawer({
   return (
     <Drawer open={open} onClose={onClose} title="Property timeline" width={400}>
       {/* Address — quiet context line so the drawer is legible on its own. */}
-      <div className="font-sans text-caption text-ink-3 leading-snug m-0 mb-4">{address}</div>
+      <div className="font-sans text-caption text-ink-3 leading-snug m-0 mb-1.5">{address}</div>
+      <DrawerScopeNote runs={runs} />
 
       {runs.length === 0 ? (
         // First-use empty — no scans on record for this property yet.
@@ -245,7 +282,8 @@ function ScanDetailsDrawer({
 
   return (
     <Drawer open={open} onClose={onClose} title="Details" width={460}>
-      <div className="font-sans text-caption text-ink-3 leading-snug m-0 mb-4">{address}</div>
+      <div className="font-sans text-caption text-ink-3 leading-snug m-0 mb-1.5">{address}</div>
+      <DrawerScopeNote runs={runs} />
 
       {runs.length === 0 ? (
         // Defined empty state — reachable only via a stale session, but the

@@ -488,11 +488,21 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const findingChanged =
     Boolean(mostRecentPriorAny) && Boolean(priorAnyVerdict) && priorAnyVerdict !== detectedVerdict;
 
-  // Record-wide facts (up to today), read chronologically — independent of
-  // which report is open: how many times the finding flipped, which distinct
-  // findings appeared, and how often Rented specifically came up.
+  // Record facts AS OF THIS REPORT, read chronologically: how many times the
+  // finding flipped, which distinct findings appeared, and how often Rented
+  // came up. A report states the world at ITS OWN date, so runs newer than
+  // the open report are excluded (the open report itself is kept by id) —
+  // on the third scan's page the denominators read "of 3", not "of 5".
+  // The drawers are the opposite by design: they always show the full record
+  // up to today, and say so.
   const addressTimeline = getHistoryForAddress(heroAddress)
-    .filter((h) => (h.scannedAt || 0) <= Date.now())
+    .filter((h) => {
+      const t = h.scannedAt || 0;
+      if (t > Date.now()) return false;
+      if (currentHistoryId && h.id === currentHistoryId) return true;
+      if (!Number.isNaN(servedCutoff) && t >= servedCutoff) return false;
+      return true;
+    })
     .sort((a, b) => (a.scannedAt || 0) - (b.scannedAt || 0));
   let findingChangeCount = 0;
   let prevTimelineVerdict: string | undefined;
