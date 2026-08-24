@@ -1,4 +1,4 @@
-/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, DropdownMenu, useAppState, RedFlag, INTENDED_OCCUPANCY_LABEL, occMatchForRisk, SCENARIOS, DEFAULT_OCC_CONFIG */
+/* global React, Icon, Button, Keycap, ReactRouterDOM, openCommandPalette, PROPERTY, AutomationControl, DropdownMenu, useAppState, RedFlag, INTENDED_OCCUPANCY_LABEL, occMatchForRisk, SCENARIOS, DEFAULT_OCC_CONFIG, popReturnFrame, PropertyTimelineDrawer */
 // ScanContextBar — replaces the persistent search trigger on detail
 // pages (result + why-expanded). Shows a back button plus the address
 // currently being viewed, so the user knows what scan they're looking at
@@ -45,15 +45,15 @@ function ScanContextBar({
     PROPERTY.address;
 
   // The declared "as per loan" occupancy for this scan, stamped in
-  // sessionStorage at scan/open time. Shown as an eyebrow above the address so
-  // every property page states what was intended before what was found. Falls
-  // back to any explicit `eyebrow` the parent passed.
+  // sessionStorage at scan/open time. Resolved here ONLY for the red-flag
+  // check below — the "Intended · …" eyebrow it used to feed was removed as a
+  // duplicate: ConfidenceHero's "Why this result" line is now the one place a
+  // result page states the intent. An explicit `eyebrow` prop still renders.
   const rawIntent =
     typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanIntent') : null;
   // Demo-only (app.html sets window.__TO_DEMO_STATES__): fall back to the org
-  // default when nothing was declared, so the "Intended · …" eyebrow always
-  // renders during review and agrees with ConfidenceHero. Production leaves the
-  // flag unset, so a genuine quick-scan shows no eyebrow.
+  // default when nothing was declared, so red derivation agrees with
+  // ConfidenceHero during review. Production leaves the flag unset.
   const demoIntent =
     typeof window !== 'undefined' && (window as any).__TO_DEMO_STATES__
       ? DEFAULT_OCC_CONFIG.defaultIntent
@@ -61,8 +61,7 @@ function ScanContextBar({
   const resolvedRawIntent = rawIntent || demoIntent;
   const intent =
     resolvedRawIntent && INTENDED_OCCUPANCY_LABEL[resolvedRawIntent] ? resolvedRawIntent : undefined;
-  const resolvedEyebrow =
-    eyebrow || (intent ? `Intended · ${INTENDED_OCCUPANCY_LABEL[intent]}` : undefined);
+  const resolvedEyebrow = eyebrow;
 
   // Red flag beside the address follows the config matrix (declared × found),
   // not a hardcoded list — so it agrees with the batch, History and Scheduled.
@@ -92,6 +91,35 @@ function ScanContextBar({
     });
   }
 
+  // The top-bar Back and ConfidenceHero's in-hero "Back to the latest report"
+  // are the same action: when this report was reached through a "View that
+  // report" chain, one press pops ONE frame off the shared back stack —
+  // restoring that page's snapshot and URL — rather than a plain goBack() that
+  // would re-render the previous page against this report's stamps. Repeated
+  // presses unwind the whole chain. popReturnFrame lives in ConfidenceHero
+  // (shared global scope); the typeof guard covers hosts that load this bar
+  // without it, and the pathname gate keeps ordinary Back untouched elsewhere.
+  function handleBack() {
+    if (
+      typeof popReturnFrame === 'function' &&
+      history.location.pathname.startsWith('/result/') &&
+      /(^|[?&])r=/.test(history.location.search)
+    ) {
+      const currentHistoryId =
+        typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanHistoryId') : null;
+      if (popReturnFrame(history, currentHistoryId)) return;
+    }
+    if (history.length > 1) history.goBack();
+    else history.push(backTo);
+  }
+
+  // Property timeline flyout — reachable from every report page (including an
+  // older report opened from the corroboration links). Rendered only where the
+  // drawer component is actually loaded (app.html / design-spec.html); the
+  // spec hosts that load this bar in isolation simply omit the trigger.
+  const [timelineOpen, setTimelineOpen] = React.useState(false);
+  const timelineAvailable = typeof PropertyTimelineDrawer !== 'undefined';
+
   // Automate flow — encapsulated in <AutomationControl>. It looks up an
   // existing schedule for this address and either offers the create CTA
   // or an "Automated · every Nmo" menu trigger (change cadence / cancel).
@@ -106,10 +134,7 @@ function ScanContextBar({
     <div className="flex items-center gap-3 sm:gap-4 mb-1">
       <button
         type="button"
-        onClick={() => {
-          if (history.length > 1) history.goBack();
-          else history.push(backTo);
-        }}
+        onClick={handleBack}
         className="group inline-flex items-center gap-1 h-9 px-2.5 -ml-2.5 rounded-md bg-transparent border-0 text-label text-ink-2 hover:bg-hover-bg transition-colors shrink-0 cursor-pointer"
         aria-label={backLabel}
       >
@@ -142,6 +167,21 @@ function ScanContextBar({
           {isRed && <RedFlag address={resolvedAddress} />}
         </div>
       </div>
+
+      {timelineAvailable && (
+        <button
+          type="button"
+          onClick={() => setTimelineOpen(true)}
+          className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-md text-caption text-ink-2 hover:bg-hover-bg transition-colors shrink-0"
+          aria-label="Open property timeline"
+          title="Property timeline — every scan of this address"
+        >
+          <span className="[&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
+            <Icon name="history" size={14} />
+          </span>
+          <span className="hidden sm:inline">Timeline</span>
+        </button>
+      )}
 
       <button
         type="button"
@@ -200,6 +240,13 @@ function ScanContextBar({
         />
       )}
 
+      {timelineAvailable && (
+        <PropertyTimelineDrawer
+          open={timelineOpen}
+          onClose={() => setTimelineOpen(false)}
+          address={resolvedAddress}
+        />
+      )}
     </div>
   );
 }

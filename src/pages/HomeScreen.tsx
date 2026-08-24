@@ -408,6 +408,8 @@ function RecentScansPanel() {
     // by a previously-opened old report so this reads fresh.
     sessionStorage.removeItem('resultServedAt');
     sessionStorage.removeItem('resultCached');
+    // Fresh scan — drop any abandoned "View that report" back-stack.
+    sessionStorage.removeItem('resultReturnStack');
     const path =
       row.scenario === 'low'  ? '/result/clean'
       : row.scenario === 'medium' ? '/result/medium'

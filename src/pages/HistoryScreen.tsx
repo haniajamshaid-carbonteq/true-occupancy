@@ -195,6 +195,9 @@ function HistoryScreen() {
       servedIso ? `${servedIso}T09:00:00` : new Date().toISOString()
     );
     sessionStorage.removeItem('resultCached');
+    // Fresh context — drop any abandoned "View that report" back-stack so its
+    // Back control can't resurface on an unrelated report.
+    sessionStorage.removeItem('resultReturnStack');
     // Thread the entry's id + reference so the result page can show the
     // saved reference (if any) and route inline edits back to this entry
     // via setSingleScanReference(historyId, ref).

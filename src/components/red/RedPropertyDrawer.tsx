@@ -330,6 +330,8 @@ function useRedPropertyContent({
               sessionStorage.removeItem('scanIntent');
               sessionStorage.setItem('resultServedAt', p.servedAt || new Date().toISOString());
               sessionStorage.removeItem('resultCached');
+              // Fresh context — drop any abandoned "View that report" back-stack.
+              sessionStorage.removeItem('resultReturnStack');
             }
             window.location.hash = '#/result/high';
             onClose();

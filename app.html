@@ -135,6 +135,10 @@
     'src/components/scan/ScanStage.tsx',
     // 5. Result
     'src/components/result/ConfidenceHero.tsx',
+    // Property timeline flyout — must load after ConfidenceHero (uses its
+    // openRunReport global) and is referenced by ScanContextBar via a typeof
+    // guard, so it only appears in hosts that include this line.
+    'src/components/result/PropertyTimelineDrawer.tsx',
     'src/components/result/PropertyMap.tsx',
     'src/components/result/PropertySpecs.tsx',
     'src/components/result/PropertyOverview.tsx',

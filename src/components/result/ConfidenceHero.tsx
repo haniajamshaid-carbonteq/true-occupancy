@@ -1,6 +1,7 @@
-/* global React, Card, Icon, SCENARIOS, PROPERTY, ReferenceCell, useAppState, ServedStamp,
-   formatUsDateTime, occMatchForRisk, INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL,
-   DEFAULT_OCC_CONFIG */
+/* global React, ReactRouterDOM, Card, Icon, SCENARIOS, PROPERTY, ReferenceCell, useAppState,
+   ServedStamp, formatUsDateTime, formatUsDate, timeAgo, occMatchForRisk,
+   INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL, OCC_INTENT_SHORT, DEFAULT_OCC_CONFIG,
+   ScanDetailsDrawer */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
@@ -221,28 +222,173 @@ const TONE_INK: Record<'clean' | 'warn' | 'risk', string> = {
   risk: 'var(--risk-ink)',
 };
 
-// Plain-language "why" — reconciles the declared intent against what the scan
-// found. `intentLabel` is undefined when nothing was declared (quick-scan).
-function reconciliationWhy(
-  status: 'green' | 'yellow' | 'red',
-  verdictLabel: string,
-  intentLabel?: string
-): string {
-  if (!intentLabel) {
-    return `No occupancy was declared for this property, so the finding (${verdictLabel}) can’t be reconciled — treat it as informational.`;
+// The session keys that together describe "which report is this page showing".
+// Snapshotted before a prior-report link navigates away and restored verbatim
+// on the way back, so the report re-renders exactly as it was (same freshness
+// stamp, same reference, same cached flag). Consumed by the back stack below,
+// by ScanContextBar's generic Back, and by PropertyTimelineDrawer — every back
+// affordance and every timeline jump goes through the same machinery.
+const RESULT_STAMP_KEYS = [
+  'scanScenario',
+  'scanAddress',
+  'scanIntent',
+  'scanHistoryId',
+  'scanReference',
+  'resultServedAt',
+  'resultCached',
+];
+
+// ---- Report back-stack --------------------------------------------------
+// "View that report" can chain: report → older report → older still. Each hop
+// pushes a frame describing the page we're leaving; Back pops one frame at a
+// time, so the whole chain unwinds to the report you started from rather than
+// stranding you one step in. The stack lives in sessionStorage (survives the
+// route remount) under `resultReturnStack`, newest frame last.
+//
+// A frame = { forHistoryId, path, snapshot } — forHistoryId is the run the
+// frame's target page shows (so a page knows if the top frame is "its" way
+// back), path restores the exact URL (incl. the ?r= nonce), snapshot restores
+// the session stamps. These functions are top-level so ScanContextBar and
+// PropertyTimelineDrawer (same global scope) share one implementation.
+
+function snapshotResultSession(): Record<string, string> {
+  const snap: Record<string, string> = {};
+  if (typeof sessionStorage === 'undefined') return snap;
+  RESULT_STAMP_KEYS.forEach((k) => {
+    const v = sessionStorage.getItem(k);
+    if (v !== null) snap[k] = v;
+  });
+  return snap;
+}
+
+function readReturnStack(): any[] {
+  if (typeof sessionStorage === 'undefined') return [];
+  try {
+    const raw = sessionStorage.getItem('resultReturnStack');
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeReturnStack(stack: any[]): void {
+  if (typeof sessionStorage === 'undefined') return;
+  if (stack.length) sessionStorage.setItem('resultReturnStack', JSON.stringify(stack));
+  else sessionStorage.removeItem('resultReturnStack');
+}
+
+function resultPathForScenario(scenario: string): string {
+  return scenario === 'low'
+    ? '/result/clean'
+    : scenario === 'medium'
+    ? '/result/medium'
+    : '/result/high';
+}
+
+// Stamp the session so the result pages render `run` as the served report.
+function stampSessionForRun(run: any): void {
+  if (typeof sessionStorage === 'undefined') return;
+  sessionStorage.setItem('scanScenario', run.scenario);
+  sessionStorage.setItem('scanAddress', run.address);
+  if (run.intent) sessionStorage.setItem('scanIntent', run.intent);
+  else sessionStorage.removeItem('scanIntent');
+  sessionStorage.setItem('resultServedAt', new Date(run.scannedAt || Date.now()).toISOString());
+  sessionStorage.removeItem('resultCached');
+  sessionStorage.setItem('scanHistoryId', run.id);
+  if (run.reference) sessionStorage.setItem('scanReference', run.reference);
+  else sessionStorage.removeItem('scanReference');
+}
+
+// Push the current report onto the back stack, stamp for `run`, navigate to it.
+// The single entry point used by the hero date links AND the timeline drawer.
+function openRunReport(run: any, history: any): void {
+  if (!run || typeof sessionStorage === 'undefined') return;
+  const frame = {
+    forHistoryId: run.id,
+    path: history.location.pathname + history.location.search,
+    snapshot: snapshotResultSession(),
+  };
+  writeReturnStack([...readReturnStack(), frame]);
+  stampSessionForRun(run);
+  // `?r=` nonce so a same-path push still remounts (RouteCrossfade keys on
+  // pathname + search).
+  history.push(`${resultPathForScenario(run.scenario)}?r=${Date.now()}`);
+}
+
+// The frame the current page could step back to, or null. A page shows its
+// Back control only when this frame targets the run the page is showing.
+function peekReturnFrame(): any {
+  const stack = readReturnStack();
+  return stack.length ? stack[stack.length - 1] : null;
+}
+
+// Pop one frame: restore its snapshot + URL. Gated on the top frame targeting
+// `currentHistoryId` so a stale stack from an abandoned chain can't fire.
+// Returns true when it navigated.
+function popReturnFrame(history: any, currentHistoryId: string | null): boolean {
+  if (typeof sessionStorage === 'undefined') return false;
+  const stack = readReturnStack();
+  if (!stack.length) return false;
+  const frame = stack[stack.length - 1];
+  if (currentHistoryId != null && frame.forHistoryId !== currentHistoryId) return false;
+  RESULT_STAMP_KEYS.forEach((k) => {
+    if (frame.snapshot && k in frame.snapshot) sessionStorage.setItem(k, frame.snapshot[k]);
+    else sessionStorage.removeItem(k);
+  });
+  writeReturnStack(stack.slice(0, -1));
+  history.push(frame.path);
+  return true;
+}
+
+// Small-number words so the change count reads like prose ("changed twice")
+// rather than a bare digit. Falls back to the numeral past three.
+function countWord(n: number): string {
+  return ['zero', 'once', 'twice', 'three times'][n] || `${n} times`;
+}
+
+// Whole-number share of the record — "3 of 5" reads as 60%.
+function pctOf(n: number, total: number): number {
+  return total > 0 ? Math.round((n / total) * 100) : 0;
+}
+
+// One clickable date that opens that scan's report. Used for both the main
+// bullet (single-date group) and the sub-bullets (multi-date group) so the
+// affordance is identical everywhere.
+function PriorDateLink({ run, onOpen }: { run: any; onOpen: (r: any) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(run)}
+      title="Open this scan's report"
+      className="inline rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
+      style={{ color: 'var(--brand-link)' }}
+    >
+      {formatUsDate(new Date(run.scannedAt || 0).toISOString())}
+    </button>
+  );
+}
+
+// Plain-language "why" — one line that complements the "Intended · Scan found"
+// line directly above it, so neither the intent nor the verdict is repeated
+// (Trello: de-duplicate the result header). `hasIntent` is false when nothing
+// was declared (quick-scan).
+function reconciliationWhy(status: 'green' | 'yellow' | 'red', hasIntent: boolean): string {
+  if (!hasIntent) {
+    return 'No occupancy was declared for this scan, so treat the finding as informational.';
   }
   if (status === 'green') {
-    return `The scan found ${verdictLabel}, which is consistent with the declared ${intentLabel}.`;
+    return 'The finding is consistent with the intended occupancy.';
   }
   if (status === 'red') {
-    return `The scan found ${verdictLabel}, which contradicts the declared ${intentLabel} — worth a human review.`;
+    return 'The finding contradicts the intended occupancy — worth a human review.';
   }
-  return `The scan found ${verdictLabel}; against the declared ${intentLabel} this is inconclusive and may need a closer look.`;
+  return 'The finding is inconclusive against the intended occupancy and may need a closer look.';
 }
 
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
-  const { findScheduleByTarget } = useAppState();
+  const { findScheduleByTarget, getHistoryForAddress } = useAppState();
 
   // Is this property already on a recurring re-scan? Resolved the same way
   // ScanContextBar resolves its Automate target, so the hero and the top-bar
@@ -274,6 +420,119 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const verdictLabel = match ? OCC_VERDICT_LABEL[match.verdict] : VERDICT_TEXT[scenario];
 
   const detectedVerdict = match ? match.verdict : undefined;
+
+  // Earlier scans of this address that reached the same finding — surfaced as
+  // one quiet line under the why copy so a repeat result reads as corroborated
+  // rather than new. The current run is excluded by its history id (fresh
+  // scans get one in ScanMidScreen; History / Run-history clicks stamp one on
+  // open), so only genuinely prior runs count.
+  const currentHistoryId =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanHistoryId') : null;
+  // "Earlier" is chronological, not just "other": when an archived report is
+  // open (via History or the prior-report link), runs newer than IT don't
+  // count — its served-at stamp is the cutoff. Fresh scans stamp "now", so
+  // everything in history remains earlier, exactly as before.
+  const servedAtRaw =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('resultServedAt') : null;
+  const servedCutoff = servedAtRaw ? new Date(servedAtRaw).getTime() : NaN;
+  const priorSameFinding = detectedVerdict
+    ? getHistoryForAddress(heroAddress).filter((h) => {
+        if (currentHistoryId && h.id === currentHistoryId) return false;
+        if (!Number.isNaN(servedCutoff) && (h.scannedAt || 0) >= servedCutoff) return false;
+        return occMatchForRisk(h.intent, SCENARIOS[h.scenario]?.risk)?.verdict === detectedVerdict;
+      })
+    : [];
+  // Newest first.
+  const priorRecentFirst = [...priorSameFinding].sort(
+    (a, b) => (b.scannedAt || 0) - (a.scannedAt || 0)
+  );
+  const hasPriorSameFinding = priorRecentFirst.length > 0;
+
+  // Group the same-finding priors by intent. The FINDING is constant across
+  // this list (same verdict as today), but the intended occupancy — and so the
+  // reconciliation status it produces — can differ scan to scan. Each distinct
+  // intent becomes one main bullet ("Inconclusive — Rented, intended X"); when
+  // several scans share that exact profile, their dates become sub-bullets.
+  // Intents are a closed set (≤4 + undeclared), so at most five groups.
+  const priorGroups = (() => {
+    const map = new Map<string, any>();
+    priorRecentFirst.forEach((run) => {
+      const key = run.intent || '__none__';
+      if (!map.has(key)) {
+        const m = occMatchForRisk(run.intent, SCENARIOS[run.scenario]?.risk);
+        map.set(key, { key, intent: run.intent, label: m?.label, tone: m?.tone, runs: [] });
+      }
+      map.get(key).runs.push(run);
+    });
+    // Order groups by their most recent run, newest first.
+    return [...map.values()].sort(
+      (a, b) => (b.runs[0]?.scannedAt || 0) - (a.runs[0]?.scannedAt || 0)
+    );
+  })();
+  const PRIOR_DATE_CAP = 4; // sub-bullets shown per group before folding to Run history
+
+  // The single most recent EARLIER run regardless of what it found — the "last
+  // scan" line always states it (result + the config it ran under), and its
+  // finding differing from today's marks the movement.
+  const mostRecentPriorAny = detectedVerdict
+    ? getHistoryForAddress(heroAddress).reduce<any>((best, h) => {
+        if (currentHistoryId && h.id === currentHistoryId) return best;
+        if (!Number.isNaN(servedCutoff) && (h.scannedAt || 0) >= servedCutoff) return best;
+        return !best || (h.scannedAt || 0) > (best.scannedAt || 0) ? h : best;
+      }, null)
+    : null;
+  const lastScanMatch = mostRecentPriorAny
+    ? occMatchForRisk(mostRecentPriorAny.intent, SCENARIOS[mostRecentPriorAny.scenario]?.risk)
+    : null;
+  const priorAnyVerdict = lastScanMatch?.verdict;
+  const findingChanged =
+    Boolean(mostRecentPriorAny) && Boolean(priorAnyVerdict) && priorAnyVerdict !== detectedVerdict;
+
+  // Record-wide facts (up to today), read chronologically — independent of
+  // which report is open: how many times the finding flipped, which distinct
+  // findings appeared, and how often Rented specifically came up.
+  const addressTimeline = getHistoryForAddress(heroAddress)
+    .filter((h) => (h.scannedAt || 0) <= Date.now())
+    .sort((a, b) => (a.scannedAt || 0) - (b.scannedAt || 0));
+  let findingChangeCount = 0;
+  let prevTimelineVerdict: string | undefined;
+  const distinctFindings: string[] = [];
+  let rentedFoundCount = 0;
+  addressTimeline.forEach((h) => {
+    const v = occMatchForRisk(h.intent, SCENARIOS[h.scenario]?.risk)?.verdict;
+    if (prevTimelineVerdict !== undefined && v !== prevTimelineVerdict) findingChangeCount += 1;
+    prevTimelineVerdict = v;
+    if (v && !distinctFindings.includes(OCC_VERDICT_LABEL[v])) distinctFindings.push(OCC_VERDICT_LABEL[v]);
+    if (v === 'rented') rentedFoundCount += 1;
+  });
+  const addressScanCount = addressTimeline.length;
+
+  // The earlier-scans corroboration is collapsed by default so the hero stays
+  // quiet; the reviewer expands it only when they want the dated links.
+  const [showEarlier, setShowEarlier] = React.useState(false);
+  // The "View details" ledger flyout on the change-count line.
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+
+  const history = ReactRouterDOM.useHistory();
+
+  // The overflow link's target — RunHistory's section carries id="run-history"
+  // and always renders when there are enough runs to overflow (>3 similar
+  // priors means ≥4 runs for the address, past its 2-run minimum).
+  function scrollToRunHistory() {
+    const el = typeof document !== 'undefined' ? document.getElementById('run-history') : null;
+    if (!el) return;
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  // The frame this page can step back to, if the top of the back stack targets
+  // the run we're currently showing. Present through every hop of a chain, so
+  // Back unwinds the whole way rather than one step.
+  const returnFrame = peekReturnFrame();
+  const canGoBack = Boolean(returnFrame) && returnFrame.forHistoryId === currentHistoryId;
   // "Not sure" remains Not sure everywhere: the org's resolve toggle/choice
   // only drives triage colours (scoring), never the declared intent. So a
   // Not-sure result ALWAYS reports what the scan turned out to find — the RAW
@@ -301,6 +560,24 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const animatedScore = useCountUp(confidenceValue, 800);
 
   return (
+    <>
+      {/* Shown on every report reached through a "View that report" chain —
+          pops ONE frame off the back stack, so repeated presses unwind the
+          whole chain back to the report you started from. Each hop restores
+          that page's snapshot verbatim (freshness/reference survive). */}
+      {canGoBack && (
+        <button
+          type="button"
+          onClick={() => popReturnFrame(history, currentHistoryId)}
+          className="mb-3 self-start inline-flex items-center gap-1.5 rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
+          style={{ color: 'var(--brand-link)' }}
+        >
+          <span className="[&>svg]:w-3 [&>svg]:h-3 rotate-180 inline-flex" aria-hidden>
+            <Icon name="arrow-right" size={12} />
+          </span>
+          Back to the latest report
+        </button>
+      )}
     <Card>
       <div className="px-6 py-5" style={{ position: 'relative' }}>
       <div className="flex flex-col md:flex-row md:items-stretch gap-6 md:gap-8">
@@ -340,7 +617,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-sans text-caption tabular-nums">
                 {intent && (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="text-ink-3">Declared</span>
+                    <span className="text-ink-3">Intended</span>
                     <span className="font-semibold" style={{ color: 'var(--navy)' }}>
                       {INTENDED_OCCUPANCY_LABEL[intent]}
                     </span>
@@ -364,9 +641,213 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               </div>
               <p className="mt-1.5 font-sans text-caption text-ink-2 leading-snug m-0">
                 {rentalConfidenceMode
-                  ? `The scan found ${verdictLabel}. No baseline was declared, so this outcome follows your organisation's “Not sure” handling — the number is the observed rental likelihood.`
-                  : reconciliationWhy(match.status, verdictLabel, intent ? INTENDED_OCCUPANCY_LABEL[intent] : undefined)}
+                  ? 'No baseline to reconcile — the score is the observed rental likelihood.'
+                  : reconciliationWhy(match.status, Boolean(intent))}
               </p>
+              {/* History, entirely collapsed by default (owner: keep the hero
+                  uncrowded — reveal only on request). A single toggle sits under
+                  the reconciliation line; expanding it shows BOTH the movement
+                  callout (if the last scan found something different) and the
+                  dated links to earlier same-finding reports. Nothing about the
+                  property's past is visible until the reviewer asks for it. The
+                  toggle appears whenever there's any history worth revealing. */}
+              {(findingChanged || hasPriorSameFinding) && (
+                <div className="mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowEarlier((v) => !v)}
+                    aria-expanded={showEarlier}
+                    className="inline-flex items-center gap-1 rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
+                    style={{ color: 'var(--brand-link)' }}
+                  >
+                    {showEarlier ? 'View less' : 'View more'}
+                    <span
+                      className={`inline-flex [&>svg]:w-3 [&>svg]:h-3 transition-transform ${showEarlier ? 'rotate-180' : ''}`}
+                      aria-hidden
+                    >
+                      <Icon name="chevron" size={12} />
+                    </span>
+                  </button>
+
+                  {/* The reveal — four sections, in order (owner spec), each
+                      with a DEFINED null state so no section vanishes silently:
+                        1. The last scan: its result and the config it ran under,
+                           date linked. Movement marker when it differed.
+                        2. Same-finding groups, status first ("Found Inconclusive
+                           — Rented, intended X") + clickable date sub-bullets.
+                           Null → "No earlier scan reached this finding."
+                        3. How many times Rented specifically was found.
+                           Zero → "not found on any of the N scans."
+                        4. How many times the result changed, closed by a "View
+                           details" link that opens the ScanDetailsDrawer — the
+                           full record oldest-first. Zero → "held across all N
+                           scans." */}
+                  {showEarlier && (
+                    <ul className="mt-1.5 mb-0 pl-0 list-none font-sans text-caption text-ink-2 leading-snug tabular-nums flex flex-col gap-1.5">
+                      {/* • 1 — the last scan: result + config, movement-marked
+                          when it differed. Guarded, but a reveal only exists
+                          when at least one prior run does. */}
+                      {mostRecentPriorAny && lastScanMatch && (
+                        <li className="flex items-start gap-2">
+                          <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
+                          <span>
+                            {findingChanged && (
+                              <span className="inline-flex items-center gap-1 font-semibold" style={{ color: 'var(--warn-deep)' }}>
+                                <span className="[&>svg]:w-3 [&>svg]:h-3" aria-hidden>
+                                  <Icon name="trend-up" size={12} />
+                                </span>
+                                Changed since the last scan
+                              </span>
+                            )}
+                            {findingChanged ? (
+                              <>{' '}— on{' '}</>
+                            ) : (
+                              <>The result was the same on the last scan — on{' '}</>
+                            )}
+                            <PriorDateLink run={mostRecentPriorAny} onOpen={(r) => openRunReport(r, history)} />
+                            {' '}it found{' '}
+                            <span className="font-semibold">{OCC_VERDICT_LABEL[priorAnyVerdict!]}</span>
+                            {' '}intended{' '}
+                            <span className="font-semibold">
+                              {mostRecentPriorAny.intent
+                                ? OCC_INTENT_SHORT[mostRecentPriorAny.intent as keyof typeof OCC_INTENT_SHORT]
+                                : 'not declared'}
+                            </span>
+                            {' — '}
+                            <span className="font-semibold">{lastScanMatch.label}</span>.
+                          </span>
+                        </li>
+                      )}
+
+                      {/* • 2 — grouped corroboration; each (status × intent)
+                          profile is a sub-bullet with its dates inline as links.
+                          Defined empty state on the same bullet. */}
+                      <li>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
+                          {hasPriorSameFinding ? (
+                            <span>
+                              Earlier scans with this same finding —{' '}
+                              {priorRecentFirst.length} of {addressScanCount} (
+                              {pctOf(priorRecentFirst.length, addressScanCount)}%):
+                            </span>
+                          ) : (
+                            <span className="text-ink-3">No earlier scan reached this finding.</span>
+                          )}
+                        </div>
+                        {hasPriorSameFinding && (
+                          <ul className="mt-0.5 mb-0 pl-5 list-none flex flex-col gap-0.5">
+                            {priorGroups.map((g: any) => {
+                              const intentLabel = g.intent
+                                ? OCC_INTENT_SHORT[g.intent as keyof typeof OCC_INTENT_SHORT]
+                                : 'not declared';
+                              const shown = g.runs.slice(0, PRIOR_DATE_CAP);
+                              const groupOverflow = g.runs.length - shown.length;
+                              return (
+                                <li key={g.key} className="flex items-start gap-2">
+                                  <span className="mt-[5px] w-1.5 h-1.5 rounded-full border shrink-0" style={{ borderColor: 'var(--ink-4)' }} aria-hidden />
+                                  <span>
+                                    Found <span className="font-semibold">{g.label || OCC_VERDICT_LABEL[detectedVerdict!]}</span>
+                                    {' — '}
+                                    <span className="font-semibold">{OCC_VERDICT_LABEL[detectedVerdict!]}</span>,
+                                    {' '}intended <span className="font-semibold">{intentLabel}</span>
+                                    {' — '}
+                                    {shown.map((run: any, i: number) => (
+                                      <React.Fragment key={run.id}>
+                                        {i > 0 && (
+                                          <span className="text-ink-4" aria-hidden>
+                                            {' · '}
+                                          </span>
+                                        )}
+                                        <PriorDateLink run={run} onOpen={(r) => openRunReport(r, history)} />
+                                      </React.Fragment>
+                                    ))}
+                                    {groupOverflow > 0 && (
+                                      <>
+                                        <span className="text-ink-4" aria-hidden>
+                                          {' · '}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={scrollToRunHistory}
+                                          className="inline rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
+                                          style={{ color: 'var(--brand-link)' }}
+                                        >
+                                          {groupOverflow} more in Run history
+                                        </button>
+                                      </>
+                                    )}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </li>
+
+                      {/* • 3 — the Rented tally, with its defined zero state. */}
+                      <li className="flex items-start gap-2">
+                        <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
+                        <span className="text-ink-3">
+                          {rentedFoundCount > 0 ? (
+                            <>
+                              It was found <span className="font-semibold text-ink-2">{OCC_VERDICT_LABEL.rented}</span> in{' '}
+                              {String(rentedFoundCount).padStart(2, '0')} out of {addressScanCount} scans (
+                              {pctOf(rentedFoundCount, addressScanCount)}%).
+                            </>
+                          ) : (
+                            <>
+                              It was not found <span className="font-semibold text-ink-2">{OCC_VERDICT_LABEL.rented}</span> in
+                              any of the {addressScanCount} scans.
+                            </>
+                          )}
+                        </span>
+                      </li>
+
+                      {/* • 4 — record-wide change count, naming the findings,
+                          closed by the Details flyout: the whole record as a
+                          simple oldest-first ledger (result · intended · found ·
+                          date, dates linked). */}
+                      <li className="flex items-start gap-2">
+                        <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
+                        <span className="text-ink-3">
+                          {findingChangeCount > 0 ? (
+                            <>
+                              The result has changed {countWord(findingChangeCount)} across {addressScanCount} scans
+                              {distinctFindings.length > 1 && <> ({distinctFindings.join(' · ')})</>}.
+                            </>
+                          ) : (
+                            <>The result has held across all {addressScanCount} scans.</>
+                          )}
+                          {typeof ScanDetailsDrawer !== 'undefined' && (
+                            <>
+                              {' '}
+                              <button
+                                type="button"
+                                onClick={() => setDetailsOpen(true)}
+                                className="inline rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
+                                style={{ color: 'var(--brand-link)' }}
+                              >
+                                View details
+                              </button>
+                            </>
+                          )}
+                        </span>
+                      </li>
+                    </ul>
+                  )}
+
+                  {/* The Details flyout itself — mounted with the disclosure so
+                      it survives the reveal collapsing while open. */}
+                  {typeof ScanDetailsDrawer !== 'undefined' && (
+                    <ScanDetailsDrawer
+                      open={detailsOpen}
+                      onClose={() => setDetailsOpen(false)}
+                      address={heroAddress}
+                    />
+                  )}
+                </div>
+              )}
               {/* Red single scan → advise setting up a recurring re-scan. Opens
                   the same Automate modal the top-bar button uses (via the shared
                   halcyon:open-automate event handled by AutomationControl).
@@ -424,6 +905,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
       {/* Why this score — accordion */}
       <WhyThisScore scenario={scenario} defaultOpen={defaultOpen} />
     </Card>
+    </>
   );
 }
 

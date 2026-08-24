@@ -90,6 +90,8 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
     const iso = d ? d.toISOString().slice(0, 10) : null;
     sessionStorage.setItem('resultServedAt', iso ? `${iso}T09:00:00` : new Date().toISOString());
     sessionStorage.removeItem('resultCached');
+    // Fresh context from the run-history table — drop any abandoned back-stack.
+    sessionStorage.removeItem('resultReturnStack');
     sessionStorage.setItem('scanHistoryId', r.id);
     if (r.reference) sessionStorage.setItem('scanReference', r.reference);
     else sessionStorage.removeItem('scanReference');
@@ -221,7 +223,9 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
         ];
 
   return (
-    <section className="mt-8 sm:mt-12">
+    // id is the scroll target for ConfidenceHero's "N more in Run history"
+    // overflow link; that link only renders when this section does (≥2 runs).
+    <section id="run-history" className="mt-8 sm:mt-12">
       <h3
         className="font-sans font-semibold text-h4 sm:text-h3 tracking-[-0.005em] m-0 mb-3"
         style={{ color: 'var(--navy)' }}

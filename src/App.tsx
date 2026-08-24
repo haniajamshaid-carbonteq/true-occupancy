@@ -28,7 +28,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 function RouteCrossfade({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isAuth = location.pathname === '/signin' || location.pathname === '/signup';
-  const wrapperKey = isAuth ? 'auth' : location.pathname;
+  // Search participates in the key so a push to the SAME path with a fresh
+  // `?r=` nonce still remounts — how ConfidenceHero's prior-report link
+  // re-opens /result/high from /result/high (nothing else pushes a search).
+  const wrapperKey = isAuth ? 'auth' : location.pathname + location.search;
   return (
     <div key={wrapperKey} className={isAuth ? '' : 'route-fade-in'}>
       {children}
