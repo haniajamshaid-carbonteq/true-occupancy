@@ -206,11 +206,12 @@ function PropertyTimelineDrawer({
 
 // ScanDetailsDrawer — the "Details" flyout behind the change-count line in
 // ConfidenceHero's history reveal. A simple ledger of the whole record in
-// ASCENDING order (oldest first) so the result's movement reads top-to-bottom:
-// one header row, then ONE ROW PER SCAN — date (linked, opens that report and
-// closes the drawer), the reconciliation pill, and the config it ran under
-// (intended × found). PriorDateLink/openRunReport come from ConfidenceHero
-// (shared global scope), so navigation behaves exactly like the in-hero links.
+// DESCENDING order (latest first — owner call, Aug-2026) so the newest
+// evidence leads and older scans trail off below: one header row, then ONE
+// ROW PER SCAN — date (linked, opens that report and closes the drawer), the
+// reconciliation pill, and the config it ran under (intended × found).
+// PriorDateLink/openRunReport come from ConfidenceHero (shared global scope),
+// so navigation behaves exactly like the in-hero links.
 // Fixed column widths so the separate header grid and every row grid resolve
 // identically (an `auto` column would size to its own content per grid and
 // drift). 118px fits the widest pill ("Needs review") on one line; gap-x-4
@@ -231,10 +232,10 @@ function ScanDetailsDrawer({
   const routerHistory = ReactRouterDOM.useHistory();
 
   const now = React.useMemo(() => Date.now(), [open]);
-  // Oldest first, nothing dated ahead of today.
+  // Latest first, nothing dated ahead of today.
   const runs: any[] = React.useMemo(() => {
     const list = getHistoryForAddress(address).filter((h: any) => (h.scannedAt || 0) <= now);
-    return [...list].sort((a: any, b: any) => (a.scannedAt || 0) - (b.scannedAt || 0));
+    return [...list].sort((a: any, b: any) => (b.scannedAt || 0) - (a.scannedAt || 0));
   }, [getHistoryForAddress, address, now]);
 
   function openRun(run: any) {
