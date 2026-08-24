@@ -89,12 +89,12 @@ function Modal({ open, onClose, title, footer, children, width = 480, labelId }:
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
-        className="relative w-full bg-surface border border-line rounded-lg shadow-md outline-none"
+        className="relative w-full max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden bg-surface border border-line rounded-lg shadow-md outline-none"
         style={{ maxWidth: width, animation: 'route-fade-in var(--motion-fast) var(--ease-out) both' }}
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between gap-4 px-surface-x py-surface-y-h border-b border-line">
+          <div className="shrink-0 flex items-center justify-between gap-4 px-surface-x py-surface-y-h border-b border-line">
             <h2
               id={titleId}
               className="font-sans font-semibold text-h4 leading-tight tracking-h2 m-0"
@@ -113,12 +113,13 @@ function Modal({ open, onClose, title, footer, children, width = 480, labelId }:
           </div>
         )}
 
-        {/* Body */}
-        <div className="px-surface-x py-surface-y-b">{children}</div>
+        {/* Body — the sole scroll region; min-h-0 lets it shrink under the
+            dialog's max-height so header + footer stay pinned and visible. */}
+        <div className="min-h-0 overflow-y-auto px-surface-x py-surface-y-b">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-2 px-surface-x py-surface-y-f border-t border-line bg-surface-2/40">
+          <div className="shrink-0 flex items-center justify-end gap-2 px-surface-x py-surface-y-f border-t border-line bg-surface-2/40">
             {footer}
           </div>
         )}
