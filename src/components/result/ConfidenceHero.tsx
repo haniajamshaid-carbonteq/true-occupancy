@@ -1,7 +1,7 @@
 /* global React, ReactRouterDOM, Card, Icon, SCENARIOS, PROPERTY, ReferenceCell, useAppState,
    ServedStamp, formatUsDateTime, formatUsDate, timeAgo, occMatchForRisk,
-   INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL, OCC_INTENT_SHORT, DEFAULT_OCC_CONFIG,
-   ScanDetailsDrawer */
+   INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL, OCC_STATUS_MATCH_LABEL, OCC_INTENT_SHORT,
+   DEFAULT_OCC_CONFIG, ScanDetailsDrawer */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
@@ -418,14 +418,18 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
       : undefined;
   const match = occMatchForRisk(intent, sc.risk);
   const verdictLabel = match ? OCC_VERDICT_LABEL[match.verdict] : VERDICT_TEXT[scenario];
-
+  // The raw verdict — consumed ONLY by the confidence framing (the score is
+  // confidence IN the finding, so its wording must track it); never rendered
+  // as a result anywhere in the history disclosure or drawers.
   const detectedVerdict = match ? match.verdict : undefined;
 
-  // Earlier scans of this address that reached the same finding — surfaced as
+  // Earlier scans of this address that reached this same RESULT — surfaced as
   // one quiet line under the why copy so a repeat result reads as corroborated
-  // rather than new. The current run is excluded by its history id (fresh
-  // scans get one in ScanMidScreen; History / Run-history clicks stamp one on
-  // open), so only genuinely prior runs count.
+  // rather than new. Matching is on the reconciliation label, never the raw
+  // finding (reconciliation vocabulary only — owner call with dev, Aug-2026).
+  // The current run is excluded by its history id (fresh scans get one in
+  // ScanMidScreen; History / Run-history clicks stamp one on open), so only
+  // genuinely prior runs count.
   const currentHistoryId =
     typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanHistoryId') : null;
   // "Earlier" is chronological, not just "other": when an archived report is
@@ -435,32 +439,31 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const servedAtRaw =
     typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('resultServedAt') : null;
   const servedCutoff = servedAtRaw ? new Date(servedAtRaw).getTime() : NaN;
-  const priorSameFinding = detectedVerdict
+  const priorSameResult = match
     ? getHistoryForAddress(heroAddress).filter((h) => {
         if (currentHistoryId && h.id === currentHistoryId) return false;
         if (!Number.isNaN(servedCutoff) && (h.scannedAt || 0) >= servedCutoff) return false;
-        return occMatchForRisk(h.intent, SCENARIOS[h.scenario]?.risk)?.verdict === detectedVerdict;
+        return occMatchForRisk(h.intent, SCENARIOS[h.scenario]?.risk)?.label === match.label;
       })
     : [];
   // Newest first.
-  const priorRecentFirst = [...priorSameFinding].sort(
+  const priorRecentFirst = [...priorSameResult].sort(
     (a, b) => (b.scannedAt || 0) - (a.scannedAt || 0)
   );
-  const hasPriorSameFinding = priorRecentFirst.length > 0;
+  const hasPriorSameResult = priorRecentFirst.length > 0;
 
-  // Group the same-finding priors by intent. The FINDING is constant across
-  // this list (same verdict as today), but the intended occupancy — and so the
-  // reconciliation status it produces — can differ scan to scan. Each distinct
-  // intent becomes one main bullet ("Inconclusive — Rented, intended X"); when
-  // several scans share that exact profile, their dates become sub-bullets.
+  // Group the same-result priors by intent. The RESULT is constant across
+  // this list (same reconciliation label as today), but the intended occupancy
+  // it was reconciled against can differ scan to scan. Each distinct intent
+  // becomes one line ("Intended X — dates"); when several scans share that
+  // profile, their dates sit inline as links.
   // Intents are a closed set (≤4 + undeclared), so at most five groups.
   const priorGroups = (() => {
     const map = new Map<string, any>();
     priorRecentFirst.forEach((run) => {
       const key = run.intent || '__none__';
       if (!map.has(key)) {
-        const m = occMatchForRisk(run.intent, SCENARIOS[run.scenario]?.risk);
-        map.set(key, { key, intent: run.intent, label: m?.label, tone: m?.tone, runs: [] });
+        map.set(key, { key, intent: run.intent, runs: [] });
       }
       map.get(key).runs.push(run);
     });
@@ -471,10 +474,10 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   })();
   const PRIOR_DATE_CAP = 4; // sub-bullets shown per group before folding to Run history
 
-  // The single most recent EARLIER run regardless of what it found — the "last
-  // scan" line always states it (result + the config it ran under), and its
-  // finding differing from today's marks the movement.
-  const mostRecentPriorAny = detectedVerdict
+  // The single most recent EARLIER run regardless of its result — the "last
+  // scan" line always states it (result + the intent it reconciled against),
+  // and its result differing from today's marks the movement.
+  const mostRecentPriorAny = match
     ? getHistoryForAddress(heroAddress).reduce<any>((best, h) => {
         if (currentHistoryId && h.id === currentHistoryId) return best;
         if (!Number.isNaN(servedCutoff) && (h.scannedAt || 0) >= servedCutoff) return best;
@@ -484,13 +487,13 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const lastScanMatch = mostRecentPriorAny
     ? occMatchForRisk(mostRecentPriorAny.intent, SCENARIOS[mostRecentPriorAny.scenario]?.risk)
     : null;
-  const priorAnyVerdict = lastScanMatch?.verdict;
-  const findingChanged =
-    Boolean(mostRecentPriorAny) && Boolean(priorAnyVerdict) && priorAnyVerdict !== detectedVerdict;
+  const resultChanged = Boolean(
+    mostRecentPriorAny && lastScanMatch && match && lastScanMatch.label !== match.label
+  );
 
   // Record facts AS OF THIS REPORT, read chronologically: how many times the
-  // finding flipped, which distinct findings appeared, and how often Rented
-  // came up. A report states the world at ITS OWN date, so runs newer than
+  // result flipped, which distinct results appeared, and how often it landed
+  // on Needs review. A report states the world at ITS OWN date, so runs newer than
   // the open report are excluded (the open report itself is kept by id) —
   // on the third scan's page the denominators read "of 3", not "of 5".
   // The drawers are the opposite by design: they always show the full record
@@ -504,16 +507,16 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
       return true;
     })
     .sort((a, b) => (a.scannedAt || 0) - (b.scannedAt || 0));
-  let findingChangeCount = 0;
-  let prevTimelineVerdict: string | undefined;
-  const distinctFindings: string[] = [];
-  let rentedFoundCount = 0;
+  let resultChangeCount = 0;
+  let prevTimelineLabel: string | undefined;
+  const distinctResults: string[] = [];
+  let needsReviewCount = 0;
   addressTimeline.forEach((h) => {
-    const v = occMatchForRisk(h.intent, SCENARIOS[h.scenario]?.risk)?.verdict;
-    if (prevTimelineVerdict !== undefined && v !== prevTimelineVerdict) findingChangeCount += 1;
-    prevTimelineVerdict = v;
-    if (v && !distinctFindings.includes(OCC_VERDICT_LABEL[v])) distinctFindings.push(OCC_VERDICT_LABEL[v]);
-    if (v === 'rented') rentedFoundCount += 1;
+    const m = occMatchForRisk(h.intent, SCENARIOS[h.scenario]?.risk);
+    if (prevTimelineLabel !== undefined && m?.label !== prevTimelineLabel) resultChangeCount += 1;
+    prevTimelineLabel = m?.label;
+    if (m && !distinctResults.includes(m.label)) distinctResults.push(m.label);
+    if (m?.status === 'red') needsReviewCount += 1;
   });
   const addressScanCount = addressTimeline.length;
 
@@ -657,11 +660,11 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               {/* History, entirely collapsed by default (owner: keep the hero
                   uncrowded — reveal only on request). A single toggle sits under
                   the reconciliation line; expanding it shows BOTH the movement
-                  callout (if the last scan found something different) and the
-                  dated links to earlier same-finding reports. Nothing about the
+                  callout (if the last scan's result differed) and the dated
+                  links to earlier same-result reports. Nothing about the
                   property's past is visible until the reviewer asks for it. The
                   toggle appears whenever there's any history worth revealing. */}
-              {(findingChanged || hasPriorSameFinding) && (
+              {(resultChanged || hasPriorSameResult) && (
                 <div className="mt-1.5">
                   <button
                     type="button"
@@ -680,28 +683,31 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                   </button>
 
                   {/* The reveal — four sections, in order (owner spec), each
-                      with a DEFINED null state so no section vanishes silently:
-                        1. The last scan: its result and the config it ran under,
-                           date linked. Movement marker when it differed.
-                        2. Same-finding groups, status first ("Found Inconclusive
-                           — Rented, intended X") + clickable date sub-bullets.
-                           Null → "No earlier scan reached this finding."
-                        3. How many times Rented specifically was found.
-                           Zero → "not found on any of the N scans."
+                      with a DEFINED null state so no section vanishes silently.
+                      Reconciliation vocabulary only — the raw finding never
+                      appears in this disclosure (owner call with dev, Aug-2026):
+                        1. The last scan: its result and the intent it ran
+                           under, date linked. Movement marker when the result
+                           differed.
+                        2. Same-result groups by intent ("Intended X — dates"),
+                           dates clickable.
+                           Null → "No earlier scan reached this result."
+                        3. How many times the result was Needs review.
+                           Zero → "in none of the N scans."
                         4. How many times the result changed, closed by a "View
                            details" link that opens the ScanDetailsDrawer — the
-                           full record oldest-first. Zero → "held across all N
+                           full record latest-first. Zero → "held across all N
                            scans." */}
                   {showEarlier && (
                     <ul className="mt-1.5 mb-0 pl-0 list-none font-sans text-caption text-ink-2 leading-snug tabular-nums flex flex-col gap-1.5">
-                      {/* • 1 — the last scan: result + config, movement-marked
-                          when it differed. Guarded, but a reveal only exists
-                          when at least one prior run does. */}
+                      {/* • 1 — the last scan: result + intent, movement-marked
+                          when the result differed. Guarded, but a reveal only
+                          exists when at least one prior run does. */}
                       {mostRecentPriorAny && lastScanMatch && (
                         <li className="flex items-start gap-2">
                           <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
                           <span>
-                            {findingChanged && (
+                            {resultChanged && (
                               <span className="inline-flex items-center gap-1 font-semibold" style={{ color: 'var(--warn-deep)' }}>
                                 <span className="[&>svg]:w-3 [&>svg]:h-3" aria-hidden>
                                   <Icon name="trend-up" size={12} />
@@ -709,43 +715,41 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                                 Changed since the last scan
                               </span>
                             )}
-                            {findingChanged ? (
+                            {resultChanged ? (
                               <>{' '}— on{' '}</>
                             ) : (
                               <>The result was the same on the last scan — on{' '}</>
                             )}
                             <PriorDateLink run={mostRecentPriorAny} onOpen={(r) => openRunReport(r, history)} />
-                            {' '}it found{' '}
-                            <span className="font-semibold">{OCC_VERDICT_LABEL[priorAnyVerdict!]}</span>
-                            {' '}intended{' '}
+                            {': '}
+                            <span className="font-semibold">{lastScanMatch.label}</span>
+                            {', '}intended{' '}
                             <span className="font-semibold">
                               {mostRecentPriorAny.intent
                                 ? OCC_INTENT_SHORT[mostRecentPriorAny.intent as keyof typeof OCC_INTENT_SHORT]
                                 : 'not declared'}
-                            </span>
-                            {' — '}
-                            <span className="font-semibold">{lastScanMatch.label}</span>.
+                            </span>.
                           </span>
                         </li>
                       )}
 
-                      {/* • 2 — grouped corroboration; each (status × intent)
-                          profile is a sub-bullet with its dates inline as links.
-                          Defined empty state on the same bullet. */}
+                      {/* • 2 — grouped corroboration; each intent profile is a
+                          sub-bullet with its dates inline as links. Defined
+                          empty state on the same bullet. */}
                       <li>
                         <div className="flex items-start gap-2">
                           <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
-                          {hasPriorSameFinding ? (
+                          {hasPriorSameResult ? (
                             <span>
-                              Earlier scans with this same finding —{' '}
+                              Earlier scans with this same result —{' '}
                               {priorRecentFirst.length} of {addressScanCount} (
                               {pctOf(priorRecentFirst.length, addressScanCount)}%):
                             </span>
                           ) : (
-                            <span className="text-ink-3">No earlier scan reached this finding.</span>
+                            <span className="text-ink-3">No earlier scan reached this result.</span>
                           )}
                         </div>
-                        {hasPriorSameFinding && (
+                        {hasPriorSameResult && (
                           <ul className="mt-0.5 mb-0 pl-5 list-none flex flex-col gap-0.5">
                             {priorGroups.map((g: any) => {
                               const intentLabel = g.intent
@@ -757,10 +761,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                                 <li key={g.key} className="flex items-start gap-2">
                                   <span className="mt-[5px] w-1.5 h-1.5 rounded-full border shrink-0" style={{ borderColor: 'var(--ink-4)' }} aria-hidden />
                                   <span>
-                                    Found <span className="font-semibold">{g.label || OCC_VERDICT_LABEL[detectedVerdict!]}</span>
-                                    {' — '}
-                                    <span className="font-semibold">{OCC_VERDICT_LABEL[detectedVerdict!]}</span>,
-                                    {' '}intended <span className="font-semibold">{intentLabel}</span>
+                                    Intended <span className="font-semibold">{intentLabel}</span>
                                     {' — '}
                                     {shown.map((run: any, i: number) => (
                                       <React.Fragment key={run.id}>
@@ -795,36 +796,36 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                         )}
                       </li>
 
-                      {/* • 3 — the Rented tally, with its defined zero state. */}
+                      {/* • 3 — the Needs-review tally, with its defined zero state. */}
                       <li className="flex items-start gap-2">
                         <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
                         <span className="text-ink-3">
-                          {rentedFoundCount > 0 ? (
+                          {needsReviewCount > 0 ? (
                             <>
-                              It was found <span className="font-semibold text-ink-2">{OCC_VERDICT_LABEL.rented}</span> in{' '}
-                              {String(rentedFoundCount).padStart(2, '0')} out of {addressScanCount} scans (
-                              {pctOf(rentedFoundCount, addressScanCount)}%).
+                              The result was <span className="font-semibold text-ink-2">{OCC_STATUS_MATCH_LABEL.red}</span> in{' '}
+                              {String(needsReviewCount).padStart(2, '0')} out of {addressScanCount} scans (
+                              {pctOf(needsReviewCount, addressScanCount)}%).
                             </>
                           ) : (
                             <>
-                              It was not found <span className="font-semibold text-ink-2">{OCC_VERDICT_LABEL.rented}</span> in
-                              any of the {addressScanCount} scans.
+                              The result was <span className="font-semibold text-ink-2">{OCC_STATUS_MATCH_LABEL.red}</span> in
+                              none of the {addressScanCount} scans.
                             </>
                           )}
                         </span>
                       </li>
 
-                      {/* • 4 — record-wide change count, naming the findings,
+                      {/* • 4 — record-wide change count, naming the results,
                           closed by the Details flyout: the whole record as a
-                          simple oldest-first ledger (result · intended · found ·
-                          date, dates linked). */}
+                          simple latest-first ledger (date · result · intended,
+                          dates linked). */}
                       <li className="flex items-start gap-2">
                         <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
                         <span className="text-ink-3">
-                          {findingChangeCount > 0 ? (
+                          {resultChangeCount > 0 ? (
                             <>
-                              The result has changed {countWord(findingChangeCount)} across {addressScanCount} scans
-                              {distinctFindings.length > 1 && <> ({distinctFindings.join(' · ')})</>}.
+                              The result has changed {countWord(resultChangeCount)} across {addressScanCount} scans
+                              {distinctResults.length > 1 && <> ({distinctResults.join(' · ')})</>}.
                             </>
                           ) : (
                             <>The result has held across all {addressScanCount} scans.</>

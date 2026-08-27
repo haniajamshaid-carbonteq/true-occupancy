@@ -1,5 +1,5 @@
 /* global React, ReactRouterDOM, Drawer, Pill, Icon, useAppState, occMatchForRisk, SCENARIOS,
-   OCC_VERDICT_LABEL, OCC_INTENT_SHORT, formatUsDate, timeAgo, openRunReport, PriorDateLink */
+   OCC_INTENT_SHORT, formatUsDate, timeAgo, openRunReport, PriorDateLink */
 // PropertyTimelineDrawer — the "what has this address done over time" flyout,
 // reachable from the top bar on every result page (including an older report
 // opened from the corroboration links). Composes the registered Drawer with
@@ -8,7 +8,7 @@
 // Three bands, top to bottom:
 //   1. Present status — the reconciliation of the LATEST scan on or before
 //      today, stated plainly. This is the "where does it stand now" line.
-//   2. Summary — how many times scanned, and the finding it reached most often.
+//   2. Summary — how many times scanned, and the result it reaches most often.
 //   3. Timeline — every run (newest first), each row a dated link that opens
 //      that exact report (and closes the drawer).
 //
@@ -164,19 +164,19 @@ function PropertyTimelineDrawer({
             </div>
             {presentMatch && (
               <p className="mt-2 font-sans text-caption text-ink-2 leading-snug m-0">
-                Scan found <span className="font-semibold">{OCC_VERDICT_LABEL[presentMatch.verdict]}</span>
-                {present.intent && (
+                {present.intent ? (
                   <>
-                    {' '}· intended{' '}
-                    <span className="font-semibold">{OCC_INTENT_SHORT[present.intent as keyof typeof OCC_INTENT_SHORT]}</span>
+                    Reconciled against intended{' '}
+                    <span className="font-semibold">{OCC_INTENT_SHORT[present.intent as keyof typeof OCC_INTENT_SHORT]}</span>.
                   </>
+                ) : (
+                  <>No occupancy was declared for this scan.</>
                 )}
-                .
               </p>
             )}
           </div>
 
-          {/* 2 — Summary: how many scans, and the finding it lands on most. */}
+          {/* 2 — Summary: how many scans, and the result it lands on most. */}
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div className="rounded-lg border border-line px-3 py-2.5">
               <div className="font-sans text-h4 font-semibold tabular-nums leading-none" style={{ color: 'var(--navy)' }}>
@@ -246,15 +246,17 @@ function PropertyTimelineDrawer({
 // DESCENDING order (latest first — owner call, Aug-2026) so the newest
 // evidence leads and older scans trail off below: one header row, then ONE
 // ROW PER SCAN — date (linked, opens that report and closes the drawer), the
-// reconciliation pill, and the config it ran under (intended × found).
+// reconciliation pill, and the intended occupancy it reconciled against.
+// Reconciliation vocabulary only — the raw finding never appears in this
+// ledger (owner call with dev, Aug-2026).
 // PriorDateLink/openRunReport come from ConfidenceHero (shared global scope),
 // so navigation behaves exactly like the in-hero links.
 // Fixed column widths so the separate header grid and every row grid resolve
 // identically (an `auto` column would size to its own content per grid and
 // drift). 118px fits the widest pill ("Needs review") on one line; gap-x-4
-// keeps clear air between the pill and the Intended column. The two text
-// columns truncate before the grid does.
-const DETAILS_GRID = 'grid grid-cols-[84px_118px_minmax(0,1fr)_minmax(0,1fr)] gap-x-4 items-center';
+// keeps clear air between the pill and the Intended column, which truncates
+// before the grid does.
+const DETAILS_GRID = 'grid grid-cols-[84px_118px_minmax(0,1fr)] gap-x-4 items-center';
 
 function ScanDetailsDrawer({
   open,
@@ -295,7 +297,7 @@ function ScanDetailsDrawer({
         <div>
           {/* Header row — same treatment as DataTable column heads. */}
           <div className={`${DETAILS_GRID} pb-2`}>
-            {['Date', 'Result', 'Intended', 'Found'].map((h) => (
+            {['Date', 'Result', 'Intended'].map((h) => (
               <span
                 key={h}
                 className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
@@ -324,9 +326,6 @@ function ScanDetailsDrawer({
                     {r.intent
                       ? OCC_INTENT_SHORT[r.intent as keyof typeof OCC_INTENT_SHORT]
                       : 'Not declared'}
-                  </span>
-                  <span className="font-sans text-caption text-ink-2 truncate">
-                    {m ? OCC_VERDICT_LABEL[m.verdict as keyof typeof OCC_VERDICT_LABEL] : '—'}
                   </span>
                 </li>
               );

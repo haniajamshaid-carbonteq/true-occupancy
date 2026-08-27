@@ -746,3 +746,30 @@ open states-spec.html
 panel, red-address flow, the `scannedAgo` → `scannedAt` migration) · `docs/DESIGN.md` (brand
 source of truth) · `design-harness/design-harness.md` (read before any UI work) ·
 `CLAUDE.md` (architecture and the token/component rules).
+
+---
+
+## Addendum — 2026-08-27 · The W3 rule held; the scan-history context set is reconciliation-only
+
+The Aug-2026 scan-history context set (Trello [#62](https://trello.com/c/Ju8S1LAp)
+disclosure, [#64](https://trello.com/c/a7NgLSWE) Property timeline drawer,
+[#65](https://trello.com/c/n7MPDY8l) Details ledger) initially leaked the raw verdicts back
+into new surfaces — "Scan found Rented · intended …", "It was found Rented in 03 of 5
+scans", and a FOUND ledger column. The dev flagged it against the W3 rule above; the owner
+ratified the strict reading (2026-08-27), and the leak was purged rather than the rule
+amended.
+
+What that means in practice:
+
+- The **three sanctioned places** for *Rented / Possibly rented / Not rented* are unchanged
+  and exhaustive: the hero's "Why this result" line, the config matrix internals, and the
+  red property drawer's "Found" row. (The hero's confidence framing also still reads the
+  raw verdict internally — the score is confidence *in* the finding — but never renders it
+  as a result.)
+- The history disclosure, the Property timeline drawer, and the Details ledger speak
+  **reconciliation only**: corroboration matches on the reconciliation *label* (not the
+  verdict), the tally counts **Needs review** results, distinct-value lists name results,
+  and the ledger is Date · Result · Intended.
+- When writing any new history/summary surface, a "frequency of the raw finding" line has
+  no reconciliation-only equivalent by definition — state the frequency of the *result*
+  instead, or route the reader to the sanctioned evidence surfaces.
