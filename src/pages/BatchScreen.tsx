@@ -2,7 +2,7 @@
    VERDICT_ACCENT, splitAddress, AutomationControl, AutomationBanner, VerdictTiles, EditableTitle,
    deriveTitleFromFilename, useAppState, AI_BAND_COPY, Modal, StatusPillSelector,
    ChipRow, INTENDED_OCCUPANCY_LABEL, RedFlag,
-   OCC_INTENT_SHORT, OCC_VERDICT_LABEL, timeAgo, occMatchForRisk, RunHistory, DEFAULT_OCC_CONFIG */
+   timeAgo, occMatchForRisk, RunHistory, DEFAULT_OCC_CONFIG */
 // Batch processing — upload a CSV (or click "Try a Sample Batch") to scan
 // dozens of properties in one queue. The empty state is a configuration
 // form (title, description, repeat cadence, optional advanced options);
@@ -939,7 +939,6 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
           rows={filteredRows}
           onRunRowAI={canRunAI ? runRowAIReport : undefined}
           defaultIntent={batch.defaultIntent}
-          redView={matchFilter === 'needsReview'}
         />
       </div>
 
@@ -1020,7 +1019,6 @@ function BatchTable({
   rows,
   onRunRowAI,
   defaultIntent,
-  redView,
 }: {
   rows: BatchRow[];
   /** Per-row "run AI now" handler. Undefined on the read-only historical
@@ -1028,9 +1026,6 @@ function BatchTable({
   onRunRowAI?: (rowId: number) => void;
   /** Batch-level occupancy default — applied to rows with no mapped intent. */
   defaultIntent?: IntendedOccupancy;
-  /** Red-flags filter is active — show Declared vs Found instead of the
-   *  score/AI columns, so the user can see WHY each row is red. */
-  redView?: boolean;
 }) {
   const history = ReactRouterDOM.useHistory();
 
@@ -1043,8 +1038,8 @@ function BatchTable({
   }
 
   const columns = React.useMemo(
-    () => (redView ? buildBatchRedColumns(defaultIntent) : buildBatchColumns(onRunRowAI, defaultIntent)),
-    [onRunRowAI, defaultIntent, redView]
+    () => buildBatchColumns(onRunRowAI, defaultIntent),
+    [onRunRowAI, defaultIntent]
   );
 
   return (
@@ -1075,79 +1070,6 @@ const VERDICT_LABEL: Record<Risk, string> = {
 
 // Map a row's risk band to the matching detail-screen route, so the demo
 // has somewhere believable to drill into.
-// Column set shown when the batch table is filtered to Red flags. Trades the
-// score/listings/AI columns for Declared vs Found, so the reason a row is red
-// is visible in-line (mirrors the standalone red list). Few, modest widths so
-// the address track keeps its room.
-function buildBatchRedColumns(defaultIntent?: IntendedOccupancy): any[] {
-  const verdictOf = (row: BatchRow): string =>
-    row.risk === 'risk' ? 'rented' : row.risk === 'warn' ? 'possibly-rented' : 'not-rented';
-  const intentOf = (row: BatchRow): string => row.intent ?? defaultIntent ?? 'owner-occupied';
-  return [
-    {
-      key: 'address',
-      label: 'Address',
-      primary: true,
-      cell: (row: BatchRow) => {
-        const [street, locality] = splitAddress(row.address);
-        return (
-          <div className="min-w-0">
-            <div className="flex items-center gap-inline min-w-0">
-              <span className="font-sans font-semibold text-body-sm leading-tight truncate" style={{ color: 'var(--navy)' }}>
-                {street}
-              </span>
-              {isRowRed(row, defaultIntent) && <RedFlag address={row.address} />}
-            </div>
-            {locality && (
-              <div className="font-sans text-caption text-ink-3 mt-0.5 leading-tight truncate">{locality}</div>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      key: 'declared',
-      label: 'Declared',
-      width: '132px',
-      hideBelow: 'md' as const,
-      cell: (row: BatchRow) => (
-        <span className="font-sans text-caption text-ink-2">{OCC_INTENT_SHORT[intentOf(row)]}</span>
-      ),
-    },
-    {
-      key: 'found',
-      label: 'Found',
-      width: '132px',
-      cell: (row: BatchRow) => (
-        <span className="inline-flex items-center gap-1.5 font-sans text-caption text-ink-2">
-          {OCC_VERDICT_LABEL[verdictOf(row)]}
-          {/* Same AI-validated sign as the History verdict pills (Trello #58). */}
-          {row.aiReport?.status === 'done' && (
-            <span
-              role="img"
-              aria-label="AI used to validate this result"
-              title="AI used to validate this result"
-              className="inline-flex shrink-0 opacity-70"
-            >
-              <Icon name="ai-star" size={12} />
-            </span>
-          )}
-        </span>
-      ),
-    },
-    {
-      key: 'score',
-      label: 'Score',
-      width: '72px',
-      align: 'right' as const,
-      hideBelow: 'lg' as const,
-      cell: (row: BatchRow) => (
-        <span className="font-mono tabular-nums text-caption text-ink-3">{row.score ?? '—'}</span>
-      ),
-    },
-  ];
-}
-
 const ROUTE_FOR_RISK: Record<Risk, string> = {
   risk: '/result/high',
   warn: '/result/medium',
