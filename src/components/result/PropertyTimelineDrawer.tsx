@@ -59,22 +59,6 @@ function DrawerScopeNote({ runs }: { runs: any[] }) {
   );
 }
 
-// The automated-run marker, mirrored from RunHistory so a re-scan started by
-// the schedule reads the same in both places. Fixed-width slot keeps dates on
-// one baseline whether or not a row is marked.
-function TimelineTriggerMark({ trigger }: { trigger?: 'manual' | 'automation' }) {
-  if (trigger !== 'automation') return <span className="inline-block w-3.5 shrink-0" aria-hidden />;
-  return (
-    <span
-      className="inline-flex shrink-0 w-3.5 justify-center text-brand [&>svg]:w-3 [&>svg]:h-3"
-      title="Automated run — triggered by the schedule on this property"
-    >
-      <Icon name="zap" size={12} aria-hidden />
-      <span className="sr-only">Automated run</span>
-    </span>
-  );
-}
-
 function PropertyTimelineDrawer({
   open,
   onClose,
@@ -216,7 +200,6 @@ function PropertyTimelineDrawer({
                         i > 0 ? 'border-t border-line' : ''
                       }`}
                     >
-                      <TimelineTriggerMark trigger={r.trigger} />
                       <span className="font-sans text-caption text-ink-2 tabular-nums w-24 shrink-0">
                         {formatUsDate(new Date(r.scannedAt || 0).toISOString())}
                       </span>
