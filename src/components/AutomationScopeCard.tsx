@@ -87,7 +87,7 @@ function AutomationScopeCard({
           <Icon name="alert" size={16} />
         </span>
         <p className="m-0 font-sans text-body-sm leading-relaxed">
-          Pick at least one status to include — otherwise nothing will be rescanned.
+          Pick at least one status to include, or nothing will be rescanned.
         </p>
       </div>
     );
@@ -101,7 +101,7 @@ function AutomationScopeCard({
           <Icon name="info" size={16} />
         </span>
         <p className="m-0 font-sans text-body-sm text-ink-2 leading-relaxed">
-          Address counts pending — first scan is still running. We'll apply this scope
+          Address counts are pending while the first scan runs. We'll apply this scope
           when it completes (cadence: {cadenceLabel(cadence)}).
         </p>
       </div>

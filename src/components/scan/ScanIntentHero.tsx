@@ -104,7 +104,7 @@ function ScanIntentHero({
     msgTone = 'text-error-ink';
     msg = 'Choose an intended use to run.';
   } else if (intent === 'not-sure') {
-    msg = "No baseline declared — we'll report what the scan finds.";
+    msg = "No baseline declared, so we'll report what the scan finds.";
   } else if (intent) {
     msg = 'Running will flag any occupancy that contradicts this.';
   }
@@ -158,7 +158,7 @@ function ScanIntentHero({
                 </span>
               </div>
               <p className="text-caption text-ink-3 mt-1 mb-3">
-                What the loan or policy says this property should be — the scan is compared against it.
+                What the loan or policy says this property should be. The scan is compared against it.
               </p>
 
               {/* ChipRow supplies the chips; its own eyebrow label is suppressed
@@ -197,7 +197,7 @@ function ScanIntentHero({
               <Icon name="check" size={14} />
             </span>
             <span>
-              Scanning — reconciling against{' '}
+              Scanning and reconciling against{' '}
               <strong className="font-semibold">
                 {INTENT_OPTIONS.find((o) => o.value === intent)?.label}
               </strong>

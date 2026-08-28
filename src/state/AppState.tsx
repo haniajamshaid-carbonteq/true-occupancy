@@ -64,7 +64,7 @@ function scheduleEndLine(entry: { status?: string; endedAt?: number }): string |
 function scheduleEndFact(entry: { status?: string; endedAt?: number; endReason?: string }): string | null {
   const line = scheduleEndLine(entry);
   if (!line) return null;
-  return entry.endReason ? `${line} — ${entry.endReason}` : line;
+  return entry.endReason ? `${line}. ${entry.endReason}` : line;
 }
 
 const MINUTE = 60_000;
@@ -432,7 +432,7 @@ const SEED_BATCH_PARTIAL_ROWS: LiveBatchRow[] = [
   // Row 1 overrides the batch default (rental) — keeps this seed batch
   // "Mixed" so the declared-summary cell is demonstrable without running one.
   { id: 1, address: '88 Cumberland Ave, Asheville, NC 28801',   status: 'done',   score: 18, risk: 'clean', listings: 0, intent: 'owner-occupied' },
-  { id: 2, address: '301 Merrimon Ave, Asheville, NC 28804',    status: 'failed', errorReason: 'Geocoder timeout — retry later' },
+  { id: 2, address: '301 Merrimon Ave, Asheville, NC 28804',    status: 'failed', errorReason: 'Geocoder timed out. Retry later.' },
   { id: 3, address: '145 Westchester Dr, Asheville, NC 28803',  status: 'done',   score: 76, risk: 'risk',  listings: 3 },
   { id: 4, address: '23 Tunnel Rd, Asheville, NC 28805',        status: 'done',   score: 8,  risk: 'clean', listings: 0 },
   { id: 5, address: '67 Charlotte Hwy, Asheville, NC 28803',    status: 'failed', errorReason: 'Address not found in county records' },
@@ -443,10 +443,10 @@ const SEED_BATCH_PARTIAL_ROWS: LiveBatchRow[] = [
 
 // Every row errored — demonstrates the "failed" completion state in History.
 const SEED_BATCH_FAILED_ROWS: LiveBatchRow[] = [
-  { id: 1, address: '988 Riverside Dr, Asheville, NC 28801', status: 'failed', errorReason: 'Geocoder timeout — retry later' },
-  { id: 2, address: '12 Birch Hollow Ln, Asheville, NC 28804', status: 'failed', errorReason: 'Geocoder timeout — retry later' },
-  { id: 3, address: '77 Aston Park Ct, Asheville, NC 28805',  status: 'failed', errorReason: 'Geocoder timeout — retry later' },
-  { id: 4, address: '301 Sweeten Creek Rd, Asheville, NC 28803', status: 'failed', errorReason: 'Geocoder timeout — retry later' },
+  { id: 1, address: '988 Riverside Dr, Asheville, NC 28801', status: 'failed', errorReason: 'Geocoder timed out. Retry later.' },
+  { id: 2, address: '12 Birch Hollow Ln, Asheville, NC 28804', status: 'failed', errorReason: 'Geocoder timed out. Retry later.' },
+  { id: 3, address: '77 Aston Park Ct, Asheville, NC 28805',  status: 'failed', errorReason: 'Geocoder timed out. Retry later.' },
+  { id: 4, address: '301 Sweeten Creek Rd, Asheville, NC 28803', status: 'failed', errorReason: 'Geocoder timed out. Retry later.' },
 ];
 
 const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i) => {
@@ -634,7 +634,7 @@ const SAMPLE_BATCH_OUTCOMES: Record<number, SampleOutcome> = {
   8:  { kind: 'done', score: 18, risk: 'clean', listings: 0 },
   9:  { kind: 'done', score: 64, risk: 'warn',  listings: 2 },
   10: { kind: 'done', score: 71, risk: 'risk',  listings: 2 },
-  11: { kind: 'failed', reason: 'Geocoder timeout — retry later' },
+  11: { kind: 'failed', reason: 'Geocoder timed out. Retry later.' },
   12: { kind: 'done', score: 33, risk: 'warn',  listings: 1 },
   13: { kind: 'done', score: 22, risk: 'clean', listings: 0 },
   14: { kind: 'done', score: 6,  risk: 'clean', listings: 0 },
@@ -652,7 +652,7 @@ type AIBatchOutcome =
   | { kind: 'failed'; reason: string };
 
 function resolveAIOutcome(row: LiveBatchRow): AIBatchOutcome {
-  if (row.id % 7 === 0) return { kind: 'failed', reason: 'AI provider timeout — retry' };
+  if (row.id % 7 === 0) return { kind: 'failed', reason: 'AI provider timed out. Retry.' };
   if (row.risk === 'risk')
     return { kind: 'done', verdictBand: row.id % 2 ? 'high_priority_review' : 'review' };
   if (row.risk === 'warn') return { kind: 'done', verdictBand: 'monitor' };

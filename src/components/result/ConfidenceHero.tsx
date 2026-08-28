@@ -387,7 +387,7 @@ function reconciliationWhy(status: 'green' | 'yellow' | 'red', hasIntent: boolea
     return 'The finding is consistent with the intended occupancy.';
   }
   if (status === 'red') {
-    return 'The finding contradicts the intended occupancy — worth a human review.';
+    return 'The finding contradicts the intended occupancy, so it is worth a human review.';
   }
   return 'The finding is inconclusive against the intended occupancy and may need a closer look.';
 }
@@ -665,7 +665,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
               </div>
               <p className="mt-1.5 font-sans text-caption text-ink-2 leading-snug m-0">
                 {rentalConfidenceMode
-                  ? 'No baseline to reconcile — the score is the observed rental likelihood.'
+                  ? 'No baseline to reconcile, so the score is the observed rental likelihood.'
                   : reconciliationWhy(match.status, Boolean(intent))}
               </p>
               {/* History, entirely collapsed by default (owner: keep the hero
@@ -729,9 +729,9 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                               </span>
                             )}
                             {resultChanged ? (
-                              <>{' '}— on{' '}</>
+                              <>{' '}on{' '}</>
                             ) : (
-                              <>The result was the same on the last scan — on{' '}</>
+                              <>The result was the same on the last scan on{' '}</>
                             )}
                             <PriorDateLink run={mostRecentPriorAny} onOpen={(r) => openRunReport(r, history)} />
                             {': '}
@@ -754,8 +754,8 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                           <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
                           {hasPriorSameResult ? (
                             <span>
-                              Earlier scans with this same result —{' '}
-                              {priorRecentFirst.length} of {addressScanCount} (
+                              Earlier scans with this same result (
+                              {priorRecentFirst.length} of {addressScanCount},{' '}
                               {pctOf(priorRecentFirst.length, addressScanCount)}%):
                             </span>
                           ) : (
@@ -775,7 +775,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                                   <span className="mt-[5px] w-1.5 h-1.5 rounded-full border shrink-0" style={{ borderColor: 'var(--ink-4)' }} aria-hidden />
                                   <span>
                                     Intended <span className="font-semibold">{intentLabel}</span>
-                                    {' — '}
+                                    {': '}
                                     {shown.map((run: any, i: number) => (
                                       <React.Fragment key={run.id}>
                                         {i > 0 && (

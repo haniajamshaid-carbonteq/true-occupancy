@@ -210,7 +210,7 @@ function SavedSnapshotDrawer({
           so short captures don't read as cramped. */}
       <div
         role="img"
-        aria-label={`Listing screenshot — captured ${capturedAt}`}
+        aria-label={`Listing screenshot captured ${capturedAt}`}
         className="rounded-md border border-line grid place-items-center text-center"
         style={{
           minHeight: 420,

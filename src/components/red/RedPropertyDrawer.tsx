@@ -102,8 +102,8 @@ function useRedPropertyContent({
       <div className="flex flex-col gap-stack-md">
         <div className="rounded-lg p-3 bg-warn-soft">
           <p className="font-sans text-caption" style={{ color: 'var(--warn-ink)' }}>
-            The property stays red. Only the recurring scan stops — you will not
-            be re-checked on this address until you start it again.
+            The property stays red. Only the recurring scan stops. You will not be
+            re-checked on this address until you start it again.
           </p>
         </div>
         <Textarea
@@ -252,7 +252,7 @@ function useRedPropertyContent({
               <p className="font-sans text-caption mt-0.5" style={{ color: 'var(--ink-3)' }}>
                 {p.scansStopped
                   ? 'This property is no longer re-scanned automatically.'
-                  : `Re-scanned ${String(OCC_CADENCE_LABEL[p.recurring ?? 'none']).toLowerCase()} because it's flagged red — not a schedule you set up.`}
+                  : `Re-scanned ${String(OCC_CADENCE_LABEL[p.recurring ?? 'none']).toLowerCase()} because it's flagged red, not because of a schedule you set up.`}
               </p>
             </div>
           </div>

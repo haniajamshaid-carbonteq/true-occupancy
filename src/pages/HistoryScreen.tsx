@@ -226,7 +226,7 @@ function HistoryScreen() {
             History
           </h1>
           <p className="text-body-sm text-ink-2 leading-relaxed m-0 mt-2 whitespace-nowrap">
-            Every scan you've run — searchable, filterable, click any row to reopen the case.
+            Every scan you've run, searchable and filterable. Click any row to reopen it.
           </p>
         </div>
       </header>

@@ -188,7 +188,7 @@ function AutomationControl({ target }: AutomationControlProps) {
         trigger={(open: boolean) => (
           <button
             type="button"
-            aria-label={`Automated ${cadenceLabel(cadence)} — open menu`}
+            aria-label={`Automated ${cadenceLabel(cadence)}, open menu`}
             className="shrink-0 inline-flex items-center gap-inline h-9 px-control-x rounded-lg border bg-surface text-ink-2 border-line-strong hover:bg-hover-bg transition-colors cursor-pointer font-sans text-label font-medium"
           >
             <span className="inline-flex shrink-0 text-brand [&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>

@@ -119,7 +119,7 @@ const TYPE_RAMP: RampRow[] = [
   { token: 'text-h2',      px: 28, use: 'Compact metric, large heading', sample: '14 properties' },
   { token: 'text-h3',      px: 22, use: 'Section heading, card title', sample: 'Recent Scans' },
   { token: 'text-h4',      px: 18, use: 'Subsection heading',          sample: 'Why This Score' },
-  { token: 'text-body',    px: 16, use: 'Body lead',                   sample: 'One address — every public listing within a mile.' },
+  { token: 'text-body',    px: 16, use: 'Body lead',                   sample: 'One address. Every public listing within a mile.' },
   { token: 'text-body-sm', px: 14, use: 'Default body, table row',     sample: '1428 Maplewood Drive, Asheville, NC 28804' },
   { token: 'text-label',   px: 13, use: 'UI label, dense body, button',sample: 'Run Scan · Download · Back' },
   { token: 'text-caption', px: 12, use: 'Caption, hint, secondary',    sample: 'Last verified 2 h ago' },

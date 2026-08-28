@@ -1020,7 +1020,7 @@ function DataGapsSection({ result }: { result: AIInvestigationResult }) {
           not findings, so no reader mistakes a gap for a mark against the
           property. */}
       <p className="font-sans text-caption text-ink-3 leading-relaxed m-0 mt-1">
-        Open questions that limit confidence — not findings on their own.
+        Open questions that limit confidence. They are not findings on their own.
       </p>
 
       {/* One calm panel, groups separated by hairlines rather than three

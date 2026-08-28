@@ -11,7 +11,7 @@ const TAMPERED_SAMPLE = {
   canonical: '123 Northwest Blvd, Albuquerque, NM 87104',
   suspectIndices: [5, 10, 26, 30],
   plainReason:
-    "Letters in this address were swapped with numbers that look similar — a 0 (zero) where O should be in 'Northwest', and 3 (three) where E should be in 'Albuquerque'. Typos rarely look like this; it usually means the address was disguised on purpose.",
+    "Letters in this address were swapped with numbers that look similar: a 0 (zero) where O should be in 'Northwest', and 3 (three) where E should be in 'Albuquerque'. Typos rarely look like this; it usually means the address was disguised on purpose.",
 };
 
 function ResultTamperedScreen() {

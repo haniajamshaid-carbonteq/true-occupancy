@@ -476,7 +476,7 @@ function ScanConfigScreen({
                     OCC_VERDICTS.map((v: string) => (
                       <ChipRow
                         key={v}
-                        label={`If ${(MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v]).toLowerCase()} — treat as`}
+                        label={`If ${(MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v]).toLowerCase()}, treat as`}
                         value={matrix[intent][v]}
                         onChange={(next: string) => setCell(intent, v, next)}
                         options={OCC_STATUSES.map((s: string) => ({
@@ -504,7 +504,7 @@ function ScanConfigScreen({
           checked={aiOnRed}
           onChange={setAiOnRed}
           label="Auto-run the AI report on red-flagged addresses"
-          description="Any address that comes back red — from a single scan, or found inside a batch — automatically gets the deeper AI report. Everything else stays on demand. Off by default: the report costs more per property, so it's reserved for red."
+          description="Any address that comes back red, whether from a single scan or inside a batch, automatically gets the deeper AI report. Everything else stays on demand. Off by default: the report costs more per property, so it's reserved for red."
         />
         <p className="font-sans text-micro text-ink-3 leading-relaxed m-0">
           Applies to single scans and batch runs. Any property can still be run immediately with “Run now”.
@@ -588,7 +588,7 @@ function ScanConfigScreen({
               />
             </div>
             <p className="font-sans text-caption mt-stack-tight" style={{ color: 'var(--ink-3)' }}>
-              Applies org-wide. 30 minutes is typical — set whatever your policy requires.
+              Applies org-wide. 30 minutes is typical, but set whatever your policy requires.
             </p>
           </div>
         )}

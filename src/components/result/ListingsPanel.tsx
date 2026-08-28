@@ -101,7 +101,7 @@ function SnapshotIconButton({
   onClick,
   label = 'View snapshot',
   disabled = false,
-  disabledLabel = 'Snapshot still capturing — check back in a moment',
+  disabledLabel = 'Snapshot still capturing. Check back in a moment.',
 }: {
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   label?: string;
@@ -309,7 +309,7 @@ function buildRows(listings: ListingFlat[]): DiffRow[] {
       label: 'Bedrooms',
       record: String(PROPERTY.bedrooms),
       cells: listings.map((l) => ({
-        value: l.beds ?? '— n/a',
+        value: l.beds ?? 'n/a',
         kind:
           l.beds === undefined
             ? 'warn'
@@ -324,7 +324,7 @@ function buildRows(listings: ListingFlat[]): DiffRow[] {
       label: 'Bathrooms',
       record: String(PROPERTY.bathrooms),
       cells: listings.map((l) => ({
-        value: l.baths ?? '— n/a',
+        value: l.baths ?? 'n/a',
         kind:
           l.baths === undefined
             ? 'warn'
@@ -339,7 +339,7 @@ function buildRows(listings: ListingFlat[]): DiffRow[] {
       label: 'Square feet',
       record: PROPERTY.area.replace(' sq ft', '').replace('sqft', ''),
       cells: listings.map((l) => {
-        if (!l.sqft) return { value: '— n/a', kind: 'warn', sub: 'not disclosed' };
+        if (!l.sqft) return { value: 'n/a', kind: 'warn', sub: 'not disclosed' };
         const diff = ((l.sqft - recordSqft) / recordSqft) * 100;
         const adiff = Math.abs(diff);
         const kind: Kind = adiff < 2 ? 'pass' : adiff < 8 ? 'warn' : 'fail';
@@ -357,7 +357,7 @@ function buildRows(listings: ListingFlat[]): DiffRow[] {
       label: 'Borrower-name match',
       record: borrower,
       cells: listings.map((l) => ({
-        value: typeof l.host.fuzzyMatchPct === 'number' ? `${l.host.fuzzyMatchPct}%` : '— n/a',
+        value: typeof l.host.fuzzyMatchPct === 'number' ? `${l.host.fuzzyMatchPct}%` : 'n/a',
         kind:
           typeof l.host.fuzzyMatchPct !== 'number'
             ? 'warn'
@@ -378,7 +378,7 @@ function buildRows(listings: ListingFlat[]): DiffRow[] {
             ? l.daysPostClose < 0
               ? `−${Math.abs(l.daysPostClose)}d`
               : `+${l.daysPostClose}d`
-            : '— n/a',
+            : 'n/a',
         kind:
           typeof l.daysPostClose === 'number' && l.daysPostClose >= 0 && l.daysPostClose <= 365
             ? 'fail'
@@ -561,7 +561,7 @@ function DesktopMatrix({
                   e.stopPropagation();
                   onSnapshot(l.url);
                 }}
-                label={`View snapshot — ${l.title}`}
+                label={`View snapshot of ${l.title}`}
                 disabled={!isSnapshotReady(l.url)}
               />
               <a
@@ -803,7 +803,7 @@ function MobileStack({
                       e.stopPropagation();
                       onSnapshot(l.url);
                     }}
-                    label={`View snapshot — ${l.title}`}
+                    label={`View snapshot of ${l.title}`}
                     disabled={!isSnapshotReady(l.url)}
                   />
                   <a
@@ -974,7 +974,7 @@ function ListingsPanel({ scenario }: ListingsPanelProps) {
           </div>
           <div className="text-caption mt-1 leading-relaxed text-ink-3">
             Full sweep across Airbnb, Vrbo, and Facebook Marketplace within a
-            1.0&nbsp;mi radius — nothing matched the property's address
+            1.0&nbsp;mi radius. Nothing matched the property's address
             fingerprint, host signals, or layout.
           </div>
         </div>
@@ -1153,7 +1153,7 @@ function TableView({
             e.stopPropagation();
             onSnapshot(r.url);
           }}
-          label={`View snapshot — ${r.title}`}
+          label={`View snapshot of ${r.title}`}
           disabled={!isSnapshotReady(r.url)}
         />
       ),

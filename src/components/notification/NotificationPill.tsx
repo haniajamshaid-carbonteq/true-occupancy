@@ -229,7 +229,7 @@ function NotificationPill({
       onClick={onExpand}
       aria-label={
         single
-          ? `${single.title}${single.meta ? ` — ${single.meta}` : ''}`
+          ? `${single.title}${single.meta ? `. ${single.meta}` : ''}`
           : `${notifications.length} tasks · click to expand`
       }
       role={isAnyError ? 'alert' : 'status'}

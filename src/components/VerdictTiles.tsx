@@ -100,9 +100,9 @@ function VerdictTiles({
   const comboSuffix = comboLabels.length > 1 ? ` (${joinLabels(comboLabels)})` : '';
   const reasonText =
     comboLabels.length > 1
-      ? `Your occupancy config labels this result combination — ${joinLabels(
+      ? `Your occupancy config labels ${joinLabels(
           comboLabels,
-        )} — for automated re-scans, so running automation across these categories is recommended.`
+        )} results for automated re-scans, so running automation across these categories is recommended.`
       : `Your occupancy config labels ${comboLabels[0]} results for automated re-scans, so running automation is recommended.`;
 
   return (

@@ -173,7 +173,7 @@ function NotificationRow({ notif, onDismiss }: NotificationRowProps) {
   return (
     <div
       role="group"
-      aria-label={`${notif.title}${notif.meta ? ` — ${notif.meta}` : ''}`}
+      aria-label={`${notif.title}${notif.meta ? `. ${notif.meta}` : ''}`}
       className="flex gap-3 p-3 rounded-xl border border-line transition-colors duration-150 hover:bg-hover-bg"
       style={{ background: 'var(--surface-2)' }}
     >

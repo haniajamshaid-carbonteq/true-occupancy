@@ -31,8 +31,8 @@ interface CommandSearchProps {
 const DEFAULT_PHRASES = [
   'Enter a U.S. street address…',
   'Paste an Airbnb or Vrbo listing URL…',
-  'Try a parcel ID — e.g. 9648-92-3271-00000…',
-  'Or geocoded coords — 35.5951, -82.5515…',
+  'Try a parcel ID like 9648-92-3271-00000…',
+  'Or geocoded coords like 35.5951, -82.5515…',
 ];
 
 // --- typewriter hook ------------------------------------------------------

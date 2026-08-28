@@ -174,7 +174,7 @@ function ScanContextBar({
           onClick={() => setTimelineOpen(true)}
           className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-md text-caption text-ink-2 hover:bg-hover-bg transition-colors shrink-0"
           aria-label="Open property timeline"
-          title="Property timeline — every scan of this address"
+          title="Property timeline for this address"
         >
           <span className="[&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>
             <Icon name="history" size={14} />

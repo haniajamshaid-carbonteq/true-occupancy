@@ -91,7 +91,7 @@ const RETENTION_OPTIONS: { value: ScopeRetention; label: string; hint: string }[
   {
     value: 'monitor',
     label: 'Continue monitoring it',
-    hint: 'Once added, the property stays in the automation — even if its status changes later.',
+    hint: 'Once added, the property stays in the automation even if its status changes later.',
   },
   {
     value: 'remove',
@@ -310,8 +310,8 @@ function AutomateModal({
         />
         <p className="font-sans text-caption mt-2" style={{ color: 'var(--ink-3)' }}>
           Applied to every scan this automation runs. Defaults to your
-          organisation&rsquo;s setting — change it only if these properties are
-          a different kind.
+          organisation&rsquo;s setting. Change it only if these properties are a
+          different kind.
         </p>
       </div>
 

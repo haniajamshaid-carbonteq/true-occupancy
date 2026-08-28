@@ -114,7 +114,7 @@ function StatusPillSelector({
               <span
                 className="inline-flex items-center shrink-0 [&>svg]:w-3.5 [&>svg]:h-3.5"
                 style={{ color: 'var(--risk)' }}
-                title="Flagged red — reconciles to Needs review under the declared occupancy."
+                title="Flagged red because it reconciles to Needs review under the declared occupancy."
                 aria-label="Flagged red"
               >
                 <Icon name="warning" size={13} />

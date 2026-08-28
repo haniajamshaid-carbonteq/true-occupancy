@@ -204,15 +204,15 @@ const SCENARIOS: Record<ScenarioKey, Scenario> = {
     breakdown: [
       { title: 'Address Match', desc: 'Listings geocoded within 25 ft of the parcel centroid across Airbnb and Vrbo.', short: 'Within 25 ft of parcel centroid', impact: 40 },
       { title: 'Bedroom Match', desc: '3-bed / 2-bath layout matches county records on every active listing found.', short: '3-bed / 2-bath matches county record', impact: 22 },
-      { title: 'Title Similarity', desc: "Listing titles reference 'Maplewood' and 'Blue Ridge' — high lexical overlap with property metadata.", short: "Titles reference 'Maplewood', 'Blue Ridge'", impact: 18 },
-      { title: 'Size Mismatch', desc: 'Vrbo listing reports 2.5 baths vs. 2 baths on county record — minor discrepancy.', short: '2.5 baths listed vs. 2 on record', impact: -12 },
+      { title: 'Title Similarity', desc: "Listing titles reference 'Maplewood' and 'Blue Ridge', a high lexical overlap with property metadata.", short: "Titles reference 'Maplewood', 'Blue Ridge'", impact: 18 },
+      { title: 'Size Mismatch', desc: 'Vrbo listing reports 2.5 baths vs. 2 baths on county record, a minor discrepancy.', short: '2.5 baths listed vs. 2 on record', impact: -12 },
     ],
   },
   medium: {
     score: 54,
     risk: 'warn',
     riskLabel: 'Possibly Rented · Medium Confidence',
-    summary: 'One Airbnb listing nearby shares the neighborhood and a keyword. Layout doesn\'t fully match — review may resolve.',
+    summary: 'One Airbnb listing nearby shares the neighborhood and a keyword. Layout doesn\'t fully match, so a review may resolve it.',
     headline: '1 partial match on Airbnb',
     listings: {
       airbnb: [
@@ -249,10 +249,10 @@ const SCENARIOS: Record<ScenarioKey, Scenario> = {
       ],
     },
     breakdown: [
-      { title: 'Address Match', desc: 'Airbnb listing geocoded within 0.4 mi — neighborhood referenced but exact street masked.', short: 'Within 0.4 mi, exact street masked', impact: 25 },
-      { title: 'Bedroom Match', desc: 'Listing reports 1-bed studio; county records 3-bed home — partial mismatch on layout.', short: '1-bed studio vs. 3-bed on record', impact: 10 },
+      { title: 'Address Match', desc: 'Airbnb listing geocoded within 0.4 mi, with the neighborhood referenced but the exact street masked.', short: 'Within 0.4 mi, exact street masked', impact: 25 },
+      { title: 'Bedroom Match', desc: 'Listing reports 1-bed studio; county records 3-bed home, a partial mismatch on layout.', short: '1-bed studio vs. 3-bed on record', impact: 10 },
       { title: 'Title Similarity', desc: "Title contains 'Maplewood' keyword overlap, but no street-level descriptors match.", short: "'Maplewood' keyword, no street match", impact: 18 },
-      { title: 'Size Mismatch', desc: 'Square footage and photo count diverge from county property record — weakens the signal.', short: 'Sq ft and photo count diverge', impact: -14 },
+      { title: 'Size Mismatch', desc: 'Square footage and photo count diverge from county property record, which weakens the signal.', short: 'Sq ft and photo count diverge', impact: -14 },
     ],
   },
   low: {
@@ -265,8 +265,8 @@ const SCENARIOS: Record<ScenarioKey, Scenario> = {
     breakdown: [
       { title: 'Address Match', desc: 'Zero address or geocode hits across 32 nearby Airbnb listings and the 1 mi Vrbo sweep.', short: 'Zero geocode hits across 32 listings', impact: -28 },
       { title: 'Title Similarity', desc: "No active listing titles reference this property's street, neighborhood, or fingerprint.", short: 'No titles reference this property', impact: -22 },
-      { title: 'Owner Profile', desc: 'Owner-occupied (homestead exemption on file) — outside the profile of typical STR operators.', short: 'Homestead exemption on file', impact: -18 },
-      { title: 'Bedroom Match', desc: 'No candidate listings surfaced to compare bedroom counts against — search returned empty.', short: 'No candidates surfaced to compare', impact: -10 },
+      { title: 'Owner Profile', desc: 'Owner-occupied (homestead exemption on file), outside the profile of typical STR operators.', short: 'Homestead exemption on file', impact: -18 },
+      { title: 'Bedroom Match', desc: 'No candidate listings surfaced to compare bedroom counts against; the search returned empty.', short: 'No candidates surfaced to compare', impact: -10 },
     ],
   },
 };

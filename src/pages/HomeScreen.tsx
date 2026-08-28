@@ -86,7 +86,7 @@ const STATE_CHANGES: StateChange[] = [
   { id: 'c1', address: '73 Beaucatcher Rd, Asheville, NC 28805', from: 'low',    to: 'high', detail: 'New Airbnb + Vrbo listings now geocode to the parcel', detectedAgo: '2 d ago' },
   { id: 'c2', address: '19 Edgemont Rd, Asheville, NC 28801',    from: 'medium', to: 'high', detail: 'Host handle now matches the owner of record',         detectedAgo: '3 d ago' },
   { id: 'c3', address: '410 Kimberly Ave, Asheville, NC 28804',  from: 'low',    to: 'high', detail: 'Facebook Marketplace weekly-rental post appeared',     detectedAgo: '4 d ago' },
-  { id: 'c4', address: '88 Cumberland Ave, Asheville, NC 28801', from: 'high',   to: 'low',  detail: 'All matched listings removed — case can be closed',    detectedAgo: '6 d ago' },
+  { id: 'c4', address: '88 Cumberland Ave, Asheville, NC 28801', from: 'high',   to: 'low',  detail: 'All matched listings removed, so the case can be closed',    detectedAgo: '6 d ago' },
 ];
 
 interface RecentScan {

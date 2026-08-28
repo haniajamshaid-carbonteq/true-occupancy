@@ -262,12 +262,12 @@ function redRecordFor(address: string): RedRow | undefined {
 // (declared/found) isn't available for the address.
 function redFlagTooltip(address?: string): string {
   const rec = address ? redRecordFor(address) : undefined;
-  if (!rec) return 'Flagged red — contradicts declared occupancy. Set by your occupancy rules (Config).';
+  if (!rec) return 'Flagged red because it contradicts the declared occupancy. Set by your occupancy rules (Config).';
   const declared = OCC_INTENT_SHORT[rec.intent] ?? rec.intent;
   const found = OCC_VERDICT_LABEL[rec.verdict] ?? rec.verdict;
   // e.g. "Declared Owner-occupied, but the scan found it Rented — flagged Red
   // by your occupancy rules (Config)."
-  return `Declared ${declared}, but the scan found it ${found} — flagged Red by your occupancy rules (Config).`;
+  return `Declared ${declared}, but the scan found it ${found}, so your occupancy rules flag it Red (Config).`;
 }
 
 // The danger marker. Native title tooltip keeps it dependency-free so it can
@@ -324,7 +324,7 @@ function BatchRedBadge({ count, onClick }: { count: number; onClick?: (e: any) =
         }}
         className={`${cls} cursor-pointer transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-risk focus-visible:ring-offset-1`}
         style={style}
-        title={`${title} — view them`}
+        title={`${title}, view them`}
       >
         {inner}
       </span>
@@ -358,7 +358,7 @@ function RedFilterToggle({
         type="button"
         onClick={onToggle}
         aria-pressed={active}
-        aria-label={active ? 'Showing red flags only — click to show all' : `Show only the ${count} red flags`}
+        aria-label={active ? 'Showing red flags only. Click to show all.' : `Show only the ${count} red flags`}
         className={`inline-flex items-center gap-inline h-8 pl-2.5 pr-2 rounded-full border text-caption font-medium transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1 ${
           active
             ? 'bg-risk-soft border-transparent'
@@ -389,7 +389,7 @@ function RedFilterToggle({
         className="pointer-events-none absolute left-0 bottom-full mb-2 hidden group-hover:block group-focus-within:block whitespace-nowrap rounded-md px-2.5 py-1.5 text-micro font-medium shadow-md z-popover"
         style={{ background: 'var(--navy)', color: 'var(--on-brand)' }}
       >
-        Show only red flags — properties whose scan contradicts the declared occupancy.
+        Show only the properties whose scan contradicts the declared occupancy.
       </span>
     </div>
   );

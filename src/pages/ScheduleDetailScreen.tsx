@@ -362,7 +362,7 @@ function ScheduleDetailScreen() {
                     return (
                       <RuleField
                         label="Intended occupancy"
-                        value={s.kind === 'mixed' ? `Mixed — ${batchIntentBreakdown(s)}` : OCC_INTENT_LABEL[s.intent]}
+                        value={s.kind === 'mixed' ? `Mixed (${batchIntentBreakdown(s)})` : OCC_INTENT_LABEL[s.intent]}
                       />
                     );
                   })()}
@@ -396,7 +396,7 @@ function ScheduleDetailScreen() {
               <span className="tabular-nums font-medium">{redInSchedule}</span>{' '}
               {redInSchedule === 1 ? 'address' : 'addresses'} in this{' '}
               {isBatch ? 'batch' : 'schedule'}{' '}
-              {redInSchedule === 1 ? 'is' : 'are'} flagged red — the scan
+              {redInSchedule === 1 ? 'is' : 'are'} flagged red because the scan
               contradicts the declared occupancy.{' '}
               {redInSchedule === 1 ? 'It is' : 'They are'} re-scanned on this{' '}
               {isBatch ? 'batch' : 'schedule'}&rsquo;s cadence along with the
@@ -440,7 +440,7 @@ function ScheduleDetailScreen() {
             loading={loading}
             empty={
               <div className="px-5 py-12 text-center text-label text-ink-3">
-                No runs recorded yet — the next scan will appear here on{' '}
+                No runs recorded yet. The next scan will appear here on{' '}
                 <span className="font-medium text-ink-2">{schedule?.nextRunLabel}</span>.
               </div>
             }

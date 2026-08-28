@@ -45,7 +45,7 @@ function DrawerScopeNote({ runs }: { runs: any[] }) {
       <span>
         {viewingOlder ? (
           <>
-            Showing the property&rsquo;s full history up to today — including scans newer than the{' '}
+            Showing the property&rsquo;s full history up to today, including scans newer than the{' '}
             <span className="font-semibold text-ink-2">
               {formatUsDate(new Date(served).toISOString())}
             </span>{' '}
@@ -175,7 +175,7 @@ function PropertyTimelineDrawer({
                 {modal ? <Pill variant={modal.tone as any}>{modal.label}</Pill> : <span className="text-ink-4">—</span>}
               </div>
               <div className="mt-1 font-sans text-caption text-ink-3 leading-snug tabular-nums">
-                {modal ? `most often — ${modal.count} of ${runs.length}` : 'no reconciled runs'}
+                {modal ? `most often (${modal.count} of ${runs.length})` : 'no reconciled runs'}
               </div>
             </div>
           </div>

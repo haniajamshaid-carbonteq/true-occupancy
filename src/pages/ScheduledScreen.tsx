@@ -377,7 +377,7 @@ function ScheduledScreen() {
         <ScreenEmpty
           icon="cal"
           title="No automations yet"
-          message="Schedule a recurring scan from any property or batch — they'll show up here."
+          message="Schedule a recurring scan from any property or batch, and it will show up here."
           actionLabel="Scan a property"
           onAction={() => routerHistory.push('/')}
         />

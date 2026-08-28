@@ -972,7 +972,7 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
       >
         <p className="text-body-sm text-ink-2 mb-4 leading-relaxed">
           Choose which reconciliation statuses to generate occupancy reports for. Pick
-          any combination. Reports run on completed scans only — rows that
+          any combination. Reports run on completed scans only. Rows that
           already have a report are skipped, and failed ones re-run.
         </p>
         <StatusPillSelector

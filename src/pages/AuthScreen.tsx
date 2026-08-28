@@ -112,7 +112,7 @@ function ImagePanelContent({ compact = false }: { compact?: boolean }) {
             className="mt-2 text-label leading-relaxed opacity-90 max-w-[34ch]"
             style={{ textShadow: '0 1px 10px rgba(0,0,0,0.45)' }}
           >
-            One address — every listing, every signal, scored in seconds.
+            One address. Every listing, every signal, scored in seconds.
           </p>
         </div>
       </div>
@@ -411,7 +411,7 @@ function SignUpForm({
           }
         />
         <div className="font-sans text-micro" style={{ color: 'var(--ink-4)' }}>
-          Demo — <strong style={{ color: 'var(--ink-3)' }}>TEAM-ASHEVILLE</strong> to
+          Demo codes: <strong style={{ color: 'var(--ink-3)' }}>TEAM-ASHEVILLE</strong> to
           join, <strong style={{ color: 'var(--ink-3)' }}>PLATFORM-2026</strong> to create.
         </div>
       </div>

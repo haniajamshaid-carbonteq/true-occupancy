@@ -67,9 +67,9 @@ const TITLE: Record<AddressIntegrityVariant, string> = {
 
 const LEAD: Record<AddressIntegrityVariant, string> = {
   tampered:
-    'This address looks like it may have been deliberately changed. We resolved it to a standard form before scanning — verify with the borrower before relying on this result.',
+    'This address looks like it may have been deliberately changed. We resolved it to a standard form before scanning. Verify with the borrower before relying on this result.',
   typo:
-    'This address appears to contain a typo. We scanned the closest standard match — please confirm with the borrower.',
+    'This address appears to contain a typo. We scanned the closest standard match. Please confirm with the borrower.',
 };
 
 function AddressIntegrityBanner({

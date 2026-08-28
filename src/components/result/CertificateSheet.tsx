@@ -312,7 +312,7 @@ function CertificateBody({
 
         {remaining > 0 && (
           <div className="cert-remaining">
-            + {remaining} additional listing{remaining === 1 ? '' : 's'} — see live report at
+            + {remaining} additional listing{remaining === 1 ? '' : 's'}. See the live report at
             {' '}halcyon.app/verify/{scanId}
           </div>
         )}
@@ -604,7 +604,7 @@ function CertificateSnapshotBody({
           <div
             className="cert-snapshot-shot"
             role="img"
-            aria-label={`Listing screenshot — captured ${capturedAt}`}
+            aria-label={`Listing screenshot captured ${capturedAt}`}
           >
             <svg
               className="cert-snapshot-shot-icon"
@@ -619,7 +619,7 @@ function CertificateSnapshotBody({
               <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
             </svg>
             <div className="cert-snapshot-shot-caption">
-              Listing screenshot — captured {capturedAt}
+              Listing screenshot captured {capturedAt}
             </div>
           </div>
 

@@ -38,7 +38,7 @@ function TriggerMark({ trigger }: { trigger?: 'manual' | 'automation' }) {
   return (
     <span
       className="inline-flex shrink-0 w-4 justify-center text-brand [&>svg]:w-3.5 [&>svg]:h-3.5"
-      title={auto ? 'Automated run — triggered by the schedule on this property' : undefined}
+      title={auto ? 'Automated run started by the schedule on this property' : undefined}
     >
       {auto ? (
         <>
