@@ -1,5 +1,5 @@
 /* global React, ReactRouterDOM, Drawer, Pill, Icon, useAppState, occMatchForRisk, SCENARIOS,
-   OCC_INTENT_SHORT, formatUsDate, timeAgo, openRunReport, PriorDateLink */
+   OCC_INTENT_SHORT, formatUsDate, timeAgo, openRunReport */
 // PropertyTimelineDrawer — the "what has this address done over time" flyout,
 // reachable from the top bar on every result page (including an older report
 // opened from the corroboration links). Composes the registered Drawer with
@@ -219,102 +219,6 @@ function PropertyTimelineDrawer({
             </ul>
           </div>
         </>
-      )}
-    </Drawer>
-  );
-}
-
-// ScanDetailsDrawer — the "Details" flyout behind the change-count line in
-// ConfidenceHero's history reveal. A simple ledger of the whole record in
-// DESCENDING order (latest first — owner call, Aug-2026) so the newest
-// evidence leads and older scans trail off below: one header row, then ONE
-// ROW PER SCAN — date (linked, opens that report and closes the drawer), the
-// reconciliation pill, and the intended occupancy it reconciled against.
-// Reconciliation vocabulary only — the raw finding never appears in this
-// ledger (owner call with dev, Aug-2026).
-// PriorDateLink/openRunReport come from ConfidenceHero (shared global scope),
-// so navigation behaves exactly like the in-hero links.
-// Fixed column widths so the separate header grid and every row grid resolve
-// identically (an `auto` column would size to its own content per grid and
-// drift). 118px fits the widest pill ("Needs review") on one line; gap-x-4
-// keeps clear air between the pill and the Intended column, which truncates
-// before the grid does.
-const DETAILS_GRID = 'grid grid-cols-[84px_118px_minmax(0,1fr)] gap-x-4 items-center';
-
-function ScanDetailsDrawer({
-  open,
-  onClose,
-  address,
-}: {
-  open: boolean;
-  onClose: () => void;
-  address: string;
-}) {
-  const { getHistoryForAddress } = useAppState();
-  const routerHistory = ReactRouterDOM.useHistory();
-
-  const now = React.useMemo(() => Date.now(), [open]);
-  // Latest first, nothing dated ahead of today.
-  const runs: any[] = React.useMemo(() => {
-    const list = getHistoryForAddress(address).filter((h: any) => (h.scannedAt || 0) <= now);
-    return [...list].sort((a: any, b: any) => (b.scannedAt || 0) - (a.scannedAt || 0));
-  }, [getHistoryForAddress, address, now]);
-
-  function openRun(run: any) {
-    if (typeof openRunReport === 'function') openRunReport(run, routerHistory);
-    onClose();
-  }
-
-  return (
-    <Drawer open={open} onClose={onClose} title="Details" width={460}>
-      <div className="font-sans text-caption text-ink-3 leading-snug m-0 mb-1.5">{address}</div>
-      <DrawerScopeNote runs={runs} />
-
-      {runs.length === 0 ? (
-        // Defined empty state — reachable only via a stale session, but the
-        // state floor says it exists anyway.
-        <p className="font-sans text-caption text-ink-3 leading-snug m-0">
-          No scans on record for this property yet.
-        </p>
-      ) : (
-        <div>
-          {/* Header row — same treatment as DataTable column heads. */}
-          <div className={`${DETAILS_GRID} pb-2`}>
-            {['Date', 'Result', 'Intended'].map((h) => (
-              <span
-                key={h}
-                className="font-sans text-eyebrow font-semibold tracking-[0.16em] uppercase"
-                style={{ color: 'var(--ink-3)' }}
-              >
-                {h}
-              </span>
-            ))}
-          </div>
-          <ul className="m-0 p-0 list-none flex flex-col">
-            {runs.map((r) => {
-              const m = timelineMatchOf(r);
-              return (
-                <li key={r.id} className={`${DETAILS_GRID} py-2.5 border-t border-line`}>
-                  <span className="tabular-nums">
-                    {typeof PriorDateLink !== 'undefined' ? (
-                      <PriorDateLink run={r} onOpen={openRun} />
-                    ) : (
-                      <span className="font-sans text-caption text-ink-2">
-                        {formatUsDate(new Date(r.scannedAt || 0).toISOString())}
-                      </span>
-                    )}
-                  </span>
-                  <span className="whitespace-nowrap">{m && <Pill variant={m.tone as any}>{m.label}</Pill>}</span>
-                  <span className="font-sans text-caption text-ink-2 truncate">
-                    {r.intent
-                      ? OCC_INTENT_SHORT[r.intent as keyof typeof OCC_INTENT_SHORT]
-                      : 'Not declared'}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
       )}
     </Drawer>
   );

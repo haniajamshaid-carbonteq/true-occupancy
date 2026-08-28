@@ -1,7 +1,7 @@
 /* global React, ReactRouterDOM, Card, Icon, SCENARIOS, PROPERTY, ReferenceCell, useAppState,
    ServedStamp, formatUsDateTime, formatUsDate, timeAgo, occMatchForRisk,
    INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL, OCC_STATUS_MATCH_LABEL, OCC_INTENT_SHORT,
-   DEFAULT_OCC_CONFIG, ScanDetailsDrawer */
+   DEFAULT_OCC_CONFIG, displayConfidence */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
@@ -10,6 +10,12 @@
 // lender's tracking identifier. The waffle grid, fallback badge, and score
 // sparkline were all removed at the client's request — the verdict + score
 // copy on the left carries the page on its own.
+
+// Gap left above RunHistory when a history link scrolls the page down to it,
+// so the section heading isn't flush against the viewport edge and run one
+// reads as the start of the record. Matches the page's own top padding
+// (pt-6 / 24px in AppShell's main).
+const RUN_HISTORY_SCROLL_GAP = 24;
 
 interface ConfidenceHeroProps {
   scenario: ScenarioKey;
@@ -523,14 +529,18 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   // The earlier-scans corroboration is collapsed by default so the hero stays
   // quiet; the reviewer expands it only when they want the dated links.
   const [showEarlier, setShowEarlier] = React.useState(false);
-  // The "View details" ledger flyout on the change-count line.
-  const [detailsOpen, setDetailsOpen] = React.useState(false);
 
   const history = ReactRouterDOM.useHistory();
 
-  // The overflow link's target — RunHistory's section carries id="run-history"
-  // and always renders when there are enough runs to overflow (>3 similar
-  // priors means ≥4 runs for the address, past its 2-run minimum).
+  // Both history links in this disclosure land on the same place — RunHistory's
+  // section, which carries id="run-history" and renders whenever the address
+  // has ≥2 runs (so it exists wherever this disclosure does). The record is
+  // shown ONCE, at the bottom of the page; nothing re-lists it in a flyout.
+  //
+  // scrollIntoView({ block: 'start' }) pins the heading flush to the viewport
+  // edge, which reads as cut off. A small offset keeps the heading, its lead
+  // line and the first run row all in view, so the landing point is the start
+  // of run one rather than a hard edge.
   function scrollToRunHistory() {
     const el = typeof document !== 'undefined' ? document.getElementById('run-history') : null;
     if (!el) return;
@@ -538,7 +548,8 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
       typeof window !== 'undefined' &&
       window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    const top = el.getBoundingClientRect().top + window.pageYOffset - RUN_HISTORY_SCROLL_GAP;
+    window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
   }
 
   // The frame this page can step back to, if the top of the back stack targets
@@ -695,9 +706,11 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                         3. How many times the result was Needs review.
                            Zero → "in none of the N scans."
                         4. How many times the result changed, closed by a "View
-                           details" link that opens the ScanDetailsDrawer — the
-                           full record latest-first. Zero → "held across all N
-                           scans." */}
+                           in Run history" link that scrolls to the Run history
+                           section at the bottom of the page — the one place the
+                           full record is listed (a flyout used to repeat it;
+                           removed Aug-2026 as a duplicate). Zero → "held across
+                           all N scans." */}
                   {showEarlier && (
                     <ul className="mt-1.5 mb-0 pl-0 list-none font-sans text-caption text-ink-2 leading-snug tabular-nums flex flex-col gap-1.5">
                       {/* • 1 — the last scan: result + intent, movement-marked
@@ -830,32 +843,18 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                           ) : (
                             <>The result has held across all {addressScanCount} scans.</>
                           )}
-                          {typeof ScanDetailsDrawer !== 'undefined' && (
-                            <>
-                              {' '}
-                              <button
-                                type="button"
-                                onClick={() => setDetailsOpen(true)}
-                                className="inline rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
-                                style={{ color: 'var(--brand-link)' }}
-                              >
-                                View details
-                              </button>
-                            </>
-                          )}
+                          {' '}
+                          <button
+                            type="button"
+                            onClick={scrollToRunHistory}
+                            className="inline rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
+                            style={{ color: 'var(--brand-link)' }}
+                          >
+                            View in Run history
+                          </button>
                         </span>
                       </li>
                     </ul>
-                  )}
-
-                  {/* The Details flyout itself — mounted with the disclosure so
-                      it survives the reveal collapsing while open. */}
-                  {typeof ScanDetailsDrawer !== 'undefined' && (
-                    <ScanDetailsDrawer
-                      open={detailsOpen}
-                      onClose={() => setDetailsOpen(false)}
-                      address={heroAddress}
-                    />
                   )}
                 </div>
               )}
