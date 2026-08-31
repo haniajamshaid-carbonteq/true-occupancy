@@ -626,13 +626,13 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                   {/* The reveal — two lines only (owner call, Aug-2026:
                       the four-section version read as clutter). Reconciliation
                       vocabulary only; the raw finding never appears here.
-                        1. The last scan: its result and the intent it ran
-                           under, date linked. Movement marker when the result
-                           differed.
-                        2. One line: how many scans reached this same result,
+                        1. One line: how many scans reached this same result,
                            as a plain count — never a percentage, and with no
                            dates, drill-in or link of its own. Null → "No
                            earlier scan reached this result."
+                        2. The last scan: its result and the intent it ran
+                           under, date linked. Movement marker when the result
+                           differed.
                       The per-intent date groups, the Needs-review tally, the
                       change count and the Run-history link all lived here and
                       were dropped; the Run history section at the bottom of
@@ -640,7 +640,26 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                       run. */}
                   {showEarlier && (
                     <ul className="mt-1.5 mb-0 pl-0 list-none font-sans text-caption text-ink-2 leading-snug tabular-nums flex flex-col gap-1.5">
-                      {/* • 1 — the last scan: result + intent, movement-marked
+                      {/* • 1 — how often this same result came up, counted, not
+                          shared as a percentage. Defined empty state on the
+                          same bullet. */}
+                      <li className="flex items-start gap-2">
+                        <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
+                        <span className="text-ink-3">
+                          {hasPriorSameResult ? (
+                            <>
+                              Earlier scans with this same result:{' '}
+                              <span className="font-semibold text-ink-2">
+                                {priorRecentFirst.length} of {addressScanCount}
+                              </span>.
+                            </>
+                          ) : (
+                            <>No earlier scan reached this result.</>
+                          )}
+                        </span>
+                      </li>
+
+                      {/* • 2 — the last scan: result + intent, movement-marked
                           when the result differed. Guarded, but a reveal only
                           exists when at least one prior run does. */}
                       {mostRecentPriorAny && lastScanMatch && (
@@ -672,25 +691,6 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                           </span>
                         </li>
                       )}
-
-                      {/* • 2 — how often this same result came up, counted, not
-                          shared as a percentage. Defined empty state on the
-                          same bullet. */}
-                      <li className="flex items-start gap-2">
-                        <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
-                        <span className="text-ink-3">
-                          {hasPriorSameResult ? (
-                            <>
-                              Earlier scans with this same result:{' '}
-                              <span className="font-semibold text-ink-2">
-                                {priorRecentFirst.length} of {addressScanCount}
-                              </span>.
-                            </>
-                          ) : (
-                            <>No earlier scan reached this result.</>
-                          )}
-                        </span>
-                      </li>
                     </ul>
                   )}
                 </div>
