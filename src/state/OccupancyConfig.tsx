@@ -260,13 +260,16 @@ function occMatchForRisk(
   return { status, label: OCC_STATUS_MATCH_LABEL[status], tone: OCC_STATUS_TONE[status], verdict };
 }
 
-/** Thresholds are invalid if the bands cross or leave no middle band. */
+/** Thresholds are invalid if the bands cross or leave no middle band.
+ *  Messages name positions ("lower"/"upper"), not band names: they surface on
+ *  the Config screen, which never shows raw verdict wording (Trello #1), and
+ *  that screen's reconciliation words are scoped to it — state stays neutral. */
 function occThresholdError(t: OccThresholds): string | null {
   const { rentedAtOrAbove: hi, notRentedAtOrBelow: lo } = t;
   if (!Number.isFinite(hi) || !Number.isFinite(lo)) return 'Both thresholds need a number.';
   if (lo < 0 || hi > 100) return 'Thresholds sit between 0 and 100.';
-  if (lo >= hi) return 'The "not rented" ceiling has to sit below the "rented" floor.';
-  if (hi - lo < 2) return 'Leave at least 2 points between the bands for "possibly rented".';
+  if (lo >= hi) return 'The lower threshold has to sit below the upper one.';
+  if (hi - lo < 2) return 'Leave at least 2 points between the thresholds for the middle band.';
   return null;
 }
 

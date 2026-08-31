@@ -213,11 +213,15 @@ function ThresholdBandPreview({ lo, hi }: { lo: number; hi: number }) {
   const safeHi = Math.max(safeLo, Math.min(100, hi));
   // Verdicts are a categorical finding, not a severity — so the band uses the
   // verdict palette (blue / yellow / purple), matching the canonical verdict
-  // Pill everywhere else, not the clean/warn/risk status palette.
+  // Pill everywhere else, not the clean/warn/risk status palette. The words,
+  // though, are this screen's: Config never shows raw verdict wording
+  // (Trello #1, reconfirmed by the owner 2026-08-31), so the bands are named
+  // through MATRIX_HEADER_LABEL — the same source as the matrix column
+  // headers these bands feed.
   const bands = [
-    { tone: 'verdict-low', label: OCC_VERDICT_LABEL['not-rented'], width: safeLo },
-    { tone: 'verdict-med', label: OCC_VERDICT_LABEL['possibly-rented'], width: safeHi - safeLo },
-    { tone: 'verdict-high', label: OCC_VERDICT_LABEL.rented, width: 100 - safeHi },
+    { tone: 'verdict-low', label: MATRIX_HEADER_LABEL['not-rented'], width: safeLo },
+    { tone: 'verdict-med', label: MATRIX_HEADER_LABEL['possibly-rented'], width: safeHi - safeLo },
+    { tone: 'verdict-high', label: MATRIX_HEADER_LABEL.rented, width: 100 - safeHi },
   ];
   return (
     <div>
@@ -379,13 +383,76 @@ function ScanConfigScreen({
         />
       </ConfigSection>
 
-      {/* ---- 2. Confidence thresholds — REMOVED ----
-           The threshold editor card was pulled from the UI at the owner's
-           request. The `thresholds` (hi/lo) stay on OccConfig and in this
-           screen's state so the saved config shape and dirty-tracking are
-           unchanged — only the control is gone (same pattern as the retired
-           Recurring-scans and Investigation-depth sections). The band preview
-           (ThresholdBandPreview) is likewise dormant, not deleted. */}
+      {/* ---- 2. Confidence thresholds — RE-INSTATED ----
+           ⚠ REVERSAL, recorded not hidden. This card was previously pulled
+           from the UI at the owner's request; the `thresholds` (hi/lo), the
+           validation and ThresholdBandPreview were all left dormant rather
+           than deleted, which is why bringing it back is a re-wire and not a
+           rebuild.
+
+           Brought back on the client's own ask in the weekly of 2026-08-27.
+           Jim McGowan: "would that be just putting bounds around like from 0
+           to 10%, ignore it — somebody might say anything from 20 to 80% is
+           up in the air, and somebody else might say 60 to 40". Erin Walker:
+           "they want to set a confidence score to get to that … I think we
+           could look at that too." Every example they gave is a different
+           hi/lo pair on the existing two-threshold model, so the model is
+           unchanged — only the control returns.
+
+           Scope: ORG-WIDE thresholds only. `categoryThresholds` (the
+           per-declared-type override) stays dormant and UI-less — nobody has
+           asked for per-category bands, and exposing them would put four
+           editable numbers on screen for a request that named two.
+
+           Vocabulary: labels and band names come from MATRIX_HEADER_LABEL,
+           never OCC_VERDICT_LABEL — Config speaks the reconciliation words
+           only (Trello #1's "no raw verdict wording on Config", reconfirmed
+           by the owner 2026-08-31). */}
+      <ConfigSection
+        title="Confidence thresholds"
+        desc="Where a confidence score stops being one outcome and becomes the next. Everything between the two needs review."
+      >
+        <div className="flex flex-wrap items-start gap-stack">
+          <div className="w-[200px]">
+            <Input
+              label={`${MATRIX_HEADER_LABEL['not-rented']} at or below`}
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={String(lo)}
+              error={!!thresholdError}
+              trailing={<span className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>%</span>}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLo(clamp0to100(e.target.value))}
+            />
+          </div>
+          <div className="w-[200px]">
+            <Input
+              label={`${MATRIX_HEADER_LABEL.rented} at or above`}
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={String(hi)}
+              error={!!thresholdError}
+              hint={thresholdError ?? undefined}
+              trailing={<span className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>%</span>}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHi(clamp0to100(e.target.value))}
+            />
+          </div>
+        </div>
+
+        {/* The band preview reads left-to-right as 0 → 100, so it shows the
+            consequence of the two numbers above without restating them. */}
+        <div className="mt-stack-md">
+          <ThresholdBandPreview lo={lo} hi={hi} />
+        </div>
+
+        <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
+          These bands decide where a score lands. The outcome matrix below decides what each
+          band then <em>means</em>, given what was declared.
+        </p>
+      </ConfigSection>
 
       {/* ---- 3. Outcome matrix ---- */}
       <ConfigSection
