@@ -495,11 +495,16 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   // finding, labelled "Confidence".
   const rentalConfidenceMode = intent === 'not-sure';
   const confidenceLabel = rentalConfidenceMode ? 'Rental Confidence' : 'Confidence';
-  const confidenceValue = rentalConfidenceMode
-    ? sc.score
-    : detectedVerdict === 'not-rented'
-    ? 100 - sc.score
-    : sc.score;
+  // Clamped to 1-99 for display: the product never claims total certainty in
+  // either direction (see displayConfidence). The raw score is untouched and
+  // still drives the verdict and every threshold comparison.
+  const confidenceValue = displayConfidence(
+    rentalConfidenceMode
+      ? sc.score
+      : detectedVerdict === 'not-rented'
+      ? 100 - sc.score
+      : sc.score
+  );
   const confidenceLine = rentalConfidenceMode
     ? detectedVerdict === 'rented'
       ? 'likely a rental'

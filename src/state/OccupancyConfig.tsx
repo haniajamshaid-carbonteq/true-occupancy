@@ -270,6 +270,36 @@ function occThresholdError(t: OccThresholds): string | null {
   return null;
 }
 
+// ---- Confidence display -------------------------------------------------
+
+// No confidence percentage ever reads 100% or 0% on any surface.
+//
+// Client call (Jim McGowan, weekly of 2026-08-27, ratified by Erin Walker):
+// "hedge our bet on the 100 — make it 1 to 99. There's always some chance we
+// miss something." A property can carry an off-platform rental arrangement
+// that will not surface in any source we scrape for six months to a year, so
+// a displayed 100% is a claim the product cannot stand behind. The same
+// hedge binds the floor.
+//
+// DISPLAY ONLY. The raw score still drives deriveOccVerdict and every
+// threshold comparison — clamping the stored value would move addresses
+// across band boundaries and silently change what is red.
+//
+// ⚠ Collision with Trello #57 (History Confidence column, 0-score rows). That
+// ticket asks what a confidence of 0 means before choosing its treatment; the
+// floor here answers it as "1" by display convention rather than by product
+// decision. If #57 rules that 0 is a real, distinct value that must render as
+// zero, OCC_CONFIDENCE_FLOOR moves to 0 and #57's chosen empty-state handles
+// it instead. Do not resolve that ticket by pointing at this constant.
+const OCC_CONFIDENCE_FLOOR = 1;
+const OCC_CONFIDENCE_CEILING = 99;
+
+/** Clamp a 0-100 confidence to the band the product is willing to display. */
+function displayConfidence(n: number): number {
+  if (!Number.isFinite(n)) return OCC_CONFIDENCE_FLOOR;
+  return Math.min(OCC_CONFIDENCE_CEILING, Math.max(OCC_CONFIDENCE_FLOOR, Math.round(n)));
+}
+
 // ---- Timestamps ---------------------------------------------------------
 
 // US-style display, per the client. Every numeric display uses tabular

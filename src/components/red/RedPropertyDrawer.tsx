@@ -1,5 +1,6 @@
 /* global React, Button, Pill, Icon, Textarea, OCC_INTENT_LABEL,
-   OCC_VERDICT_LABEL, OCC_CADENCE_LABEL, formatUsDateTime, formatUsRelative */
+   OCC_VERDICT_LABEL, OCC_CADENCE_LABEL, formatUsDateTime, formatUsRelative,
+   displayConfidence */
 
 // Red property detail panel — framed by the occupancy-spec canvas.
 //
@@ -209,7 +210,7 @@ function useRedPropertyContent({
             {String(OCC_VERDICT_LABEL[p.verdict] ?? '').toLowerCase()}
           </p>
           <p className="font-sans text-caption mt-1" style={{ color: 'var(--risk-ink)' }}>
-            Confidence <span className="tabular-nums">{p.confidence}</span> · above your
+            Confidence <span className="tabular-nums">{displayConfidence(p.confidence)}</span> · above your
             organisation&rsquo;s rented threshold.
           </p>
         </div>

@@ -1,5 +1,5 @@
 /* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState,
-   occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG */
+   occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG, displayConfidence */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -203,11 +203,16 @@ function CertificateBody({
   // only drives triage colours, never the declared intent. A Not-sure cert
   // ALWAYS shows the RAW rented-probability labelled "rental confidence".
   const rentalConfidenceMode = intent === 'not-sure';
-  const certConfidence = rentalConfidenceMode
-    ? s.score
-    : match && match.verdict === 'not-rented'
-    ? 100 - s.score
-    : s.score;
+  // Clamped to 1-99 for display — the certificate is the artefact that leaves
+  // the building, so it is the last place to print an absolute. See
+  // displayConfidence.
+  const certConfidence = displayConfidence(
+    rentalConfidenceMode
+      ? s.score
+      : match && match.verdict === 'not-rented'
+      ? 100 - s.score
+      : s.score
+  );
 
   return (
     <article className="certificate-sheet">
@@ -302,7 +307,7 @@ function CertificateBody({
                     <div className="cert-listing-title">{l.title}</div>
                     <a className="cert-listing-url" href={l.url}>{l.url}</a>
                   </td>
-                  <td className="col-conf tabular">{l.confidencePct}%</td>
+                  <td className="col-conf tabular">{displayConfidence(l.confidencePct)}%</td>
                   <td className="col-seen tabular">{l.firstSeen}</td>
                 </tr>
               ))}

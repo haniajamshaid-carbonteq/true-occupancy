@@ -1,4 +1,5 @@
-/* global React, SCENARIOS, PROPERTY, Tabs, Pill, DataTable, Tooltip, Icon, SavedSnapshotDrawer */
+/* global React, SCENARIOS, PROPERTY, Tabs, Pill, DataTable, Tooltip, Icon, SavedSnapshotDrawer,
+   displayConfidence */
 // ListingsPanel — diff-matrix evidence view.
 //
 // Reframes the matched listings as a comparison table: the property's
@@ -463,7 +464,7 @@ function DesktopMatrix({
                         letterSpacing: '-0.02em',
                       }}
                     >
-                      {l.confidencePct}
+                      {displayConfidence(l.confidencePct)}
                     </div>
                     <div className="text-micro text-ink-4">/ 100</div>
                   </div>
@@ -767,7 +768,7 @@ function MobileStack({
                 className="font-sans font-semibold text-h3 tabular-nums leading-none shrink-0"
                 style={{ color: 'var(--navy)' }}
               >
-                {l.confidencePct}
+                {displayConfidence(l.confidencePct)}
                 <span className="text-eyebrow font-medium text-ink-4">%</span>
               </div>
               <svg
@@ -1116,7 +1117,7 @@ function TableView({
           className="font-mono tabular-nums font-semibold text-label leading-none"
           style={{ color: 'var(--navy)' }}
         >
-          {r.confidencePct}%
+          {displayConfidence(r.confidencePct)}%
         </span>
       ),
     },
