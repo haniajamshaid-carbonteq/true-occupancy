@@ -234,6 +234,7 @@ const RESULT_STAMP_KEYS = [
   'scanIntent',
   'scanHistoryId',
   'scanReference',
+  'scanThresholds',
   'resultServedAt',
   'resultCached',
 ];
@@ -298,6 +299,10 @@ function stampSessionForRun(run: any): void {
   sessionStorage.setItem('scanHistoryId', run.id);
   if (run.reference) sessionStorage.setItem('scanReference', run.reference);
   else sessionStorage.removeItem('scanReference');
+  // The bands this run was scored under (Trello #73) — the certificate
+  // prints them, so a restaged old run must carry its own pair.
+  if (run.thresholds) sessionStorage.setItem('scanThresholds', JSON.stringify(run.thresholds));
+  else sessionStorage.removeItem('scanThresholds');
 }
 
 // Push the current report onto the back stack, stamp for `run`, navigate to it.

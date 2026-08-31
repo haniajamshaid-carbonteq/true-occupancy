@@ -203,6 +203,22 @@ function CertificateBody({
   // only drives triage colours, never the declared intent. A Not-sure cert
   // ALWAYS shows the RAW rented-probability labelled "rental confidence".
   const rentalConfidenceMode = intent === 'not-sure';
+
+  // The bands this scan was scored under (Trello #73). Restaged into the
+  // session by RunHistory / the timeline for older runs; a fresh scan falls
+  // back to the current config pair. Printed on the sheet so the certificate
+  // stays true to its own scan after a later threshold edit — the report a
+  // lender attached to a closing file must never drift.
+  const certThresholds = (() => {
+    try {
+      const raw =
+        typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanThresholds') : null;
+      if (raw) return JSON.parse(raw);
+    } catch {
+      /* fall through to the current pair */
+    }
+    return DEFAULT_OCC_CONFIG.thresholds;
+  })();
   // Clamped to 1-99 for display — the certificate is the artefact that leaves
   // the building, so it is the last place to print an absolute. See
   // displayConfidence.
@@ -269,6 +285,10 @@ function CertificateBody({
               </span>
             </div>
           )}
+          <div className="cert-meta">
+            Thresholds at scan: not rented ≤{certThresholds.notRentedAtOrBelow} · rented ≥
+            {certThresholds.rentedAtOrAbove}
+          </div>
         </div>
         <div className="cert-verdict-body">
           <div className="cert-eyebrow">Summary</div>

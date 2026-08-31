@@ -404,6 +404,10 @@ function RecentScansPanel() {
     sessionStorage.setItem('scanAddress', row.address);
     if (row.intent) sessionStorage.setItem('scanIntent', row.intent);
     else sessionStorage.removeItem('scanIntent');
+    // The bands this run was scored under (Trello #73); cleared when absent
+    // so an earlier old report's pair never leaks onto this certificate.
+    if (row.thresholds) sessionStorage.setItem('scanThresholds', JSON.stringify(row.thresholds));
+    else sessionStorage.removeItem('scanThresholds');
     // Dashboard's recent scans are all current — clear any stale stamp left
     // by a previously-opened old report so this reads fresh.
     sessionStorage.removeItem('resultServedAt');
@@ -779,8 +783,11 @@ function MonitoringPanel() {
     sessionStorage.setItem('scanScenario', row.to);
     sessionStorage.setItem('scanAddress', row.address);
     // Monitoring rows carry no declared intent — clear any prior scan's so it
-    // never leaks onto this report's reconciliation line.
+    // never leaks onto this report's reconciliation line. Same for the
+    // threshold stamp: this view is current, so the certificate falls back
+    // to the current pair.
     sessionStorage.removeItem('scanIntent');
+    sessionStorage.removeItem('scanThresholds');
     const path = row.to === 'low' ? '/result/clean' : row.to === 'medium' ? '/result/medium' : '/result/high';
     history.push(path);
   }
@@ -852,6 +859,9 @@ function HomeScreen() {
     const value = addr ?? '';
     const scenario = pickScenario(value);
     sessionStorage.setItem('scanScenario', scenario);
+    // A fresh scan runs under the current bands — clear any restaged old
+    // run's pair so the certificate falls back to the current config.
+    sessionStorage.removeItem('scanThresholds');
     sessionStorage.setItem(
       'scanAddress',
       value || '1428 Maplewood Drive, Asheville, NC 28804'

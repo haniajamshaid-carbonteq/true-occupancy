@@ -78,6 +78,10 @@ function ScheduleDetailScreen() {
     // previously-opened property's intent never leaks into reconciliation.
     if (run.intent) sessionStorage.setItem('scanIntent', run.intent);
     else sessionStorage.removeItem('scanIntent');
+    // The bands this run was scored under (Trello #73); cleared when absent
+    // so an earlier old report's pair never leaks onto this certificate.
+    if (run.thresholds) sessionStorage.setItem('scanThresholds', JSON.stringify(run.thresholds));
+    else sessionStorage.removeItem('scanThresholds');
     const path =
       run.scenario === 'low'    ? '/result/clean'
       : run.scenario === 'medium' ? '/result/medium'

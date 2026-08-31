@@ -97,6 +97,13 @@ interface SingleHistoryEntry {
   /** OccConfig.version in effect when this scan ran. Lets verdicts be
    *  re-derived against historical thresholds, not whatever's current. */
   configVersion?: number;
+  /** The confidence bands in force when this scan ran (Trello #73). Stamped
+   *  so a later threshold edit can never re-label a completed run: RunHistory
+   *  shows each run's own pair and notes the change, and the certificate
+   *  prints it. Seeds carry literal pairs (SEED_THRESHOLDS_V1/V2), never a
+   *  DEFAULT_OCC_CONFIG reference — this file evaluates before
+   *  OccupancyConfig.tsx in app.html, so a module-scope read would throw. */
+  thresholds?: { rentedAtOrAbove: number; notRentedAtOrBelow: number };
   /** Optional user-supplied identifier (loan #, client ID, case file…)
    *  set at scan-time and editable on the history page. Surfaces on the
    *  PDF certificate header when present. Never replaces our internal UUID
@@ -463,22 +470,30 @@ const SEED_BATCH_LENDER_ROWS: LiveBatchRow[] = Array.from({ length: 42 }, (_, i)
   };
 });
 
+// The two threshold eras the seeds live under (Trello #73). v1 banded at
+// ≤20 / ≥80; the org moved to the shipped 30/70 pair 45 days ago, so the
+// multi-run addresses straddle the change and Run history can show it.
+// Literal objects, not DEFAULT_OCC_CONFIG reads — see the field's doc above.
+const SEED_THRESHOLDS_V1 = { rentedAtOrAbove: 80, notRentedAtOrBelow: 20 };
+const SEED_THRESHOLDS_V2 = { rentedAtOrAbove: 70, notRentedAtOrBelow: 30 };
+const SEED_THRESHOLDS_CHANGED_AT = seedTime('45d');
+
 const SEED_HISTORY: HistoryEntry[] = [
-  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAt: seedTime('8min'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied', hasAIReport: true },
+  { id: 'h01', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804',  scenario: 'high',   platforms: 3, scannedAt: seedTime('8min'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied', hasAIReport: true, configVersion: 2, thresholds: SEED_THRESHOLDS_V2 },
   // Prior re-scans of the SAME two addresses. These do NOT show as extra rows in
   // History (it dedups to the latest); they populate the "Run history" section
   // on the property's detail view — demonstrating the collapse. Mixed triggers
   // on purpose: this address is on a 6-month automation AND gets manually
   // re-checked, which is the case the zap marker exists to disambiguate.
-  { id: 'h01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('40d'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied', trigger: 'automation' },
-  { id: 'h01c', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('120d'), reference: 'LOAN-2026-0042', intent: 'owner-occupied' },
-  { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAt: seedTime('24min'), reference: 'CASE-FILE-7714', intent: 'owner-occupied' },
+  { id: 'h01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('40d'),  reference: 'LOAN-2026-0042', intent: 'owner-occupied', trigger: 'automation', configVersion: 2, thresholds: SEED_THRESHOLDS_V2 },
+  { id: 'h01c', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('120d'), reference: 'LOAN-2026-0042', intent: 'owner-occupied', configVersion: 1, thresholds: SEED_THRESHOLDS_V1 },
+  { id: 'h02', kind: 'single', address: '212 Westbrook Lane, Asheville, NC 28805',    scenario: 'medium', platforms: 2, scannedAt: seedTime('24min'), reference: 'CASE-FILE-7714', intent: 'owner-occupied', configVersion: 2, thresholds: SEED_THRESHOLDS_V2 },
   // Deliberately old, so its report demonstrates the stale-freshness flow.
-  { id: 'h00', kind: 'single', address: '19 Rankin Ave, Asheville, NC 28801',         scenario: 'high',   platforms: 3, scannedAt: seedTime('46d'),   reference: 'LOAN-2026-0099' },
+  { id: 'h00', kind: 'single', address: '19 Rankin Ave, Asheville, NC 28801',         scenario: 'high',   platforms: 3, scannedAt: seedTime('46d'),   reference: 'LOAN-2026-0099', configVersion: 1, thresholds: SEED_THRESHOLDS_V1 },
   // These three are also red addresses (see RED_ADDRESS_SEED), so they carry
   // the danger flag wherever they appear outside the Red-addresses tab.
-  { id: 'hr1', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',    scenario: 'high',   platforms: 4, scannedAt: seedTime('1h'),    reference: 'LOAN-2026-0071', intent: 'owner-occupied' },
-  { id: 'hr1b', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',   scenario: 'medium', platforms: 3, scannedAt: seedTime('60d'),   reference: 'LOAN-2026-0071', intent: 'owner-occupied' },
+  { id: 'hr1', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',    scenario: 'high',   platforms: 4, scannedAt: seedTime('1h'),    reference: 'LOAN-2026-0071', intent: 'owner-occupied', configVersion: 2, thresholds: SEED_THRESHOLDS_V2 },
+  { id: 'hr1b', kind: 'single', address: '412 Cumberland Ave, Asheville, NC 28801',   scenario: 'medium', platforms: 3, scannedAt: seedTime('60d'),   reference: 'LOAN-2026-0071', intent: 'owner-occupied', configVersion: 1, thresholds: SEED_THRESHOLDS_V1 },
   { id: 'hr2', kind: 'single', address: '7 Beaucatcher Rd, Asheville, NC 28805',      scenario: 'high',   platforms: 3, scannedAt: seedTime('6h'),    reference: 'LOAN-2026-0058', intent: 'rental', hasAIReport: true },
   { id: 'hr3', kind: 'single', address: '153 Merrimon Ave, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAt: seedTime('2d'), intent: 'owner-occupied' },
   { id: 'hb0', kind: 'batch',  filename: 'asheville-q2-2026.csv', total: 6,  flagged: 0, warn: 0, clean: 0, failed: 6, status: 'failed',   scannedAt: seedTime('47d'), rows: SEED_BATCH_FAILED_ROWS },
@@ -487,11 +502,11 @@ const SEED_HISTORY: HistoryEntry[] = [
   // surfaces in the batch's "Run history" section on its detail view. This is
   // the original upload (manual); everything after it is the automation.
   { id: 'hb1b', kind: 'batch', filename: 'asheville-q1-2026.csv', total: 24, flagged: 4, warn: 7, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS, title: 'Asheville Spring Sweep', defaultIntent: 'owner-occupied' },
-  { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAt: seedTime('3h'), intent: 'rental'    },
+  { id: 'h03', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',      scenario: 'high',   platforms: 3, scannedAt: seedTime('3h'), intent: 'rental', configVersion: 2, thresholds: SEED_THRESHOLDS_V2 },
   { id: 'h04', kind: 'single', address: '502 N Liberty St, Asheville, NC 28801',      scenario: 'low',    platforms: 0, scannedAt: seedTime('4h'), intent: 'owner-occupied'    },
   { id: 'h05', kind: 'single', address: '88 Cumberland Ave, Asheville, NC 28801',     scenario: 'low',    platforms: 0, scannedAt: seedTime('5h'), intent: 'owner-occupied'    },
   { id: 'h06', kind: 'single', address: '301 Merrimon Ave, Asheville, NC 28804',      scenario: 'medium', platforms: 1, scannedAt: seedTime('7h'), intent: 'owner-occupied'    },
-  { id: 'h07', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',    scenario: 'high',   platforms: 3, scannedAt: seedTime('1d'), intent: 'owner-occupied' },
+  { id: 'h07', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',    scenario: 'high',   platforms: 3, scannedAt: seedTime('1d'), intent: 'owner-occupied', configVersion: 2, thresholds: SEED_THRESHOLDS_V2 },
   { id: 'h08', kind: 'single', address: '23 Tunnel Rd, Asheville, NC 28805',          scenario: 'low',    platforms: 0, scannedAt: seedTime('1d') },
   { id: 'h09', kind: 'single', address: '215 Edgewood Rd, Asheville, NC 28804',       scenario: 'medium', platforms: 1, scannedAt: seedTime('1d') },
   { id: 'hb2', kind: 'batch',  filename: 'lender-portfolio-jan.csv', total: 42, flagged: 9, warn: 8, clean: 25, failed: 0, status: 'complete', scannedAt: seedTime('2d'), rows: SEED_BATCH_LENDER_ROWS, defaultIntent: 'owner-occupied' },
@@ -510,11 +525,11 @@ const SEED_HISTORY: HistoryEntry[] = [
   // Synthetic history entries that act as previous executions of seeded
   // schedules, so the schedule-detail page shows a real run history. All of
   // these ran unattended, so they carry trigger: 'automation'.
-  { id: 'hr01a', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('6mo'), trigger: 'automation' },
-  { id: 'hr01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('1y'),  trigger: 'automation' },
+  { id: 'hr01a', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'high',   platforms: 3, scannedAt: seedTime('6mo'), trigger: 'automation', configVersion: 1, thresholds: SEED_THRESHOLDS_V1 },
+  { id: 'hr01b', kind: 'single', address: '1428 Maplewood Drive, Asheville, NC 28804', scenario: 'medium', platforms: 2, scannedAt: seedTime('1y'),  trigger: 'automation', configVersion: 1, thresholds: SEED_THRESHOLDS_V1 },
   { id: 'hr02a', kind: 'batch',  filename: 'asheville-q4-2025.csv', total: 22, flagged: 4, warn: 5, clean: 13, failed: 0, status: 'complete', scannedAt: seedTime('3mo'), rows: SEED_BATCH_Q1_ROWS.slice(0, 22), defaultIntent: 'owner-occupied', trigger: 'automation', aiStatus: 'failed' },
-  { id: 'hr03a', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 2, scannedAt: seedTime('1y'),  trigger: 'automation' },
-  { id: 'hr04a', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'medium', platforms: 1, scannedAt: seedTime('4mo'), trigger: 'automation' },
+  { id: 'hr03a', kind: 'single', address: '67 Charlotte Hwy, Asheville, NC 28803',     scenario: 'high',   platforms: 2, scannedAt: seedTime('1y'),  trigger: 'automation', configVersion: 1, thresholds: SEED_THRESHOLDS_V1 },
+  { id: 'hr04a', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',   scenario: 'medium', platforms: 1, scannedAt: seedTime('4mo'), trigger: 'automation', configVersion: 1, thresholds: SEED_THRESHOLDS_V1 },
 ];
 
 // ---- cadence helpers ----------------------------------------------------
@@ -1069,6 +1084,8 @@ function AppStateProvider({ children }: { children: React.ReactNode }) {
         id, kind: 'single', address, scenario, platforms,
         scannedAt: Date.now(),
         configVersion: DEFAULT_OCC_CONFIG.version,
+        // Safe to read here (call time), unlike the seed literals above.
+        thresholds: DEFAULT_OCC_CONFIG.thresholds,
         ...(reference ? { reference } : {}),
       };
       setHistory((h) => [entry, ...h]);

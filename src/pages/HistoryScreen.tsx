@@ -187,6 +187,10 @@ function HistoryScreen() {
     // verdict. Cleared when absent so a prior scan's intent never leaks in.
     if (row.intent) sessionStorage.setItem('scanIntent', row.intent);
     else sessionStorage.removeItem('scanIntent');
+    // The bands this run was scored under (Trello #73); cleared when absent
+    // so an earlier old report's pair never leaks onto this certificate.
+    if (row.thresholds) sessionStorage.setItem('scanThresholds', JSON.stringify(row.thresholds));
+    else sessionStorage.removeItem('scanThresholds');
     // Stamp when the report was served so the result's freshness banner can
     // show fresh vs stale. Derived from the row's age; old rows read stale.
     const servedIso = scannedIso(row);

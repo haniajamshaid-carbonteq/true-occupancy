@@ -149,7 +149,10 @@ interface OccSessionTimeout {
 // Deliberate per the owner's table — do not "fix" it here. If #18 ratifies a
 // different header mapping, this block moves with it.
 const DEFAULT_OCC_CONFIG: OccConfig = {
-  version: 1,
+  // v2 = the 30/70 pair below. v1 banded at ≤20 / ≥80 and survives on seed
+  // runs (AppState SEED_THRESHOLDS_V1), so Run history has a real threshold
+  // change to show (Trello #73).
+  version: 2,
   defaultIntent: 'owner-occupied',
   // Off by default: an undeclared property is silently treated as
   // Owner-occupied. Turn on to resolve it as a specific type instead.

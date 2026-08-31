@@ -450,7 +450,8 @@ function ScanConfigScreen({
 
         <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
           These bands decide where a score lands. The outcome matrix below decides what each
-          band then <em>means</em>, given what was declared.
+          band then <em>means</em>, given what was declared. Changes apply to future scans only:
+          completed scans keep the thresholds they ran under.
         </p>
       </ConfigSection>
 

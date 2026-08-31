@@ -327,8 +327,11 @@ function useRedPropertyContent({
               sessionStorage.setItem('scanAddress', p.address);
               sessionStorage.setItem('scanScenario', 'high');
               // Red rows carry no declared intent — clear any prior scan's so
-              // it never leaks onto this report's reconciliation line.
+              // it never leaks onto this report's reconciliation line. Red
+              // fixtures carry no threshold stamp either, so drop any
+              // restaged old run's pair rather than let it leak.
               sessionStorage.removeItem('scanIntent');
+              sessionStorage.removeItem('scanThresholds');
               sessionStorage.setItem('resultServedAt', p.servedAt || new Date().toISOString());
               sessionStorage.removeItem('resultCached');
               // Fresh context — drop any abandoned "View that report" back-stack.
