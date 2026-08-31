@@ -1,6 +1,6 @@
 /* global React, ReactRouterDOM, Card, Icon, SCENARIOS, PROPERTY, ReferenceCell, useAppState,
    ServedStamp, formatUsDateTime, formatUsDate, timeAgo, occMatchForRisk,
-   INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL, OCC_STATUS_MATCH_LABEL, OCC_INTENT_SHORT,
+   INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL, OCC_INTENT_SHORT,
    DEFAULT_OCC_CONFIG, displayConfidence */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
@@ -10,12 +10,6 @@
 // lender's tracking identifier. The waffle grid, fallback badge, and score
 // sparkline were all removed at the client's request — the verdict + score
 // copy on the left carries the page on its own.
-
-// Gap left above RunHistory when a history link scrolls the page down to it,
-// so the section heading isn't flush against the viewport edge and run one
-// reads as the start of the record. Matches the page's own top padding
-// (pt-6 / 24px in AppShell's main).
-const RUN_HISTORY_SCROLL_GAP = 24;
 
 interface ConfidenceHeroProps {
   scenario: ScenarioKey;
@@ -347,17 +341,6 @@ function popReturnFrame(history: any, currentHistoryId: string | null): boolean 
   return true;
 }
 
-// Small-number words so the change count reads like prose ("changed twice")
-// rather than a bare digit. Falls back to the numeral past three.
-function countWord(n: number): string {
-  return ['zero', 'once', 'twice', 'three times'][n] || `${n} times`;
-}
-
-// Whole-number share of the record — "3 of 5" reads as 60%.
-function pctOf(n: number, total: number): number {
-  return total > 0 ? Math.round((n / total) * 100) : 0;
-}
-
 // One clickable date that opens that scan's report. Used for both the main
 // bullet (single-date group) and the sub-bullets (multi-date group) so the
 // affordance is identical everywhere.
@@ -458,28 +441,6 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   );
   const hasPriorSameResult = priorRecentFirst.length > 0;
 
-  // Group the same-result priors by intent. The RESULT is constant across
-  // this list (same reconciliation label as today), but the intended occupancy
-  // it was reconciled against can differ scan to scan. Each distinct intent
-  // becomes one line ("Intended X — dates"); when several scans share that
-  // profile, their dates sit inline as links.
-  // Intents are a closed set (≤4 + undeclared), so at most five groups.
-  const priorGroups = (() => {
-    const map = new Map<string, any>();
-    priorRecentFirst.forEach((run) => {
-      const key = run.intent || '__none__';
-      if (!map.has(key)) {
-        map.set(key, { key, intent: run.intent, runs: [] });
-      }
-      map.get(key).runs.push(run);
-    });
-    // Order groups by their most recent run, newest first.
-    return [...map.values()].sort(
-      (a, b) => (b.runs[0]?.scannedAt || 0) - (a.runs[0]?.scannedAt || 0)
-    );
-  })();
-  const PRIOR_DATE_CAP = 4; // sub-bullets shown per group before folding to Run history
-
   // The single most recent EARLIER run regardless of its result — the "last
   // scan" line always states it (result + the intent it reconciled against),
   // and its result differing from today's marks the movement.
@@ -513,44 +474,13 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
       return true;
     })
     .sort((a, b) => (a.scannedAt || 0) - (b.scannedAt || 0));
-  let resultChangeCount = 0;
-  let prevTimelineLabel: string | undefined;
-  const distinctResults: string[] = [];
-  let needsReviewCount = 0;
-  addressTimeline.forEach((h) => {
-    const m = occMatchForRisk(h.intent, SCENARIOS[h.scenario]?.risk);
-    if (prevTimelineLabel !== undefined && m?.label !== prevTimelineLabel) resultChangeCount += 1;
-    prevTimelineLabel = m?.label;
-    if (m && !distinctResults.includes(m.label)) distinctResults.push(m.label);
-    if (m?.status === 'red') needsReviewCount += 1;
-  });
   const addressScanCount = addressTimeline.length;
 
-  // The earlier-scans corroboration is collapsed by default so the hero stays
-  // quiet; the reviewer expands it only when they want the dated links.
+  // The scan-history line is collapsed by default so the hero stays quiet;
+  // the reviewer expands it only when they want the two facts behind it.
   const [showEarlier, setShowEarlier] = React.useState(false);
 
   const history = ReactRouterDOM.useHistory();
-
-  // Both history links in this disclosure land on the same place — RunHistory's
-  // section, which carries id="run-history" and renders whenever the address
-  // has ≥2 runs (so it exists wherever this disclosure does). The record is
-  // shown ONCE, at the bottom of the page; nothing re-lists it in a flyout.
-  //
-  // scrollIntoView({ block: 'start' }) pins the heading flush to the viewport
-  // edge, which reads as cut off. A small offset keeps the heading, its lead
-  // line and the first run row all in view, so the landing point is the start
-  // of run one rather than a hard edge.
-  function scrollToRunHistory() {
-    const el = typeof document !== 'undefined' ? document.getElementById('run-history') : null;
-    if (!el) return;
-    const reduceMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const top = el.getBoundingClientRect().top + window.pageYOffset - RUN_HISTORY_SCROLL_GAP;
-    window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
-  }
 
   // The frame this page can step back to, if the top of the back stack targets
   // the run we're currently showing. Present through every hop of a chain, so
@@ -693,24 +623,21 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                     </span>
                   </button>
 
-                  {/* The reveal — four sections, in order (owner spec), each
-                      with a DEFINED null state so no section vanishes silently.
-                      Reconciliation vocabulary only — the raw finding never
-                      appears in this disclosure (owner call with dev, Aug-2026):
+                  {/* The reveal — two lines only (owner call, Aug-2026:
+                      the four-section version read as clutter). Reconciliation
+                      vocabulary only; the raw finding never appears here.
                         1. The last scan: its result and the intent it ran
                            under, date linked. Movement marker when the result
                            differed.
-                        2. Same-result groups by intent ("Intended X — dates"),
-                           dates clickable.
-                           Null → "No earlier scan reached this result."
-                        3. How many times the result was Needs review.
-                           Zero → "in none of the N scans."
-                        4. How many times the result changed, closed by a "View
-                           in Run history" link that scrolls to the Run history
-                           section at the bottom of the page — the one place the
-                           full record is listed (a flyout used to repeat it;
-                           removed Aug-2026 as a duplicate). Zero → "held across
-                           all N scans." */}
+                        2. One line: how many scans reached this same result,
+                           as a plain count — never a percentage, and with no
+                           dates, drill-in or link of its own. Null → "No
+                           earlier scan reached this result."
+                      The per-intent date groups, the Needs-review tally, the
+                      change count and the Run-history link all lived here and
+                      were dropped; the Run history section at the bottom of
+                      the page still carries every one of those facts, run by
+                      run. */}
                   {showEarlier && (
                     <ul className="mt-1.5 mb-0 pl-0 list-none font-sans text-caption text-ink-2 leading-snug tabular-nums flex flex-col gap-1.5">
                       {/* • 1 — the last scan: result + intent, movement-marked
@@ -746,112 +673,22 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                         </li>
                       )}
 
-                      {/* • 2 — grouped corroboration; each intent profile is a
-                          sub-bullet with its dates inline as links. Defined
-                          empty state on the same bullet. */}
-                      <li>
-                        <div className="flex items-start gap-2">
-                          <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
+                      {/* • 2 — how often this same result came up, counted, not
+                          shared as a percentage. Defined empty state on the
+                          same bullet. */}
+                      <li className="flex items-start gap-2">
+                        <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
+                        <span className="text-ink-3">
                           {hasPriorSameResult ? (
-                            <span>
-                              Earlier scans with this same result (
-                              {priorRecentFirst.length} of {addressScanCount},{' '}
-                              {pctOf(priorRecentFirst.length, addressScanCount)}%):
-                            </span>
-                          ) : (
-                            <span className="text-ink-3">No earlier scan reached this result.</span>
-                          )}
-                        </div>
-                        {hasPriorSameResult && (
-                          <ul className="mt-0.5 mb-0 pl-5 list-none flex flex-col gap-0.5">
-                            {priorGroups.map((g: any) => {
-                              const intentLabel = g.intent
-                                ? OCC_INTENT_SHORT[g.intent as keyof typeof OCC_INTENT_SHORT]
-                                : 'not declared';
-                              const shown = g.runs.slice(0, PRIOR_DATE_CAP);
-                              const groupOverflow = g.runs.length - shown.length;
-                              return (
-                                <li key={g.key} className="flex items-start gap-2">
-                                  <span className="mt-[5px] w-1.5 h-1.5 rounded-full border shrink-0" style={{ borderColor: 'var(--ink-4)' }} aria-hidden />
-                                  <span>
-                                    Intended <span className="font-semibold">{intentLabel}</span>
-                                    {': '}
-                                    {shown.map((run: any, i: number) => (
-                                      <React.Fragment key={run.id}>
-                                        {i > 0 && (
-                                          <span className="text-ink-4" aria-hidden>
-                                            {' · '}
-                                          </span>
-                                        )}
-                                        <PriorDateLink run={run} onOpen={(r) => openRunReport(r, history)} />
-                                      </React.Fragment>
-                                    ))}
-                                    {groupOverflow > 0 && (
-                                      <>
-                                        <span className="text-ink-4" aria-hidden>
-                                          {' · '}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={scrollToRunHistory}
-                                          className="inline rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
-                                          style={{ color: 'var(--brand-link)' }}
-                                        >
-                                          {groupOverflow} more in Run history
-                                        </button>
-                                      </>
-                                    )}
-                                  </span>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                      </li>
-
-                      {/* • 3 — the Needs-review tally, with its defined zero state. */}
-                      <li className="flex items-start gap-2">
-                        <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
-                        <span className="text-ink-3">
-                          {needsReviewCount > 0 ? (
                             <>
-                              The result was <span className="font-semibold text-ink-2">{OCC_STATUS_MATCH_LABEL.red}</span> in{' '}
-                              {String(needsReviewCount).padStart(2, '0')} out of {addressScanCount} scans (
-                              {pctOf(needsReviewCount, addressScanCount)}%).
+                              Earlier scans with this same result:{' '}
+                              <span className="font-semibold text-ink-2">
+                                {priorRecentFirst.length} of {addressScanCount}
+                              </span>.
                             </>
                           ) : (
-                            <>
-                              The result was <span className="font-semibold text-ink-2">{OCC_STATUS_MATCH_LABEL.red}</span> in
-                              none of the {addressScanCount} scans.
-                            </>
+                            <>No earlier scan reached this result.</>
                           )}
-                        </span>
-                      </li>
-
-                      {/* • 4 — record-wide change count, naming the results,
-                          closed by the Details flyout: the whole record as a
-                          simple latest-first ledger (date · result · intended,
-                          dates linked). */}
-                      <li className="flex items-start gap-2">
-                        <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
-                        <span className="text-ink-3">
-                          {resultChangeCount > 0 ? (
-                            <>
-                              The result has changed {countWord(resultChangeCount)} across {addressScanCount} scans
-                              {distinctResults.length > 1 && <> ({distinctResults.join(' · ')})</>}.
-                            </>
-                          ) : (
-                            <>The result has held across all {addressScanCount} scans.</>
-                          )}
-                          {' '}
-                          <button
-                            type="button"
-                            onClick={scrollToRunHistory}
-                            className="inline rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
-                            style={{ color: 'var(--brand-link)' }}
-                          >
-                            View in Run history
-                          </button>
                         </span>
                       </li>
                     </ul>
