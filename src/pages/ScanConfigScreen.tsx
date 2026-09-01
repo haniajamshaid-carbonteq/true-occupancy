@@ -70,7 +70,7 @@ const MATRIX_HEADER_LABEL: Record<string, string> = {
 // is a full row of its own here, seeded with a deliberately wide
 // Needs-review middle.
 //
-// Screen-local design prototype: `bandRow` is not yet part of OccConfig.
+// Screen-local design prototype: `bandRows` are not yet part of OccConfig.
 // Two recorded-not-resolved owner questions: (1) how this maps onto
 // thresholds + outcomeMatrix, which together encode the same information
 // today (hi/lo stay dormant on state so the saved shape is unchanged);
@@ -92,14 +92,13 @@ const OUTCOME_KEYS = ['consistent', 'needsReview', 'inconclusive'];
  *  ranges are 0–b1, (b1+1)–(b2−1), b2–100. */
 type BandRow = { order: [string, string, string]; b1: number; b2: number };
 
-// Recommended default. ONE universal band applies to every declared type,
-// because the ranges are identical everywhere: a contradiction reads low
-// (Needs review 0–30), the ambiguous middle is Inconclusive (31–69), a match
-// reads high (Consistent 70–100). The flip lives in the SCORE, not the layout:
-// the score is "confidence the finding matches the declaration", and for a
-// rental a match means rented while for owner-occupied it means not rented.
-// So the UI shows the bar ONCE and defines each type's meaning separately,
-// rather than repeating the same bar per type. See intentMatchIsRented.
+// Recommended default band, applied to every declared type to start: a
+// contradiction reads low (Needs review 0–30), the ambiguous middle is
+// Inconclusive (31–69), a match reads high (Consistent 70–100). The score is
+// "confidence the finding matches the declaration"; the flip lives in what a
+// match MEANS (rented for a rental, not rented for owner-occupied), not in
+// the layout. Default (off) mode shows this one shared set; Custom (on) mode
+// lets each type diverge from it. See intentMatchIsRented / matchMeaningLine.
 const DEFAULT_BAND_ROW: BandRow = { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 };
 
 /** Whether a MATCH for this declared type means the property is rented. True
@@ -626,12 +625,16 @@ function ScanConfigScreen({
   const [notSureResolveAs, setNotSureResolveAs] = React.useState<string>(seed.notSureResolveAs ?? 'owner-occupied');
   const [hi, setHi] = React.useState(seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove);
   const [lo, setLo] = React.useState(seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow);
-  // ONE universal band shared by every declared type (client call: the ranges
-  // are identical, only the score flips per type, so show the bar once). hi/lo
-  // above stay dormant so the saved config shape is unchanged while the
-  // mapping onto it is an open owner question. No seedInvalid variant: two
-  // boundaries make invalid tiling inexpressible, so there is no error state.
-  const [bandRow, setBandRow] = React.useState<BandRow>(DEFAULT_BAND_ROW);
+  // Per-type editable bands. Default mode shows them as one universal set
+  // (they start identical); Custom mode lets each declared type diverge, so
+  // the state is keyed per type. hi/lo above stay dormant so the saved config
+  // shape is unchanged while the mapping onto it is an open owner question.
+  // No seedInvalid variant: two boundaries make invalid tiling inexpressible.
+  const [bandRows, setBandRows] = React.useState<Record<string, BandRow>>(() =>
+    Object.fromEntries(OCC_INTENTS.map((i: string) => [i, { ...DEFAULT_BAND_ROW }]))
+  );
+  // Which type's bar is on screen in Custom mode.
+  const [editIntent, setEditIntent] = React.useState('owner-occupied');
   // One section-level switch (client call): off = every type uses the
   // recommended defaults, shown read-only; on = the tabs + editable bars.
   const [bandsCustom, setBandsCustom] = React.useState<boolean>(
@@ -652,7 +655,7 @@ function ScanConfigScreen({
   // Save flow: confirm → saving → saved. `baseline` is the last-saved snapshot;
   // dirty compares the live values against it so the footer collapses on save.
   const snapshot = () =>
-    JSON.stringify({ defaultIntent, notSureResolve, notSureResolveAs, hi, lo, bandRow, bandsCustom, matrix, recurring, staleDays, timeoutOn, timeoutValue, timeoutUnit });
+    JSON.stringify({ defaultIntent, notSureResolve, notSureResolveAs, hi, lo, bandRows, bandsCustom, matrix, recurring, staleDays, timeoutOn, timeoutValue, timeoutUnit });
   const [baseline, setBaseline] = React.useState(() =>
     JSON.stringify({
       defaultIntent: seed.defaultIntent,
@@ -660,7 +663,7 @@ function ScanConfigScreen({
       notSureResolveAs: seed.notSureResolveAs ?? 'owner-occupied',
       hi: seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove,
       lo: seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow,
-      bandRow: DEFAULT_BAND_ROW,
+      bandRows: Object.fromEntries(OCC_INTENTS.map((i: string) => [i, { ...DEFAULT_BAND_ROW }])),
       bandsCustom: !!(seed.categoryThresholds && Object.keys(seed.categoryThresholds).length),
       matrix: seed.outcomeMatrix,
       recurring: seed.recurring,
@@ -679,16 +682,17 @@ function ScanConfigScreen({
   // validity is structural, nothing gates Save. (occThresholdError still
   // guards the dormant hi/lo pair at the state level but no longer gates this
   // screen.)
-  const setRowBoundary = (which: 'b1' | 'b2', n: number) =>
-    setBandRow((r) => ({ ...r, [which]: n }));
-  const reassignSegment = (idx: number, outcome: string) =>
-    setBandRow((r) => {
+  const setRowBoundary = (intent: string, which: 'b1' | 'b2', n: number) =>
+    setBandRows((rows) => ({ ...rows, [intent]: { ...rows[intent], [which]: n } }));
+  const reassignSegment = (intent: string, idx: number, outcome: string) =>
+    setBandRows((rows) => {
+      const r = rows[intent];
       const from = r.order.indexOf(outcome as any);
-      if (from === idx || from < 0) return r;
+      if (from === idx || from < 0) return rows;
       const order = [...r.order] as BandRow['order'];
       order[from] = order[idx];
       order[idx] = outcome;
-      return { ...r, order };
+      return { ...rows, [intent]: { ...r, order } };
     });
   const dirty = forceDirty || snapshot() !== baseline;
 
@@ -701,7 +705,7 @@ function ScanConfigScreen({
     setNotSureResolveAs(b.notSureResolveAs);
     setHi(b.hi);
     setLo(b.lo);
-    setBandRow(b.bandRow ?? DEFAULT_BAND_ROW);
+    setBandRows(b.bandRows ?? Object.fromEntries(OCC_INTENTS.map((i: string) => [i, { ...DEFAULT_BAND_ROW }])));
     setBandsCustom(!!b.bandsCustom);
     setMatrix(b.matrix);
     setRecurring(b.recurring);
@@ -795,7 +799,7 @@ function ScanConfigScreen({
            ThresholdBandPreview stays dormant below. */}
       <ConfigSection
         title="Confidence thresholds"
-        desc="One set of score bands for every scan. Each declared type differs only in what a match means."
+        desc="How a confidence score becomes a result. Off applies the recommended defaults; on lets you tune the bands for each declared type."
       >
         {/* Same toggle pattern as every other switch on this screen (AI report,
             Session timeout): bold label + muted description, switch on the
@@ -809,27 +813,39 @@ function ScanConfigScreen({
 
         <div className="mt-stack-md">
           {bandsCustom ? (
-            <>
-              {/* ONE universal bar for all types (the ranges are identical). */}
-              <div className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase mb-2" style={{ color: 'var(--ink-3)' }}>
-                Score bands (apply to every declared type)
-              </div>
-              <OutcomeBandStrip
-                row={bandRow}
-                onReassign={reassignSegment}
-                onChangeB1={(n: number) => setRowBoundary('b1', n)}
-                onChangeB2={(n: number) => setRowBoundary('b2', n)}
-              />
-              {/* Then each type defined separately: only its meaning differs. */}
-              <div className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase mt-section-sub mb-1" style={{ color: 'var(--ink-3)' }}>
-                What a match means, per declared type
-              </div>
-              <TypeMeaningList notSureResolveAs={notSureResolve ? notSureResolveAs : 'owner-occupied'} />
-              <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
-                The three bands always cover 0 to 100. Changes apply to future scans only: completed
-                scans keep the ranges they ran under.
-              </p>
-            </>
+            (() => {
+              // Custom mode: each declared type has its own editable bar, so a
+              // type can diverge from the shared default (e.g. a rental that
+              // needs a higher score to read Consistent). The scale is neutral
+              // (contradicts ↔ matches); the meaning line says what a match is.
+              const matchRented = intentMatchIsRented(editIntent, notSureResolve ? notSureResolveAs : 'owner-occupied');
+              return (
+                <>
+                  {/* Four declared types as real tabs. */}
+                  <Tabs
+                    value={editIntent}
+                    onChange={(v: string) => setEditIntent(v)}
+                    items={OCC_INTENTS.map((i: string) => ({ value: i, label: OCC_INTENT_LABEL[i] }))}
+                  />
+                  <p className="font-sans text-caption m-0 mt-stack" style={{ color: 'var(--ink-2)' }}>
+                    {matchMeaningLine(editIntent, matchRented)}
+                  </p>
+                  <div className="mt-stack">
+                    <OutcomeBandStrip
+                      row={bandRows[editIntent]}
+                      onReassign={(i: number, k: string) => reassignSegment(editIntent, i, k)}
+                      onChangeB1={(n: number) => setRowBoundary(editIntent, 'b1', n)}
+                      onChangeB2={(n: number) => setRowBoundary(editIntent, 'b2', n)}
+                    />
+                  </div>
+                  <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
+                    These ranges apply to {OCC_INTENT_LABEL[editIntent]} only. The three bands always
+                    cover 0 to 100. Changes apply to future scans only: completed scans keep the ranges
+                    they ran under.
+                  </p>
+                </>
+              );
+            })()
           ) : (
             <DefaultsInfo notSureResolveAs={notSureResolve ? notSureResolveAs : 'owner-occupied'} />
           )}
