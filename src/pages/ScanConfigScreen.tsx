@@ -12,18 +12,18 @@ interface AuditChange { label: string; from: string; to: string }
 interface AuditEvent { at: string; actor: string; changes: AuditChange[] }
 const THRESHOLD_AUDIT: AuditEvent[] = [
   { at: '2026-09-01T14:32', actor: 'J. Marlow', changes: [
-    { label: 'Owner-occupied · Needs review', from: '0–30', to: '0–25' },
-    { label: 'Owner-occupied · Consistent', from: '70–100', to: '76–100' },
+    { label: 'Owner-occupied · flag Needs review at', from: '70%', to: '80%' },
+    { label: 'Owner-occupied · declare Consistent at', from: '70%', to: '76%' },
   ] },
   { at: '2026-09-01T09:12', actor: 'J. Marlow', changes: [
-    { label: 'Rental / investment · Consistent', from: '70–100', to: '80–100' },
+    { label: 'Rental / investment · declare Consistent at', from: '70%', to: '80%' },
   ] },
   { at: '2026-08-27T11:05', actor: 'A. Chen', changes: [
-    { label: 'All types · bands', from: '≤20 / ≥80', to: '≤30 / ≥70' },
+    { label: 'All types · declare Consistent at', from: '80%', to: '70%' },
     { label: 'Custom ranges', from: 'off', to: 'off' },
   ] },
   { at: '2026-08-10T16:40', actor: 'A. Chen', changes: [
-    { label: 'Confidence thresholds', from: 'not set', to: '≤20 / ≥80 (initial)' },
+    { label: 'Confidence thresholds', from: 'not set', to: 'flag / declare both 80% (initial)' },
   ] },
 ];
 
@@ -84,43 +84,47 @@ const MATRIX_HEADER_LABEL: Record<string, string> = {
   rented: 'Inconclusive',
 };
 
-// ---- Confidence-threshold bands (client direction, 2026-08/09) ----------
-// The thresholds section is a 0–100 bar whose coloured segments ARE the
-// ranges. Two draggable boundaries split it into three (so the ranges tile
-// 0–100 BY CONSTRUCTION — gaps/overlaps are inexpressible and there is no
-// validation), and each segment can be reassigned to a different result.
-// Default mode shows one shared set of bands read-only; Custom mode gives
-// each declared type its own editable bar.
+// ---- Confidence thresholds: two declare-confidence questions -------------
+// Owner decision 2026-09-01: the editor asks exactly TWO questions per
+// declared type, each phrased as "how confident must the scan be to DECLARE
+// this outcome":
+//   1. needsReviewMin — confidence in the CONTRADICTING finding required to
+//      flag Needs review (owner-occupied: finding = rented; rental: finding
+//      = not rented, since the score is flipped per type).
+//   2. consistentMin  — confidence in the MATCHING finding required to
+//      declare Consistent.
+// Inconclusive is NEVER asked: everything that clears neither bar is
+// Inconclusive, handled by the original backend logic. The user is told so
+// in text next to the inputs, but there is nothing to set.
+//
+// Mapping to the 0–100 match axis (0 contradicts, 100 matches): flag at 80%
+// means the first 20 points (0–20) read Needs review; declare at 75% means
+// 75–100 reads Consistent; 21–74 is the computed Inconclusive middle.
 //
 // Screen-local design prototype: `bandRows` are not yet part of OccConfig.
-// Recorded-not-resolved owner questions live on the Trello cards: how this
-// maps onto thresholds + outcomeMatrix (#76), and wiring it to the verdict
-// (#75). hi/lo stay dormant on state so the saved shape is unchanged.
-//
-// Tones are the SAME status tokens the Outcome-matrix pills use, so the two
-// sections stay colour-consistent by construction: Consistent=green→clean,
-// Needs review=red→risk, Inconclusive=yellow→warn. Status words on status
-// tones — this strip describes outcomes, not raw verdicts.
-const OUTCOME_META: Record<string, { label: string; tone: string }> = {
-  consistent: { label: 'Consistent', tone: 'clean' },
-  needsReview: { label: 'Needs review', tone: 'risk' },
-  inconclusive: { label: 'Inconclusive', tone: 'warn' },
-};
-const OUTCOME_KEYS = ['consistent', 'needsReview', 'inconclusive'];
+// Persistence is #76, wiring to the verdict is #75; hi/lo stay dormant on
+// state so the saved shape is unchanged. Colours for the states come from the
+// SAME status tokens the Outcome-matrix pills use (Consistent=green→clean,
+// Needs review=red→risk, Inconclusive=yellow→warn), so the two sections stay
+// colour-consistent by construction.
 
-/** One row = which outcome sits in each of the three score positions, plus
- *  the two boundaries. b1 ends the first range; b2 starts the last — so the
- *  ranges are 0–b1, (b1+1)–(b2−1), b2–100. */
-type BandRow = { order: [string, string, string]; b1: number; b2: number };
+/** One declared type's rule: the two declare-confidence minimums. */
+type BandRule = { needsReviewMin: number; consistentMin: number };
 
-// Recommended default band, applied to every declared type to start: a
-// contradiction reads low (Needs review 0–30), the ambiguous middle is
-// Inconclusive (31–69), a match reads high (Consistent 70–100). The score is
-// "confidence the finding matches the declaration"; the flip lives in what a
-// match MEANS (rented for a rental, not rented for owner-occupied), not in
-// the layout. Default (off) mode shows this one shared set; Custom (on) mode
-// lets each type diverge from it. See intentMatchIsRented / matchMeaningLine.
-const DEFAULT_BAND_ROW: BandRow = { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 };
+// Ratified defaults (#74), restated in declare terms: the old bands NR 0–30 /
+// Consistent 70–100 are exactly "flag Needs review at 70% confidence" and
+// "declare Consistent at 70% confidence". Same numbers, new question.
+const DEFAULT_BAND_RULE: BandRule = { needsReviewMin: 70, consistentMin: 70 };
+
+// The declare-confidence floor. You cannot declare an outcome on less than
+// majority confidence, and 51 + 51 > 100 means the Needs-review and
+// Consistent bands can never overlap — so there is no invalid state, no
+// validation error and no Save gate.
+function clamp51to100(raw: string): number {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) return 51;
+  return Math.max(51, Math.min(100, n));
+}
 
 /** Whether a MATCH for this declared type means the property is rented. True
  *  for a rental (rented is expected, so the score is flipped to confidence-
@@ -140,204 +144,16 @@ function matchMeaningLine(intent: string, matchIsRented: boolean): string {
     : 'A match means the property is not rented.';
 }
 
-/** The three ranges a row resolves to, in score order. */
-function bandRowRanges(row: BandRow): { key: string; from: number; to: number }[] {
-  return [
-    { key: row.order[0], from: 0, to: row.b1 },
-    { key: row.order[1], from: row.b1 + 1, to: row.b2 - 1 },
-    { key: row.order[2], from: row.b2, to: 100 },
-  ];
-}
-
-/** One declared type's control. The design is built around the point the
- *  client raised (2026-08-31): the SCORE AXIS 0→100 is the only fixed thing;
- *  which outcome occupies which part of it is the editable decision and has
- *  NO canonical order — Owner-occupied puts Consistent low, a rental puts it
- *  high. So each of the three segments carries its outcome as an in-place
- *  DropdownMenu (a real registered primitive), never a fixed label, and the
- *  bar is the score axis itself.
- *
- *  Two draggable, keyboard-operable boundaries (role=slider, arrows ±1) split
- *  the axis. Clamps keep 0 ≤ b1 ≤ b2−2 ≤ 98 so the middle range always
- *  exists — invalid tiling is not expressible, so nothing here validates or
- *  gates Save. Reassigning an outcome swaps it with wherever it currently
- *  sits, so all three stay present and contiguous. */
-function OutcomeBandStrip({
-  row,
-  onReassign,
-  onChangeB1,
-  onChangeB2,
-}: {
-  row: BandRow;
-  onReassign: (idx: number, outcome: string) => void;
-  onChangeB1: (n: number) => void;
-  onChangeB2: (n: number) => void;
-}) {
-  const trackRef = React.useRef<HTMLDivElement>(null);
-  const segs = bandRowRanges(row);
-  const widths = [row.b1, row.b2 - row.b1, 100 - row.b2];
-
-  const clampB1 = (n: number) => Math.max(0, Math.min(row.b2 - 2, n));
-  const clampB2 = (n: number) => Math.max(row.b1 + 2, Math.min(100, n));
-
-  function beginDrag(which: 'b1' | 'b2') {
-    return (e: React.PointerEvent) => {
-      e.preventDefault();
-      const track = trackRef.current;
-      if (!track) return;
-      const rect = track.getBoundingClientRect();
-      const move = (ev: PointerEvent) => {
-        const pct = Math.round(((ev.clientX - rect.left) / rect.width) * 100);
-        if (which === 'b1') onChangeB1(clampB1(pct));
-        else onChangeB2(clampB2(pct));
-      };
-      const up = () => {
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-    };
-  }
-
-  function keyAdjust(which: 'b1' | 'b2') {
-    return (e: React.KeyboardEvent) => {
-      const delta =
-        e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : 0;
-      if (!delta) return;
-      e.preventDefault();
-      if (which === 'b1') onChangeB1(clampB1(row.b1 + delta));
-      else onChangeB2(clampB2(row.b2 + delta));
-    };
-  }
-
-  const handles: { which: 'b1' | 'b2'; value: number; clamp: (n: number) => number; onChange: (n: number) => void }[] = [
-    { which: 'b1', value: row.b1, clamp: clampB1, onChange: onChangeB1 },
-    { which: 'b2', value: row.b2, clamp: clampB2, onChange: onChangeB2 },
-  ];
-
-  return (
-    <div>
-      {/* The bar IS the 0–100 score axis. overflow-visible so a segment's
-          outcome menu can escape the track; corners are rounded per-segment
-          and the outline is a ring (no clip). */}
-      <div ref={trackRef} className="relative flex h-14 rounded-xl ring-1 ring-inset ring-line">
-        {segs.map((s, i) => {
-          const meta = OUTCOME_META[s.key];
-          const round = i === 0 ? 'rounded-l-xl' : i === segs.length - 1 ? 'rounded-r-xl' : '';
-          const narrow = widths[i] < 22;
-          return (
-            <div
-              key={i}
-              className={`relative grid place-items-center bg-${meta.tone}-soft ${round}`}
-              style={{ width: `${widths[i]}%` }}
-            >
-              <DropdownMenu
-                align="start"
-                menuWidth="w-44"
-                title="This range counts as"
-                trigger={(open: boolean) => (
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 font-sans text-caption font-semibold cursor-pointer transition-colors hover:bg-white/40 ${
-                      open ? 'bg-white/50' : ''
-                    }`}
-                    style={{ color: `var(--${meta.tone}-ink)` }}
-                    title={`${meta.label} · scores ${s.from}–${s.to}`}
-                  >
-                    {!narrow && <span className="truncate">{meta.label}</span>}
-                    <span
-                      className={`inline-flex shrink-0 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
-                      aria-hidden
-                    >
-                      <Icon name="chevron" size={12} />
-                    </span>
-                  </span>
-                )}
-                items={OUTCOME_KEYS.map((k: string) => ({
-                  label: OUTCOME_META[k].label,
-                  icon:
-                    k === s.key ? (
-                      <span className="[&>svg]:w-4 [&>svg]:h-4" style={{ color: 'var(--brand)' }}>
-                        <Icon name="check" size={16} />
-                      </span>
-                    ) : (
-                      <span className={`inline-block w-2.5 h-2.5 rounded-full bg-${OUTCOME_META[k].tone}`} />
-                    ),
-                  onClick: () => onReassign(i, k),
-                }))}
-              />
-              {/* Score span, small, under the label — reads which part of the
-                  axis this outcome owns. */}
-              {!narrow && (
-                <span
-                  className="absolute bottom-1.5 font-sans text-micro tabular-nums pointer-events-none"
-                  style={{ color: `var(--${meta.tone}-ink)`, opacity: 0.7 }}
-                >
-                  {s.from}–{s.to}
-                </span>
-              )}
-            </div>
-          );
-        })}
-
-        {handles.map((h) => (
-          <div
-            key={h.which}
-            role="slider"
-            tabIndex={0}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={h.value}
-            aria-label={
-              h.which === 'b1'
-                ? `Boundary between ${OUTCOME_META[row.order[0]].label} and ${OUTCOME_META[row.order[1]].label}`
-                : `Boundary between ${OUTCOME_META[row.order[1]].label} and ${OUTCOME_META[row.order[2]].label}`
-            }
-            onPointerDown={beginDrag(h.which)}
-            onKeyDown={keyAdjust(h.which)}
-            className="absolute top-0 h-full w-5 -translate-x-1/2 flex items-center justify-center cursor-col-resize group focus:outline-none"
-            style={{ left: `${h.value}%` }}
-          >
-            {/* A real slider grip: a rounded pill riding the boundary, with a
-                subtle grabber, lifting to brand on hover/focus. */}
-            <div
-              className="h-9 w-1.5 rounded-full bg-white shadow-md ring-1 ring-line-strong group-hover:ring-brand group-focus-visible:ring-2 group-focus-visible:ring-brand transition-shadow"
-              style={{ boxShadow: '0 1px 4px rgba(15,23,42,0.18)' }}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* The axis scale: fixed 0 and 100 ends, and the two live boundary
-          values as compact inputs under their handles — the precise,
-          accessible edit path that mirrors the drag. */}
-      <div className="relative h-9 mt-2">
-        <span className="absolute left-0 top-1 font-sans text-micro" style={{ color: 'var(--ink-4)' }}>
-          0 · contradicts declaration
-        </span>
-        <span className="absolute right-0 top-1 font-sans text-micro" style={{ color: 'var(--ink-4)' }}>
-          matches declaration · 100
-        </span>
-        {handles.map((h) => (
-          <span
-            key={h.which}
-            className="absolute top-0 w-[64px] -translate-x-1/2"
-            style={{ left: `${Math.max(7, Math.min(93, h.value))}%` }}
-          >
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={String(h.value)}
-              aria-label={h.which === 'b1' ? 'First boundary' : 'Second boundary'}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => h.onChange(h.clamp(clamp0to100(e.target.value)))}
-            />
-          </span>
-        ))}
-      </div>
-    </div>
-  );
+/** The two declare-confidence questions for a type, with helper copy that
+ *  names the contradicting / matching finding (flips for a rental). */
+function declareCopy(intent: string, matchIsRented: boolean) {
+  const contradicting = matchIsRented ? 'not rented' : 'rented';
+  const matching = matchIsRented ? 'rented' : 'not rented';
+  const typeLabel = OCC_INTENT_LABEL[intent];
+  return {
+    nrHelper: `If the scan finds the property is ${contradicting}, that contradicts ${typeLabel}. This is how confident the scan must be before we flag it Needs review.`,
+    consHelper: `If the scan finds the property is ${matching}, that matches ${typeLabel}. This is how confident the scan must be before we call it Consistent.`,
+  };
 }
 
 /** The per-type list: each declared type and what a MATCH means for it. The
@@ -373,7 +189,6 @@ function TypeMeaningList({ notSureResolveAs }: { notSureResolveAs: string }) {
 function DefaultsInfo({ notSureResolveAs }: { notSureResolveAs: string }) {
   const [open, setOpen] = React.useState(false);
   const bodyId = React.useId ? React.useId() : 'defaults-info';
-  const ranges = bandRowRanges(DEFAULT_BAND_ROW);
   return (
     <div className="rounded-lg px-card-tight py-card-tight" style={{ background: 'var(--surface-2)' }}>
       <button
@@ -399,29 +214,33 @@ function DefaultsInfo({ notSureResolveAs }: { notSureResolveAs: string }) {
       </button>
       {open && (
         <div id={bodyId} className="mt-stack pl-6">
-          {/* The universal bands, stated once. */}
+          {/* The recommended defaults, stated as the two questions. */}
           <p className="font-sans text-micro m-0 mb-1" style={{ color: 'var(--ink-3)' }}>
-            One set of bands applies to every declared type:
+            The same two settings apply to every declared type:
           </p>
           <div className="flex flex-wrap gap-x-stack gap-y-stack-tight">
-            {ranges.map((s, i) => {
-              const meta = OUTCOME_META[s.key];
-              return (
-                <span key={i} className="inline-flex items-center gap-inline">
-                  <span className={`inline-block w-2 h-2 rounded-full bg-${meta.tone}`} aria-hidden />
-                  <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
-                    {meta.label}
-                  </span>
-                  <span className="font-sans text-caption tabular-nums" style={{ color: 'var(--ink-3)' }}>
-                    {s.from}–{s.to}
-                  </span>
-                </span>
-              );
-            })}
+            <span className="inline-flex items-center gap-inline">
+              <span className="inline-block w-2 h-2 rounded-full bg-risk" aria-hidden />
+              <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
+                Flag Needs review at
+              </span>
+              <span className="font-sans text-caption tabular-nums" style={{ color: 'var(--ink-3)' }}>
+                {DEFAULT_BAND_RULE.needsReviewMin}% confident
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-inline">
+              <span className="inline-block w-2 h-2 rounded-full bg-clean" aria-hidden />
+              <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
+                Declare Consistent at
+              </span>
+              <span className="font-sans text-caption tabular-nums" style={{ color: 'var(--ink-3)' }}>
+                {DEFAULT_BAND_RULE.consistentMin}% confident
+              </span>
+            </span>
           </div>
-          {/* Only the meaning differs per type. */}
+          {/* Only what a match means differs per type. */}
           <p className="font-sans text-micro m-0 mt-stack mb-1" style={{ color: 'var(--ink-3)' }}>
-            Only the score is flipped per type, so a match always reads high. What a match means:
+            Anything that clears neither bar is Inconclusive. What a match means, per type:
           </p>
           <TypeMeaningList notSureResolveAs={notSureResolveAs} />
         </div>
@@ -651,8 +470,8 @@ function ScanConfigScreen({
   // the state is keyed per type. hi/lo above stay dormant so the saved config
   // shape is unchanged while the mapping onto it is an open owner question.
   // No seedInvalid variant: two boundaries make invalid tiling inexpressible.
-  const [bandRows, setBandRows] = React.useState<Record<string, BandRow>>(() =>
-    Object.fromEntries(OCC_INTENTS.map((i: string) => [i, { ...DEFAULT_BAND_ROW }]))
+  const [bandRows, setBandRows] = React.useState<Record<string, BandRule>>(() =>
+    Object.fromEntries(OCC_INTENTS.map((i: string) => [i, { ...DEFAULT_BAND_RULE }]))
   );
   // Which type's bar is on screen in Custom mode.
   const [editIntent, setEditIntent] = React.useState('owner-occupied');
@@ -694,7 +513,7 @@ function ScanConfigScreen({
       notSureResolveAs: seed.notSureResolveAs ?? 'owner-occupied',
       hi: seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove,
       lo: seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow,
-      bandRows: Object.fromEntries(OCC_INTENTS.map((i: string) => [i, { ...DEFAULT_BAND_ROW }])),
+      bandRows: Object.fromEntries(OCC_INTENTS.map((i: string) => [i, { ...DEFAULT_BAND_RULE }])),
       bandsCustom: !!(seed.categoryThresholds && Object.keys(seed.categoryThresholds).length),
       matrix: seed.outcomeMatrix,
       recurring: seed.recurring,
@@ -708,23 +527,10 @@ function ScanConfigScreen({
   const [saving, setSaving] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState(false);
 
-  // Universal-band edits. Boundaries clamp inside the strip; reassigning a
-  // segment SWAPS outcomes so each of the three is always used exactly once —
-  // validity is structural, nothing gates Save. (occThresholdError still
-  // guards the dormant hi/lo pair at the state level but no longer gates this
-  // screen.)
-  const setRowBoundary = (intent: string, which: 'b1' | 'b2', n: number) =>
-    setBandRows((rows) => ({ ...rows, [intent]: { ...rows[intent], [which]: n } }));
-  const reassignSegment = (intent: string, idx: number, outcome: string) =>
-    setBandRows((rows) => {
-      const r = rows[intent];
-      const from = r.order.indexOf(outcome as any);
-      if (from === idx || from < 0) return rows;
-      const order = [...r.order] as BandRow['order'];
-      order[from] = order[idx];
-      order[idx] = outcome;
-      return { ...rows, [intent]: { ...r, order } };
-    });
+  // One edit path: set a declare-confidence minimum for a type. The 51–100
+  // clamp makes overlap impossible, so nothing validates or gates Save.
+  const setRule = (intent: string, field: 'needsReviewMin' | 'consistentMin', n: number) =>
+    setBandRows((rows) => ({ ...rows, [intent]: { ...rows[intent], [field]: n } }));
   const dirty = forceDirty || snapshot() !== baseline;
 
   const Prompt = ReactRouterDOM?.Prompt;
@@ -736,7 +542,7 @@ function ScanConfigScreen({
     setNotSureResolveAs(b.notSureResolveAs);
     setHi(b.hi);
     setLo(b.lo);
-    setBandRows(b.bandRows ?? Object.fromEntries(OCC_INTENTS.map((i: string) => [i, { ...DEFAULT_BAND_ROW }])));
+    setBandRows(b.bandRows ?? Object.fromEntries(OCC_INTENTS.map((i: string) => [i, { ...DEFAULT_BAND_RULE }])));
     setBandsCustom(!!b.bandsCustom);
     setMatrix(b.matrix);
     setRecurring(b.recurring);
@@ -930,10 +736,12 @@ function ScanConfigScreen({
            hi/lo pair on the existing two-threshold model, so the model is
            unchanged — only the control returns.
 
-           Redesigned Aug–Sep 2026 (see the DEFAULT_BAND_ROW / OutcomeBandStrip
-           block above): Default mode shows one shared set of bands read-only;
-           Custom mode gives each declared type its own editable bar. An
-           Audit-log CTA (headerRight) opens a dated drawer of past changes.
+           Redesigned Aug–Sep 2026 (see the BandRule block above): each type is
+           set by two declare-confidence questions (flag
+           Needs review at X%, declare Consistent at Y%); Inconclusive is the
+           computed remainder and never asked. Default mode restates the shared
+           defaults read-only; Custom mode gives each type its own two numbers.
+           An Audit-log CTA (headerRight) opens a dated drawer of past changes.
            ThresholdBandPreview stays dormant below. */}
       <ConfigSection
         title="Confidence thresholds"
@@ -962,11 +770,12 @@ function ScanConfigScreen({
         <div className="mt-stack-md">
           {bandsCustom ? (
             (() => {
-              // Custom mode: each declared type has its own editable bar, so a
-              // type can diverge from the shared default (e.g. a rental that
-              // needs a higher score to read Consistent). The scale is neutral
-              // (contradicts ↔ matches); the meaning line says what a match is.
+              // Custom mode: two declare-confidence questions per type, plus a
+              // read-only preview of the bands they produce. Inconclusive is
+              // never asked — the info line says so.
+              const rule = bandRows[editIntent];
               const matchRented = intentMatchIsRented(editIntent, notSureResolve ? notSureResolveAs : 'owner-occupied');
+              const copy = declareCopy(editIntent, matchRented);
               return (
                 <>
                   {/* Four declared types as real tabs. */}
@@ -978,18 +787,41 @@ function ScanConfigScreen({
                   <p className="font-sans text-caption m-0 mt-stack" style={{ color: 'var(--ink-2)' }}>
                     {matchMeaningLine(editIntent, matchRented)}
                   </p>
-                  <div className="mt-stack">
-                    <OutcomeBandStrip
-                      row={bandRows[editIntent]}
-                      onReassign={(i: number, k: string) => reassignSegment(editIntent, i, k)}
-                      onChangeB1={(n: number) => setRowBoundary(editIntent, 'b1', n)}
-                      onChangeB2={(n: number) => setRowBoundary(editIntent, 'b2', n)}
-                    />
+
+                  {/* Two questions, side by side, narrow fields. */}
+                  <div className="flex flex-wrap gap-x-section-sub gap-y-stack-md mt-stack-md">
+                    <div className="w-[240px]">
+                      <Input
+                        label="Flag Needs review at"
+                        type="number"
+                        min={51}
+                        max={100}
+                        step={1}
+                        value={String(rule.needsReviewMin)}
+                        hint={copy.nrHelper}
+                        trailing={<span className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>%</span>}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRule(editIntent, 'needsReviewMin', clamp51to100(e.target.value))}
+                      />
+                    </div>
+                    <div className="w-[240px]">
+                      <Input
+                        label="Declare Consistent at"
+                        type="number"
+                        min={51}
+                        max={100}
+                        step={1}
+                        value={String(rule.consistentMin)}
+                        hint={copy.consHelper}
+                        trailing={<span className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>%</span>}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRule(editIntent, 'consistentMin', clamp51to100(e.target.value))}
+                      />
+                    </div>
                   </div>
-                  <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
-                    These ranges apply to {OCC_INTENT_LABEL[editIntent]} only. The three bands always
-                    cover 0 to 100. Changes apply to future scans only: completed scans keep the ranges
-                    they ran under.
+
+                  <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack-md">
+                    Anything that clears neither bar is Inconclusive. TrueOccupancy decides that on its
+                    own, so there is nothing to set. These apply to {OCC_INTENT_LABEL[editIntent]} only, on
+                    future scans; completed scans keep the settings they ran under.
                   </p>
                 </>
               );
