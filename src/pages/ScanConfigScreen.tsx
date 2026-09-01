@@ -70,7 +70,7 @@ const MATRIX_HEADER_LABEL: Record<string, string> = {
 // is a full row of its own here, seeded with a deliberately wide
 // Needs-review middle.
 //
-// Screen-local design prototype: `bandRows` is not yet part of OccConfig.
+// Screen-local design prototype: `bandRow` is not yet part of OccConfig.
 // Two recorded-not-resolved owner questions: (1) how this maps onto
 // thresholds + outcomeMatrix, which together encode the same information
 // today (hi/lo stay dormant on state so the saved shape is unchanged);
@@ -92,25 +92,33 @@ const OUTCOME_KEYS = ['consistent', 'needsReview', 'inconclusive'];
  *  ranges are 0–b1, (b1+1)–(b2−1), b2–100. */
 type BandRow = { order: [string, string, string]; b1: number; b2: number };
 
-// Recommended defaults. The score is how confident we are the property is NOT
-// rented (matching the flipped confidence shown on results: "99% confident
-// it's not rented"): 0 = looks rented, 100 = confident not rented. So the range
-// that AGREES with the declaration is Consistent, the one that CONTRADICTS it
-// is Needs review, the ambiguous middle is Inconclusive. Owner-occupied and
-// second-home want NOT rented, so Consistent sits HIGH; a rental wants rented,
-// so its scale flips end for end and Consistent sits LOW.
-const DEFAULT_BAND_ROWS: Record<string, BandRow> = {
-  'owner-occupied': { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 },
-  'second-home': { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 },
-  // Flipped: high confidence-not-rented contradicts a rental (Needs review),
-  // low (looks rented) is Consistent.
-  rental: { order: ['consistent', 'inconclusive', 'needsReview'], b1: 30, b2: 70 },
-  // Not sure has no declaration to agree with or contradict, so in Default
-  // mode it inherits the org's default type rather than showing its own bar
-  // (see the section). This row only seeds its Custom bar if the user opts in;
-  // it mirrors owner-occupied.
-  'not-sure': { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 },
-};
+// Recommended default. ONE universal band applies to every declared type,
+// because the ranges are identical everywhere: a contradiction reads low
+// (Needs review 0–30), the ambiguous middle is Inconclusive (31–69), a match
+// reads high (Consistent 70–100). The flip lives in the SCORE, not the layout:
+// the score is "confidence the finding matches the declaration", and for a
+// rental a match means rented while for owner-occupied it means not rented.
+// So the UI shows the bar ONCE and defines each type's meaning separately,
+// rather than repeating the same bar per type. See intentMatchIsRented.
+const DEFAULT_BAND_ROW: BandRow = { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 };
+
+/** Whether a MATCH for this declared type means the property is rented. True
+ *  for a rental (rented is expected, so the score is flipped to confidence-
+ *  rented); false for owner-occupied / second home. Not sure follows the
+ *  org's default type. */
+function intentMatchIsRented(intent: string, notSureResolveAs?: string): boolean {
+  if (intent === 'rental') return true;
+  if (intent === 'not-sure') return (notSureResolveAs ?? 'owner-occupied') === 'rental';
+  return false;
+}
+
+/** What a match means, in words, for the per-type list. */
+function matchMeaningLine(intent: string, matchIsRented: boolean): string {
+  if (intent === 'not-sure') return 'Scored as your default declared type.';
+  return matchIsRented
+    ? 'A match means the property is rented, so the score is flipped to confidence it is rented.'
+    : 'A match means the property is not rented.';
+}
 
 /** The three ranges a row resolves to, in score order. */
 function bandRowRanges(row: BandRow): { key: string; from: number; to: number }[] {
@@ -119,20 +127,6 @@ function bandRowRanges(row: BandRow): { key: string; from: number; to: number }[
     { key: row.order[1], from: row.b1 + 1, to: row.b2 - 1 },
     { key: row.order[2], from: row.b2, to: 100 },
   ];
-}
-
-/** One clear line stating how a declared type is gauged: what a Consistent
- *  (matching) result means for it. The score is confidence the property is not
- *  rented (0 likely rented, 100 likely not rented), so a Consistent range in
- *  the upper half reads as "confident not rented" and in the lower half as
- *  "confident rented". Reads off the live row, so it stays true when the user
- *  rearranges the bands in Custom mode. */
-function bandGaugeLine(intent: string, row: BandRow): string {
-  const cons = bandRowRanges(row).find((r) => r.key === 'consistent');
-  const notRentedEnd = (cons ? cons.from : 0) >= 50;
-  return notRentedEnd
-    ? `Consistent means we are confident the property is not rented, which matches ${OCC_INTENT_LABEL[intent]}.`
-    : `Consistent means we are confident the property is rented, which matches ${OCC_INTENT_LABEL[intent]}.`;
 }
 
 /** One declared type's control. The design is built around the point the
@@ -298,11 +292,11 @@ function OutcomeBandStrip({
           values as compact inputs under their handles — the precise,
           accessible edit path that mirrors the drag. */}
       <div className="relative h-9 mt-2">
-        <span className="absolute left-0 top-1 font-sans text-micro tabular-nums" style={{ color: 'var(--ink-4)' }}>
-          0 · likely rented
+        <span className="absolute left-0 top-1 font-sans text-micro" style={{ color: 'var(--ink-4)' }}>
+          0 · contradicts declaration
         </span>
-        <span className="absolute right-0 top-1 font-sans text-micro tabular-nums" style={{ color: 'var(--ink-4)' }}>
-          likely not rented · 100
+        <span className="absolute right-0 top-1 font-sans text-micro" style={{ color: 'var(--ink-4)' }}>
+          matches declaration · 100
         </span>
         {handles.map((h) => (
           <span
@@ -326,13 +320,40 @@ function OutcomeBandStrip({
   );
 }
 
+/** The per-type list: each declared type and what a MATCH means for it. The
+ *  bands are universal, so this is the only thing that differs per type. Used
+ *  in both the read-only defaults panel and the custom editor. */
+function TypeMeaningList({ notSureResolveAs }: { notSureResolveAs: string }) {
+  return (
+    <div className="flex flex-col">
+      {OCC_INTENTS.map((intent: string) => {
+        const matchRented = intentMatchIsRented(intent, notSureResolveAs);
+        return (
+          <div
+            key={intent}
+            className="grid gap-3 items-start border-t border-line py-2"
+            style={{ gridTemplateColumns: '1.3fr 3fr' }}
+          >
+            <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
+              {OCC_INTENT_LABEL[intent]}
+            </span>
+            <span className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>
+              {matchMeaningLine(intent, matchRented)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Collapsible summary of the recommended defaults, mirroring the outcome
  *  matrix legend (§ MatrixLegend): a one-line summary that is itself the
- *  toggle, expanding to the per-type detail. Shown when Custom is off, so the
- *  detail can be hidden until wanted. */
-function DefaultsInfo({ defaultTypeLabel }: { defaultTypeLabel: string }) {
+ *  toggle, expanding to the universal bands + the per-type meaning list. */
+function DefaultsInfo({ notSureResolveAs }: { notSureResolveAs: string }) {
   const [open, setOpen] = React.useState(false);
   const bodyId = React.useId ? React.useId() : 'defaults-info';
+  const ranges = bandRowRanges(DEFAULT_BAND_ROW);
   return (
     <div className="rounded-lg px-card-tight py-card-tight" style={{ background: 'var(--surface-2)' }}>
       <button
@@ -357,53 +378,32 @@ function DefaultsInfo({ defaultTypeLabel }: { defaultTypeLabel: string }) {
         </span>
       </button>
       {open && (
-        <div id={bodyId} className="mt-stack pl-6 flex flex-col">
+        <div id={bodyId} className="mt-stack pl-6">
+          {/* The universal bands, stated once. */}
           <p className="font-sans text-micro m-0 mb-1" style={{ color: 'var(--ink-3)' }}>
-            The score is confidence the property is not rented: 0 likely rented, 100 likely not rented.
+            One set of bands applies to every declared type:
           </p>
-          {OCC_INTENTS.map((intent: string) => {
-            const isNotSure = intent === 'not-sure';
-            const ranges = bandRowRanges(DEFAULT_BAND_ROWS[intent]);
-            return (
-              <div
-                key={intent}
-                className="grid gap-3 items-start border-t border-line py-2.5"
-                style={{ gridTemplateColumns: '1.3fr 3fr' }}
-              >
-                <span className="font-sans text-caption font-medium pt-0.5" style={{ color: 'var(--ink)' }}>
-                  {OCC_INTENT_LABEL[intent]}
-                </span>
-                {isNotSure ? (
-                  <span className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>
-                    Scored as your default type ({defaultTypeLabel}). No scale of its own.
+          <div className="flex flex-wrap gap-x-stack gap-y-stack-tight">
+            {ranges.map((s, i) => {
+              const meta = OUTCOME_META[s.key];
+              return (
+                <span key={i} className="inline-flex items-center gap-inline">
+                  <span className={`inline-block w-2 h-2 rounded-full bg-${meta.tone}`} aria-hidden />
+                  <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
+                    {meta.label}
                   </span>
-                ) : (
-                  <div>
-                    {/* How this type is gauged, then its ranges. */}
-                    <p className="font-sans text-micro m-0 mb-1" style={{ color: 'var(--ink-3)' }}>
-                      {bandGaugeLine(intent, DEFAULT_BAND_ROWS[intent])}
-                    </p>
-                    <div className="flex flex-wrap gap-x-stack gap-y-stack-tight">
-                      {ranges.map((s, i) => {
-                        const meta = OUTCOME_META[s.key];
-                        return (
-                          <span key={i} className="inline-flex items-center gap-inline">
-                            <span className={`inline-block w-2 h-2 rounded-full bg-${meta.tone}`} aria-hidden />
-                            <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
-                              {meta.label}
-                            </span>
-                            <span className="font-sans text-caption tabular-nums" style={{ color: 'var(--ink-3)' }}>
-                              {s.from}–{s.to}
-                            </span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  <span className="font-sans text-caption tabular-nums" style={{ color: 'var(--ink-3)' }}>
+                    {s.from}–{s.to}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+          {/* Only the meaning differs per type. */}
+          <p className="font-sans text-micro m-0 mt-stack mb-1" style={{ color: 'var(--ink-3)' }}>
+            Only the score is flipped per type, so a match always reads high. What a match means:
+          </p>
+          <TypeMeaningList notSureResolveAs={notSureResolveAs} />
         </div>
       )}
     </div>
@@ -626,16 +626,12 @@ function ScanConfigScreen({
   const [notSureResolveAs, setNotSureResolveAs] = React.useState<string>(seed.notSureResolveAs ?? 'owner-occupied');
   const [hi, setHi] = React.useState(seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove);
   const [lo, setLo] = React.useState(seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow);
-  // The band rows the thresholds section edits (client direction,
-  // 2026-08-31). hi/lo above stay dormant so the saved config shape is
-  // unchanged while the rows' mapping onto it is an open owner question.
-  // No seedInvalid variant: two boundaries per row make invalid tiling
-  // inexpressible, so there is no error state to seed.
-  const [bandRows, setBandRows] = React.useState<Record<string, BandRow>>(DEFAULT_BAND_ROWS);
-  // One declared type edited at a time — a single bar on screen, chosen from
-  // the type selector, so the section is one control instead of four stacked
-  // bars. Reassigning an outcome happens in-place on the segment's dropdown.
-  const [editIntent, setEditIntent] = React.useState('owner-occupied');
+  // ONE universal band shared by every declared type (client call: the ranges
+  // are identical, only the score flips per type, so show the bar once). hi/lo
+  // above stay dormant so the saved config shape is unchanged while the
+  // mapping onto it is an open owner question. No seedInvalid variant: two
+  // boundaries make invalid tiling inexpressible, so there is no error state.
+  const [bandRow, setBandRow] = React.useState<BandRow>(DEFAULT_BAND_ROW);
   // One section-level switch (client call): off = every type uses the
   // recommended defaults, shown read-only; on = the tabs + editable bars.
   const [bandsCustom, setBandsCustom] = React.useState<boolean>(
@@ -656,7 +652,7 @@ function ScanConfigScreen({
   // Save flow: confirm → saving → saved. `baseline` is the last-saved snapshot;
   // dirty compares the live values against it so the footer collapses on save.
   const snapshot = () =>
-    JSON.stringify({ defaultIntent, notSureResolve, notSureResolveAs, hi, lo, bandRows, bandsCustom, matrix, recurring, staleDays, timeoutOn, timeoutValue, timeoutUnit });
+    JSON.stringify({ defaultIntent, notSureResolve, notSureResolveAs, hi, lo, bandRow, bandsCustom, matrix, recurring, staleDays, timeoutOn, timeoutValue, timeoutUnit });
   const [baseline, setBaseline] = React.useState(() =>
     JSON.stringify({
       defaultIntent: seed.defaultIntent,
@@ -664,7 +660,7 @@ function ScanConfigScreen({
       notSureResolveAs: seed.notSureResolveAs ?? 'owner-occupied',
       hi: seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove,
       lo: seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow,
-      bandRows: DEFAULT_BAND_ROWS,
+      bandRow: DEFAULT_BAND_ROW,
       bandsCustom: !!(seed.categoryThresholds && Object.keys(seed.categoryThresholds).length),
       matrix: seed.outcomeMatrix,
       recurring: seed.recurring,
@@ -678,22 +674,21 @@ function ScanConfigScreen({
   const [saving, setSaving] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState(false);
 
-  // Band-row edits. Boundaries clamp inside the strip; reassigning a
-  // segment SWAPS outcomes so each of the three is always used exactly
-  // once — validity is structural, nothing gates Save any more.
-  // (occThresholdError still guards the dormant hi/lo pair at the state
-  // level but no longer gates this screen.)
-  const setRowBoundary = (intent: string, which: 'b1' | 'b2', n: number) =>
-    setBandRows((r) => ({ ...r, [intent]: { ...r[intent], [which]: n } }));
-  const reassignSegment = (intent: string, idx: number, outcome: string) =>
-    setBandRows((r) => {
-      const row = r[intent];
-      const from = row.order.indexOf(outcome as any);
+  // Universal-band edits. Boundaries clamp inside the strip; reassigning a
+  // segment SWAPS outcomes so each of the three is always used exactly once —
+  // validity is structural, nothing gates Save. (occThresholdError still
+  // guards the dormant hi/lo pair at the state level but no longer gates this
+  // screen.)
+  const setRowBoundary = (which: 'b1' | 'b2', n: number) =>
+    setBandRow((r) => ({ ...r, [which]: n }));
+  const reassignSegment = (idx: number, outcome: string) =>
+    setBandRow((r) => {
+      const from = r.order.indexOf(outcome as any);
       if (from === idx || from < 0) return r;
-      const order = [...row.order] as BandRow['order'];
+      const order = [...r.order] as BandRow['order'];
       order[from] = order[idx];
       order[idx] = outcome;
-      return { ...r, [intent]: { ...row, order } };
+      return { ...r, order };
     });
   const dirty = forceDirty || snapshot() !== baseline;
 
@@ -706,7 +701,7 @@ function ScanConfigScreen({
     setNotSureResolveAs(b.notSureResolveAs);
     setHi(b.hi);
     setLo(b.lo);
-    setBandRows(b.bandRows ?? DEFAULT_BAND_ROWS);
+    setBandRow(b.bandRow ?? DEFAULT_BAND_ROW);
     setBandsCustom(!!b.bandsCustom);
     setMatrix(b.matrix);
     setRecurring(b.recurring);
@@ -800,7 +795,7 @@ function ScanConfigScreen({
            ThresholdBandPreview stays dormant below. */}
       <ConfigSection
         title="Confidence thresholds"
-        desc="The score ranges that produce each result, per declared type."
+        desc="One set of score bands for every scan. Each declared type differs only in what a match means."
       >
         {/* Same toggle pattern as every other switch on this screen (AI report,
             Session timeout): bold label + muted description, switch on the
@@ -814,40 +809,29 @@ function ScanConfigScreen({
 
         <div className="mt-stack-md">
           {bandsCustom ? (
-            (() => {
-              const row = bandRows[editIntent];
-              const gauge = bandGaugeLine(editIntent, row);
-              return (
-                <>
-                  {/* Four declared types as real tabs. */}
-                  <Tabs
-                    value={editIntent}
-                    onChange={(v: string) => setEditIntent(v)}
-                    items={OCC_INTENTS.map((i: string) => ({ value: i, label: OCC_INTENT_LABEL[i] }))}
-                  />
-                  {/* How this type is gauged — stated above the bar so the rule
-                      is explicit before the ranges. */}
-                  <p className="font-sans text-caption m-0 mt-stack" style={{ color: 'var(--ink-2)' }}>
-                    {gauge}
-                  </p>
-                  <div className="mt-stack">
-                    <OutcomeBandStrip
-                      row={row}
-                      onReassign={(i: number, k: string) => reassignSegment(editIntent, i, k)}
-                      onChangeB1={(n: number) => setRowBoundary(editIntent, 'b1', n)}
-                      onChangeB2={(n: number) => setRowBoundary(editIntent, 'b2', n)}
-                    />
-                  </div>
-                  <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
-                    The score is confidence the property is not rented (0 likely rented, 100 likely not
-                    rented). The three ranges always cover 0 to 100. Changes apply to future scans only:
-                    completed scans keep the ranges they ran under.
-                  </p>
-                </>
-              );
-            })()
+            <>
+              {/* ONE universal bar for all types (the ranges are identical). */}
+              <div className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase mb-2" style={{ color: 'var(--ink-3)' }}>
+                Score bands (apply to every declared type)
+              </div>
+              <OutcomeBandStrip
+                row={bandRow}
+                onReassign={reassignSegment}
+                onChangeB1={(n: number) => setRowBoundary('b1', n)}
+                onChangeB2={(n: number) => setRowBoundary('b2', n)}
+              />
+              {/* Then each type defined separately: only its meaning differs. */}
+              <div className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase mt-section-sub mb-1" style={{ color: 'var(--ink-3)' }}>
+                What a match means, per declared type
+              </div>
+              <TypeMeaningList notSureResolveAs={notSureResolve ? notSureResolveAs : 'owner-occupied'} />
+              <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
+                The three bands always cover 0 to 100. Changes apply to future scans only: completed
+                scans keep the ranges they ran under.
+              </p>
+            </>
           ) : (
-            <DefaultsInfo defaultTypeLabel={OCC_INTENT_LABEL[notSureResolve ? notSureResolveAs : 'owner-occupied']} />
+            <DefaultsInfo notSureResolveAs={notSureResolve ? notSureResolveAs : 'owner-occupied'} />
           )}
         </div>
       </ConfigSection>
