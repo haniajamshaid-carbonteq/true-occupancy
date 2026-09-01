@@ -1,7 +1,7 @@
 /* global React, ReactRouterDOM, AppShell, AppStateContext, Card, ChipRow, Input, Toggle, Button, Pill, Modal,
-   DropdownMenu, Drawer, ScreenEmpty, Icon, OCC_INTENTS, OCC_VERDICTS, OCC_STATUSES, OCC_INTENT_LABEL,
+   Tabs, Drawer, ScreenEmpty, Icon, OCC_INTENTS, OCC_VERDICTS, OCC_STATUSES, OCC_INTENT_LABEL,
    OCC_VERDICT_LABEL, OCC_STATUS_LABEL, OCC_STATUS_TONE, OCC_CADENCE_LABEL,
-   DEFAULT_OCC_CONFIG, occThresholdError, occThresholdsFor, formatUsDate */
+   DEFAULT_OCC_CONFIG, formatUsDate */
 
 // Threshold change audit log (prototype seed). Every save appends a dated
 // entry of what changed; the Audit-log drawer lets an admin pick a date and
@@ -51,14 +51,8 @@ interface ScanConfigScreenProps {
   defaultOpenIntent?: string;
 }
 
-// Clamp typed input so a confidence threshold can never leave 0–100, and the
-// freshness window stays a sensible positive number of days. Empty/NaN falls
-// back to 0 (thresholds) or 1 (days) rather than becoming NaN.
-function clamp0to100(raw: string): number {
-  const n = parseInt(raw, 10);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(100, n));
-}
+// Clamp the freshness window to a sensible positive number of days.
+// Empty/NaN falls back to 1 rather than becoming NaN.
 function clampDays(raw: string): number {
   const n = parseInt(raw, 10);
   if (!Number.isFinite(n)) return 1;
@@ -403,47 +397,6 @@ function MatrixLegend({
   );
 }
 
-/** The 0-100 band preview. Widths are computed layout, not design values.
- *  Dormant again since the 2026-08-31 grid redesign — kept, not deleted,
- *  per the same pattern as its first retirement (Trello #3 → #67). */
-function ThresholdBandPreview({ lo, hi }: { lo: number; hi: number }) {
-  const safeLo = Math.max(0, Math.min(100, lo));
-  const safeHi = Math.max(safeLo, Math.min(100, hi));
-  // Verdicts are a categorical finding, not a severity — so the band uses the
-  // verdict palette (blue / yellow / purple), matching the canonical verdict
-  // Pill everywhere else, not the clean/warn/risk status palette. The words,
-  // though, are this screen's: Config never shows raw verdict wording
-  // (Trello #1, reconfirmed by the owner 2026-08-31), so the bands are named
-  // through MATRIX_HEADER_LABEL — the same source as the matrix column
-  // headers these bands feed.
-  const bands = [
-    { tone: 'verdict-low', label: MATRIX_HEADER_LABEL['not-rented'], width: safeLo },
-    { tone: 'verdict-med', label: MATRIX_HEADER_LABEL['possibly-rented'], width: safeHi - safeLo },
-    { tone: 'verdict-high', label: MATRIX_HEADER_LABEL.rented, width: 100 - safeHi },
-  ];
-  return (
-    <div>
-      <div className="flex h-8 rounded-md overflow-hidden border border-line">
-        {bands.map((b) => (
-          <div
-            key={b.tone}
-            className={`grid place-items-center font-sans text-micro font-medium bg-${b.tone}-soft text-${b.tone}-ink overflow-hidden whitespace-nowrap px-1`}
-            style={{ width: `${b.width}%` }}
-          >
-            {b.width >= 18 ? b.label : ''}
-          </div>
-        ))}
-      </div>
-      <div className="flex justify-between font-sans text-micro tabular-nums mt-1" style={{ color: 'var(--ink-3)' }}>
-        <span>0</span>
-        <span>{safeLo}</span>
-        <span>{safeHi}</span>
-        <span>100</span>
-      </div>
-    </div>
-  );
-}
-
 function ScanConfigScreen({
   initialConfig,
   canEdit,
@@ -466,15 +419,16 @@ function ScanConfigScreen({
   const [notSureResolveAs, setNotSureResolveAs] = React.useState<string>(seed.notSureResolveAs ?? 'owner-occupied');
   const [hi, setHi] = React.useState(seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove);
   const [lo, setLo] = React.useState(seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow);
-  // Per-type editable bands. Default mode shows them as one universal set
-  // (they start identical); Custom mode lets each declared type diverge, so
-  // the state is keyed per type. hi/lo above stay dormant so the saved config
-  // shape is unchanged while the mapping onto it is an open owner question.
-  // No seedInvalid variant: two boundaries make invalid tiling inexpressible.
+  // Per-type declare-confidence rules. Default mode shows the shared defaults
+  // (all types start identical); Custom mode lets each declared type diverge,
+  // so the state is keyed per type. hi/lo above stay dormant so the saved
+  // config shape is unchanged while the mapping onto it is an open owner
+  // question (#76). The 51–100 clamp on each input makes invalid overlap
+  // inexpressible, so nothing here validates or gates Save.
   const [bandRows, setBandRows] = React.useState<Record<string, BandRule>>(() =>
     Object.fromEntries(OCC_INTENTS.map((i: string) => [i, { ...DEFAULT_BAND_RULE }]))
   );
-  // Which type's bar is on screen in Custom mode.
+  // Which type's inputs are on screen in Custom mode.
   const [editIntent, setEditIntent] = React.useState('owner-occupied');
   // One section-level switch (client call): off = every type uses the
   // recommended defaults, shown read-only; on = the tabs + editable bars.
@@ -721,29 +675,14 @@ function ScanConfigScreen({
         <MatrixLegend matrix={matrix} />
       </ConfigSection>
 
-      {/* ---- 2. Confidence thresholds — RE-INSTATED ----
-           ⚠ REVERSAL, recorded not hidden. This card was previously pulled
-           from the UI at the owner's request; the `thresholds` (hi/lo), the
-           validation and ThresholdBandPreview were all left dormant rather
-           than deleted, which is why bringing it back is a re-wire and not a
-           rebuild.
-
-           Brought back on the client's own ask in the weekly of 2026-08-27.
-           Jim McGowan: "would that be just putting bounds around like from 0
-           to 10%, ignore it — somebody might say anything from 20 to 80% is
-           up in the air, and somebody else might say 60 to 40". Erin Walker:
-           "they want to set a confidence score to get to that … I think we
-           could look at that too." Every example they gave is a different
-           hi/lo pair on the existing two-threshold model, so the model is
-           unchanged — only the control returns.
-
-           Redesigned Aug–Sep 2026 (see the BandRule block above): each type is
-           set by two declare-confidence questions (flag
-           Needs review at X%, declare Consistent at Y%); Inconclusive is the
-           computed remainder and never asked. Default mode restates the shared
-           defaults read-only; Custom mode gives each type its own two numbers.
-           An Audit-log CTA (headerRight) opens a dated drawer of past changes.
-           ThresholdBandPreview stays dormant below. */}
+      {/* ---- 2. Confidence thresholds (Trello #67) ----
+           Each declared type is set by two declare-confidence questions (see
+           the BandRule block above): flag Needs review at X%, declare
+           Consistent at Y%. Inconclusive is the computed remainder and never
+           asked. Default mode restates the shared defaults read-only; Custom
+           mode gives each type its own two numbers. An Audit-log CTA
+           (headerRight) opens a dated drawer of past changes (#78).
+           Full history + rationale live on the Trello cards. */}
       <ConfigSection
         title="Confidence thresholds"
         desc="How a confidence score becomes a result. Off applies the recommended defaults; on lets you tune the bands for each declared type."
