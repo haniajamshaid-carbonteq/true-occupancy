@@ -92,19 +92,24 @@ const OUTCOME_KEYS = ['consistent', 'needsReview', 'inconclusive'];
  *  ranges are 0–b1, (b1+1)–(b2−1), b2–100. */
 type BandRow = { order: [string, string, string]; b1: number; b2: number };
 
-// Recommended defaults. Score = P(rented): 0 clearly not rented → 100 clearly
-// rented. The range that AGREES with the declaration is Consistent, the range
-// that CONTRADICTS it is Needs review, the ambiguous middle is Inconclusive —
-// and for a rental (rented is expected) that reading flips end for end.
+// Recommended defaults. The score is how confident we are the property is NOT
+// rented (matching the flipped confidence shown on results: "99% confident
+// it's not rented"): 0 = looks rented, 100 = confident not rented. So the range
+// that AGREES with the declaration is Consistent, the one that CONTRADICTS it
+// is Needs review, the ambiguous middle is Inconclusive. Owner-occupied and
+// second-home want NOT rented, so Consistent sits HIGH; a rental wants rented,
+// so its scale flips end for end and Consistent sits LOW.
 const DEFAULT_BAND_ROWS: Record<string, BandRow> = {
-  'owner-occupied': { order: ['consistent', 'inconclusive', 'needsReview'], b1: 30, b2: 70 },
-  'second-home': { order: ['consistent', 'inconclusive', 'needsReview'], b1: 30, b2: 70 },
-  // Reversed: not rented is the contradiction, rented is Consistent.
-  rental: { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 },
+  'owner-occupied': { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 },
+  'second-home': { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 },
+  // Flipped: high confidence-not-rented contradicts a rental (Needs review),
+  // low (looks rented) is Consistent.
+  rental: { order: ['consistent', 'inconclusive', 'needsReview'], b1: 30, b2: 70 },
   // Not sure has no declaration to agree with or contradict, so in Default
   // mode it inherits the org's default type rather than showing its own bar
-  // (see the section). This row only seeds its Custom bar if the user opts in.
-  'not-sure': { order: ['consistent', 'inconclusive', 'needsReview'], b1: 30, b2: 70 },
+  // (see the section). This row only seeds its Custom bar if the user opts in;
+  // it mirrors owner-occupied.
+  'not-sure': { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 },
 };
 
 /** The three ranges a row resolves to, in score order. */
@@ -114,6 +119,20 @@ function bandRowRanges(row: BandRow): { key: string; from: number; to: number }[
     { key: row.order[1], from: row.b1 + 1, to: row.b2 - 1 },
     { key: row.order[2], from: row.b2, to: 100 },
   ];
+}
+
+/** One clear line stating how a declared type is gauged: what a Consistent
+ *  (matching) result means for it. The score is confidence the property is not
+ *  rented (0 likely rented, 100 likely not rented), so a Consistent range in
+ *  the upper half reads as "confident not rented" and in the lower half as
+ *  "confident rented". Reads off the live row, so it stays true when the user
+ *  rearranges the bands in Custom mode. */
+function bandGaugeLine(intent: string, row: BandRow): string {
+  const cons = bandRowRanges(row).find((r) => r.key === 'consistent');
+  const notRentedEnd = (cons ? cons.from : 0) >= 50;
+  return notRentedEnd
+    ? `Consistent means we are confident the property is not rented, which matches ${OCC_INTENT_LABEL[intent]}.`
+    : `Consistent means we are confident the property is rented, which matches ${OCC_INTENT_LABEL[intent]}.`;
 }
 
 /** One declared type's control. The design is built around the point the
@@ -280,10 +299,10 @@ function OutcomeBandStrip({
           accessible edit path that mirrors the drag. */}
       <div className="relative h-9 mt-2">
         <span className="absolute left-0 top-1 font-sans text-micro tabular-nums" style={{ color: 'var(--ink-4)' }}>
-          0 · not rented
+          0 · likely rented
         </span>
         <span className="absolute right-0 top-1 font-sans text-micro tabular-nums" style={{ color: 'var(--ink-4)' }}>
-          rented · 100
+          likely not rented · 100
         </span>
         {handles.map((h) => (
           <span
@@ -339,38 +358,47 @@ function DefaultsInfo({ defaultTypeLabel }: { defaultTypeLabel: string }) {
       </button>
       {open && (
         <div id={bodyId} className="mt-stack pl-6 flex flex-col">
+          <p className="font-sans text-micro m-0 mb-1" style={{ color: 'var(--ink-3)' }}>
+            The score is confidence the property is not rented: 0 likely rented, 100 likely not rented.
+          </p>
           {OCC_INTENTS.map((intent: string) => {
             const isNotSure = intent === 'not-sure';
             const ranges = bandRowRanges(DEFAULT_BAND_ROWS[intent]);
             return (
               <div
                 key={intent}
-                className="grid gap-3 items-center border-t border-line py-2"
+                className="grid gap-3 items-start border-t border-line py-2.5"
                 style={{ gridTemplateColumns: '1.3fr 3fr' }}
               >
-                <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
+                <span className="font-sans text-caption font-medium pt-0.5" style={{ color: 'var(--ink)' }}>
                   {OCC_INTENT_LABEL[intent]}
                 </span>
                 {isNotSure ? (
                   <span className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>
-                    Scored as your default type ({defaultTypeLabel}). No ranges of its own.
+                    Scored as your default type ({defaultTypeLabel}). No scale of its own.
                   </span>
                 ) : (
-                  <div className="flex flex-wrap gap-x-stack gap-y-stack-tight">
-                    {ranges.map((s, i) => {
-                      const meta = OUTCOME_META[s.key];
-                      return (
-                        <span key={i} className="inline-flex items-center gap-inline">
-                          <span className={`inline-block w-2 h-2 rounded-full bg-${meta.tone}`} aria-hidden />
-                          <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
-                            {meta.label}
+                  <div>
+                    {/* How this type is gauged, then its ranges. */}
+                    <p className="font-sans text-micro m-0 mb-1" style={{ color: 'var(--ink-3)' }}>
+                      {bandGaugeLine(intent, DEFAULT_BAND_ROWS[intent])}
+                    </p>
+                    <div className="flex flex-wrap gap-x-stack gap-y-stack-tight">
+                      {ranges.map((s, i) => {
+                        const meta = OUTCOME_META[s.key];
+                        return (
+                          <span key={i} className="inline-flex items-center gap-inline">
+                            <span className={`inline-block w-2 h-2 rounded-full bg-${meta.tone}`} aria-hidden />
+                            <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
+                              {meta.label}
+                            </span>
+                            <span className="font-sans text-caption tabular-nums" style={{ color: 'var(--ink-3)' }}>
+                              {s.from}–{s.to}
+                            </span>
                           </span>
-                          <span className="font-sans text-caption tabular-nums" style={{ color: 'var(--ink-3)' }}>
-                            {s.from}–{s.to}
-                          </span>
-                        </span>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -788,13 +816,7 @@ function ScanConfigScreen({
           {bandsCustom ? (
             (() => {
               const row = bandRows[editIntent];
-              const isNotSure = editIntent === 'not-sure';
-              const consistentLow = bandRows[editIntent].order.indexOf('consistent') === 0;
-              const scoreWhy = isNotSure
-                ? 'Not sure has no declaration to agree with or contradict. These ranges apply only if you score it in its own right.'
-                : consistentLow
-                ? `The score is the chance the property is rented, so a low score means it is probably not rented, which fits ${OCC_INTENT_LABEL[editIntent]}. Low scores read as Consistent, high scores as Needs review.`
-                : 'The score is the chance the property is rented, so a high score means it is probably rented, which fits a rental. High scores read as Consistent, low scores as Needs review.';
+              const gauge = bandGaugeLine(editIntent, row);
               return (
                 <>
                   {/* Four declared types as real tabs. */}
@@ -803,7 +825,12 @@ function ScanConfigScreen({
                     onChange={(v: string) => setEditIntent(v)}
                     items={OCC_INTENTS.map((i: string) => ({ value: i, label: OCC_INTENT_LABEL[i] }))}
                   />
-                  <div className="mt-stack-md">
+                  {/* How this type is gauged — stated above the bar so the rule
+                      is explicit before the ranges. */}
+                  <p className="font-sans text-caption m-0 mt-stack" style={{ color: 'var(--ink-2)' }}>
+                    {gauge}
+                  </p>
+                  <div className="mt-stack">
                     <OutcomeBandStrip
                       row={row}
                       onReassign={(i: number, k: string) => reassignSegment(editIntent, i, k)}
@@ -812,8 +839,9 @@ function ScanConfigScreen({
                     />
                   </div>
                   <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
-                    {scoreWhy} The three ranges always cover 0 to 100. Changes apply to future scans
-                    only: completed scans keep the ranges they ran under.
+                    The score is confidence the property is not rented (0 likely rented, 100 likely not
+                    rented). The three ranges always cover 0 to 100. Changes apply to future scans only:
+                    completed scans keep the ranges they ran under.
                   </p>
                 </>
               );
