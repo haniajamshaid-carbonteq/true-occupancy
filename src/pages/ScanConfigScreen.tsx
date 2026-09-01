@@ -1,7 +1,31 @@
 /* global React, ReactRouterDOM, AppShell, AppStateContext, Card, ChipRow, Input, Toggle, Button, Pill, Modal,
-   DropdownMenu, Icon, ScreenEmpty, OCC_INTENTS, OCC_VERDICTS, OCC_STATUSES, OCC_INTENT_LABEL,
+   DropdownMenu, Drawer, ScreenEmpty, Icon, OCC_INTENTS, OCC_VERDICTS, OCC_STATUSES, OCC_INTENT_LABEL,
    OCC_VERDICT_LABEL, OCC_STATUS_LABEL, OCC_STATUS_TONE, OCC_CADENCE_LABEL,
-   DEFAULT_OCC_CONFIG, occThresholdError, occThresholdsFor */
+   DEFAULT_OCC_CONFIG, occThresholdError, occThresholdsFor, formatUsDate */
+
+// Threshold change audit log (prototype seed). Every save appends a dated
+// entry of what changed; the Audit-log drawer lets an admin pick a date and
+// read that day's changes time-wise. In prod this comes from the versioned
+// config history (Trello #78 / #76); here it is a static seed so the drawer
+// is reviewable. `at` is a local wall-clock stamp 'YYYY-MM-DDTHH:MM'.
+interface AuditChange { label: string; from: string; to: string }
+interface AuditEvent { at: string; actor: string; changes: AuditChange[] }
+const THRESHOLD_AUDIT: AuditEvent[] = [
+  { at: '2026-09-01T14:32', actor: 'J. Marlow', changes: [
+    { label: 'Owner-occupied · Needs review', from: '0–30', to: '0–25' },
+    { label: 'Owner-occupied · Consistent', from: '70–100', to: '76–100' },
+  ] },
+  { at: '2026-09-01T09:12', actor: 'J. Marlow', changes: [
+    { label: 'Rental / investment · Consistent', from: '70–100', to: '80–100' },
+  ] },
+  { at: '2026-08-27T11:05', actor: 'A. Chen', changes: [
+    { label: 'All types · bands', from: '≤20 / ≥80', to: '≤30 / ≥70' },
+    { label: 'Custom ranges', from: 'off', to: 'off' },
+  ] },
+  { at: '2026-08-10T16:40', actor: 'A. Chen', changes: [
+    { label: 'Confidence thresholds', from: 'not set', to: '≤20 / ≥80 (initial)' },
+  ] },
+];
 
 // Scan configuration — the org-level admin surface. Everything the product
 // used to hardcode lives here: what counts as rented, what a finding means
@@ -637,6 +661,16 @@ function ScanConfigScreen({
   const [bandsCustom, setBandsCustom] = React.useState<boolean>(
     !!(seed.categoryThresholds && Object.keys(seed.categoryThresholds).length)
   );
+  // Threshold audit-log drawer. `auditDate` is what the date picker holds;
+  // `appliedDate` is what the list actually filters on (updated on Apply), so
+  // changing the picker doesn't refilter until the user commits. Default: today.
+  const AUDIT_TODAY = '2026-09-01';
+  const [auditOpen, setAuditOpen] = React.useState(false);
+  const [auditDate, setAuditDate] = React.useState(AUDIT_TODAY);
+  const [appliedDate, setAppliedDate] = React.useState(AUDIT_TODAY);
+  const auditForDate = THRESHOLD_AUDIT
+    .filter((e) => e.at.slice(0, 10) === appliedDate)
+    .sort((a, b) => (a.at < b.at ? 1 : -1));
   const [matrix, setMatrix] = React.useState(seed.outcomeMatrix);
   const [recurring, setRecurring] = React.useState(seed.recurring);
   const [staleDays, setStaleDays] = React.useState(seed.stalenessDays);
@@ -896,15 +930,24 @@ function ScanConfigScreen({
            hi/lo pair on the existing two-threshold model, so the model is
            unchanged — only the control returns.
 
-           Redesigned again on the client's direction of 2026-08-31: one
-           infographic strip per declared type — see the OUTCOME_META /
-           OutcomeBandStrip block above for the full design record,
-           including the two recorded-not-resolved owner questions (mapping
-           onto the saved config; Not sure vs the resolve-as toggle).
+           Redesigned Aug–Sep 2026 (see the DEFAULT_BAND_ROW / OutcomeBandStrip
+           block above): Default mode shows one shared set of bands read-only;
+           Custom mode gives each declared type its own editable bar. An
+           Audit-log CTA (headerRight) opens a dated drawer of past changes.
            ThresholdBandPreview stays dormant below. */}
       <ConfigSection
         title="Confidence thresholds"
         desc="How a confidence score becomes a result. Off applies the recommended defaults; on lets you tune the bands for each declared type."
+        headerRight={
+          <Button
+            variant="default"
+            size="sm"
+            icon={<Icon name="history" />}
+            onClick={() => setAuditOpen(true)}
+          >
+            Audit log
+          </Button>
+        }
       >
         {/* Same toggle pattern as every other switch on this screen (AI report,
             Session timeout): bold label + muted description, switch on the
@@ -956,6 +999,78 @@ function ScanConfigScreen({
           )}
         </div>
       </ConfigSection>
+
+      {/* ---- Threshold change audit log (side drawer) ---- */}
+      <Drawer
+        open={auditOpen}
+        onClose={() => setAuditOpen(false)}
+        title="Threshold change log"
+        width={440}
+      >
+        <div className="flex flex-col gap-stack-md">
+          <p className="font-sans text-caption m-0" style={{ color: 'var(--ink-3)' }}>
+            Thresholds change over time, so the same score can read differently by date. Pick a date
+            to see the changes made that day.
+          </p>
+
+          {/* Date picker (single date, defaults to today) + Apply. */}
+          <div className="flex items-end gap-stack">
+            <div className="w-[180px]">
+              <Input
+                label="Date"
+                type="date"
+                max={AUDIT_TODAY}
+                value={auditDate}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAuditDate(e.target.value)}
+              />
+            </div>
+            <Button variant="default" size="md" onClick={() => setAppliedDate(auditDate)}>
+              Apply
+            </Button>
+          </div>
+
+          <div className="border-t border-line pt-stack-md">
+            <div className="font-sans text-eyebrow font-semibold tracking-[0.14em] uppercase mb-stack" style={{ color: 'var(--ink-3)' }}>
+              {formatUsDate(`${appliedDate}T00:00:00`)}
+            </div>
+
+            {auditForDate.length === 0 ? (
+              <p className="font-sans text-caption m-0" style={{ color: 'var(--ink-3)' }}>
+                No changes on this date. The settings in effect were unchanged since the previous edit.
+              </p>
+            ) : (
+              <ol className="list-none m-0 p-0 flex flex-col gap-stack-md">
+                {auditForDate.map((ev, i) => (
+                  <li key={i} className="relative pl-4 border-l-2 border-line">
+                    <div className="flex items-baseline gap-inline">
+                      <span className="font-mono tabular-nums text-caption font-semibold" style={{ color: 'var(--navy)' }}>
+                        {ev.at.slice(11)}
+                      </span>
+                      <span className="font-sans text-micro" style={{ color: 'var(--ink-3)' }}>
+                        {ev.actor}
+                      </span>
+                    </div>
+                    <ul className="list-none m-0 mt-1 p-0 flex flex-col gap-stack-tight">
+                      {ev.changes.map((c, j) => (
+                        <li key={j} className="font-sans text-caption" style={{ color: 'var(--ink-2)' }}>
+                          <span style={{ color: 'var(--ink)' }}>{c.label}</span>
+                          <span className="mx-1 tabular-nums" style={{ color: 'var(--ink-3)' }}>
+                            {c.from}
+                          </span>
+                          <span aria-hidden style={{ color: 'var(--ink-4)' }}>→</span>
+                          <span className="ml-1 tabular-nums font-medium" style={{ color: 'var(--navy)' }}>
+                            {c.to}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+      </Drawer>
 
       {/* ---- AI report — auto-run on red ---- */}
       <ConfigSection
