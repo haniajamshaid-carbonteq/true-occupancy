@@ -60,26 +60,23 @@ const MATRIX_HEADER_LABEL: Record<string, string> = {
   rented: 'Inconclusive',
 };
 
-// ---- Confidence-threshold bands (client direction, 2026-08-31) ----------
-// The thresholds section is one infographic strip per declared type: a
-// 0–100 bar whose coloured segments ARE the ranges. Two draggable
-// boundaries per row (so the three ranges tile 0–100 BY CONSTRUCTION —
-// gaps and overlaps are not expressible, and the old per-row validation
-// is gone with them), and each segment can be reassigned to a different
-// result, so a Rental row can put Consistent in the high range. Not sure
-// is a full row of its own here, seeded with a deliberately wide
-// Needs-review middle.
+// ---- Confidence-threshold bands (client direction, 2026-08/09) ----------
+// The thresholds section is a 0–100 bar whose coloured segments ARE the
+// ranges. Two draggable boundaries split it into three (so the ranges tile
+// 0–100 BY CONSTRUCTION — gaps/overlaps are inexpressible and there is no
+// validation), and each segment can be reassigned to a different result.
+// Default mode shows one shared set of bands read-only; Custom mode gives
+// each declared type its own editable bar.
 //
 // Screen-local design prototype: `bandRows` are not yet part of OccConfig.
-// Two recorded-not-resolved owner questions: (1) how this maps onto
-// thresholds + outcomeMatrix, which together encode the same information
-// today (hi/lo stay dormant on state so the saved shape is unchanged);
-// (2) Not sure having its own ranges here sits in tension with the
-// resolve-as toggle in the matrix section below.
+// Recorded-not-resolved owner questions live on the Trello cards: how this
+// maps onto thresholds + outcomeMatrix (#76), and wiring it to the verdict
+// (#75). hi/lo stay dormant on state so the saved shape is unchanged.
 //
-// Tones follow the matrix pills: Consistent=green→clean,
-// Needs review=red→risk, Inconclusive=yellow→warn. Status words on
-// status tones — this strip describes outcomes, not raw verdicts.
+// Tones are the SAME status tokens the Outcome-matrix pills use, so the two
+// sections stay colour-consistent by construction: Consistent=green→clean,
+// Needs review=red→risk, Inconclusive=yellow→warn. Status words on status
+// tones — this strip describes outcomes, not raw verdicts.
 const OUTCOME_META: Record<string, { label: string; tone: string }> = {
   consistent: { label: 'Consistent', tone: 'clean' },
   needsReview: { label: 'Needs review', tone: 'risk' },
@@ -775,83 +772,6 @@ function ScanConfigScreen({
         />
       </ConfigSection>
 
-      {/* ---- 2. Confidence thresholds — RE-INSTATED ----
-           ⚠ REVERSAL, recorded not hidden. This card was previously pulled
-           from the UI at the owner's request; the `thresholds` (hi/lo), the
-           validation and ThresholdBandPreview were all left dormant rather
-           than deleted, which is why bringing it back is a re-wire and not a
-           rebuild.
-
-           Brought back on the client's own ask in the weekly of 2026-08-27.
-           Jim McGowan: "would that be just putting bounds around like from 0
-           to 10%, ignore it — somebody might say anything from 20 to 80% is
-           up in the air, and somebody else might say 60 to 40". Erin Walker:
-           "they want to set a confidence score to get to that … I think we
-           could look at that too." Every example they gave is a different
-           hi/lo pair on the existing two-threshold model, so the model is
-           unchanged — only the control returns.
-
-           Redesigned again on the client's direction of 2026-08-31: one
-           infographic strip per declared type — see the OUTCOME_META /
-           OutcomeBandStrip block above for the full design record,
-           including the two recorded-not-resolved owner questions (mapping
-           onto the saved config; Not sure vs the resolve-as toggle).
-           ThresholdBandPreview stays dormant below. */}
-      <ConfigSection
-        title="Confidence thresholds"
-        desc="How a confidence score becomes a result. Off applies the recommended defaults; on lets you tune the bands for each declared type."
-      >
-        {/* Same toggle pattern as every other switch on this screen (AI report,
-            Session timeout): bold label + muted description, switch on the
-            left. Off = recommended defaults; on = custom per-type ranges. */}
-        <Toggle
-          checked={bandsCustom}
-          onChange={(v: boolean) => setBandsCustom(v)}
-          label="Custom ranges"
-          description="If this is off, the recommended default ranges apply. Turn it on to set your own ranges for each declared type."
-        />
-
-        <div className="mt-stack-md">
-          {bandsCustom ? (
-            (() => {
-              // Custom mode: each declared type has its own editable bar, so a
-              // type can diverge from the shared default (e.g. a rental that
-              // needs a higher score to read Consistent). The scale is neutral
-              // (contradicts ↔ matches); the meaning line says what a match is.
-              const matchRented = intentMatchIsRented(editIntent, notSureResolve ? notSureResolveAs : 'owner-occupied');
-              return (
-                <>
-                  {/* Four declared types as real tabs. */}
-                  <Tabs
-                    value={editIntent}
-                    onChange={(v: string) => setEditIntent(v)}
-                    items={OCC_INTENTS.map((i: string) => ({ value: i, label: OCC_INTENT_LABEL[i] }))}
-                  />
-                  <p className="font-sans text-caption m-0 mt-stack" style={{ color: 'var(--ink-2)' }}>
-                    {matchMeaningLine(editIntent, matchRented)}
-                  </p>
-                  <div className="mt-stack">
-                    <OutcomeBandStrip
-                      row={bandRows[editIntent]}
-                      onReassign={(i: number, k: string) => reassignSegment(editIntent, i, k)}
-                      onChangeB1={(n: number) => setRowBoundary(editIntent, 'b1', n)}
-                      onChangeB2={(n: number) => setRowBoundary(editIntent, 'b2', n)}
-                    />
-                  </div>
-                  <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
-                    These ranges apply to {OCC_INTENT_LABEL[editIntent]} only. The three bands always
-                    cover 0 to 100. Changes apply to future scans only: completed scans keep the ranges
-                    they ran under.
-                  </p>
-                </>
-              );
-            })()
-          ) : (
-            <DefaultsInfo notSureResolveAs={notSureResolve ? notSureResolveAs : 'owner-occupied'} />
-          )}
-        </div>
-      </ConfigSection>
-
       {/* ---- 3. Outcome matrix ---- */}
       <ConfigSection
         title="Outcome matrix"
@@ -958,6 +878,83 @@ function ScanConfigScreen({
         })}
 
         <MatrixLegend matrix={matrix} />
+      </ConfigSection>
+
+      {/* ---- 2. Confidence thresholds — RE-INSTATED ----
+           ⚠ REVERSAL, recorded not hidden. This card was previously pulled
+           from the UI at the owner's request; the `thresholds` (hi/lo), the
+           validation and ThresholdBandPreview were all left dormant rather
+           than deleted, which is why bringing it back is a re-wire and not a
+           rebuild.
+
+           Brought back on the client's own ask in the weekly of 2026-08-27.
+           Jim McGowan: "would that be just putting bounds around like from 0
+           to 10%, ignore it — somebody might say anything from 20 to 80% is
+           up in the air, and somebody else might say 60 to 40". Erin Walker:
+           "they want to set a confidence score to get to that … I think we
+           could look at that too." Every example they gave is a different
+           hi/lo pair on the existing two-threshold model, so the model is
+           unchanged — only the control returns.
+
+           Redesigned again on the client's direction of 2026-08-31: one
+           infographic strip per declared type — see the OUTCOME_META /
+           OutcomeBandStrip block above for the full design record,
+           including the two recorded-not-resolved owner questions (mapping
+           onto the saved config; Not sure vs the resolve-as toggle).
+           ThresholdBandPreview stays dormant below. */}
+      <ConfigSection
+        title="Confidence thresholds"
+        desc="How a confidence score becomes a result. Off applies the recommended defaults; on lets you tune the bands for each declared type."
+      >
+        {/* Same toggle pattern as every other switch on this screen (AI report,
+            Session timeout): bold label + muted description, switch on the
+            left. Off = recommended defaults; on = custom per-type ranges. */}
+        <Toggle
+          checked={bandsCustom}
+          onChange={(v: boolean) => setBandsCustom(v)}
+          label="Custom ranges"
+          description="If this is off, the recommended default ranges apply. Turn it on to set your own ranges for each declared type."
+        />
+
+        <div className="mt-stack-md">
+          {bandsCustom ? (
+            (() => {
+              // Custom mode: each declared type has its own editable bar, so a
+              // type can diverge from the shared default (e.g. a rental that
+              // needs a higher score to read Consistent). The scale is neutral
+              // (contradicts ↔ matches); the meaning line says what a match is.
+              const matchRented = intentMatchIsRented(editIntent, notSureResolve ? notSureResolveAs : 'owner-occupied');
+              return (
+                <>
+                  {/* Four declared types as real tabs. */}
+                  <Tabs
+                    value={editIntent}
+                    onChange={(v: string) => setEditIntent(v)}
+                    items={OCC_INTENTS.map((i: string) => ({ value: i, label: OCC_INTENT_LABEL[i] }))}
+                  />
+                  <p className="font-sans text-caption m-0 mt-stack" style={{ color: 'var(--ink-2)' }}>
+                    {matchMeaningLine(editIntent, matchRented)}
+                  </p>
+                  <div className="mt-stack">
+                    <OutcomeBandStrip
+                      row={bandRows[editIntent]}
+                      onReassign={(i: number, k: string) => reassignSegment(editIntent, i, k)}
+                      onChangeB1={(n: number) => setRowBoundary(editIntent, 'b1', n)}
+                      onChangeB2={(n: number) => setRowBoundary(editIntent, 'b2', n)}
+                    />
+                  </div>
+                  <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
+                    These ranges apply to {OCC_INTENT_LABEL[editIntent]} only. The three bands always
+                    cover 0 to 100. Changes apply to future scans only: completed scans keep the ranges
+                    they ran under.
+                  </p>
+                </>
+              );
+            })()
+          ) : (
+            <DefaultsInfo notSureResolveAs={notSureResolve ? notSureResolveAs : 'owner-occupied'} />
+          )}
+        </div>
       </ConfigSection>
 
       {/* ---- AI report — auto-run on red ---- */}
