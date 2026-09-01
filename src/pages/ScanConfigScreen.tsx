@@ -1,5 +1,5 @@
 /* global React, ReactRouterDOM, AppShell, AppStateContext, Card, ChipRow, Input, Toggle, Button, Pill, Modal,
-   Icon, ScreenEmpty, OCC_INTENTS, OCC_VERDICTS, OCC_STATUSES, OCC_INTENT_LABEL,
+   DropdownMenu, Icon, ScreenEmpty, OCC_INTENTS, OCC_VERDICTS, OCC_STATUSES, OCC_INTENT_LABEL,
    OCC_VERDICT_LABEL, OCC_STATUS_LABEL, OCC_STATUS_TONE, OCC_CADENCE_LABEL,
    DEFAULT_OCC_CONFIG, occThresholdError, occThresholdsFor */
 
@@ -60,20 +60,348 @@ const MATRIX_HEADER_LABEL: Record<string, string> = {
   rented: 'Inconclusive',
 };
 
+// ---- Confidence-threshold bands (client direction, 2026-08-31) ----------
+// The thresholds section is one infographic strip per declared type: a
+// 0–100 bar whose coloured segments ARE the ranges. Two draggable
+// boundaries per row (so the three ranges tile 0–100 BY CONSTRUCTION —
+// gaps and overlaps are not expressible, and the old per-row validation
+// is gone with them), and each segment can be reassigned to a different
+// result, so a Rental row can put Consistent in the high range. Not sure
+// is a full row of its own here, seeded with a deliberately wide
+// Needs-review middle.
+//
+// Screen-local design prototype: `bandRows` is not yet part of OccConfig.
+// Two recorded-not-resolved owner questions: (1) how this maps onto
+// thresholds + outcomeMatrix, which together encode the same information
+// today (hi/lo stay dormant on state so the saved shape is unchanged);
+// (2) Not sure having its own ranges here sits in tension with the
+// resolve-as toggle in the matrix section below.
+//
+// Tones follow the matrix pills: Consistent=green→clean,
+// Needs review=red→risk, Inconclusive=yellow→warn. Status words on
+// status tones — this strip describes outcomes, not raw verdicts.
+const OUTCOME_META: Record<string, { label: string; tone: string }> = {
+  consistent: { label: 'Consistent', tone: 'clean' },
+  needsReview: { label: 'Needs review', tone: 'risk' },
+  inconclusive: { label: 'Inconclusive', tone: 'warn' },
+};
+const OUTCOME_KEYS = ['consistent', 'needsReview', 'inconclusive'];
+
+/** One row = which outcome sits in each of the three score positions, plus
+ *  the two boundaries. b1 ends the first range; b2 starts the last — so the
+ *  ranges are 0–b1, (b1+1)–(b2−1), b2–100. */
+type BandRow = { order: [string, string, string]; b1: number; b2: number };
+
+// Recommended defaults. Score = P(rented): 0 clearly not rented → 100 clearly
+// rented. The range that AGREES with the declaration is Consistent, the range
+// that CONTRADICTS it is Needs review, the ambiguous middle is Inconclusive —
+// and for a rental (rented is expected) that reading flips end for end.
+const DEFAULT_BAND_ROWS: Record<string, BandRow> = {
+  'owner-occupied': { order: ['consistent', 'inconclusive', 'needsReview'], b1: 30, b2: 70 },
+  'second-home': { order: ['consistent', 'inconclusive', 'needsReview'], b1: 30, b2: 70 },
+  // Reversed: not rented is the contradiction, rented is Consistent.
+  rental: { order: ['needsReview', 'inconclusive', 'consistent'], b1: 30, b2: 70 },
+  // Not sure has no declaration to agree with or contradict, so in Default
+  // mode it inherits the org's default type rather than showing its own bar
+  // (see the section). This row only seeds its Custom bar if the user opts in.
+  'not-sure': { order: ['consistent', 'inconclusive', 'needsReview'], b1: 30, b2: 70 },
+};
+
+/** The three ranges a row resolves to, in score order. */
+function bandRowRanges(row: BandRow): { key: string; from: number; to: number }[] {
+  return [
+    { key: row.order[0], from: 0, to: row.b1 },
+    { key: row.order[1], from: row.b1 + 1, to: row.b2 - 1 },
+    { key: row.order[2], from: row.b2, to: 100 },
+  ];
+}
+
+/** One declared type's control. The design is built around the point the
+ *  client raised (2026-08-31): the SCORE AXIS 0→100 is the only fixed thing;
+ *  which outcome occupies which part of it is the editable decision and has
+ *  NO canonical order — Owner-occupied puts Consistent low, a rental puts it
+ *  high. So each of the three segments carries its outcome as an in-place
+ *  DropdownMenu (a real registered primitive), never a fixed label, and the
+ *  bar is the score axis itself.
+ *
+ *  Two draggable, keyboard-operable boundaries (role=slider, arrows ±1) split
+ *  the axis. Clamps keep 0 ≤ b1 ≤ b2−2 ≤ 98 so the middle range always
+ *  exists — invalid tiling is not expressible, so nothing here validates or
+ *  gates Save. Reassigning an outcome swaps it with wherever it currently
+ *  sits, so all three stay present and contiguous. */
+function OutcomeBandStrip({
+  row,
+  onReassign,
+  onChangeB1,
+  onChangeB2,
+}: {
+  row: BandRow;
+  onReassign: (idx: number, outcome: string) => void;
+  onChangeB1: (n: number) => void;
+  onChangeB2: (n: number) => void;
+}) {
+  const trackRef = React.useRef<HTMLDivElement>(null);
+  const segs = bandRowRanges(row);
+  const widths = [row.b1, row.b2 - row.b1, 100 - row.b2];
+
+  const clampB1 = (n: number) => Math.max(0, Math.min(row.b2 - 2, n));
+  const clampB2 = (n: number) => Math.max(row.b1 + 2, Math.min(100, n));
+
+  function beginDrag(which: 'b1' | 'b2') {
+    return (e: React.PointerEvent) => {
+      e.preventDefault();
+      const track = trackRef.current;
+      if (!track) return;
+      const rect = track.getBoundingClientRect();
+      const move = (ev: PointerEvent) => {
+        const pct = Math.round(((ev.clientX - rect.left) / rect.width) * 100);
+        if (which === 'b1') onChangeB1(clampB1(pct));
+        else onChangeB2(clampB2(pct));
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    };
+  }
+
+  function keyAdjust(which: 'b1' | 'b2') {
+    return (e: React.KeyboardEvent) => {
+      const delta =
+        e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : 0;
+      if (!delta) return;
+      e.preventDefault();
+      if (which === 'b1') onChangeB1(clampB1(row.b1 + delta));
+      else onChangeB2(clampB2(row.b2 + delta));
+    };
+  }
+
+  const handles: { which: 'b1' | 'b2'; value: number; clamp: (n: number) => number; onChange: (n: number) => void }[] = [
+    { which: 'b1', value: row.b1, clamp: clampB1, onChange: onChangeB1 },
+    { which: 'b2', value: row.b2, clamp: clampB2, onChange: onChangeB2 },
+  ];
+
+  return (
+    <div>
+      {/* The bar IS the 0–100 score axis. overflow-visible so a segment's
+          outcome menu can escape the track; corners are rounded per-segment
+          and the outline is a ring (no clip). */}
+      <div ref={trackRef} className="relative flex h-14 rounded-xl ring-1 ring-inset ring-line">
+        {segs.map((s, i) => {
+          const meta = OUTCOME_META[s.key];
+          const round = i === 0 ? 'rounded-l-xl' : i === segs.length - 1 ? 'rounded-r-xl' : '';
+          const narrow = widths[i] < 22;
+          return (
+            <div
+              key={i}
+              className={`relative grid place-items-center bg-${meta.tone}-soft ${round}`}
+              style={{ width: `${widths[i]}%` }}
+            >
+              <DropdownMenu
+                align="start"
+                menuWidth="w-44"
+                title="This range counts as"
+                trigger={(open: boolean) => (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 font-sans text-caption font-semibold cursor-pointer transition-colors hover:bg-white/40 ${
+                      open ? 'bg-white/50' : ''
+                    }`}
+                    style={{ color: `var(--${meta.tone}-ink)` }}
+                    title={`${meta.label} · scores ${s.from}–${s.to}`}
+                  >
+                    {!narrow && <span className="truncate">{meta.label}</span>}
+                    <span
+                      className={`inline-flex shrink-0 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
+                      aria-hidden
+                    >
+                      <Icon name="chevron" size={12} />
+                    </span>
+                  </span>
+                )}
+                items={OUTCOME_KEYS.map((k: string) => ({
+                  label: OUTCOME_META[k].label,
+                  icon:
+                    k === s.key ? (
+                      <span className="[&>svg]:w-4 [&>svg]:h-4" style={{ color: 'var(--brand)' }}>
+                        <Icon name="check" size={16} />
+                      </span>
+                    ) : (
+                      <span className={`inline-block w-2.5 h-2.5 rounded-full bg-${OUTCOME_META[k].tone}`} />
+                    ),
+                  onClick: () => onReassign(i, k),
+                }))}
+              />
+              {/* Score span, small, under the label — reads which part of the
+                  axis this outcome owns. */}
+              {!narrow && (
+                <span
+                  className="absolute bottom-1.5 font-sans text-micro tabular-nums pointer-events-none"
+                  style={{ color: `var(--${meta.tone}-ink)`, opacity: 0.7 }}
+                >
+                  {s.from}–{s.to}
+                </span>
+              )}
+            </div>
+          );
+        })}
+
+        {handles.map((h) => (
+          <div
+            key={h.which}
+            role="slider"
+            tabIndex={0}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={h.value}
+            aria-label={
+              h.which === 'b1'
+                ? `Boundary between ${OUTCOME_META[row.order[0]].label} and ${OUTCOME_META[row.order[1]].label}`
+                : `Boundary between ${OUTCOME_META[row.order[1]].label} and ${OUTCOME_META[row.order[2]].label}`
+            }
+            onPointerDown={beginDrag(h.which)}
+            onKeyDown={keyAdjust(h.which)}
+            className="absolute top-0 h-full w-5 -translate-x-1/2 flex items-center justify-center cursor-col-resize group focus:outline-none"
+            style={{ left: `${h.value}%` }}
+          >
+            {/* A real slider grip: a rounded pill riding the boundary, with a
+                subtle grabber, lifting to brand on hover/focus. */}
+            <div
+              className="h-9 w-1.5 rounded-full bg-white shadow-md ring-1 ring-line-strong group-hover:ring-brand group-focus-visible:ring-2 group-focus-visible:ring-brand transition-shadow"
+              style={{ boxShadow: '0 1px 4px rgba(15,23,42,0.18)' }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* The axis scale: fixed 0 and 100 ends, and the two live boundary
+          values as compact inputs under their handles — the precise,
+          accessible edit path that mirrors the drag. */}
+      <div className="relative h-9 mt-2">
+        <span className="absolute left-0 top-1 font-sans text-micro tabular-nums" style={{ color: 'var(--ink-4)' }}>
+          0 · not rented
+        </span>
+        <span className="absolute right-0 top-1 font-sans text-micro tabular-nums" style={{ color: 'var(--ink-4)' }}>
+          rented · 100
+        </span>
+        {handles.map((h) => (
+          <span
+            key={h.which}
+            className="absolute top-0 w-[64px] -translate-x-1/2"
+            style={{ left: `${Math.max(7, Math.min(93, h.value))}%` }}
+          >
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={String(h.value)}
+              aria-label={h.which === 'b1' ? 'First boundary' : 'Second boundary'}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => h.onChange(h.clamp(clamp0to100(e.target.value)))}
+            />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Collapsible summary of the recommended defaults, mirroring the outcome
+ *  matrix legend (§ MatrixLegend): a one-line summary that is itself the
+ *  toggle, expanding to the per-type detail. Shown when Custom is off, so the
+ *  detail can be hidden until wanted. */
+function DefaultsInfo({ defaultTypeLabel }: { defaultTypeLabel: string }) {
+  const [open, setOpen] = React.useState(false);
+  const bodyId = React.useId ? React.useId() : 'defaults-info';
+  return (
+    <div className="rounded-lg px-card-tight py-card-tight" style={{ background: 'var(--surface-2)' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={bodyId}
+        className="w-full flex items-center gap-inline text-left rounded-md transition-colors hover:bg-hover-bg"
+      >
+        <span className="shrink-0 [&>svg]:w-4 [&>svg]:h-4" style={{ color: 'var(--ink-3)' }} aria-hidden>
+          <Icon name="info" size={16} />
+        </span>
+        <span className="min-w-0 flex-1 font-sans text-caption" style={{ color: 'var(--ink-2)' }}>
+          Default and recommended settings are applied. Turn on the Custom switch to change them.
+        </span>
+        <span
+          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''} [&>svg]:w-3 [&>svg]:h-3`}
+          style={{ color: 'var(--ink-3)' }}
+          aria-hidden
+        >
+          <Icon name="chevron" size={12} />
+        </span>
+      </button>
+      {open && (
+        <div id={bodyId} className="mt-stack pl-6 flex flex-col">
+          {OCC_INTENTS.map((intent: string) => {
+            const isNotSure = intent === 'not-sure';
+            const ranges = bandRowRanges(DEFAULT_BAND_ROWS[intent]);
+            return (
+              <div
+                key={intent}
+                className="grid gap-3 items-center border-t border-line py-2"
+                style={{ gridTemplateColumns: '1.3fr 3fr' }}
+              >
+                <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
+                  {OCC_INTENT_LABEL[intent]}
+                </span>
+                {isNotSure ? (
+                  <span className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>
+                    Scored as your default type ({defaultTypeLabel}). No ranges of its own.
+                  </span>
+                ) : (
+                  <div className="flex flex-wrap gap-x-stack gap-y-stack-tight">
+                    {ranges.map((s, i) => {
+                      const meta = OUTCOME_META[s.key];
+                      return (
+                        <span key={i} className="inline-flex items-center gap-inline">
+                          <span className={`inline-block w-2 h-2 rounded-full bg-${meta.tone}`} aria-hidden />
+                          <span className="font-sans text-caption font-medium" style={{ color: 'var(--ink)' }}>
+                            {meta.label}
+                          </span>
+                          <span className="font-sans text-caption tabular-nums" style={{ color: 'var(--ink-3)' }}>
+                            {s.from}–{s.to}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ConfigSection({
   title,
   desc,
+  headerRight,
   children,
 }: {
   title: string;
   desc?: string;
+  /** Optional control on the title's baseline (e.g. a section-level switch). */
+  headerRight?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return (
     <Card padded className="mt-section-sub">
-      <h2 className="font-sans text-h4 font-semibold" style={{ color: 'var(--navy)' }}>
-        {title}
-      </h2>
+      <div className="flex items-start justify-between gap-4">
+        <h2 className="font-sans text-h4 font-semibold" style={{ color: 'var(--navy)' }}>
+          {title}
+        </h2>
+        {headerRight && <div className="shrink-0">{headerRight}</div>}
+      </div>
       {desc && (
         <p className="font-sans text-caption mt-1" style={{ color: 'var(--ink-3)' }}>
           {desc}
@@ -207,7 +535,9 @@ function MatrixLegend({
   );
 }
 
-/** The 0-100 band preview. Widths are computed layout, not design values. */
+/** The 0-100 band preview. Widths are computed layout, not design values.
+ *  Dormant again since the 2026-08-31 grid redesign — kept, not deleted,
+ *  per the same pattern as its first retirement (Trello #3 → #67). */
 function ThresholdBandPreview({ lo, hi }: { lo: number; hi: number }) {
   const safeLo = Math.max(0, Math.min(100, lo));
   const safeHi = Math.max(safeLo, Math.min(100, hi));
@@ -268,6 +598,21 @@ function ScanConfigScreen({
   const [notSureResolveAs, setNotSureResolveAs] = React.useState<string>(seed.notSureResolveAs ?? 'owner-occupied');
   const [hi, setHi] = React.useState(seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove);
   const [lo, setLo] = React.useState(seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow);
+  // The band rows the thresholds section edits (client direction,
+  // 2026-08-31). hi/lo above stay dormant so the saved config shape is
+  // unchanged while the rows' mapping onto it is an open owner question.
+  // No seedInvalid variant: two boundaries per row make invalid tiling
+  // inexpressible, so there is no error state to seed.
+  const [bandRows, setBandRows] = React.useState<Record<string, BandRow>>(DEFAULT_BAND_ROWS);
+  // One declared type edited at a time — a single bar on screen, chosen from
+  // the type selector, so the section is one control instead of four stacked
+  // bars. Reassigning an outcome happens in-place on the segment's dropdown.
+  const [editIntent, setEditIntent] = React.useState('owner-occupied');
+  // One section-level switch (client call): off = every type uses the
+  // recommended defaults, shown read-only; on = the tabs + editable bars.
+  const [bandsCustom, setBandsCustom] = React.useState<boolean>(
+    !!(seed.categoryThresholds && Object.keys(seed.categoryThresholds).length)
+  );
   const [matrix, setMatrix] = React.useState(seed.outcomeMatrix);
   const [recurring, setRecurring] = React.useState(seed.recurring);
   const [staleDays, setStaleDays] = React.useState(seed.stalenessDays);
@@ -283,7 +628,7 @@ function ScanConfigScreen({
   // Save flow: confirm → saving → saved. `baseline` is the last-saved snapshot;
   // dirty compares the live values against it so the footer collapses on save.
   const snapshot = () =>
-    JSON.stringify({ defaultIntent, notSureResolve, notSureResolveAs, hi, lo, matrix, recurring, staleDays, timeoutOn, timeoutValue, timeoutUnit });
+    JSON.stringify({ defaultIntent, notSureResolve, notSureResolveAs, hi, lo, bandRows, bandsCustom, matrix, recurring, staleDays, timeoutOn, timeoutValue, timeoutUnit });
   const [baseline, setBaseline] = React.useState(() =>
     JSON.stringify({
       defaultIntent: seed.defaultIntent,
@@ -291,6 +636,8 @@ function ScanConfigScreen({
       notSureResolveAs: seed.notSureResolveAs ?? 'owner-occupied',
       hi: seedInvalid ? 25 : seed.thresholds.rentedAtOrAbove,
       lo: seedInvalid ? 60 : seed.thresholds.notRentedAtOrBelow,
+      bandRows: DEFAULT_BAND_ROWS,
+      bandsCustom: !!(seed.categoryThresholds && Object.keys(seed.categoryThresholds).length),
       matrix: seed.outcomeMatrix,
       recurring: seed.recurring,
       staleDays: seed.stalenessDays,
@@ -303,7 +650,23 @@ function ScanConfigScreen({
   const [saving, setSaving] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState(false);
 
-  const thresholdError = occThresholdError({ rentedAtOrAbove: hi, notRentedAtOrBelow: lo });
+  // Band-row edits. Boundaries clamp inside the strip; reassigning a
+  // segment SWAPS outcomes so each of the three is always used exactly
+  // once — validity is structural, nothing gates Save any more.
+  // (occThresholdError still guards the dormant hi/lo pair at the state
+  // level but no longer gates this screen.)
+  const setRowBoundary = (intent: string, which: 'b1' | 'b2', n: number) =>
+    setBandRows((r) => ({ ...r, [intent]: { ...r[intent], [which]: n } }));
+  const reassignSegment = (intent: string, idx: number, outcome: string) =>
+    setBandRows((r) => {
+      const row = r[intent];
+      const from = row.order.indexOf(outcome as any);
+      if (from === idx || from < 0) return r;
+      const order = [...row.order] as BandRow['order'];
+      order[from] = order[idx];
+      order[idx] = outcome;
+      return { ...r, [intent]: { ...row, order } };
+    });
   const dirty = forceDirty || snapshot() !== baseline;
 
   const Prompt = ReactRouterDOM?.Prompt;
@@ -315,6 +678,8 @@ function ScanConfigScreen({
     setNotSureResolveAs(b.notSureResolveAs);
     setHi(b.hi);
     setLo(b.lo);
+    setBandRows(b.bandRows ?? DEFAULT_BAND_ROWS);
+    setBandsCustom(!!b.bandsCustom);
     setMatrix(b.matrix);
     setRecurring(b.recurring);
     setStaleDays(b.staleDays);
@@ -399,60 +764,64 @@ function ScanConfigScreen({
            hi/lo pair on the existing two-threshold model, so the model is
            unchanged — only the control returns.
 
-           Scope: ORG-WIDE thresholds only. `categoryThresholds` (the
-           per-declared-type override) stays dormant and UI-less — nobody has
-           asked for per-category bands, and exposing them would put four
-           editable numbers on screen for a request that named two.
-
-           Vocabulary: labels and band names come from MATRIX_HEADER_LABEL,
-           never OCC_VERDICT_LABEL — Config speaks the reconciliation words
-           only (Trello #1's "no raw verdict wording on Config", reconfirmed
-           by the owner 2026-08-31). */}
+           Redesigned again on the client's direction of 2026-08-31: one
+           infographic strip per declared type — see the OUTCOME_META /
+           OutcomeBandStrip block above for the full design record,
+           including the two recorded-not-resolved owner questions (mapping
+           onto the saved config; Not sure vs the resolve-as toggle).
+           ThresholdBandPreview stays dormant below. */}
       <ConfigSection
         title="Confidence thresholds"
-        desc="Where a confidence score stops being one outcome and becomes the next. Everything between the two needs review."
+        desc="The score ranges that produce each result, per declared type."
       >
-        <div className="flex flex-wrap items-start gap-stack">
-          <div className="w-[200px]">
-            <Input
-              label={`${MATRIX_HEADER_LABEL['not-rented']} at or below`}
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={String(lo)}
-              error={!!thresholdError}
-              trailing={<span className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>%</span>}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLo(clamp0to100(e.target.value))}
-            />
-          </div>
-          <div className="w-[200px]">
-            <Input
-              label={`${MATRIX_HEADER_LABEL.rented} at or above`}
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={String(hi)}
-              error={!!thresholdError}
-              hint={thresholdError ?? undefined}
-              trailing={<span className="font-sans text-caption" style={{ color: 'var(--ink-3)' }}>%</span>}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHi(clamp0to100(e.target.value))}
-            />
-          </div>
-        </div>
+        {/* Same toggle pattern as every other switch on this screen (AI report,
+            Session timeout): bold label + muted description, switch on the
+            left. Off = recommended defaults; on = custom per-type ranges. */}
+        <Toggle
+          checked={bandsCustom}
+          onChange={(v: boolean) => setBandsCustom(v)}
+          label="Custom ranges"
+          description="If this is off, the recommended default ranges apply. Turn it on to set your own ranges for each declared type."
+        />
 
-        {/* The band preview reads left-to-right as 0 → 100, so it shows the
-            consequence of the two numbers above without restating them. */}
         <div className="mt-stack-md">
-          <ThresholdBandPreview lo={lo} hi={hi} />
+          {bandsCustom ? (
+            (() => {
+              const row = bandRows[editIntent];
+              const isNotSure = editIntent === 'not-sure';
+              const consistentLow = bandRows[editIntent].order.indexOf('consistent') === 0;
+              const scoreWhy = isNotSure
+                ? 'Not sure has no declaration to agree with or contradict. These ranges apply only if you score it in its own right.'
+                : consistentLow
+                ? `The score is the chance the property is rented, so a low score means it is probably not rented, which fits ${OCC_INTENT_LABEL[editIntent]}. Low scores read as Consistent, high scores as Needs review.`
+                : 'The score is the chance the property is rented, so a high score means it is probably rented, which fits a rental. High scores read as Consistent, low scores as Needs review.';
+              return (
+                <>
+                  {/* Four declared types as real tabs. */}
+                  <Tabs
+                    value={editIntent}
+                    onChange={(v: string) => setEditIntent(v)}
+                    items={OCC_INTENTS.map((i: string) => ({ value: i, label: OCC_INTENT_LABEL[i] }))}
+                  />
+                  <div className="mt-stack-md">
+                    <OutcomeBandStrip
+                      row={row}
+                      onReassign={(i: number, k: string) => reassignSegment(editIntent, i, k)}
+                      onChangeB1={(n: number) => setRowBoundary(editIntent, 'b1', n)}
+                      onChangeB2={(n: number) => setRowBoundary(editIntent, 'b2', n)}
+                    />
+                  </div>
+                  <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
+                    {scoreWhy} The three ranges always cover 0 to 100. Changes apply to future scans
+                    only: completed scans keep the ranges they ran under.
+                  </p>
+                </>
+              );
+            })()
+          ) : (
+            <DefaultsInfo defaultTypeLabel={OCC_INTENT_LABEL[notSureResolve ? notSureResolveAs : 'owner-occupied']} />
+          )}
         </div>
-
-        <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack">
-          These bands decide where a score lands. The outcome matrix below decides what each
-          band then <em>means</em>, given what was declared. Changes apply to future scans only:
-          completed scans keep the thresholds they ran under.
-        </p>
       </ConfigSection>
 
       {/* ---- 3. Outcome matrix ---- */}
@@ -683,7 +1052,6 @@ function ScanConfigScreen({
               <Button variant="default" onClick={discard}>Discard</Button>
               <Button
                 variant="primary"
-                disabled={!!thresholdError}
                 onClick={() => setConfirmOpen(true)}
               >
                 Save configuration
