@@ -111,10 +111,11 @@ const MATRIX_HEADER_LABEL: Record<string, string> = {
 /** One declared type's rule: the two declare-confidence minimums. */
 type BandRule = { needsReviewMin: number; consistentMin: number };
 
-// Ratified defaults (#74), restated in declare terms: the old bands NR 0–30 /
-// Consistent 70–100 are exactly "flag Needs review at 70% confidence" and
-// "declare Consistent at 70% confidence". Same numbers, new question.
-const DEFAULT_BAND_RULE: BandRule = { needsReviewMin: 70, consistentMin: 70 };
+// Recommended defaults (#74, owner set 2026-09-01): flag Needs review at 75%
+// confidence and declare Consistent at 75% confidence for every declared
+// type. On the match axis that is Needs review 0–25, Inconclusive 26–74,
+// Consistent 75–100.
+const DEFAULT_BAND_RULE: BandRule = { needsReviewMin: 75, consistentMin: 75 };
 
 // The declare-confidence floor. You cannot declare an outcome on less than
 // majority confidence, and 51 + 51 > 100 means the Needs-review and
