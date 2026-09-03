@@ -174,26 +174,6 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
             },
           },
           {
-            // The bands this run was scored under (Trello #73). Shown per row
-            // so runs from different threshold eras carry their own pair.
-            key: 'thresholds',
-            label: 'Thresholds',
-            width: '110px',
-            align: 'right' as const,
-            hideBelow: 'md' as const,
-            cell: (r: any) =>
-              r.thresholds ? (
-                <span
-                  className="font-mono tabular-nums text-caption text-ink-3"
-                  title={`This run banded scores at: not rented ≤${r.thresholds.notRentedAtOrBelow}, rented ≥${r.thresholds.rentedAtOrAbove}`}
-                >
-                  ≤{r.thresholds.notRentedAtOrBelow} / ≥{r.thresholds.rentedAtOrAbove}
-                </span>
-              ) : (
-                <span className="font-mono text-caption text-ink-4">—</span>
-              ),
-          },
-          {
             key: 'platforms',
             label: 'Platforms',
             width: '100px',
