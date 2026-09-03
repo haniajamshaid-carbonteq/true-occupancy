@@ -38,5 +38,11 @@ blob-report/
 # OS / misc
 Thumbs.db
 
+# Office documents kept in the working folder for convenience. These are
+# deliverables for other workstreams, not part of this prototype — and Word
+# leaves ~$ lock files behind whenever one is open.
+*.docx
+~$*
+
 # Playwright MCP session artifacts (snapshots/console logs)
 .playwright-mcp/
