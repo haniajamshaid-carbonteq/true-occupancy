@@ -759,9 +759,10 @@ function ScanConfigScreen({
                   </div>
 
                   <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-stack-md">
-                    Anything that clears neither bar is Inconclusive. TrueOccupancy decides that on its
-                    own, so there is nothing to set. These apply to {OCC_INTENT_LABEL[editIntent]} only, on
-                    future scans; completed scans keep the settings they ran under.
+                    If a score clears neither bar, the result is Inconclusive. TrueOccupancy sets that
+                    automatically, so there is nothing for you to configure. These bands apply to{' '}
+                    {OCC_INTENT_LABEL[editIntent]} only, and only to future scans. Completed scans keep the
+                    settings they ran under.
                   </p>
                 </>
               );
