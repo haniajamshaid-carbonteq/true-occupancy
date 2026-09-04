@@ -382,15 +382,13 @@ function reconciliationWhy(status: 'green' | 'yellow' | 'red', hasIntent: boolea
 
 function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   const sc = SCENARIOS[scenario];
-  const { findScheduleByTarget, getHistoryForAddress } = useAppState();
+  const { getHistoryForAddress } = useAppState();
 
-  // Is this property already on a recurring re-scan? Resolved the same way
-  // ScanContextBar resolves its Automate target, so the hero and the top-bar
-  // control can never disagree about whether automation is running.
+  // The address this hero is reporting on — resolved the same way
+  // ScanContextBar resolves its Automate target, so the two agree.
   const heroAddress =
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanAddress')) ||
     PROPERTY.address;
-  const activeSchedule = findScheduleByTarget({ kind: 'single', address: heroAddress });
 
   // Reconciliation is the headline now — declared intent × what the scan found.
   // Intent is stamped in sessionStorage at scan/open time; absent = quick-scan.
@@ -705,28 +703,11 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                   )}
                 </div>
               )}
-              {/* Red single scan → advise setting up a recurring re-scan. Opens
-                  the same Automate modal the top-bar button uses (via the shared
-                  halcyon:open-automate event handled by AutomationControl).
-                  Suppressed once a schedule exists — the top-bar "Automated ·
-                  every Nmo" control already carries that status, so a second
-                  in-hero indicator would duplicate it on the same screen. */}
-              {match.status === 'red' && !activeSchedule && (
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new Event('halcyon:open-automate'))}
-                  className="mt-2 self-start inline-flex items-center gap-1 rounded font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
-                  style={{ color: 'var(--brand-link)' }}
-                >
-                  <span className="[&>svg]:w-3 [&>svg]:h-3" aria-hidden>
-                    <Icon name="cal" size={12} />
-                  </span>
-                  Automation recommended
-                  <span className="[&>svg]:w-3 [&>svg]:h-3" aria-hidden>
-                    <Icon name="arrow-right" size={12} />
-                  </span>
-                </button>
-              )}
+              {/* No automation nudge here. A red result recommends a recurring
+                  re-scan, but the top-bar Automate CTA is the thing that acts
+                  on it — it carries the "Recommended" pill and the reason on
+                  hover. A second link saying the same thing was a duplicate of
+                  a CTA already on the screen. */}
             </div>
           )}
 

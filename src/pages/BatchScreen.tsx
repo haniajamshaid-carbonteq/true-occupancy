@@ -589,6 +589,30 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
     .filter((s) => DEFAULT_OCC_CONFIG.recurring[s] !== 'none')
     .map((s) => RECURRING_TO_TILE[s]);
 
+  // The recommendation itself. It names only categories the config schedules
+  // re-scans for AND that actually carry rows — recommending a re-scan of zero
+  // rows is noise. Surfaced on the Automate CTA (a "Recommended" pill plus this
+  // reason on hover), not as a separate nudge under the tiles: one place to
+  // learn of the recommendation and act on it.
+  const TILE_LABEL: Record<'consistent' | 'inconclusive' | 'needsReview', string> = {
+    consistent: 'Consistent',
+    inconclusive: 'Inconclusive',
+    needsReview: 'Needs review',
+  };
+  const TILE_COUNT: Record<'consistent' | 'inconclusive' | 'needsReview', number> = {
+    consistent: consistentCount,
+    inconclusive: inconclusiveCount,
+    needsReview: needsReviewCount,
+  };
+  const recommendedCategories = (['consistent', 'inconclusive', 'needsReview'] as const).filter(
+    (k) => automateCategories.includes(k) && TILE_COUNT[k] > 0,
+  );
+  const automateRecommended = isComplete && recommendedCategories.length > 0;
+  const recommendedLabels = recommendedCategories.map((k) => TILE_LABEL[k]).join(' + ');
+  const automateReason = automateRecommended
+    ? `${recommendedLabels} properties were found, and your occupancy config schedules automated re-scans for them — so automation is recommended.`
+    : undefined;
+
   // Arriving from a "N red" badge pre-applies the red (Needs-review) filter so
   // the user lands on just the red properties. One-shot: cleared once read.
   React.useEffect(() => {
@@ -673,7 +697,10 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
                 total,
                 scopeCounts,
                 scopeCountsPending,
+                intent: batch.defaultIntent,
               }}
+              recommended={automateRecommended}
+              recommendReason={automateReason}
             />
           )}
           {/* Run AI reports — the batch AI phase trigger. Offered once the
@@ -701,11 +728,11 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
               }
               onClick={() => setReportOpen(true)}
             >
-              {aiRunning
-                ? `Running… ${aiDone}/${aiTotal}`
-                : aiTotal > 0
-                ? 'Run more reports'
-                : 'Run occupancy reports'}
+              {/* One label whether or not reports have already been run —
+                  "Run more reports" named a second, different action; it is the
+                  same one, and the count badge beside it already says how many
+                  have landed. */}
+              {aiRunning ? `Running… ${aiDone}/${aiTotal}` : 'Run occupancy report'}
             </Button>
           )}
           <DropdownMenu
@@ -868,14 +895,8 @@ function BatchResults({ batch, readOnly }: { batch: any; readOnly?: boolean }) {
         inconclusive={inconclusiveCount}
         needsReview={needsReviewCount}
         redCount={redCount}
-        automateCategories={automateCategories}
         onSelect={toggleMatch}
         selected={matchFilter === 'all' ? null : matchFilter}
-        onAutomate={
-          !activeSchedule && isComplete
-            ? () => window.dispatchEvent(new Event('halcyon:open-automate'))
-            : undefined
-        }
       />
 
       {/* Properties — same DataTable primitive as Home + History */}

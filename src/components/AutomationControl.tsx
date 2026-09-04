@@ -6,6 +6,16 @@
 //   - "Automated · every Nmo" pill-style menu trigger with change/cancel
 //     actions (active schedule exists).
 //
+// When the caller passes `recommended`, a small green "Recommended" eyebrow sits
+// directly UNDER the CTA, inset by the button's own horizontal padding so it
+// tucks inside the control's edges rather than running out to them — absolutely
+// positioned, so it fills the gap beneath the button without changing the
+// height of the bar —
+// with the reason on hover. That replaces the separate "Automation recommended"
+// link that used to sit under the reconciliation tiles and inside the result
+// hero: one recommendation, attached to the control that acts on it, instead of
+// a nudge duplicating a CTA that was already on screen.
+//
 // Confirmation feedback is pushed to the notification dock (AppState.pushTransient)
 // so both surfaces (single property and batch) share the same affordance.
 
@@ -39,15 +49,26 @@ interface BatchTarget {
   /** Set true when the first scan hasn't completed yet, so we can't show
    *  meaningful counts. The user can still pre-pick a scope. */
   scopeCountsPending?: boolean;
+  /** The batch's declared occupancy. Seeds the modal so the pre-selected
+   *  re-scan bands are the ones that reconcile to "Needs review" for THIS
+   *  batch, not for the org default. */
+  intent?: string;
 }
 
 interface AutomationControlProps {
   target:
     | { kind: 'single'; address: string; scenario: 'low' | 'medium' | 'high' }
     | BatchTarget;
+  /** Mark the CTA as recommended: brand "Recommended" pill + hover reason.
+   *  Only honoured while no schedule exists — once automation is running the
+   *  control shows its status instead and there is nothing left to recommend. */
+  recommended?: boolean;
+  /** Hover text explaining why automation is recommended (e.g. red rows were
+   *  found). Required for the tooltip to say anything useful. */
+  recommendReason?: string;
 }
 
-function AutomationControl({ target }: AutomationControlProps) {
+function AutomationControl({ target, recommended = false, recommendReason }: AutomationControlProps) {
   const {
     addSchedule,
     updateScheduleCadence,
@@ -68,16 +89,9 @@ function AutomationControl({ target }: AutomationControlProps) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
-  // Open the automation flow from elsewhere on the page (e.g. the
-  // "Automation recommended" link under a red reconciliation tile). Opens the
-  // edit modal when a schedule already exists, else the create modal — same as
-  // clicking this control directly. Window event keeps the tile decoupled from
-  // this component's internal state, matching the app's other halcyon:* events.
-  React.useEffect(() => {
-    const open = () => (existing ? setEditOpen(true) : setCreateOpen(true));
-    window.addEventListener('halcyon:open-automate', open);
-    return () => window.removeEventListener('halcyon:open-automate', open);
-  }, [existing]);
+  // Ties the CTA to its "Recommended" note for screen readers — the note sits
+  // outside the button, so aria-describedby is what carries it across.
+  const recommendId = `automate-recommended-${React.useId()}`;
 
   function handleCreate({ cadence, statuses, retention, intent }: { cadence: Cadence; statuses?: Risk[]; retention?: ScopeRetention; intent?: string }) {
     if (target.kind === 'single') {
@@ -147,18 +161,34 @@ function AutomationControl({ target }: AutomationControlProps) {
     // counts the user can't pick a meaningful re-scan set, so the entry CTA is
     // disabled until the scan completes.
     const scanPending = target.kind === 'batch' && target.scopeCountsPending === true;
+    // The recommendation only reads while the CTA is actually actionable —
+    // a disabled button keeps its "available once the scan completes" tooltip.
+    const showRecommended = recommended && !scanPending;
     return (
       <>
-        <Button
-          variant="default"
-          onClick={() => setCreateOpen(true)}
-          icon={<Icon name="cal" size={14} />}
-          className="shrink-0"
-          disabled={scanPending}
-          title={scanPending ? 'Available once the scan completes' : undefined}
-        >
-          Automate
-        </Button>
+        {/* `relative` anchors the recommendation note; the note itself is
+            absolute so the surrounding bar keeps its single-row height. */}
+        <div className="relative shrink-0">
+          <Button
+            variant="default"
+            onClick={() => setCreateOpen(true)}
+            icon={<Icon name="cal" size={14} />}
+            disabled={scanPending}
+            title={scanPending ? 'Available once the scan completes' : undefined}
+            aria-describedby={showRecommended ? recommendId : undefined}
+          >
+            Automate
+          </Button>
+          {showRecommended && (
+            <span
+              id={recommendId}
+              title={recommendReason}
+              className="absolute right-control-x top-full mt-0.5 whitespace-nowrap font-sans text-eyebrow font-semibold leading-none text-success underline decoration-dotted underline-offset-2 cursor-help"
+            >
+              Recommended
+            </span>
+          )}
+        </div>
 
         <AutomateModal
           open={createOpen}
@@ -170,6 +200,7 @@ function AutomationControl({ target }: AutomationControlProps) {
                 scopeCounts: target.scopeCounts,
                 scopeTotal: target.total,
                 scopeCountsPending: target.scopeCountsPending,
+                initialIntent: target.intent,
               }
             : {})}
         />

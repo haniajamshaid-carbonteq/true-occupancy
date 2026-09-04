@@ -45,8 +45,10 @@ interface AutomateModalProps {
   /** BATCH-only. Edit mode: initial retention rule. Create mode: ignored,
    *  defaults to 'monitor' (keep re-scanning when a status stops matching). */
   initialRetention?: ScopeRetention;
-  /** Edit mode: initial intended occupancy. Create mode: defaults to the
-   *  org's universal default (owner-occupied). Always overridable. */
+  /** Initial intended occupancy, honoured in BOTH modes. Create mode falls
+   *  back to the org's universal default when omitted — but a batch passes its
+   *  own declared intent, so the pre-selected re-scan bands are the ones that
+   *  actually reconcile to Needs review for THAT batch. Always overridable. */
   initialIntent?: string;
   /** BATCH-only. Per-status counts from the latest scan; drives the live
    *  scope card + the "(N)" suffix on each status pill. */
@@ -131,12 +133,12 @@ function AutomateModal({
   const isBatch = target?.kind === 'batch';
 
   const seedCadence: Cadence = isEdit && initialCadence ? initialCadence : DEFAULT_CADENCE;
-  // Intended occupancy — defaults to the org's universal default so the
-  // common case is zero clicks; the user overrides it only when this
-  // automation targets a different kind of property. Declared before
-  // seedStatuses because the default re-scan set is derived from it.
-  const seedIntent: string =
-    isEdit && initialIntent ? initialIntent : DEFAULT_OCC_CONFIG.defaultIntent;
+  // Intended occupancy — the caller's declared intent (a batch passes its own
+  // batch-level one) falling back to the org's universal default, so the common
+  // case is zero clicks and the user overrides it only when this automation
+  // targets a different kind of property. Declared before seedStatuses because
+  // the default re-scan set is derived from it.
+  const seedIntent: string = initialIntent || DEFAULT_OCC_CONFIG.defaultIntent;
   const seedStatuses: Risk[] =
     isEdit && initialStatuses && initialStatuses.length > 0
       ? initialStatuses

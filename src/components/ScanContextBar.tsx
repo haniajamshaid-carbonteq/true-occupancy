@@ -63,11 +63,22 @@ function ScanContextBar({
     resolvedRawIntent && INTENDED_OCCUPANCY_LABEL[resolvedRawIntent] ? resolvedRawIntent : undefined;
   const resolvedEyebrow = eyebrow;
 
+  // The scenario this bar is reporting on. `automateScenario` wins when the
+  // caller states it (the static /result/* routes do), else the scan stamp.
+  // One resolution feeds both the red flag and the Automate target, so the bar
+  // can't flag one scan while scheduling another.
+  const scenarioForTarget =
+    automateScenario ||
+    ((typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanScenario')) as any) ||
+    'high';
+
   // Red flag beside the address follows the config matrix (declared × found),
   // not a hardcoded list — so it agrees with the batch, History and Scheduled.
-  const rawScenario =
-    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanScenario') : null;
-  const risk = rawScenario ? SCENARIOS[rawScenario as keyof typeof SCENARIOS]?.risk : undefined;
+  // It also drives the Automate CTA's "Recommended" pill: a red result is the
+  // one that warrants a recurring re-scan. The hero used to carry a separate
+  // "Automation recommended" link off the same condition — that duplicated
+  // this CTA, so the recommendation now rides on the CTA alone.
+  const risk = SCENARIOS[scenarioForTarget as keyof typeof SCENARIOS]?.risk;
   const isRed = occMatchForRisk(intent, risk)?.status === 'red';
 
   // The history report stays clickable even when only one scan is on file —
@@ -123,10 +134,7 @@ function ScanContextBar({
   // Automate flow — encapsulated in <AutomationControl>. It looks up an
   // existing schedule for this address and either offers the create CTA
   // or an "Automated · every Nmo" menu trigger (change cadence / cancel).
-  const scenarioForTarget =
-    automateScenario ||
-    ((typeof sessionStorage !== 'undefined' && sessionStorage.getItem('scanScenario')) as any) ||
-    'high';
+  // Its target scenario is `scenarioForTarget`, resolved above.
   // The report freshness timestamp lives beneath the verdict now (ConfidenceHero
   // → ServedStamp), not in this top bar.
 
@@ -197,6 +205,8 @@ function ScanContextBar({
       {showAutomate && (
         <AutomationControl
           target={{ kind: 'single', address: resolvedAddress, scenario: scenarioForTarget }}
+          recommended={isRed}
+          recommendReason="This property needs review, so a recurring re-scan is recommended."
         />
       )}
 
