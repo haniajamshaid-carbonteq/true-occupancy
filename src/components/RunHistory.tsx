@@ -1,7 +1,6 @@
 /* global React, Pill, DataTable, Icon, ReactRouterDOM, useAppState, timeAgo, occMatchForRisk,
    SCENARIOS, HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
-   OCC_INTENT_SHORT, summarizeBatchIntent, batchIntentBreakdown,
-   formatUsDate, SEED_THRESHOLDS_CHANGED_AT */
+   OCC_INTENT_SHORT, summarizeBatchIntent, batchIntentBreakdown */
 // RunHistory — the "same target, scanned again" log. Instead of History growing
 // a new row every re-scan, History shows ONE row per property/batch (the latest)
 // and the prior runs live here, at the bottom of the detail view. Each row is
@@ -81,22 +80,10 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
   // exist. No automation, no line.
   const hasAutomatedRun = runs.some((r: any) => r.trigger === 'automation');
 
-  // Threshold provenance (Trello #73). Every run is stamped with the bands it
-  // was scored under; a later threshold edit never re-bands a completed run.
-  // When one timeline spans a change, say so once — dated — so two eras of
-  // verdicts read as a recorded policy change, not a contradiction. The date
-  // comes from the seeded change marker; production reads the org's config
-  // version log instead. DataTable has no divider-row API (and growing one is
-  // an owner call), so the seam is a caption plus the per-run pair column.
-  const pairKey = (t: any) => `${t.notRentedAtOrBelow}/${t.rentedAtOrAbove}`;
-  const thresholdEras: any[] = runs.reduce((acc: any[], r: any) => {
-    if (r.thresholds && !acc.some((t) => pairKey(t) === pairKey(r.thresholds))) acc.push(r.thresholds);
-    return acc;
-  }, []);
-  // runs are sorted newest-first, so era [0] is the current pair.
-  const thresholdSeam = props.kind === 'single' && thresholdEras.length >= 2;
-  const eraNew = thresholdEras[0];
-  const eraOld = thresholdEras[thresholdEras.length - 1];
+  // Threshold provenance used to be explained here — a dated seam saying two
+  // eras of verdicts came from a policy change, not a contradiction. Confidence
+  // thresholds are out of the product for now, so the seam goes with them.
+  // Runs still carry their stamped pair in data; nothing surfaces it.
 
   function openSingle(r: any) {
     sessionStorage.setItem('scanScenario', r.scenario);
@@ -113,9 +100,10 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
     sessionStorage.setItem('scanHistoryId', r.id);
     if (r.reference) sessionStorage.setItem('scanReference', r.reference);
     else sessionStorage.removeItem('scanReference');
-    // The bands this run was scored under, for the certificate's meta line.
-    if (r.thresholds) sessionStorage.setItem('scanThresholds', JSON.stringify(r.thresholds));
-    else sessionStorage.removeItem('scanThresholds');
+    // Stamped bands travel with the run in data only — nothing renders them
+    // since confidence thresholds left the product. Cleared so a stale pair
+    // can't be picked up by anything added later.
+    sessionStorage.removeItem('scanThresholds');
     const path =
       r.scenario === 'low' ? '/result/clean' : r.scenario === 'medium' ? '/result/medium' : '/result/high';
     routerHistory.push(path);
@@ -272,14 +260,6 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
               ? 'Marks a run started by an automation. Unmarked runs were started by a person.'
               : 'Re-runs of this batch are started by its automation, not by a person.'}
           </span>
-        </p>
-      )}
-      {thresholdSeam && (
-        <p className="font-sans text-caption text-ink-3 m-0 mb-stack-md">
-          Thresholds changed {formatUsDate(new Date(SEED_THRESHOLDS_CHANGED_AT).toISOString())}: was{' '}
-          <span className="font-mono tabular-nums">≤{eraOld.notRentedAtOrBelow} / ≥{eraOld.rentedAtOrAbove}</span>, now{' '}
-          <span className="font-mono tabular-nums">≤{eraNew.notRentedAtOrBelow} / ≥{eraNew.rentedAtOrAbove}</span>.
-          Every run keeps the thresholds it ran under.
         </p>
       )}
       <DataTable

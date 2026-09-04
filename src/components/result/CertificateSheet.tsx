@@ -1,5 +1,6 @@
 /* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState,
-   occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG, displayConfidence */
+   occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG, displayConfidence,
+   formatReportDate */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -204,20 +205,19 @@ function CertificateBody({
   // ALWAYS shows the RAW rented-probability labelled "rental confidence".
   const rentalConfidenceMode = intent === 'not-sure';
 
-  // The bands this scan was scored under (Trello #73). Restaged into the
-  // session by RunHistory / the timeline for older runs; a fresh scan falls
-  // back to the current config pair. Printed on the sheet so the certificate
-  // stays true to its own scan after a later threshold edit — the report a
-  // lender attached to a closing file must never drift.
-  const certThresholds = (() => {
+  // Provenance: was an AI occupancy report run against this scan? The
+  // certificate leaves the building on its own, so a reader holding the PDF
+  // with no app around it must be able to tell. Reads the same frozen store
+  // the on-screen report reads; absent = the line simply doesn't print.
+  const certAIDate = (() => {
     try {
       const raw =
-        typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanThresholds') : null;
-      if (raw) return JSON.parse(raw);
+        typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('occupancyReports') : null;
+      const at = raw ? JSON.parse(raw)?.[scenario]?.generatedAt : null;
+      return at ? formatReportDate(at) : null;
     } catch {
-      /* fall through to the current pair */
+      return null;
     }
-    return DEFAULT_OCC_CONFIG.thresholds;
   })();
   // Clamped to 1-99 for display — the certificate is the artefact that leaves
   // the building, so it is the last place to print an absolute. See
@@ -285,10 +285,17 @@ function CertificateBody({
               </span>
             </div>
           )}
-          <div className="cert-meta">
-            Thresholds at scan: not rented ≤{certThresholds.notRentedAtOrBelow} · rented ≥
-            {certThresholds.rentedAtOrAbove}
-          </div>
+          {/* AI provenance, ink-only: print drops background fills, so this
+              is a hairline note rather than the on-screen pill. */}
+          {certAIDate && (
+            <div className="cert-ai-note">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2.5c.3 2.6 1 4.5 2 5.6 1 1 2.9 1.7 5.5 2-2.6.3-4.5 1-5.5 2-1 1.1-1.7 3-2 5.5-.3-2.6-1-4.5-2-5.5-1-1-3-1.7-5.5-2 2.6-.3 4.5-1 5.5-2 1-1.1 1.7-3 2-5.6z" />
+                <path d="M19 14.5c.15 1.3.5 2.2 1 2.75.5.5 1.45.85 2.75 1-1.3.15-2.25.5-2.75 1-.5.55-.85 1.45-1 2.75-.15-1.3-.5-2.2-1-2.75-.5-.5-1.45-.85-2.75-1 1.3-.15 2.25-.5 2.75-1 .5-.55.85-1.45 1-2.75z" />
+              </svg>
+              <span>Occupancy report run by AI · {certAIDate}</span>
+            </div>
+          )}
         </div>
         <div className="cert-verdict-body">
           <div className="cert-eyebrow">Summary</div>

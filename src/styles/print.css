@@ -182,6 +182,27 @@
 .certificate-sheet .cert-recon-value  { color: var(--navy); font-weight: 600; }
 .certificate-sheet .cert-recon-sep    { color: var(--ink-4); }
 .certificate-sheet .cert-recon-status { font-weight: 600; }
+
+/* AI provenance note — the certificate is read with no app around it, so the
+ * fact that an AI occupancy report backed this finding has to print on the
+ * sheet itself. Ink-only (no tinted pill): browsers drop background fills
+ * from print output by default, and a tag that vanishes in the PDF is worse
+ * than no tag at all. */
+.certificate-sheet .cert-ai-note {
+  margin-top: 7pt;
+  display: flex;
+  align-items: center;
+  gap: 4pt;
+  font-size: 9pt;
+  line-height: 1.3;
+  color: var(--ink-3);
+}
+.certificate-sheet .cert-ai-note svg {
+  width: 9pt;
+  height: 9pt;
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
 .certificate-sheet .cert-verdict-body {
   display: flex;
   flex-direction: column;

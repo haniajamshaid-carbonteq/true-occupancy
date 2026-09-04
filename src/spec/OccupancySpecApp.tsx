@@ -130,7 +130,7 @@ function OccupancySpecApp() {
       <SpecSection
         num="01"
         title="Scan configuration"
-        desc="The org-level admin surface. Universal default, thresholds, outcome matrix, recurring scans and freshness. Investigation depth (cost/quality) is deferred to next week — the field stays on the config model, only the control is out."
+        desc="The org-level admin surface. Universal default, outcome matrix, AI report, recurring scans and freshness. Confidence thresholds and investigation depth are both out of the UI — the fields stay on the config model, only the controls are gone."
       >
         <Screen
           label="01.1"
@@ -168,17 +168,9 @@ function OccupancySpecApp() {
           </Shell>
         </Screen>
 
-        <Screen
-          label="01.4"
-          title="Invalid thresholds"
-          initialPath="/settings/scan"
-          height={1790}
-          desc="Bands crossed. Inline error next to the fields, save disabled — validation never goes to the dock or a toast."
-        >
-          <Shell>
-            <ScanConfigScreen seedInvalid forceDirty />
-          </Shell>
-        </Screen>
+        {/* 01.4 "Invalid thresholds" — removed with the thresholds section.
+            The only invalid state this screen had was a crossed band pair;
+            with no threshold inputs there is nothing left to invalidate. */}
 
         <Screen
           label="01.5"
