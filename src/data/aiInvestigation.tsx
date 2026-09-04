@@ -78,6 +78,43 @@ interface AIInvestigationResult {
     summary: string;
     tone: 'risk' | 'mitigating' | 'neutral';
   }>;
+  /** "What you need to know" — the executive-summary bullets that lead the
+   *  drawer body and the downloaded PDF's first page. Meeting ask (Jim,
+   *  2026-09-03): give the reader the summary a loan processor would
+   *  otherwise paste into ChatGPT, so the answer is legible before the
+   *  three-page backing. Derived in this prototype; a real backend fills a
+   *  dedicated `executive_summary` field and this becomes a straight map. */
+  executiveSummary?: string[];
+  /** Records examined per source — for the PDF's "Records examined" block
+   *  and a breadth line. Straight from the run's
+   *  resolved_address.evidence_map.source_counts. Zero-count sources are
+   *  kept so "Drive 0 / Loan 0" reads as "checked, none found", which is
+   *  itself a finding here (no legal-address corroboration exists). */
+  sourceCounts?: Array<{ label: string; count: number }>;
+  /** Curated backing records for the PDF's evidence appendix — the rows that
+   *  carry real signal (tax lien, mortgage/refi, auto registration,
+   *  portfolio), NOT the raw 40-plus "firstname=" trace/utility dump. The
+   *  appendix is the "document that backs the assertion" (Jim); the noisy
+   *  per-name rows are represented by the source counts instead. */
+  evidencePack?: Array<{ source: string; summary: string }>;
+  /** At-a-glance ownership + occupancy band for the top of the drawer:
+   *  a plain "who holds it right now" statement, a colour-coded ribbon of
+   *  how occupancy read over time (owner-occupied vs possible-rental), and
+   *  the dated milestones behind it. `status` drives the segment/pill colour
+   *  — kept honest: an undated, inconclusive case shows 'inconclusive'
+   *  (amber), never a confident 'rental'. */
+  ownershipTimeline?: {
+    currentOwner: string;
+    currentStatus: 'owner' | 'rental' | 'inconclusive';
+    currentStatusLabel: string;
+    segments: Array<{
+      label: string;
+      sublabel: string;
+      status: 'owner' | 'rental' | 'inconclusive' | 'unknown';
+      weight: number;
+    }>;
+    events: Array<{ at: string; title: string }>;
+  };
   runMeta: {
     jobId: string;
     runAt: string;
@@ -95,58 +132,64 @@ const AI_STEP_2_MS = 2800; // "Analyzing evidence & generating report"
 const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   verdictBand: 'review',
   recommendationLabel: 'Review',
-  score: 5,
+  score: 8,
   scoreMax: 10,
-  rawScore: 6,
+  rawScore: 13,
   clarityScore: 4,
   clarityMax: 10,
   clarityLabel: 'Low',
   caseArchetype: 'Ambiguous non-owner occupancy',
   summary:
-    'Owner presence is supported by utility and long-term residence records, but unrelated occupants and renter-coded loan records create enough ambiguity to warrant review.',
+    'The tax and base records confirm the owners (the Lee couple) at the address, with the mailing address on the property itself plus a 2016 purchase and 2018 refinance. Against that, 16 utility and 29 trace records place nine or more unrelated people at a single-family home, corroborated by a non-owner vehicle registration and two Airbnb listings. The pattern fits either active rental operation or dense multi-occupancy, but the records that would settle it are undated or stale (the tax record is from 2018), so current occupancy cannot be determined automatically.',
   scopeNote:
-    'Local records support owner-occupancy review only. None of the above determines rental status without public listing evidence.',
+    'These are investigative leads, not a fraud determination. Local records support an occupancy review only; none of them determines rental status on its own.',
+  // Fact-first, per Erin (2026-09-03): lead with what we found, cite the
+  // record counts as support rather than opening on the quantity.
   riskSignals: [
-    "DONALD CAIN appears in a loan record at the subject address with own_rent='0' renter coding.",
-    'Owner mailing address differs from the subject property address.',
-    'Multiple unrelated people appear at the property across loan, base, trace, and utility records.',
+    'Nine or more unrelated people appear as occupants at a single-family home — corroborated across 16 utility and 29 trace records.',
+    'A non-owner (Adriana DeCastro) is auto-registered at the address, and two Airbnb listings match it at 100% and 50% address confidence.',
   ],
   mitigatingSignals: [
-    'Owner WINKFIELD has utility service at the subject address.',
-    'Owner has a 10-year residence signal at the property.',
-    'Mailing-address separation alone is not enough to classify the owner as absent.',
+    'The records placing non-owners here carry no service dates, and the tax record is six years stale (2018) — neither confirms present-day occupancy.',
+    'The owners mail to the property itself, with a 2016 purchase and 2018 refinance on file — genuine owner-presence evidence.',
   ],
   whyNotHigher: [
-    'Owner utility service and long-term residence evidence contradict a clear absentee-owner classification.',
-    'Missing service dates and person-name ambiguities prevent confidence that non-owner occupancy is current, unrelated, or rental-tied.',
+    'Undated utility and trace records cannot confirm current vs. historical occupancy; the tax record is 6+ years stale, limiting confidence in present-day status.',
+    'Owner utility presence is absent and no loan or drive records exist, so owner legal-address presence and current financing cannot be established.',
   ],
   whyNotLower: [
-    "A non-owner loan record coded as renter establishes a non-owner occupancy pattern that requires oversight.",
-    'Owner mailing separation plus concurrent non-owner records means the case is not definitively owner-occupied.',
+    'Two Airbnb listings plus 16 utility and 29 trace records for nine or more unrelated non-owners create a substantial occupancy-risk signal requiring review.',
+    'A non-owner auto registration and multiple distinct utility account holders corroborate active non-owner presence beyond trace-only evidence.',
+  ],
+  executiveSummary: [
+    'The owners (the Lee couple) are documented at the address, but nine or more unrelated people also appear as occupants — the case cannot be settled automatically.',
+    'Two Airbnb listings and a non-owner vehicle registration at the address point to possible rental use.',
+    'The records that would confirm current occupancy are undated or stale (tax record is from 2018), so present-day status is unproven.',
+    'Recommended next step: manual review by a person before any determination.',
   ],
   checks: [
-    { id: 'property_tax_context', label: 'Property tax context', status: 'context', confidence: 'High', score: 0, evidenceCount: 14, caveatCount: 0 },
-    { id: 'owner_identity_and_mailing', label: 'Owner identity and mailing', status: 'triggered', confidence: 'High', score: 6, evidenceCount: 14, caveatCount: 6 },
-    { id: 'subject_occupancy_surfaces', label: 'Subject occupancy surfaces', status: 'inconclusive', confidence: 'Medium', score: 0, evidenceCount: 12, caveatCount: 4 },
-    { id: 'loan_tenure', label: 'Loan tenure', status: 'not_triggered', confidence: 'High', score: 0, evidenceCount: 5, caveatCount: 3 },
-    { id: 'portfolio_and_primary_comparison', label: 'Portfolio and primary comparison', status: 'not_triggered', confidence: 'High', score: 0, evidenceCount: 9, caveatCount: 2 },
-    { id: 'case_quality_and_synthesis', label: 'Case quality and synthesis', status: 'inconclusive', confidence: 'Medium', score: 0, evidenceCount: 12, caveatCount: 5 },
+    { id: 'property_tax_context', label: 'Property tax context', status: 'context', confidence: 'High', score: 0, evidenceCount: 4, caveatCount: 0 },
+    { id: 'owner_identity_and_mailing', label: 'Owner identity and mailing', status: 'triggered', confidence: 'High', score: 7, evidenceCount: 13, caveatCount: 4 },
+    { id: 'subject_occupancy_surfaces', label: 'Subject occupancy surfaces', status: 'triggered', confidence: 'Medium', score: 6, evidenceCount: 21, caveatCount: 4 },
+    { id: 'legal_address_presence', label: 'Legal-address presence', status: 'not_triggered', confidence: 'High', score: 0, evidenceCount: 0, caveatCount: 3 },
+    { id: 'portfolio_and_primary_comparison', label: 'Portfolio and primary comparison', status: 'not_triggered', confidence: 'Low', score: 0, evidenceCount: 1, caveatCount: 1 },
+    { id: 'case_quality_and_synthesis', label: 'Case quality and synthesis', status: 'inconclusive', confidence: 'Medium', score: 0, evidenceCount: 5, caveatCount: 5 },
   ],
   dataGaps: [
     {
       group: 'Contradictions',
       kind: 'conflict',
       items: [
-        'Owner has a 10-year residence and active utility at the property, yet the tax mailing address is elsewhere (209 Falcon Dr, Versailles).',
-        'Sheila Shankle is tagged as unrelated but carries a homeowner flag, which is at odds with a single-owner home.',
+        'The owners mail to the property itself, yet nine or more unrelated non-owners appear across utility and trace — consistent with either dense multi-occupancy or rental use.',
+        'Willer Castro shows an 8-year residence at the address in base records but is absent from the tax owner record and the people-at-address summary; the role is unclear.',
       ],
     },
     {
       group: 'Records that disagree',
       kind: 'inconsistency',
       items: [
-        "Donald Cain's four loan rows disagree on tenure: three unknown, one coded as renter.",
-        '‘Jerahmy’ and ‘Jerehmy’ Winkfield appear across sources as a spelling variant of one person, not two occupants.',
+        '“Adriana DeCastro”, “Adriana Decastro” and “Adriana Castro” appear as spelling variants of one person, not three occupants.',
+        'The April and Cynthia Madayag variants differ by date of birth and appear to be distinct individuals despite the similar names.',
       ],
     },
     {
@@ -154,8 +197,8 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
       kind: 'gap',
       items: [
         'Utility and trace records carry no service dates, so current occupancy can’t be pinned to a period.',
-        'The rental listing is dated April 2026, a future date with no corroboration elsewhere.',
-        'No driver, voter, or auto records, and no recorded mortgage lender, to corroborate against.',
+        'The tax record is 6+ years old (Oct 2018); ownership, liens and mailing address may since have changed.',
+        'No driver or loan records exist, so owner legal-address presence and current financing cannot be corroborated.',
       ],
     },
   ],
@@ -163,101 +206,166 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
     {
       id: 'property_tax_context',
       title: 'Property tax context',
-      takeaway: 'A legitimate single-family home with moderate lien exposure and no foreclosure markers.',
+      takeaway: 'A single-family home held by individuals, with moderate lien exposure and no distress markers.',
       detail:
-        '1552 Samara Glen Way is a single-family home (3 bed / 1 bath, built 1983), classified residential on the tax record, with one active lien of $83,000 against an estimated $128,400 value, roughly 65% equity. There is no foreclosure code or distress marker, and the owner holds only this one residential property, a non-portfolio profile. This frames the other occupancy signals as consistent with either owner-occupancy or rental use, without ruling either out.',
+        '17 Monmouth Ave is a residential single-family home (4 bed / 2.5 bath) held by individuals (Jaems and Christina Lee), not an entity or trust. The tax record shows 3 liens totaling $264,438 as of Oct 2018, with LoanDepot.com LLC as the primary lender; base records show a 2016 purchase at $276k and a 2018 refinance at $271k. There are no foreclosure or distress markers. Ownership is stable and conventionally financed — which frames the dense non-owner occupancy as the item that needs verifying, rather than the ownership itself.',
       direction: 'context',
-      evidenceCount: 2,
+      evidenceCount: 4,
     },
     {
       id: 'owner_identity_and_mailing',
       title: 'Owner identity and mailing',
-      takeaway: 'The owner is documented on-site, but mails elsewhere and shares the address with unrelated people.',
+      takeaway: 'The owners are documented on-site and mail to the property, yet 9+ unrelated people share the address.',
       detail:
-        'Tax owner Jerahmy Winkfield is corroborated at the property through tax, base (10-year residence), trace and utility records, yet the tax mailing address (209 Falcon Dr, Versailles) diverges from the property. At the same time, Donald Cain appears in four loan records (one coded as a renter) and Sheila Shankle shows a 7-year base residence, both unrelated to the owner. Strong owner presence coexisting with unrelated-occupant evidence is what produces the occupancy-risk profile here.',
+        'Tax owners Jaems and Christina Lee are confirmed at the subject with the mailing address on the property itself, and Christina L Lee carries a high homeowner probability in base records — strong owner-presence evidence. Coexisting with that, Adriana DeCastro appears consistently across auto, trace and utility, and multiple unrelated non-owners (April Madayag, Cynthia Elhendawi, Anthony Madayag, John Dixon, Margaret Kahl, Barbara Werner, Cynthia Roberson) appear across utility and trace. Owner-present with the mailing at the subject, but 9+ unrelated occupants, is what produces the occupancy-risk profile.',
       direction: 'risk',
-      evidenceCount: 8,
+      evidenceCount: 13,
     },
     {
       id: 'subject_occupancy_surfaces',
       title: 'Subject occupancy surfaces',
-      takeaway: 'Non-owner utility and trace records place other people here, but none carry service dates.',
+      takeaway: 'Non-owner utility, trace and auto records place many other people here, but none carry service dates.',
       detail:
-        'Two utility accounts run under James Fairchild, a non-owner, and one under the owner; trace records add Sheila Shankle. The owner’s mailing divergence points to absentee status. The limitation is timing: the utility and trace records lack service dates, so current occupancy can’t be established. The non-owner presence is suggestive but not anchored to any period.',
+        'Nine distinct non-owner utility account holders appear at the subject, plus multiple non-owner trace records and two auto registrations for non-owner Adriana DeCastro (2019 Nissan). Owner James Lee appears in trace (likely family), but there is no owner utility presence. The combination of distinct non-owner utility names, corroborating trace records and a non-owner vehicle registration indicates active non-owner presence; two short-term-rental listings add rental-market context. The limitation is timing — the tax record is stale (Oct 2018) and the utility/trace records are undated, so current occupancy can’t be established.',
       direction: 'risk',
-      evidenceCount: 6,
+      evidenceCount: 21,
     },
     {
-      id: 'loan_tenure',
-      title: 'Loan tenure',
-      takeaway: 'No tenure mismatch. The loan records don’t explicitly claim ownership or renting.',
+      id: 'legal_address_presence',
+      title: 'Legal-address presence',
+      takeaway: 'No drive records exist, and the only auto registrations belong to a non-owner — this path can’t be scored.',
       detail:
-        'Four loan records exist for Donald Cain at the property, but all carry own/rent values of “unknown” or “0” rather than an explicit OWN or RENT claim. No non-owner claims ownership, and the tax owner has no conflicting tenure claim. None of the tenure-mismatch conditions trigger, so this check does not add risk on its own.',
+        'There are zero drive records at the subject, which removes the primary legal-address evidence path. Auto registrations are present but only for non-owner Adriana DeCastro, not for the tax owners. The tax record confirms the owners’ mailing address at the subject but that is owner-presence context, not a legal-address-presence signal. With no owner drive records, no owner auto registrations and no non-owner drive records, this check cannot be triggered on legal-address evidence either way.',
       direction: 'context',
       evidenceCount: 0,
     },
     {
       id: 'portfolio_and_primary_comparison',
       title: 'Portfolio and primary comparison',
-      takeaway: 'A single-property owner with strong on-site presence and no portfolio risk.',
+      takeaway: 'The owner’s footprint is too small for a multi-property risk pattern.',
       detail:
-        'The owner holds only one residential liened property, so the portfolio comparison does not apply. Owner presence at the property is strong, resting on a base residence with 10-year length plus tax and trace records, while the mailing address has no independent presence evidence of its own. This is a single-property scenario with robust owner presence, not a portfolio pattern.',
+        'Jaems Lee appears in only two property-owner records — the subject in New Jersey and one in Texas — a footprint too small to establish a multi-property or portfolio risk pattern. This check does not add risk on its own.',
       direction: 'mitigation',
-      evidenceCount: 0,
+      evidenceCount: 1,
     },
     {
       id: 'case_quality_and_synthesis',
       title: 'Case quality and synthesis',
-      takeaway: 'Undated records, a name variant and mixed loan coding block a confident determination.',
+      takeaway: 'Owner identity is clear, but stale and undated records block a confident occupancy determination.',
       detail:
-        'Several data-quality gaps limit the read: the lien has no lender or recording date; base residence is an aggregate number of years, not a dated timeline; and the utility, trace and loan records are undated. “Jerahmy” and “Jerehmy” are the same person across sources. Cain’s loan rows carry mixed own/rent coding, and a rental listing dated April 2026 is future-dated and uncorroborated. The case is owner-held, mailing-elsewhere, with occupancy status left unresolved.',
+        'Owner identity is clear (James/Jaems and Christina Lee), but occupancy status can’t be reliably determined. Mortgage/lien exposure is stale (tax recorded Oct 2018). No records carry occupancy dates: base records lack them, trace and utility records are undated, and there are no driver or loan records to anchor the claim. Name ambiguity is partly resolved (the DeCastro/De Castro/Castro variants are one person; James/Jaems Lee are the same), but Willer Castro shows an 8-year base residence yet is absent from tax with a different DOB — his role is undefined. A plausible owner-occupancy narrative is contradicted by high-volume non-owner signals and probable STR use, without dated evidence to reconcile them.',
       direction: 'quality',
-      evidenceCount: 8,
+      evidenceCount: 5,
     },
   ],
   occupancyHistory: [
     {
-      name: 'Donald R. Cain',
-      relationship: 'unrelated',
-      sources: ['BASE', 'LOAN'],
-      summary: 'This person also appears connected to another primary address. Their association with this property adds context for review.',
+      name: 'Christina L. Lee',
+      relationship: 'owner',
+      sources: ['TAX', 'BASE', 'TRACE'],
+      summary: 'Tax owner with the mailing address on the property itself, a 2016 purchase and a high homeowner probability in base records.',
     },
     {
-      name: 'Sheila Shankle',
-      relationship: 'unrelated',
+      name: 'James Lee',
+      relationship: 'likely_family',
       sources: ['BASE', 'TRACE'],
-      summary: 'This person has appeared in connection with the address over time, though some identifying details are incomplete.',
-      lengthOfResidence: '7 yr LOR',
-      primary: true,
+      summary: 'Shares the owner surname and appears in base and trace at the address; likely a family member, though the relationship is not definitively confirmed.',
     },
     {
-      name: 'James Fairchild',
+      name: 'Adriana DeCastro',
+      relationship: 'unrelated',
+      sources: ['AUTO', 'TRACE', 'UTILITY'],
+      summary: 'The most persistent non-owner here — appears across a 2019 vehicle registration, utility accounts and many trace records with a consistent phone and DOB.',
+    },
+    {
+      name: 'April Madayag',
+      relationship: 'unrelated',
+      sources: ['TRACE', 'UTILITY'],
+      summary: 'Appears across trace and utility records at the address; the April variants likely refer to the same person.',
+    },
+    {
+      name: 'Cynthia Elhendawi',
+      relationship: 'unrelated',
+      sources: ['TRACE', 'UTILITY'],
+      summary: 'Non-owner utility account holder with a dated date of birth, corroborated in trace records.',
+    },
+    {
+      name: 'Anthony F. Madayag',
       relationship: 'unrelated',
       sources: ['UTILITY'],
-      summary: 'This name appears in limited address associations, with some variation in the match.',
+      summary: 'Non-owner utility account holder at the subject address.',
     },
     {
-      name: 'Jerahmy S. Winkfield',
-      relationship: 'owner',
-      sources: ['BASE', 'TAX', 'TRACE', 'UTILITY'],
-      summary: 'The owner is also associated with this property through longer-running address activity.',
-      lengthOfResidence: '10 yr LOR',
+      name: 'John Dixon',
+      relationship: 'unrelated',
+      sources: ['UTILITY'],
+      summary: 'Non-owner utility account holder at the subject address.',
+    },
+    {
+      name: 'Margaret Kahl',
+      relationship: 'unrelated',
+      sources: ['TRACE', 'UTILITY'],
+      summary: 'Appears in both utility and trace records at the address.',
+    },
+    {
+      name: 'Willer Castro',
+      relationship: 'unrelated',
+      sources: ['BASE'],
+      summary: 'Shows an 8-year residence in base records but is absent from the tax owner record and people-at-address summary; role undefined.',
     },
   ],
   evidenceRecords: [
-    { source: 'TAX', rowid: 68344, tone: 'risk', summary: 'Owner WINKFIELD mailing address is 209 FALCON DR, while situs is 1552 SAMARA GLEN WAY.' },
-    { source: 'LOAN', rowid: 74143, tone: 'risk', summary: "DONALD CAIN appears at the subject address with own_rent='0' renter coding." },
-    { source: 'BASE', rowid: 175557, tone: 'risk', summary: 'SHEILA SHANKLE has primary-address evidence at the subject with 7-year length of residence.' },
-    { source: 'UTILITY', rowid: 1296784, tone: 'mitigating', summary: 'Owner JERAHMY WINKFIELD has a utility account at the subject address.' },
-    { source: 'BASE', rowid: 81239, tone: 'mitigating', summary: 'Owner JEREHMY WINKFIELD is recorded at the subject with 10-year residence length.' },
-    { source: 'TRACE', rowid: 433909, tone: 'neutral', summary: 'SHEILA SHANKLE trace record appears at subject, but DOB year is missing.' },
+    { source: 'TAX', rowid: null, tone: 'neutral', summary: 'Residential single-family; 3 liens totaling $264,438; lender LoanDepot.com LLC; recorded Oct 2018.' },
+    { source: 'BASE', rowid: null, tone: 'mitigating', summary: 'Christina L Lee — 2016 purchase at $276k; $271k mortgage (Mortgage Master); 2018 refinance $271k (LoanDepot).' },
+    { source: 'AUTO', rowid: null, tone: 'risk', summary: 'Non-owner Adriana DeCastro — 2019 Nissan registered at 17 Monmouth Ave (2 records).' },
+    { source: 'UTILITY', rowid: null, tone: 'risk', summary: 'Nine distinct non-owner utility account holders at the subject, several with dated DOBs.' },
+    { source: 'TRACE', rowid: null, tone: 'risk', summary: '29 trace records place multiple unrelated people at the address; none carry service dates.' },
+    { source: 'BASE', rowid: null, tone: 'neutral', summary: 'Willer Castro — base record at ZIP 07748 with an 8-year residence; not in the tax owner record.' },
   ],
+  // resolved_address.evidence_map.source_counts — zero-count sources kept:
+  // "Drive 0 / Loan 0" reads as "checked, none found", itself a finding here
+  // (no legal-address corroboration exists).
+  sourceCounts: [
+    { label: 'Trace', count: 29 },
+    { label: 'Utility', count: 16 },
+    { label: 'Base', count: 3 },
+    { label: 'Auto', count: 2 },
+    { label: 'Tax', count: 1 },
+    { label: 'Loan', count: 0 },
+    { label: 'Drive', count: 0 },
+  ],
+  // Curated backing rows for the PDF evidence appendix — the ones that carry
+  // real signal, not the raw per-name trace/utility dump (which the source
+  // counts above represent instead).
+  evidencePack: [
+    { source: 'TAX', summary: 'Residential single-family property; 3 liens totaling $264,438; lender LoanDepot.com LLC; recording date Oct 2018.' },
+    { source: 'BASE', summary: 'Christina L Lee — purchase year 2016, purchase price $276k, $271k mortgage (Mortgage Master), 2018 refinance $271k (LoanDepot.com LLC).' },
+    { source: 'BASE', summary: 'James A Lee — same mortgage and refinance evidence as Christina L Lee.' },
+    { source: 'BASE', summary: 'Willer Castro — base record at ZIP 07748; 8-year residence; not present in the tax owner record.' },
+    { source: 'AUTO', summary: 'Adriana DeCastro — 2019 Nissan registered at 17 Monmouth Ave (2 records); no owner auto registration exists.' },
+    { source: 'PORTFOLIO', summary: 'Jaems Lee appears in only 2 property-owner records — the subject (NJ) and one in Texas; portfolio too small for a multi-property risk pattern.' },
+  ],
+  ownershipTimeline: {
+    currentOwner: 'Christina & Jaems Lee',
+    currentStatus: 'inconclusive',
+    currentStatusLabel: 'Occupancy inconclusive',
+    segments: [
+      { label: 'Owner-occupied', sublabel: '2016 – 2018', status: 'owner', weight: 28 },
+      { label: 'Possible rental · unverified', sublabel: '2018 – today', status: 'inconclusive', weight: 72 },
+    ],
+    events: [
+      { at: '2016', title: 'Purchased by the Lee couple ($276k)' },
+      { at: '2018', title: 'Refinanced ($271k); last tax record on file' },
+      { at: 'After 2018', title: '9+ unrelated occupants, two Airbnb listings and a non-owner vehicle appear' },
+      { at: 'Today', title: 'Owner of record remains the Lee couple; occupancy unverified' },
+    ],
+  },
   runMeta: {
-    jobId: '4c260cb7-4c6c-48b8-9691-b01f34c2f8d4',
-    runAt: '2026-07-09 16:12 UTC',
-    durationLabel: '1 min 37 sec',
-    sourcesChecked: ['Tax', 'Base', 'Loan', 'Trace', 'Utility'],
-    evidenceRefsCount: 66,
+    jobId: '7cc36da0-7760-4ae5-ad0b-60ae7d33f252',
+    runAt: '2026-09-02 16:22 UTC',
+    durationLabel: '2 min 11 sec',
+    sourcesChecked: ['Tax', 'Base', 'Trace', 'Utility', 'Auto'],
+    evidenceRefsCount: 47,
   },
 };
 
@@ -336,6 +444,12 @@ function writeStoredReport(scenario: ScenarioKey, report: StoredReport) {
       AI_STORE_KEY,
       JSON.stringify({ ...readStoredReports(), [scenario]: report })
     );
+    // Let listeners outside the AI bus (e.g. ScanContextBar's Download menu)
+    // know a report now exists for this scan, so the "Occupancy report (AI)"
+    // download item can enable itself without a manual refresh.
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('halcyon:occupancyreport', { detail: { scenario } }));
+    }
   } catch {
     // Quota or private-mode failure. The in-memory bus still holds the
     // report for this mount; losing the session copy is survivable.

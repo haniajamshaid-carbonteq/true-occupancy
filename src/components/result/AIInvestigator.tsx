@@ -667,16 +667,17 @@ function DigestStat({ label, value }: { label: string; value: string }) {
 function ReportBody({ result }: { result: AIInvestigationResult }) {
   return (
     <div>
-      {/* Scores and summary STACK rather than sit side-by-side. The report
-          lives in a ~600px drawer, but the old md:flex-row fired on viewport
-          width, so on a wide screen the tiles took half the row and forced
-          the summary into a tall, cramped side column with dead space beneath
-          the tiles. Stacked: the two tiles span the width as an even stat
-          row, and the summary — the most human-readable line here — gets a
-          full, readable measure directly beneath. (The band label was dropped
-          from the tile at the client's request; `verdictBand` no longer
-          renders in this panel, so all five bands present identically.) */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Key findings, summarized — leads the drawer so the answer is legible
+          the moment it opens (Jim/Erin, 2026-09-03). */}
+      <ExecutiveSummary result={result} />
+
+      {/* Ownership + occupancy at a glance — who holds the property right now,
+          and how occupancy read over time, as a colour-coded timeline. Both
+          focal items sit above the fold on open. */}
+      <OwnershipTimeline result={result} />
+
+      {/* Two headline scores, a quick reference beneath the at-a-glance band. */}
+      <div className="grid grid-cols-2 gap-3 mt-8">
         <ScoreTile
           label="Occupancy score"
           value={`${result.score}/${result.scoreMax}`}
@@ -686,24 +687,21 @@ function ReportBody({ result }: { result: AIInvestigationResult }) {
           value={`${result.clarityScore}/${result.clarityMax}`}
         />
       </div>
-      {/* Summary only — the archetype is the drawer's own title, so printing
-          it again here would spend the lead line on something just read.
-          Clamped to a few lines with Read more so a long real-data summary
-          can't dump a wall of text at the top of the report. */}
-      <div className="mt-5 max-w-2xl">
-        <ClampText
-          text={result.summary}
-          lines={3}
-          className="font-sans text-body-sm text-ink-2 leading-relaxed"
-        />
+
+      {/* "What we found" is now the first substantive section — moved above
+          the scope-limiting gaps and the per-check detail so the balance of
+          concern / mitigation reads first (Jim: "what we found should be up
+          top"). */}
+      <div className="mt-8">
+        <SectionHeading>What we found</SectionHeading>
+        <div className="mt-3">
+          <RecommendationBreakdown result={result} />
+        </div>
       </div>
 
-      {/* The single next action. Deliberately low-footprint: no card, no
-          heading — just a tracked "Do this next" label and a one-paragraph
-          directive (the lead in --navy, the qualifying detail trailing in
-          --ink-2). It's the digest that carries this action prominently; in
-          the full report it's a footnote-weight reminder, so it sits in the
-          body's space-not-rules flow like every other section. */}
+      {/* The single next action, directly under the findings it follows from.
+          Low-footprint: a tracked label plus a one-paragraph directive (lead
+          in --navy, detail trailing in --ink-2). */}
       <div className="mt-8">
         <span className="inline-flex items-center gap-1.5 text-brand-deep font-sans text-eyebrow font-semibold uppercase tracking-[0.1em]">
           <Icon name="arrow-right" size={13} />
@@ -717,18 +715,149 @@ function ReportBody({ result }: { result: AIInvestigationResult }) {
         </p>
       </div>
 
-      {/* Sections are separated by space, not rules. The only hairline in
-          the body is the one under the scope note below. */}
-      <div className="mt-10">
-        <SectionHeading>What we found</SectionHeading>
-        <div className="mt-3">
-          <RecommendationBreakdown result={result} />
-        </div>
-        <DataGapsSection result={result} />
-        <OccupancyHistorySection result={result} />
-        <DetailedAnalysisSection result={result} />
-      </div>
+      {/* Supporting sections. Separated by space, not rules. */}
+      <DataGapsSection result={result} />
+      <OccupancyHistorySection result={result} />
+      <DetailedAnalysisSection result={result} />
     </div>
+  );
+}
+
+// Executive summary — the readable lead. Prefers the curated bullets; if a
+// case has none, falls back to the reasoning summary as a single clamped
+// paragraph so the block is never empty.
+function ExecutiveSummary({ result }: { result: AIInvestigationResult }) {
+  const bullets = result.executiveSummary;
+  return (
+    <section className="mt-6">
+      <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.16em] text-ink-3">
+        What you need to know
+      </div>
+      {bullets && bullets.length > 0 ? (
+        <ul className="list-none m-0 p-0 mt-2.5 flex flex-col gap-2">
+          {bullets.map((b, i) => (
+            <li key={i} className="flex items-start gap-2.5">
+              <span
+                className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ background: 'var(--brand)' }}
+                aria-hidden
+              />
+              <span className="font-sans text-body-sm text-ink-2 leading-relaxed">
+                {b}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="mt-2 max-w-2xl">
+          <ClampText
+            text={result.summary}
+            lines={3}
+            className="font-sans text-body-sm text-ink-2 leading-relaxed"
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+// -------------------------------------------------------------------------
+// OwnershipTimeline — the at-a-glance band at the top of the drawer. Answers
+// two questions on first sight: who holds the property right now, and how
+// occupancy read over time (owner-occupied vs possible-rental), as a
+// colour-coded ribbon plus the dated milestones behind it. Tones stay honest
+// — an undated, inconclusive case shows amber "possible rental", never a
+// confident red "rented".
+const OCC_TL_TONE: Record<
+  'owner' | 'rental' | 'inconclusive' | 'unknown',
+  { soft: string; ink: string; dot: string }
+> = {
+  owner: { soft: 'var(--clean-soft)', ink: 'var(--clean-ink)', dot: 'var(--clean)' },
+  rental: { soft: 'var(--risk-soft)', ink: 'var(--risk-ink)', dot: 'var(--risk)' },
+  inconclusive: { soft: 'var(--warn-soft)', ink: 'var(--warn-ink)', dot: 'var(--warn)' },
+  unknown: { soft: 'var(--surface-2)', ink: 'var(--ink-3)', dot: 'var(--ink-4)' },
+};
+
+function OwnershipTimeline({ result }: { result: AIInvestigationResult }) {
+  const t = result.ownershipTimeline;
+  if (!t) return null;
+  const cur = OCC_TL_TONE[t.currentStatus] || OCC_TL_TONE.unknown;
+
+  return (
+    <section className="mt-6 rounded-lg border border-line p-4">
+      {/* Clear "whose name is it right now" statement. */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3">
+            Currently in the name of
+          </div>
+          <div
+            className="font-sans font-semibold leading-tight mt-1"
+            style={{ fontSize: 'var(--text-body)', color: 'var(--navy)' }}
+          >
+            {t.currentOwner}
+          </div>
+        </div>
+        <span
+          className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full font-sans text-micro font-semibold shrink-0"
+          style={{ background: cur.soft, color: cur.ink }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: cur.dot }} aria-hidden />
+          {t.currentStatusLabel}
+        </span>
+      </div>
+
+      {/* Colour-coded occupancy ribbon — owner-occupied vs possible-rental
+          over time. Segments are weighted by rough duration so the reader
+          sees how much of the timeline is unverified. */}
+      <div
+        className="mt-3 flex rounded-md overflow-hidden"
+        style={{ height: 36 }}
+        role="img"
+        aria-label={`Occupancy over time: ${t.segments.map((s) => `${s.label} ${s.sublabel}`).join('; ')}`}
+      >
+        {t.segments.map((s, i) => {
+          const tone = OCC_TL_TONE[s.status] || OCC_TL_TONE.unknown;
+          return (
+            <div
+              key={i}
+              className="px-2.5 flex flex-col justify-center min-w-0"
+              style={{
+                flexGrow: s.weight,
+                flexBasis: 0,
+                background: tone.soft,
+                borderLeft: i ? '2px solid var(--surface)' : undefined,
+              }}
+            >
+              <span
+                className="font-sans text-micro font-semibold leading-none truncate"
+                style={{ color: tone.ink }}
+              >
+                {s.label}
+              </span>
+              <span className="font-sans text-micro leading-none mt-1 truncate text-ink-3">
+                {s.sublabel}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Dated milestones behind the ribbon. */}
+      <ul className="list-none m-0 p-0 mt-3 flex flex-col gap-1.5">
+        {t.events.map((e, i) => (
+          <li key={i} className="flex items-baseline gap-2.5">
+            <span
+              className="font-mono text-micro text-ink-3 shrink-0"
+              style={{ minWidth: 68 }}
+            >
+              {e.at}
+            </span>
+            <span className="font-sans text-caption text-ink-2 leading-snug">{e.title}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -931,13 +1060,13 @@ function RecommendationBreakdown({ result, compact }: { result: AIInvestigationR
   return (
     <div className={`grid grid-cols-1 ${compact ? '' : 'lg:grid-cols-2'} gap-6`}>
       <FactorPanel
-        title="Raises concern"
+        title="Findings of concern"
         icon="trend-up"
         tone="warn"
         items={result.riskSignals}
       />
       <FactorPanel
-        title="Lowers concern"
+        title="Mitigating factors"
         icon="trend-down"
         tone="clean"
         items={result.mitigatingSignals}

@@ -86,10 +86,33 @@ function ScanContextBar({
   // surfaces the count so the user knows what they're about to download.
   const priorScanCount = getHistoryForAddress(resolvedAddress).length;
 
-  function printCertificate(v: 'single' | 'history') {
+  // Whether an AI occupancy report has been generated for this scan — gates
+  // the "Occupancy report (AI)" download item (there's nothing to print until
+  // one is run). Re-reads sessionStorage on the 'halcyon:occupancyreport'
+  // event that fires when a run completes, so the item flips from disabled to
+  // enabled without a manual refresh. Decoupled from the AI bus on purpose so
+  // this works in every host that mounts the bar.
+  const [hasOccupancyReport, setHasOccupancyReport] = React.useState(false);
+  React.useEffect(() => {
+    const read = () => {
+      if (typeof sessionStorage === 'undefined') return false;
+      try {
+        const raw = sessionStorage.getItem('occupancyReports');
+        return !!(raw && JSON.parse(raw)?.[scenarioForTarget]);
+      } catch {
+        return false;
+      }
+    };
+    setHasOccupancyReport(read());
+    const onReport = () => setHasOccupancyReport(read());
+    window.addEventListener('halcyon:occupancyreport', onReport);
+    return () => window.removeEventListener('halcyon:occupancyreport', onReport);
+  }, [scenarioForTarget]);
+
+  function printCertificate(v: 'single' | 'history' | 'occupancy') {
     if (typeof sessionStorage !== 'undefined') {
-      if (v === 'history') sessionStorage.setItem('certVariant', 'history');
-      else sessionStorage.removeItem('certVariant');
+      if (v === 'single') sessionStorage.removeItem('certVariant');
+      else sessionStorage.setItem('certVariant', v);
     }
     // Dispatch the variant change BEFORE calling print() so the cert's
     // listener can setState while React's not blocked by the print dialog.
@@ -245,6 +268,15 @@ function ScanContextBar({
                   ? 'No prior scans on record yet'
                   : `${priorScanCount} ${priorScanCount === 1 ? 'scan' : 'scans'} for this property`,
               onClick: () => printCertificate('history'),
+            },
+            {
+              label: 'Occupancy report',
+              icon: <Icon name="ai-star" />,
+              hint: hasOccupancyReport
+                ? 'Executive summary + full backing'
+                : 'Run the occupancy report first',
+              disabled: !hasOccupancyReport,
+              onClick: () => printCertificate('occupancy'),
             },
           ]}
         />

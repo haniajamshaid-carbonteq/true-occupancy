@@ -1,6 +1,6 @@
 /* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState,
    occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG, displayConfidence,
-   formatReportDate */
+   formatReportDate, AI_BAND_NEXT_STEP */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -26,7 +26,7 @@ type CertScenarioKey = 'low' | 'medium' | 'high';
  *  The variant is picked by the caller right before triggering
  *  window.print() (sessionStorage.certVariant), so all three share one
  *  cert chrome and one print path. */
-type CertVariant = 'single' | 'history' | 'snapshot';
+type CertVariant = 'single' | 'history' | 'snapshot' | 'occupancy';
 
 interface CertificateSheetProps {
   scenario: CertScenarioKey;
@@ -293,7 +293,7 @@ function CertificateBody({
                 <path d="M12 2.5c.3 2.6 1 4.5 2 5.6 1 1 2.9 1.7 5.5 2-2.6.3-4.5 1-5.5 2-1 1.1-1.7 3-2 5.5-.3-2.6-1-4.5-2-5.5-1-1-3-1.7-5.5-2 2.6-.3 4.5-1 5.5-2 1-1.1 1.7-3 2-5.6z" />
                 <path d="M19 14.5c.15 1.3.5 2.2 1 2.75.5.5 1.45.85 2.75 1-1.3.15-2.25.5-2.75 1-.5.55-.85 1.45-1 2.75-.15-1.3-.5-2.2-1-2.75-.5-.5-1.45-.85-2.75-1 1.3-.15 2.25-.5 2.75-1 .5-.55.85-1.45 1-2.75z" />
               </svg>
-              <span>Occupancy report run by AI · {certAIDate}</span>
+              <span>Occupancy report run · {certAIDate}</span>
             </div>
           )}
         </div>
@@ -744,6 +744,386 @@ function CertificateSnapshotPage({
   );
 }
 
+// === Occupancy Report (AI) ===========================================
+//
+// The downloadable form of the AI occupancy investigation shown in the
+// result drawer. Built to the meeting spec (Jim/Erin, 2026-09-03):
+//   * page 1 is a self-contained executive brief — verdict, the two scores,
+//     "do this next", and "what you need to know" bullets — so a reader who
+//     needs only the answer never turns the page;
+//   * the dossier that follows (findings, gaps, records examined, people,
+//     detailed analysis, evidence appendix) is the backing a reviewer or
+//     lawyer reads in full;
+//   * run + download timestamps and the AI-generated provenance print on
+//     every page via a fixed running footer.
+//
+// Unlike the certificate variants this is a FLOWING multi-page document, so
+// it deliberately does NOT use the .certificate-sheet wrapper (that carries
+// page-break-inside: avoid, which would clip a long report to one page). It
+// renders under .occ-report with its own print rules in print.css.
+
+interface OccReportPayload {
+  result: any;
+  generatedAt: string;
+}
+
+function OccSectionTitle({ children, count }: { children: React.ReactNode; count?: React.ReactNode }) {
+  return (
+    <div className="occ-section-title">
+      <span>{children}</span>
+      {count != null && <span className="occ-section-count">{count}</span>}
+    </div>
+  );
+}
+
+function OccBulletList({ items }: { items: string[] }) {
+  return (
+    <ul className="occ-bullets">
+      {items.map((it, i) => (
+        <li key={i}>{it}</li>
+      ))}
+    </ul>
+  );
+}
+
+// Score shown as a labelled meter — a number plus a track filled to
+// value/max in the passed colour. Standard for risk/confidence figures: the
+// bar length is legible before the reader parses the digits.
+function OccMeter({
+  label,
+  value,
+  max,
+  color,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  color: string;
+}) {
+  const pct = Math.max(0, Math.min(100, max ? (value / max) * 100 : 0));
+  return (
+    <div className="occ-meter">
+      <div className="occ-meter-head">
+        <span className="occ-meter-label">{label}</span>
+        <span className="occ-meter-value">
+          {value}<span className="occ-meter-max">/{max}</span>
+        </span>
+      </div>
+      <div className="occ-meter-track">
+        <div className="occ-meter-fill" style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function CertificateOccupancyBody({
+  scenario,
+  address,
+  reference,
+  scanId,
+  timestamp,
+  report,
+}: {
+  scenario: CertScenarioKey;
+  address: string;
+  reference?: string;
+  scanId: string;
+  timestamp: string;
+  report: OccReportPayload | null;
+}) {
+  // Defensive empty state — the Download menu gates this variant on a stored
+  // report, so this only renders if the store was cleared between click and
+  // print.
+  if (!report || !report.result) {
+    return (
+      <article className="occ-report">
+        <OccReportHeader
+          reference={reference}
+          scanId={scanId}
+          runStamp="—"
+          downloadStamp={timestamp}
+        />
+        <div className="occ-empty">
+          No occupancy report is on file for this scan. Run the occupancy report first,
+          then download.
+        </div>
+      </article>
+    );
+  }
+
+  const r = report.result;
+  const runStamp = report.generatedAt ? certTimestamp(new Date(report.generatedAt)) : timestamp;
+
+  // Reconciliation baseline — the declared intent this scan was run against,
+  // else the org default. Same derivation as the certificate and the on-screen
+  // result, so the three never disagree.
+  const rawIntent =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanIntent') : null;
+  const intent =
+    rawIntent && (INTENDED_OCCUPANCY_LABEL as any)[rawIntent]
+      ? rawIntent
+      : DEFAULT_OCC_CONFIG.defaultIntent;
+  const match = occMatchForRisk(intent as any, SCENARIOS[scenario].risk);
+
+  const nextStep =
+    typeof AI_BAND_NEXT_STEP !== 'undefined' ? (AI_BAND_NEXT_STEP as any)[r.verdictBand] : null;
+
+  // Severity colour for the verdict band and the occupancy-score meter — a
+  // Red/Amber/Green convention keyed off the action tier, so a reader scans
+  // the colour first. This colours the *action band* (Review / Priority
+  // review), NOT the rented/not-rented finding — that stays on the neutral
+  // reconciliation ink below, per the verdict-neutrality rule.
+  const OCC_SEV_COLOR: Record<string, string> = {
+    risk: 'var(--risk)',
+    warn: 'var(--warn)',
+    brand: 'var(--brand-deep)',
+    neutral: 'var(--ink-3)',
+  };
+  const OCC_SEV_BY_BAND: Record<string, string> = {
+    high_priority_review: 'risk',
+    review: 'warn',
+    monitor: 'warn',
+    low_evidence: 'neutral',
+    manual_verification: 'brand',
+  };
+  const sevColor = OCC_SEV_COLOR[OCC_SEV_BY_BAND[r.verdictBand] || 'neutral'];
+
+  return (
+    <article className="occ-report">
+      {/* Running footer — fixed, so it repeats on every printed page. Carries
+          the provenance and both timestamps Erin asked to see on the artifact. */}
+      <div className="occ-runfoot" aria-hidden>
+        <span className="occ-runfoot-brand">Halcyon · TrueOccupancy</span>
+        <span className="occ-runfoot-stamps">
+          Generated {runStamp} · Downloaded {timestamp}
+        </span>
+      </div>
+
+      <OccReportHeader
+        reference={reference}
+        scanId={scanId}
+        runStamp={runStamp}
+        downloadStamp={timestamp}
+      />
+
+      <section className="occ-subject">
+        <div className="occ-eyebrow">Subject property</div>
+        <div className="occ-address">{address || PROPERTY.address}</div>
+        <div className="occ-meta">
+          Parcel {PROPERTY.parcel} · {PROPERTY.zoning} · {PROPERTY.permitStatus}
+        </div>
+      </section>
+
+      {/* Verdict + the two scores + reconciliation. Left accent + the
+          occupancy-score meter carry the severity colour. */}
+      <section className="occ-verdict" style={{ borderLeftColor: sevColor }}>
+        <div className="occ-verdict-main">
+          <div className="occ-eyebrow">Finding</div>
+          <div className="occ-verdict-headline">{r.caseArchetype}</div>
+          {match && (
+            <div className="occ-recon">
+              <span className="occ-recon-label">Intended occupancy</span>
+              <span className="occ-recon-value">{(INTENDED_OCCUPANCY_LABEL as any)[intent]}</span>
+              <span className="occ-recon-sep">·</span>
+              <span className="occ-recon-status" style={{ color: CERT_TONE_INK[match.tone] }}>
+                {match.label}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="occ-scores">
+          <OccMeter label="Occupancy score" value={r.score} max={r.scoreMax} color={sevColor} />
+          <OccMeter label="Evidence clarity" value={r.clarityScore} max={r.clarityMax} color="var(--brand-deep)" />
+        </div>
+      </section>
+
+      {/* Do this next — carries the severity accent so the recommended action
+          reads at the same glance as the verdict. */}
+      {nextStep && (
+        <section className="occ-next" style={{ borderLeftColor: sevColor }}>
+          <div className="occ-eyebrow occ-eyebrow--brand">Do this next</div>
+          <p className="occ-next-body">
+            <span className="occ-next-lead">{nextStep.lead}.</span> {nextStep.detail}
+          </p>
+        </section>
+      )}
+
+      {/* Executive summary — "what you need to know", elevated as a tinted
+          callout so the TL;DR is visually distinct from the body sections. */}
+      <section className="occ-callout">
+        <div className="occ-callout-title">What you need to know</div>
+        {Array.isArray(r.executiveSummary) && r.executiveSummary.length > 0 ? (
+          <OccBulletList items={r.executiveSummary} />
+        ) : (
+          <p className="occ-para">{r.summary}</p>
+        )}
+      </section>
+
+      {/* What we found — kept on page 1, filling the brief's free space so
+          the reader gets the concern/mitigation balance without turning the page. */}
+      <section className="occ-block">
+        <OccSectionTitle>What we found</OccSectionTitle>
+        <div className="occ-twocol">
+          <div className="occ-col occ-col--concern">
+            <div className="occ-col-head">Findings of concern</div>
+            <OccBulletList items={r.riskSignals || []} />
+          </div>
+          <div className="occ-col occ-col--mitig">
+            <div className="occ-col-head">Mitigating factors</div>
+            <OccBulletList items={r.mitigatingSignals || []} />
+          </div>
+        </div>
+      </section>
+
+      {/* End of the page-1 brief — the dossier starts on a fresh page. */}
+      <div className="occ-break" />
+
+      {/* Gaps and contradictions */}
+      {Array.isArray(r.dataGaps) && r.dataGaps.length > 0 && (
+        <section className="occ-block">
+          <OccSectionTitle>Gaps and contradictions</OccSectionTitle>
+          <p className="occ-note">Open questions that limit confidence. They are not findings on their own.</p>
+          {r.dataGaps.map((g: any, i: number) => (
+            <div className="occ-gap-group" key={i}>
+              <div className="occ-gap-group-title">{g.group}</div>
+              <OccBulletList items={g.items || []} />
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* Records examined */}
+      {Array.isArray(r.sourceCounts) && r.sourceCounts.length > 0 && (
+        <section className="occ-block">
+          <OccSectionTitle>Records examined</OccSectionTitle>
+          <div className="occ-counts">
+            {r.sourceCounts.map((s: any, i: number) => (
+              <div className="occ-count" key={i}>
+                <span className="occ-count-value">{s.count}</span>
+                <span className="occ-count-label">{s.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* People connected to the property */}
+      {Array.isArray(r.occupancyHistory) && r.occupancyHistory.length > 0 && (
+        <section className="occ-block">
+          <OccSectionTitle count={`${r.occupancyHistory.length} total`}>
+            People connected to the property
+          </OccSectionTitle>
+          <div className="occ-people">
+            {r.occupancyHistory.map((p: any, i: number) => (
+              <div className="occ-person" key={i}>
+                <div className="occ-person-head">
+                  <span className="occ-person-name">{p.name}</span>
+                  {p.relationship === 'owner' && <span className="occ-tag">Current owner</span>}
+                  {p.relationship === 'likely_family' && (
+                    <span className="occ-tag occ-tag--muted">Possible household relation</span>
+                  )}
+                </div>
+                <p className="occ-person-summary">{p.summary}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Detailed analysis — every check, full reasoning */}
+      {Array.isArray(r.detailedAnalysis) && r.detailedAnalysis.length > 0 && (
+        <section className="occ-block">
+          <OccSectionTitle>Detailed analysis</OccSectionTitle>
+          <p className="occ-note">Every check the investigation ran, with its full reasoning.</p>
+          <div className="occ-checks">
+            {r.detailedAnalysis.map((c: any, i: number) => (
+              <div className="occ-check" key={i}>
+                <div className="occ-check-title">{c.title}</div>
+                <div className="occ-check-takeaway">{c.takeaway}</div>
+                <p className="occ-check-detail">{c.detail}</p>
+                {c.evidenceCount > 0 && (
+                  <div className="occ-check-evidence">
+                    Backed by {c.evidenceCount} record{c.evidenceCount === 1 ? '' : 's'}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Evidence appendix — the backing records */}
+      {Array.isArray(r.evidencePack) && r.evidencePack.length > 0 && (
+        <section className="occ-block">
+          <OccSectionTitle>Evidence appendix</OccSectionTitle>
+          <p className="occ-note">Key backing records. Per-occupant utility and trace rows are summarised in “Records examined” above.</p>
+          <table className="occ-evidence-table">
+            <tbody>
+              {r.evidencePack.map((e: any, i: number) => (
+                <tr key={i}>
+                  <td className="occ-evidence-source">{e.source}</td>
+                  <td className="occ-evidence-summary">{e.summary}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {/* Closing note */}
+      <section className="occ-endnote">
+        <div className="occ-endnote-caveat">
+          {r.scopeNote ||
+            'These are investigative leads, not a fraud determination. Local records support an occupancy review only.'}
+        </div>
+        <div className="occ-endnote-meta">
+          Generated {runStamp} · Downloaded {timestamp}
+        </div>
+      </section>
+    </article>
+  );
+}
+
+// Shared header for the occupancy report — brand lockup on the left, the
+// reference/ID plus both timestamps and the AI-generated marker on the right.
+function OccReportHeader({
+  reference,
+  scanId,
+  runStamp,
+  downloadStamp,
+}: {
+  reference?: string;
+  scanId: string;
+  runStamp: string;
+  downloadStamp: string;
+}) {
+  return (
+    <>
+      <header className="occ-head">
+        <div className="occ-head-left">
+          <img src="docs/brand/halcyon-mark-v2.png" alt="" className="occ-mark" />
+          <div className="occ-wordmark">
+            <div className="occ-brand">Halcyon</div>
+            <div className="occ-product">TrueOccupancy Occupancy Report</div>
+          </div>
+        </div>
+        <div className="occ-head-right">
+          {/* Only the customer's OWN reference (their loan/case number) may
+              appear — never a Halcyon-internal scan/job ID. Those stay
+              server-side for API reference; the printed artifact shows none. */}
+          {reference && (
+            <div className="occ-id" aria-label="Reference">{reference}</div>
+          )}
+          <div className="occ-head-stamp">Generated {runStamp}</div>
+          <div className="occ-head-stamp">Downloaded {downloadStamp}</div>
+          <div className="occ-head-kind">Occupancy Report</div>
+        </div>
+      </header>
+      <div className="occ-rule" />
+    </>
+  );
+}
+
 function CertificateSheet({ scenario, address, kind, reference }: CertificateSheetProps) {
   const resolvedAddress =
     address ||
@@ -775,7 +1155,11 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
     // browser time to paint before the print snapshot is taken.
     const onVariant = (e: any) => {
       const d = e?.detail;
-      const v: CertVariant = d === 'history' ? 'history' : d === 'snapshot' ? 'snapshot' : 'single';
+      const v: CertVariant =
+        d === 'history' ? 'history'
+        : d === 'snapshot' ? 'snapshot'
+        : d === 'occupancy' ? 'occupancy'
+        : 'single';
       setVariant(v);
     };
     const onBeforePrint = () => {
@@ -863,6 +1247,21 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
     return { address: addr, capturedAt, listings };
   }, [variant, resolvedAddress]);
 
+  // Occupancy report payload — the frozen AI investigation for this scenario,
+  // read from the same store the on-screen report and the cert provenance
+  // line read. The Download menu only enables this variant when a report
+  // exists, so a null here is the defensive path (renders an empty-state
+  // sheet rather than throwing on print).
+  const occReport = React.useMemo(() => {
+    if (variant !== 'occupancy' || typeof sessionStorage === 'undefined') return null;
+    try {
+      const raw = sessionStorage.getItem('occupancyReports');
+      return raw ? JSON.parse(raw)?.[scenario] ?? null : null;
+    } catch {
+      return null;
+    }
+  }, [variant, scenario]);
+
   if (typeof document === 'undefined') return null;
 
   return ReactDOM.createPortal(
@@ -883,6 +1282,15 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
           timestamp={timestamp}
           capturedAt={snapshotPayload.capturedAt}
           listings={snapshotPayload.listings}
+        />
+      ) : variant === 'occupancy' ? (
+        <CertificateOccupancyBody
+          scenario={scenario}
+          address={resolvedAddress}
+          reference={resolvedReference}
+          scanId={scanId}
+          timestamp={timestamp}
+          report={occReport}
         />
       ) : (
         <CertificateBody
