@@ -82,9 +82,11 @@ interface AIInvestigationResult {
    *  drawer body and the downloaded PDF's first page. Meeting ask (Jim,
    *  2026-09-03): give the reader the summary a loan processor would
    *  otherwise paste into ChatGPT, so the answer is legible before the
-   *  three-page backing. Derived in this prototype; a real backend fills a
-   *  dedicated `executive_summary` field and this becomes a straight map. */
-  executiveSummary?: string[];
+   *  three-page backing. Each bullet may carry a `tone` so the one-pager can
+   *  mark, point by point, whether it aligns with the occupancy concern
+   *  ('concern'), cuts against it ('mitigating'), or is context ('info') —
+   *  plain strings render as context for backward compatibility. */
+  executiveSummary?: Array<string | { text: string; tone: 'concern' | 'mitigating' | 'info' }>;
   /** Records examined per source — for the PDF's "Records examined" block
    *  and a breadth line. Straight from the run's
    *  resolved_address.evidence_map.source_counts. Zero-count sources are
@@ -176,6 +178,19 @@ const OCC_SIGNAL_TONE_VARS: Record<OccSignalTone, { soft: string; ink: string; d
   neutral: { soft: 'var(--surface-2)', ink: 'var(--ink-2)', dot: 'var(--ink-4)' },
 };
 
+/** What each strength grade MEANS — rendered wherever the chip appears so
+ *  "moderate signal" is never an undefined term. Wording is grounded in the
+ *  language the runs themselves use: weak = "no substantive evidence",
+ *  moderate = "substantive rows on both sides that cannot be ordered in
+ *  time", strong = "corroborated across multiple independent source
+ *  families". */
+const OCC_STRENGTH_DEF: Record<'weak' | 'moderate' | 'strong', string> = {
+  weak: 'Thin evidence, with no corroboration between sources.',
+  moderate:
+    'Solid evidence from more than one source, but undated or conflicting records leave it unsettled.',
+  strong: 'Multiple independent sources agree, and nothing meaningful points the other way.',
+};
+
 /** "51 records across 5 sources" — trust-through-volume line, derived from
  *  sourceCounts so it always matches the Records-examined block. */
 function occRecordsSummary(result: AIInvestigationResult): string | null {
@@ -196,28 +211,28 @@ function occCombinedSynthesis(
 ): string {
   const listingsPositive = listing === 'rented' || listing === 'likely';
   if (listing === null) {
-    if (signal === 'non_owner_occupancy') return 'Records point to non-owner occupancy at this address.';
-    if (signal === 'conflicting') return 'Records support both owner presence and non-owner occupancy — a person should review.';
-    if (signal === 'owner_occupancy') return 'Records support owner occupancy at this address.';
-    return 'Records are too thin to establish who occupies this address.';
+    if (signal === 'non_owner_occupancy') return 'The records point to non-owner occupancy.';
+    if (signal === 'conflicting') return 'The records support both owner presence and non-owner occupancy. A person should review.';
+    if (signal === 'owner_occupancy') return 'The records support owner occupancy.';
+    return 'The records are too thin to establish who occupies this address.';
   }
   if (listingsPositive) {
     if (signal === 'non_owner_occupancy')
-      return 'The listing scan and the records point the same way — non-owner use at this address.';
+      return 'The listing scan and the records agree: non-owner use at this address.';
     if (signal === 'conflicting')
-      return 'Listings suggest rental use, but the records can’t confirm who lives there now — a person should review.';
+      return 'Listings suggest rental use. The records can’t confirm who lives there now, so a person should review.';
     if (signal === 'owner_occupancy')
-      return 'Listings suggest rental use while records support owner presence — the two reads disagree; review before acting.';
-    return 'Listings suggest rental use; the records are too thin to corroborate either way.';
+      return 'Listings suggest rental use; the records support owner presence. The two reads disagree, so review before acting.';
+    return 'Listings suggest rental use. The records are too thin to back that either way.';
   }
   // listing says not rented
   if (signal === 'non_owner_occupancy')
-    return 'No active listings were found, but records show non-owner occupancy — still worth a review.';
+    return 'No active listings, but the records show non-owner occupancy. Still worth a review.';
   if (signal === 'conflicting')
-    return 'No active listings were found and the records are mixed — inconclusive on both reads.';
+    return 'No active listings, and the records are mixed. Inconclusive on both reads.';
   if (signal === 'owner_occupancy')
-    return 'No active listings, and records support owner presence — both reads agree.';
-  return 'No active listings; the records are too thin to add a read.';
+    return 'No active listings, and the records support owner presence. Both reads agree.';
+  return 'No active listings, and the records are too thin to add a read.';
 }
 
 // Loading-step timings. Constant here so the prototype animation is
@@ -228,12 +243,14 @@ const AI_STEP_2_MS = 2800; // "Analyzing evidence & generating report"
 const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   verdictBand: 'review',
   recommendationLabel: 'Review',
-  score: 8,
+  // Scores follow the NEWER full run of this address (demo-response-full,
+  // 2026-09): calibrated 7 (raw 11), clarity 5 — not the older 8/4 summary.
+  score: 7,
   scoreMax: 10,
-  rawScore: 13,
-  clarityScore: 4,
+  rawScore: 11,
+  clarityScore: 5,
   clarityMax: 10,
-  clarityLabel: 'Low',
+  clarityLabel: 'Medium',
   caseArchetype: 'Ambiguous non-owner occupancy',
   summary:
     'The tax and base records confirm the owners (the Lee couple) at the address, with the mailing address on the property itself plus a 2016 purchase and 2018 refinance. Against that, 16 utility and 29 trace records place nine or more unrelated people at a single-family home, corroborated by a non-owner vehicle registration and two Airbnb listings. The pattern fits either active rental operation or dense multi-occupancy, but the records that would settle it are undated or stale (the tax record is from 2018), so current occupancy cannot be determined automatically.',
@@ -242,12 +259,12 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   // Fact-first, per Erin (2026-09-03): lead with what we found, cite the
   // record counts as support rather than opening on the quantity.
   riskSignals: [
-    'Nine or more unrelated people appear as occupants at a single-family home — corroborated across 16 utility and 29 trace records.',
+    'Nine or more unrelated people appear as occupants at a single-family home, corroborated across 16 utility and 29 trace records.',
     'A non-owner (Adriana DeCastro) is auto-registered at the address, and two Airbnb listings match it at 100% and 50% address confidence.',
   ],
   mitigatingSignals: [
-    'The records placing non-owners here carry no service dates, and the tax record is six years stale (2018) — neither confirms present-day occupancy.',
-    'The owners mail to the property itself, with a 2016 purchase and 2018 refinance on file — genuine owner-presence evidence.',
+    'The records placing non-owners here carry no service dates, and the tax record is six years stale (2018). Neither confirms present-day occupancy.',
+    'The owners mail to the property itself, with a 2016 purchase and 2018 refinance on file. That is direct owner-presence evidence.',
   ],
   whyNotHigher: [
     'Undated utility and trace records cannot confirm current vs. historical occupancy; the tax record is 6+ years stale, limiting confidence in present-day status.',
@@ -258,10 +275,10 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
     'A non-owner auto registration and multiple distinct utility account holders corroborate active non-owner presence beyond trace-only evidence.',
   ],
   executiveSummary: [
-    'The owners (the Lee couple) are documented at the address, but nine or more unrelated people also appear as occupants — the case cannot be settled automatically.',
-    'Two Airbnb listings and a non-owner vehicle registration at the address point to possible rental use.',
-    'The records that would confirm current occupancy are undated or stale (tax record is from 2018), so present-day status is unproven.',
-    'Recommended next step: manual review by a person before any determination.',
+    { text: 'The owners (the Lee couple) are documented at the address, but nine or more unrelated people also appear as occupants. The case cannot be settled automatically.', tone: 'concern' },
+    { text: 'Two Airbnb listings and a non-owner vehicle registration at the address point to possible rental use.', tone: 'concern' },
+    { text: 'The records that would confirm current occupancy are undated or stale (tax record is from 2018), so present-day status is unproven.', tone: 'mitigating' },
+    { text: 'Next step: manual review before any determination.', tone: 'info' },
   ],
   checks: [
     { id: 'property_tax_context', label: 'Property tax context', status: 'context', confidence: 'High', score: 0, evidenceCount: 4, caveatCount: 0 },
@@ -276,7 +293,7 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
       group: 'Contradictions',
       kind: 'conflict',
       items: [
-        'The owners mail to the property itself, yet nine or more unrelated non-owners appear across utility and trace — consistent with either dense multi-occupancy or rental use.',
+        'The owners mail to the property itself, yet nine or more unrelated non-owners appear across utility and trace, consistent with either dense multi-occupancy or rental use.',
         'Willer Castro shows an 8-year residence at the address in base records but is absent from the tax owner record and the people-at-address summary; the role is unclear.',
       ],
     },
@@ -304,7 +321,7 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
       title: 'Property tax context',
       takeaway: 'A single-family home held by individuals, with moderate lien exposure and no distress markers.',
       detail:
-        '17 Monmouth Ave is a residential single-family home (4 bed / 2.5 bath) held by individuals (Jaems and Christina Lee), not an entity or trust. The tax record shows 3 liens totaling $264,438 as of Oct 2018, with LoanDepot.com LLC as the primary lender; base records show a 2016 purchase at $276k and a 2018 refinance at $271k. There are no foreclosure or distress markers. Ownership is stable and conventionally financed — which frames the dense non-owner occupancy as the item that needs verifying, rather than the ownership itself.',
+        '17 Monmouth Ave is a residential single-family home (4 bed / 2.5 bath) held by individuals (Jaems and Christina Lee), not an entity or trust. The tax record shows 3 liens totaling $264,438 as of Oct 2018, with LoanDepot.com LLC as the primary lender; base records show a 2016 purchase at $276k and a 2018 refinance at $271k. There are no foreclosure or distress markers. Ownership is stable and conventionally financed, which frames the dense non-owner occupancy as the item that needs verifying, rather than the ownership itself.',
       direction: 'context',
       evidenceCount: 4,
     },
@@ -313,7 +330,7 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
       title: 'Owner identity and mailing',
       takeaway: 'The owners are documented on-site and mail to the property, yet 9+ unrelated people share the address.',
       detail:
-        'Tax owners Jaems and Christina Lee are confirmed at the subject with the mailing address on the property itself, and Christina L Lee carries a high homeowner probability in base records — strong owner-presence evidence. Coexisting with that, Adriana DeCastro appears consistently across auto, trace and utility, and multiple unrelated non-owners (April Madayag, Cynthia Elhendawi, Anthony Madayag, John Dixon, Margaret Kahl, Barbara Werner, Cynthia Roberson) appear across utility and trace. Owner-present with the mailing at the subject, but 9+ unrelated occupants, is what produces the occupancy-risk profile.',
+        'Tax owners Jaems and Christina Lee are confirmed at the subject with the mailing address on the property itself, and Christina L Lee carries a high homeowner probability in base records, which is strong owner-presence evidence. Coexisting with that, Adriana DeCastro appears consistently across auto, trace and utility, and multiple unrelated non-owners (April Madayag, Cynthia Elhendawi, Anthony Madayag, John Dixon, Margaret Kahl, Barbara Werner, Cynthia Roberson) appear across utility and trace. Owner-present with the mailing at the subject, but 9+ unrelated occupants, is what produces the occupancy-risk profile.',
       direction: 'risk',
       evidenceCount: 13,
     },
@@ -322,14 +339,14 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
       title: 'Subject occupancy surfaces',
       takeaway: 'Non-owner utility, trace and auto records place many other people here, but none carry service dates.',
       detail:
-        'Nine distinct non-owner utility account holders appear at the subject, plus multiple non-owner trace records and two auto registrations for non-owner Adriana DeCastro (2019 Nissan). Owner James Lee appears in trace (likely family), but there is no owner utility presence. The combination of distinct non-owner utility names, corroborating trace records and a non-owner vehicle registration indicates active non-owner presence; two short-term-rental listings add rental-market context. The limitation is timing — the tax record is stale (Oct 2018) and the utility/trace records are undated, so current occupancy can’t be established.',
+        'Nine distinct non-owner utility account holders appear at the subject, plus multiple non-owner trace records and two auto registrations for non-owner Adriana DeCastro (2019 Nissan). Owner James Lee appears in trace (likely family), but there is no owner utility presence. The combination of distinct non-owner utility names, corroborating trace records and a non-owner vehicle registration indicates active non-owner presence; two short-term-rental listings add rental-market context. The limitation is timing: the tax record is stale (Oct 2018) and the utility/trace records are undated, so current occupancy can’t be established.',
       direction: 'risk',
       evidenceCount: 21,
     },
     {
       id: 'legal_address_presence',
       title: 'Legal-address presence',
-      takeaway: 'No drive records exist, and the only auto registrations belong to a non-owner — this path can’t be scored.',
+      takeaway: 'No drive records exist, and the only auto registrations belong to a non-owner, so this path can’t be scored.',
       detail:
         'There are zero drive records at the subject, which removes the primary legal-address evidence path. Auto registrations are present but only for non-owner Adriana DeCastro, not for the tax owners. The tax record confirms the owners’ mailing address at the subject but that is owner-presence context, not a legal-address-presence signal. With no owner drive records, no owner auto registrations and no non-owner drive records, this check cannot be triggered on legal-address evidence either way.',
       direction: 'context',
@@ -340,7 +357,7 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
       title: 'Portfolio and primary comparison',
       takeaway: 'The owner’s footprint is too small for a multi-property risk pattern.',
       detail:
-        'Jaems Lee appears in only two property-owner records — the subject in New Jersey and one in Texas — a footprint too small to establish a multi-property or portfolio risk pattern. This check does not add risk on its own.',
+        'Jaems Lee appears in only two property-owner records: the subject in New Jersey and one in Texas. That footprint is too small to establish a multi-property or portfolio risk pattern. This check does not add risk on its own.',
       direction: 'mitigation',
       evidenceCount: 1,
     },
@@ -349,7 +366,7 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
       title: 'Case quality and synthesis',
       takeaway: 'Owner identity is clear, but stale and undated records block a confident occupancy determination.',
       detail:
-        'Owner identity is clear (James/Jaems and Christina Lee), but occupancy status can’t be reliably determined. Mortgage/lien exposure is stale (tax recorded Oct 2018). No records carry occupancy dates: base records lack them, trace and utility records are undated, and there are no driver or loan records to anchor the claim. Name ambiguity is partly resolved (the DeCastro/De Castro/Castro variants are one person; James/Jaems Lee are the same), but Willer Castro shows an 8-year base residence yet is absent from tax with a different DOB — his role is undefined. A plausible owner-occupancy narrative is contradicted by high-volume non-owner signals and probable STR use, without dated evidence to reconcile them.',
+        'Owner identity is clear (James/Jaems and Christina Lee), but occupancy status can’t be reliably determined. Mortgage/lien exposure is stale (tax recorded Oct 2018). No records carry occupancy dates: base records lack them, trace and utility records are undated, and there are no driver or loan records to anchor the claim. Name ambiguity is partly resolved (the DeCastro/De Castro/Castro variants are one person; James/Jaems Lee are the same), but Willer Castro shows an 8-year base residence yet is absent from tax with a different DOB, so his role is undefined. A plausible owner-occupancy narrative is contradicted by high-volume non-owner signals and probable STR use, without dated evidence to reconcile them.',
       direction: 'quality',
       evidenceCount: 5,
     },
@@ -371,7 +388,7 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
       name: 'Adriana DeCastro',
       relationship: 'unrelated',
       sources: ['AUTO', 'TRACE', 'UTILITY'],
-      summary: 'The most persistent non-owner here — appears across a 2019 vehicle registration, utility accounts and many trace records with a consistent phone and DOB.',
+      summary: 'The most persistent non-owner here. Appears across a 2019 vehicle registration, utility accounts and many trace records with a consistent phone and DOB.',
     },
     {
       name: 'April Madayag',
@@ -412,11 +429,11 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   ],
   evidenceRecords: [
     { source: 'TAX', rowid: null, tone: 'neutral', summary: 'Residential single-family; 3 liens totaling $264,438; lender LoanDepot.com LLC; recorded Oct 2018.' },
-    { source: 'BASE', rowid: null, tone: 'mitigating', summary: 'Christina L Lee — 2016 purchase at $276k; $271k mortgage (Mortgage Master); 2018 refinance $271k (LoanDepot).' },
-    { source: 'AUTO', rowid: null, tone: 'risk', summary: 'Non-owner Adriana DeCastro — 2019 Nissan registered at 17 Monmouth Ave (2 records).' },
+    { source: 'BASE', rowid: null, tone: 'mitigating', summary: 'Christina L Lee; 2016 purchase at $276k; $271k mortgage (Mortgage Master); 2018 refinance $271k (LoanDepot).' },
+    { source: 'AUTO', rowid: null, tone: 'risk', summary: 'Non-owner Adriana DeCastro; 2019 Nissan registered at 17 Monmouth Ave (2 records).' },
     { source: 'UTILITY', rowid: null, tone: 'risk', summary: 'Nine distinct non-owner utility account holders at the subject, several with dated DOBs.' },
     { source: 'TRACE', rowid: null, tone: 'risk', summary: '29 trace records place multiple unrelated people at the address; none carry service dates.' },
-    { source: 'BASE', rowid: null, tone: 'neutral', summary: 'Willer Castro — base record at ZIP 07748 with an 8-year residence; not in the tax owner record.' },
+    { source: 'BASE', rowid: null, tone: 'neutral', summary: 'Willer Castro; base record at ZIP 07748 with an 8-year residence; not in the tax owner record.' },
   ],
   // resolved_address.evidence_map.source_counts — zero-count sources kept:
   // "Drive 0 / Loan 0" reads as "checked, none found", itself a finding here
@@ -435,11 +452,11 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   // counts above represent instead).
   evidencePack: [
     { source: 'TAX', summary: 'Residential single-family property; 3 liens totaling $264,438; lender LoanDepot.com LLC; recording date Oct 2018.' },
-    { source: 'BASE', summary: 'Christina L Lee — purchase year 2016, purchase price $276k, $271k mortgage (Mortgage Master), 2018 refinance $271k (LoanDepot.com LLC).' },
-    { source: 'BASE', summary: 'James A Lee — same mortgage and refinance evidence as Christina L Lee.' },
-    { source: 'BASE', summary: 'Willer Castro — base record at ZIP 07748; 8-year residence; not present in the tax owner record.' },
-    { source: 'AUTO', summary: 'Adriana DeCastro — 2019 Nissan registered at 17 Monmouth Ave (2 records); no owner auto registration exists.' },
-    { source: 'PORTFOLIO', summary: 'Jaems Lee appears in only 2 property-owner records — the subject (NJ) and one in Texas; portfolio too small for a multi-property risk pattern.' },
+    { source: 'BASE', summary: 'Christina L Lee; purchase year 2016, purchase price $276k, $271k mortgage (Mortgage Master), 2018 refinance $271k (LoanDepot.com LLC).' },
+    { source: 'BASE', summary: 'James A Lee; same mortgage and refinance evidence as Christina L Lee.' },
+    { source: 'BASE', summary: 'Willer Castro; base record at ZIP 07748; 8-year residence; not present in the tax owner record.' },
+    { source: 'AUTO', summary: 'Adriana DeCastro; 2019 Nissan registered at 17 Monmouth Ave (2 records); no owner auto registration exists.' },
+    { source: 'PORTFOLIO', summary: 'Jaems Lee appears in only 2 property-owner records; the subject (NJ) and one in Texas; portfolio too small for a multi-property risk pattern.' },
   ],
   ownershipTimeline: {
     currentOwner: 'Christina & Jaems Lee',
@@ -486,19 +503,19 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
   recommendationLabel: 'Priority review',
   score: 8,
   scoreMax: 10,
-  rawScore: 10,
+  rawScore: 27,
   clarityScore: 6,
   clarityMax: 10,
   clarityLabel: 'Medium',
   caseArchetype: 'Clear absentee rental',
   summary:
-    'The property is owned by a trust with a mailing address in a different ZIP code and a portfolio of 33 properties — an absentee-ownership pattern. At least 15 unrelated people appear at the address across identity, vehicle-registration, driver-license, mortgage-application, utility and address-history records, with no owner-occupancy evidence anywhere. Occupants have filed conflicting own-vs-rent claims on loan applications, indicating occupancy-misrepresentation risk.',
+    'The property is owned by a trust with a mailing address in a different ZIP code and a portfolio of 33 properties: an absentee-ownership pattern. At least 15 unrelated people appear at the address across identity, vehicle-registration, driver-license, mortgage-application, utility and address-history records, with no owner-occupancy evidence anywhere. Occupants have filed conflicting own-vs-rent claims on loan applications, indicating occupancy-misrepresentation risk.',
   scopeNote:
     'These are investigative leads, not a fraud determination. Local records support an occupancy review only; none of them determines rental status on its own.',
   riskSignals: [
-    'No owner-occupancy evidence exists in any source, while the trust owner mails to a different ZIP and holds 33 properties — a clear absentee pattern.',
+    'No owner-occupancy evidence exists in any source, while the trust owner mails to a different ZIP and holds 33 properties. A clear absentee pattern.',
     'At least 15 unrelated occupants are corroborated across five independent source families.',
-    'Non-owners filed conflicting own-vs-rent claims on loan applications — one occupant claimed to own the home on 6 applications and to rent it on 9.',
+    'Non-owners filed conflicting own-vs-rent claims on loan applications: one occupant claimed to own the home on 6 applications and to rent it on 9.',
   ],
   mitigatingSignals: [
     'The occupancy density (17 unrelated people) could indicate a rooming house or informal arrangement rather than a standard concealed rental.',
@@ -513,10 +530,10 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
     'Owner mailing in a different ZIP, a 33-property portfolio, and a complete absence of owner-occupancy evidence establish a clear absentee-ownership pattern.',
   ],
   executiveSummary: [
-    'The owner is a trust with a 33-property portfolio, mailing to a different ZIP — no owner presence appears in any record at this address.',
-    'At least 15 unrelated people are documented here across identity, vehicle, driver-license, loan, utility and address-history records.',
-    'Occupants filed conflicting loan claims — one person claimed to own the home on 6 applications and to rent it on 9.',
-    'Recommended next step: move this to the top of the review queue.',
+    { text: 'The owner is a trust with a 33-property portfolio, mailing to a different ZIP. No owner presence appears in any record at this address.', tone: 'concern' },
+    { text: 'At least 15 unrelated people are documented here across identity, vehicle, driver-license, loan, utility and address-history records.', tone: 'concern' },
+    { text: 'Occupants filed conflicting loan claims: one person claimed to own the home on 6 applications and to rent it on 9.', tone: 'concern' },
+    { text: 'Next step: top of the review queue.', tone: 'info' },
   ],
   occupancySignal: {
     signal: 'non_owner_occupancy',
@@ -568,7 +585,7 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
     {
       id: 'property_tax_context',
       title: 'Property tax context',
-      takeaway: 'A single-family home held by a trust with a 33-property portfolio — investor ownership.',
+      takeaway: 'A single-family home held by a trust with a 33-property portfolio. Investor ownership.',
       detail:
         'The subject is a residential single-family home owned by a trust entity (the Schilling Trust, Tyler Lee Schilling) that holds a portfolio of 33 properties. Portfolio-scale ownership, combined with the owner mailing to a different ZIP, frames this as absentee investor ownership rather than owner-occupancy. The tax record on file dates to September 2008.',
       direction: 'context',
@@ -579,7 +596,7 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
       title: 'Owner identity and mailing',
       takeaway: 'The trust owner mails to a different ZIP and never appears in any occupancy record.',
       detail:
-        'The owner of record is the Schilling Trust with a mailing address at 222 Walton Ave, Lexington KY 40502 — distinct from the subject at 934 Dayton Ave, 40505. The owner maintains a 33-property portfolio and has no presence in identity, utility, driver or address-history records at the subject, while multiple unrelated non-owners occupy it with strong corroboration.',
+        'The owner of record is the Schilling Trust with a mailing address at 222 Walton Ave, Lexington KY 40502, distinct from the subject at 934 Dayton Ave, 40505. The owner maintains a 33-property portfolio and has no presence in identity, utility, driver or address-history records at the subject, while multiple unrelated non-owners occupy it with strong corroboration.',
       direction: 'risk',
       evidenceCount: 40,
     },
@@ -588,14 +605,14 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
       title: 'Subject occupancy surfaces',
       takeaway: 'At least 12 unrelated people appear in trace and utility records; the owner appears in none.',
       detail:
-        'Multiple unrelated non-owners appear in both trace and utility records at the subject, indicating active non-owner occupancy. The tax owner has no occupancy evidence at the subject and maintains a mailing address elsewhere — consistent with absentee ownership over a dense, multi-occupant household.',
+        'Multiple unrelated non-owners appear in both trace and utility records at the subject, indicating active non-owner occupancy. The tax owner has no occupancy evidence at the subject and maintains a mailing address elsewhere, consistent with absentee ownership over a dense, multi-occupant household.',
       direction: 'risk',
       evidenceCount: 40,
     },
     {
       id: 'legal_address_presence',
       title: 'Legal-address presence',
-      takeaway: 'Non-owners hold driver-license and vehicle records here — 92 driver records for one occupant alone.',
+      takeaway: 'Non-owners hold driver-license and vehicle records here: 92 driver records for one occupant alone.',
       detail:
         'Multiple unrelated non-owners hold driver-license and vehicle-registration records at the subject address, establishing non-owner legal-address presence. Gary Hiles alone appears in 92 driver-license records at the address. The tax owner has no driver or vehicle evidence at the subject.',
       direction: 'risk',
@@ -604,18 +621,18 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
     {
       id: 'loan_tenure',
       title: 'Loan tenure',
-      takeaway: 'Occupants filed conflicting own-vs-rent claims — the occupancy-misrepresentation flag.',
+      takeaway: 'Occupants filed conflicting own-vs-rent claims: the occupancy-misrepresentation flag.',
       detail:
-        'Non-owner occupants claim conflicting tenure across loan applications. Gary Hiles — not the tax owner — submitted at least six applications claiming ownership and nine claiming rental at the same address. Carol Robbins, Mary Hiles and Nick McComber, also non-owners, submitted applications claiming ownership.',
+        'Non-owner occupants claim conflicting tenure across loan applications. Gary Hiles, who is not the tax owner, submitted at least six applications claiming ownership and nine claiming rental at the same address. Carol Robbins, Mary Hiles and Nick McComber, also non-owners, submitted applications claiming ownership.',
       direction: 'risk',
       evidenceCount: 40,
     },
     {
       id: 'portfolio_and_primary_comparison',
       title: 'Portfolio and primary comparison',
-      takeaway: 'A 33-property portfolio with no owner presence at the subject — a rental-inventory pattern.',
+      takeaway: 'A 33-property portfolio with no owner presence at the subject: a rental-inventory pattern.',
       detail:
-        'The trust is linked to 33 residential properties across Lexington, Kentucky. Its mailing address differs materially from the subject, and the subject shows no owner-presence evidence in any source — the profile of one unit inside a rental portfolio rather than a primary residence.',
+        'The trust is linked to 33 residential properties across Lexington, Kentucky. Its mailing address differs materially from the subject, and the subject shows no owner-presence evidence in any source. It is the profile of one unit inside a rental portfolio rather than a primary residence.',
       direction: 'risk',
       evidenceCount: 38,
     },
@@ -642,7 +659,7 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
       relationship: 'unrelated',
       sources: ['DRIVE', 'LOAN', 'TRACE'],
       summary:
-        'The dominant occupant on record — 92 driver-license records here, plus 15 loan applications: 6 claiming to own the home, 9 claiming to rent it.',
+        'The dominant occupant on record: 92 driver-license records here, plus 15 loan applications: 6 claiming to own the home, 9 claiming to rent it.',
     },
     {
       name: 'Bobby R. Payne',
@@ -676,9 +693,9 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
     },
   ],
   evidenceRecords: [
-    { source: 'TAX', rowid: null, tone: 'risk', summary: 'Owner: Schilling Trust; mailing 222 Walton Ave, Lexington KY 40502 — does not match subject; recorded Sep 2008.' },
-    { source: 'LOAN', rowid: null, tone: 'risk', summary: 'Gary Hiles — 15 loan applications at the subject: 6 claiming ownership, 9 claiming rental.' },
-    { source: 'DRIVE', rowid: null, tone: 'risk', summary: 'Gary Hiles — 92 driver-license records at the subject address; the owner has none.' },
+    { source: 'TAX', rowid: null, tone: 'risk', summary: 'Owner: Schilling Trust; mailing 222 Walton Ave, Lexington KY 40502; does not match subject; recorded Sep 2008.' },
+    { source: 'LOAN', rowid: null, tone: 'risk', summary: 'Gary Hiles; 15 loan applications at the subject: 6 claiming ownership, 9 claiming rental.' },
+    { source: 'DRIVE', rowid: null, tone: 'risk', summary: 'Gary Hiles; 92 driver-license records at the subject address; the owner has none.' },
     { source: 'UTILITY', rowid: null, tone: 'risk', summary: 'Eight non-owner utility accounts at the subject; no owner utility presence.' },
   ],
   sourceCounts: [
@@ -691,11 +708,11 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
     { label: 'Tax', count: 1 },
   ],
   evidencePack: [
-    { source: 'TAX', summary: 'Owner: Schilling Trust (Tyler Lee Schilling); mailing 222 Walton Ave, Lexington KY 40502 — does not match the subject; recorded Sep 2008.' },
+    { source: 'TAX', summary: 'Owner: Schilling Trust (Tyler Lee Schilling); mailing 222 Walton Ave, Lexington KY 40502; does not match the subject; recorded Sep 2008.' },
     { source: 'PORTFOLIO', summary: 'The trust is linked to 33 residential properties across Lexington, KY.' },
-    { source: 'LOAN', summary: 'Gary Hiles — 15 loan applications at the subject: 6 claiming ownership, 9 claiming rental.' },
-    { source: 'DRIVE', summary: 'Gary Hiles — 92 driver-license records at the subject address; the owner holds none here.' },
-    { source: 'LOAN', summary: 'Carol Robbins, Mary Hiles and Nick McComber — non-owners filing loan applications claiming ownership at the subject.' },
+    { source: 'LOAN', summary: 'Gary Hiles; 15 loan applications at the subject: 6 claiming ownership, 9 claiming rental.' },
+    { source: 'DRIVE', summary: 'Gary Hiles; 92 driver-license records at the subject address; the owner holds none here.' },
+    { source: 'LOAN', summary: 'Carol Robbins, Mary Hiles and Nick McComber; non-owners filing loan applications claiming ownership at the subject.' },
     { source: 'UTILITY', summary: 'Eight non-owner utility accounts at the subject; no owner utility presence.' },
   ],
   ownershipTimeline: {
@@ -736,7 +753,7 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
   clarityLabel: 'Low',
   caseArchetype: 'Insufficient ownership data',
   summary:
-    'No property-tax owner record exists for this address, eliminating the primary anchor for ownership verification. Identity and address-history records show two residents with 8–10 years of tenure, and utility records identify four individuals — but nothing in tax, mortgage, loan or vehicle records carries an ownership claim, so owner-occupancy versus rental use cannot be determined.',
+    'No property-tax owner record exists for this address, eliminating the primary anchor for ownership verification. Identity and address-history records show two residents with 8–10 years of tenure, and utility records identify four individuals, but nothing in tax, mortgage, loan or vehicle records carries an ownership claim, so owner-occupancy versus rental use cannot be determined.',
   scopeNote:
     'These are investigative leads, not a fraud determination. Local records support an occupancy review only; none of them determines rental status on its own.',
   riskSignals: [
@@ -744,7 +761,7 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
     'With no tax record on file, occupancy cannot be checked against an owner at all.',
   ],
   mitigatingSignals: [
-    'Della H. Brown and Michael Smith show 8–10 years of corroborated tenure — an established household, not a vacancy or a data error.',
+    'Della H. Brown and Michael Smith show 8–10 years of corroborated tenure. An established household, not a vacancy or a data error.',
     'Four utility account holders with multi-year tenure suggest ordinary household occupancy.',
   ],
   whyNotHigher: [
@@ -756,10 +773,10 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
     'Four distinct individuals in utility records suggest an active household rather than a vacant or abandoned property.',
   ],
   executiveSummary: [
-    'No property-tax owner record exists for this address — there is no anchor to establish who owns it.',
-    'Two long-tenured residents (8–10 years) appear in identity and address-history records; two more appear in utility accounts only.',
-    'Nothing distinguishes owner from renter: no tax, mortgage, loan or vehicle record carries an ownership claim.',
-    'Recommended next step: no action — revisit only if stronger records surface.',
+    { text: 'No property-tax owner record exists for this address, so there is no anchor to establish who owns it.', tone: 'info' },
+    { text: 'Two long-tenured residents (8–10 years) appear in identity and address-history records; two more appear in utility accounts only.', tone: 'mitigating' },
+    { text: 'Nothing distinguishes owner from renter: no tax, mortgage, loan or vehicle record carries an ownership claim.', tone: 'info' },
+    { text: 'Next step: none. Revisit only if stronger records surface.', tone: 'info' },
   ],
   occupancySignal: {
     signal: 'no_signal',
@@ -782,7 +799,7 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
       group: 'Missing or undated evidence',
       kind: 'gap',
       items: [
-        'No property-tax record exists for the address — the primary ownership anchor is absent.',
+        'No property-tax record exists for the address; the primary ownership anchor is absent.',
         'Utility entries are undated and cannot be distinguished as current or historical.',
         'No mortgage, loan, driver or vehicle records exist to corroborate against.',
       ],
@@ -799,7 +816,7 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
     {
       id: 'property_tax_context',
       title: 'Property tax context',
-      takeaway: 'No tax record exists — classification, ownership and lien status cannot be assessed.',
+      takeaway: 'No tax record exists; classification, ownership and lien status cannot be assessed.',
       detail:
         'Property-tax records are absent for 647 Chestnut St, preventing assessment of residential classification, owner identity, lien and mortgage exposure, foreclosure markers, entity ownership and portfolio count. Base records show two individuals with 8–10 years of tenure at the address, but tenure alone establishes occupancy, not ownership.',
       direction: 'context',
@@ -819,7 +836,7 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
       title: 'Case quality and synthesis',
       takeaway: 'The data gap is the finding: without a tax anchor, no defensible determination is possible.',
       detail:
-        'No property-tax records exist for the subject, eliminating the primary anchor for owner identification and mortgage status. Four individuals appear in identity and utility records; two lack any second-source corroboration. The absence of tax, loan, driver and vehicle records prevents a defensible owner-versus-renter determination — the case reads as an ordinary household whose ownership simply isn’t on file.',
+        'No property-tax records exist for the subject, eliminating the primary anchor for owner identification and mortgage status. Four individuals appear in identity and utility records; two lack any second-source corroboration. The absence of tax, loan, driver and vehicle records prevents a defensible owner-versus-renter determination; the case reads as an ordinary household whose ownership simply isn’t on file.',
       direction: 'quality',
       evidenceCount: 18,
     },
@@ -829,7 +846,7 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
       name: 'Della H. Brown',
       relationship: 'unrelated',
       sources: ['BASE', 'TRACE'],
-      summary: '8–10 years of corroborated tenure across identity and address-history records; relationship to any owner unknown — no owner is on file.',
+      summary: '8–10 years of corroborated tenure across identity and address-history records; relationship to any owner unknown; no owner is on file.',
     },
     {
       name: 'Michael Smith',
@@ -841,19 +858,19 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
       name: 'Betty S. Simpson',
       relationship: 'unrelated',
       sources: ['UTILITY'],
-      summary: 'Utility accounts only — no corroboration from any other source.',
+      summary: 'Utility accounts only; no corroboration from any other source.',
     },
     {
       name: 'Joyce A. Brown',
       relationship: 'unrelated',
       sources: ['UTILITY'],
-      summary: 'Utility accounts only — no corroboration from any other source.',
+      summary: 'Utility accounts only; no corroboration from any other source.',
     },
   ],
   evidenceRecords: [
-    { source: 'BASE', rowid: null, tone: 'neutral', summary: 'Della H. Brown — identity/residence record with 8–10 year tenure at the subject.' },
-    { source: 'BASE', rowid: null, tone: 'neutral', summary: 'Michael Smith — identity/residence record with 8–10 year tenure at the subject.' },
-    { source: 'UTILITY', rowid: null, tone: 'neutral', summary: 'Betty S. Simpson and Joyce A. Brown — utility accounts only; no second source.' },
+    { source: 'BASE', rowid: null, tone: 'neutral', summary: 'Della H. Brown; identity/residence record with 8–10 year tenure at the subject.' },
+    { source: 'BASE', rowid: null, tone: 'neutral', summary: 'Michael Smith; identity/residence record with 8–10 year tenure at the subject.' },
+    { source: 'UTILITY', rowid: null, tone: 'neutral', summary: 'Betty S. Simpson and Joyce A. Brown; utility accounts only; no second source.' },
   ],
   sourceCounts: [
     { label: 'Utility', count: 3 },
@@ -865,22 +882,22 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
     { label: 'Tax', count: 0 },
   ],
   evidencePack: [
-    { source: 'TAX', summary: 'No property-tax record exists for 647 Chestnut St — ownership cannot be established.' },
-    { source: 'BASE', summary: 'Della H. Brown — identity/residence record, 8–10 year tenure at the subject.' },
-    { source: 'BASE', summary: 'Michael Smith — identity/residence record, 8–10 year tenure at the subject.' },
-    { source: 'UTILITY', summary: 'Betty S. Simpson and Joyce A. Brown — utility accounts only; no corroboration in any other source.' },
+    { source: 'TAX', summary: 'No property-tax record exists for 647 Chestnut St; ownership cannot be established.' },
+    { source: 'BASE', summary: 'Della H. Brown; identity/residence record, 8–10 year tenure at the subject.' },
+    { source: 'BASE', summary: 'Michael Smith; identity/residence record, 8–10 year tenure at the subject.' },
+    { source: 'UTILITY', summary: 'Betty S. Simpson and Joyce A. Brown; utility accounts only; no corroboration in any other source.' },
   ],
   ownershipTimeline: {
-    currentOwner: 'Unknown — no tax record on file',
+    currentOwner: 'Unknown (no tax record on file)',
     currentStatus: 'unknown',
     currentStatusLabel: 'Ownership unknown',
     segments: [
       { label: 'Occupied · ownership unknown', sublabel: '~2016 – today', status: 'unknown', weight: 100 },
     ],
     events: [
-      { at: '~2016', title: 'Earliest corroborated tenure — Della H. Brown and Michael Smith (8–10 years)' },
+      { at: '~2016', title: 'Earliest corroborated tenure; Della H. Brown and Michael Smith (8–10 years)' },
       { at: 'Undated', title: 'Four utility account holders; two with no other corroboration' },
-      { at: 'Today', title: 'No tax record on file — the owner cannot be established' },
+      { at: 'Today', title: 'No tax record on file; the owner cannot be established' },
     ],
   },
   runMeta: {

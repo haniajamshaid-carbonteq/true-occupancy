@@ -2,7 +2,7 @@
    useAIInvestigator, startAIInvestigation, resetAIInvestigation,
    parseAIDemoStatus, formatReportDate, formatUsDateTime, ServedStamp,
    SCENARIOS, displayConfidence, occSignalMeta, OCC_SIGNAL_TONE_VARS,
-   occRecordsSummary, occCombinedSynthesis */
+   occRecordsSummary, occCombinedSynthesis, OCC_STRENGTH_DEF */
 // AIInvestigator — a second-opinion module that runs after the rule-based
 // verdict has rendered. Sits between ConfidenceHero and ListingsPanel on
 // the three result screens.
@@ -216,6 +216,14 @@ function OccupancySignalHeader({
           />
         </div>
         <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-3">{synthesis}</p>
+        {/* The strength grade, defined in place — "moderate signal" must
+            never be an unexplained term on an artifact people act on. */}
+        <p className="font-sans text-micro text-ink-3 leading-relaxed m-0 mt-2">
+          <span className="font-semibold" style={{ color: 'var(--ink-2)' }}>
+            {strengthLabel} signal:
+          </span>{' '}
+          {OCC_STRENGTH_DEF[sig.strength]}
+        </p>
       </div>
     </section>
   );
@@ -829,6 +837,10 @@ function ReportBody({
   result: AIInvestigationResult;
   scenario?: ScenarioKey;
 }) {
+  // One-pager by default (client ask, 2026-09-08): the drawer opens as a
+  // single-view brief — signal, key findings, timeline, next step — and the
+  // evidentiary dossier renders only behind "See details".
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
   return (
     <div>
       {/* The occupancy signal + combined read — the colour-first headline
@@ -844,29 +856,6 @@ function ReportBody({
           and how occupancy read over time, as a colour-coded timeline. Both
           focal items sit above the fold on open. */}
       <OwnershipTimeline result={result} />
-
-      {/* Two headline scores, a quick reference beneath the at-a-glance band. */}
-      <div className="grid grid-cols-2 gap-3 mt-8">
-        <ScoreTile
-          label="Occupancy score"
-          value={`${result.score}/${result.scoreMax}`}
-        />
-        <ScoreTile
-          label="Evidence clarity"
-          value={`${result.clarityScore}/${result.clarityMax}`}
-        />
-      </div>
-
-      {/* "What we found" is now the first substantive section — moved above
-          the scope-limiting gaps and the per-check detail so the balance of
-          concern / mitigation reads first (Jim: "what we found should be up
-          top"). */}
-      <div className="mt-8">
-        <SectionHeading>What we found</SectionHeading>
-        <div className="mt-3">
-          <RecommendationBreakdown result={result} />
-        </div>
-      </div>
 
       {/* The single next action, directly under the findings it follows from.
           Low-footprint: a tracked label plus a one-paragraph directive (lead
@@ -884,17 +873,94 @@ function ReportBody({
         </p>
       </div>
 
+      {/* See details — the gate between the one-pager brief and the
+          evidentiary dossier. Everything below only renders once opened. */}
+      <button
+        type="button"
+        onClick={() => setDetailsOpen((o) => !o)}
+        aria-expanded={detailsOpen}
+        className="w-full mt-8 flex items-center justify-center gap-2 rounded-lg border border-line py-3 bg-transparent cursor-pointer hover:bg-hover-bg transition-colors"
+      >
+        <span
+          className="font-sans font-semibold"
+          style={{ fontSize: 'var(--text-body-sm)', color: 'var(--navy)' }}
+        >
+          {detailsOpen ? 'Hide details' : 'See details'}
+        </span>
+        <span
+          className={`w-5 h-5 grid place-items-center text-ink-3 transition-transform ${
+            detailsOpen ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        >
+          <Icon name="chevron" size={13} />
+        </span>
+      </button>
+
+      {detailsOpen && (
+      <div>
+      {/* "What we found" — the concern/mitigation balance in full, leading
+          the details view (Jim: "what we found should be up top"). */}
+      <div className="mt-8">
+        <SectionHeading>What we found</SectionHeading>
+        <div className="mt-3">
+          <RecommendationBreakdown result={result} />
+        </div>
+      </div>
+
+      {/* Scores — below the findings (client ask, 2026-09-08) under a
+          proper heading: the numbers support the findings rather than lead
+          them, and each one is defined so neither reads as a bare figure. */}
+      <section className="mt-10">
+        <SectionHeading>Scores</SectionHeading>
+        <p className="font-sans text-caption text-ink-3 leading-relaxed m-0 mt-1">
+          Occupancy score grades how strongly the records point to non-owner use.
+          Evidence clarity grades how well the records support a determination at all.
+        </p>
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <ScoreTile
+            label="Occupancy score"
+            value={`${result.score}/${result.scoreMax}`}
+          />
+          <ScoreTile
+            label="Evidence clarity"
+            value={`${result.clarityScore}/${result.clarityMax}`}
+          />
+        </div>
+      </section>
+
       {/* Supporting sections. Separated by space, not rules. */}
       <DataGapsSection result={result} />
       <OccupancyHistorySection result={result} />
       <DetailedAnalysisSection result={result} />
+      </div>
+      )}
     </div>
   );
 }
 
 // Executive summary — the readable lead. Prefers the curated bullets; if a
 // case has none, falls back to the reasoning summary as a single clamped
-// paragraph so the block is never empty.
+// paragraph so the block is never empty. Per-bullet tones share the
+// direction language of the What-we-found columns (trend-up = concern,
+// trend-down = mitigating), so the two surfaces read as one vocabulary.
+const EXEC_TONE: Record<
+  'concern' | 'mitigating' | 'info',
+  { icon: IconName; ink: string; title: string }
+> = {
+  concern: {
+    icon: 'trend-up',
+    ink: 'var(--warn-ink)',
+    title: 'Raises concern (aligns with the occupancy signal)',
+  },
+  mitigating: {
+    icon: 'trend-down',
+    ink: 'var(--clean-ink)',
+    title: 'Cuts against the concern',
+  },
+  info: { icon: 'info', ink: 'var(--ink-3)', title: 'Context, neither direction' },
+};
+
 function ExecutiveSummary({ result }: { result: AIInvestigationResult }) {
   const bullets = result.executiveSummary;
   return (
@@ -903,20 +969,54 @@ function ExecutiveSummary({ result }: { result: AIInvestigationResult }) {
         What you need to know
       </div>
       {bullets && bullets.length > 0 ? (
-        <ul className="list-none m-0 p-0 mt-2.5 flex flex-col gap-2">
-          {bullets.map((b, i) => (
-            <li key={i} className="flex items-start gap-2.5">
-              <span
-                className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0"
-                style={{ background: 'var(--brand)' }}
-                aria-hidden
-              />
-              <span className="font-sans text-body-sm text-ink-2 leading-relaxed">
-                {b}
+        <>
+          {/* Each point carries a direction marker so a reader can tell, in
+              one view, which findings align with the occupancy concern and
+              which cut against it (client ask, 2026-09-08). Plain-string
+              bullets render as context. */}
+          <ul className="list-none m-0 p-0 mt-2.5 flex flex-col gap-2">
+            {bullets.map((b, i) => {
+              const item = typeof b === 'string' ? { text: b, tone: 'info' as const } : b;
+              const t = EXEC_TONE[item.tone] || EXEC_TONE.info;
+              return (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span
+                    className="mt-0.5 shrink-0 inline-flex"
+                    style={{ color: t.ink }}
+                    title={t.title}
+                    aria-label={t.title}
+                  >
+                    <Icon name={t.icon} size={14} />
+                  </span>
+                  <span className="font-sans text-body-sm text-ink-2 leading-relaxed">
+                    {item.text}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {/* Legend — one quiet line so the icons never need guessing. */}
+          <div className="mt-2.5 flex items-center gap-x-4 gap-y-1 flex-wrap font-sans text-micro text-ink-3">
+            <span className="inline-flex items-center gap-1">
+              <span style={{ color: EXEC_TONE.concern.ink }} className="inline-flex">
+                <Icon name="trend-up" size={11} />
               </span>
-            </li>
-          ))}
-        </ul>
+              Raises concern
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span style={{ color: EXEC_TONE.mitigating.ink }} className="inline-flex">
+                <Icon name="trend-down" size={11} />
+              </span>
+              Cuts against it
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span style={{ color: EXEC_TONE.info.ink }} className="inline-flex">
+                <Icon name="info" size={11} />
+              </span>
+              Context
+            </span>
+          </div>
+        </>
       ) : (
         <div className="mt-2 max-w-2xl">
           <ClampText

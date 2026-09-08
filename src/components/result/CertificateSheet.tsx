@@ -1,7 +1,7 @@
 /* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState,
    occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG, displayConfidence,
    formatReportDate, AI_BAND_NEXT_STEP, occSignalMeta, OCC_SIGNAL_TONE_VARS,
-   occRecordsSummary, occCombinedSynthesis */
+   occRecordsSummary, occCombinedSynthesis, OCC_STRENGTH_DEF */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -781,12 +781,31 @@ function OccSectionTitle({ children, count }: { children: React.ReactNode; count
   );
 }
 
-function OccBulletList({ items }: { items: string[] }) {
+// Accepts plain strings or { text, tone } bullets (the executive summary now
+// carries per-point tones). A toned bullet colours its dot — amber for
+// concern-aligned points, teal for mitigating ones — matching the drawer's
+// direction icons.
+function OccBulletList({
+  items,
+}: {
+  items: Array<string | { text: string; tone?: 'concern' | 'mitigating' | 'info' }>;
+}) {
   return (
     <ul className="occ-bullets">
-      {items.map((it, i) => (
-        <li key={i}>{it}</li>
-      ))}
+      {items.map((it, i) => {
+        const item = typeof it === 'string' ? { text: it, tone: undefined } : it;
+        const toneClass =
+          item.tone === 'concern'
+            ? 'occ-b--concern'
+            : item.tone === 'mitigating'
+            ? 'occ-b--mitig'
+            : undefined;
+        return (
+          <li key={i} className={toneClass}>
+            {item.text}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -1006,6 +1025,12 @@ function CertificateOccupancyBody({
             <div className="occ-lens-hint">{recordsLine || 'Public-records investigation'}</div>
           </div>
           {synthesis && <p className="occ-combined-synthesis">{synthesis}</p>}
+          {typeof OCC_STRENGTH_DEF !== 'undefined' && (OCC_STRENGTH_DEF as any)[sig.strength] && (
+            <p className="occ-strength-def">
+              <strong>{sig.strength.charAt(0).toUpperCase() + sig.strength.slice(1)} signal:</strong>{' '}
+              {(OCC_STRENGTH_DEF as any)[sig.strength]}
+            </p>
+          )}
         </section>
       )}
 
