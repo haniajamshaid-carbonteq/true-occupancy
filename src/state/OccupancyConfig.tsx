@@ -240,18 +240,45 @@ const RISK_TO_OCC_VERDICT: Record<'clean' | 'warn' | 'risk', OccVerdict> = {
   risk: 'rented',
 };
 
+// ---- Not-sure display: the finding, not a reconciliation ----------------
+// Owner call (weekly, 2026-09-03): an explicit "Not sure" gives the scan no
+// baseline, so it gets NO Consistent / Inconclusive / Needs review verdict.
+// The display is only what the scan found — Erin's wording: "rented, not
+// rented, unsure". Tones are the categorical verdict family (purple / yellow
+// / blue), never the status family: a finding is not good or bad news.
+// "Unsure" (not "Possibly rented") is the in-between word for this case only.
+const OCC_FINDING_LABEL: Record<OccVerdict, string> = {
+  rented: 'Rented',
+  'possibly-rented': 'Unsure',
+  'not-rented': 'Not rented',
+};
+const OCC_FINDING_TONE: Record<OccVerdict, 'verdict-high' | 'verdict-med' | 'verdict-low'> = {
+  rented: 'verdict-high',
+  'possibly-rented': 'verdict-med',
+  'not-rented': 'verdict-low',
+};
+
 interface OccMatch {
-  status: OccStatus;                 // green | yellow | red
-  label: string;                     // Consistent | Inconclusive | Needs review
-  tone: 'clean' | 'warn' | 'risk';   // Pill variant / colour
+  status: OccStatus;                 // green | yellow | red — pipeline value, unchanged
+  label: string;                     // Consistent | Inconclusive | Needs review — or the finding for Not sure
+  tone: 'clean' | 'warn' | 'risk' | 'verdict-high' | 'verdict-med' | 'verdict-low'; // Pill variant
   verdict: OccVerdict;               // the raw finding, for the "why" line
 }
 
 // (declared intent, observed risk) -> the reconciliation shown everywhere.
-// An absent intent falls back to 'not-sure', which mirrors the org's default
-// intended occupancy — so undeclared scans reconcile exactly like the default
-// type (and CAN be "Needs review"). Returns null only when the row hasn't been
-// scanned yet (no risk).
+// An ABSENT intent is not a case of its own: Universal intended behaviour
+// pre-fills every scan, so undeclared falls back to the org's default type and
+// reconciles like it — there is no "no declaration" state. Returns null only
+// when the row hasn't been scanned yet (no risk).
+//
+// Declared types (the default included) are untouched — the client-approved
+// reconciliation labels (Consistent / Inconclusive / Needs review) in status
+// tones. The ONLY change (owner call, 2026-09-03) is the EXPLICIT Not-sure
+// case: no baseline means no reconciliation, so it displays the finding
+// alone — "Rented" / "Not rented" / "Unsure" — in categorical verdict tones.
+// `status` keeps deriving exactly as before in BOTH cases, so filters, tiles,
+// red derivation and automation triggers are untouched: a labelling change at
+// the choke point, scoped to Not sure, not a pipeline change.
 function occMatchForRisk(
   intent: OccIntent | undefined,
   risk: 'clean' | 'warn' | 'risk' | undefined,
@@ -259,7 +286,11 @@ function occMatchForRisk(
 ): OccMatch | null {
   if (!risk) return null;
   const verdict = RISK_TO_OCC_VERDICT[risk];
-  const status = deriveOccStatus(config, intent || 'not-sure', verdict);
+  const effIntent = intent || config.defaultIntent;
+  const status = deriveOccStatus(config, effIntent, verdict);
+  if (effIntent === 'not-sure') {
+    return { status, label: OCC_FINDING_LABEL[verdict], tone: OCC_FINDING_TONE[verdict], verdict };
+  }
   return { status, label: OCC_STATUS_MATCH_LABEL[status], tone: OCC_STATUS_TONE[status], verdict };
 }
 

@@ -1,6 +1,7 @@
 /* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState,
    occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG, displayConfidence,
-   formatReportDate, AI_BAND_NEXT_STEP */
+   formatReportDate, AI_BAND_NEXT_STEP, occSignalMeta, OCC_SIGNAL_TONE_VARS,
+   occRecordsSummary, occCombinedSynthesis */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -114,10 +115,14 @@ function certScenarioListingCount(scenario: CertScenarioKey): number {
 // print with "Background graphics" turned off. Mirrors ConfidenceHero's
 // TONE_INK, and the word itself always carries the meaning — never colour
 // alone.
-const CERT_TONE_INK: Record<'clean' | 'warn' | 'risk', string> = {
+const CERT_TONE_INK: Record<string, string> = {
   clean: 'var(--clean-ink)',
   warn: 'var(--warn-deep)',
   risk: 'var(--risk-ink)',
+  // Categorical verdict tones — the Not-sure finding display (occMatchForRisk).
+  'verdict-high': 'var(--verdict-high-ink)',
+  'verdict-med': 'var(--verdict-med-ink)',
+  'verdict-low': 'var(--verdict-low-ink)',
 };
 
 interface CertHistoryListing {
@@ -888,6 +893,31 @@ function CertificateOccupancyBody({
   };
   const sevColor = OCC_SEV_COLOR[OCC_SEV_BY_BAND[r.verdictBand] || 'neutral'];
 
+  // Structured occupancy signal (2026-09 batch-run shape). When present it
+  // takes over the headline + accent colour so the PDF, digest and drawer
+  // read identically; the band-based severity above is the fallback for
+  // older cases without one.
+  const sig = r.occupancySignal;
+  const sigMeta =
+    sig && typeof occSignalMeta === 'function' ? occSignalMeta(sig.signal, sig.strength) : null;
+  const sigVars = sigMeta ? (OCC_SIGNAL_TONE_VARS as any)[sigMeta.tone] : null;
+  const accent = sigVars ? sigVars.dot : sevColor;
+  // Listing-scan lens for the combined read — same derivation as the
+  // single-scan certificate above.
+  const listingKey =
+    scenario === 'high' ? 'rented' : scenario === 'medium' ? 'likely' : 'not-rented';
+  const listingLabel =
+    scenario === 'high' ? 'Rented' : scenario === 'medium' ? 'Likely Rented' : 'Not Rented';
+  const listingPct = displayConfidence(
+    listingKey === 'not-rented' ? 100 - SCENARIOS[scenario].score : SCENARIOS[scenario].score
+  );
+  const recordsLine = typeof occRecordsSummary === 'function' ? occRecordsSummary(r) : null;
+  const synthesis =
+    sig && typeof occCombinedSynthesis === 'function'
+      ? occCombinedSynthesis(listingKey as any, sig.signal)
+      : null;
+  const drivingIds = new Set((sig && sig.drivingHeuristicIds) || []);
+
   return (
     <article className="occ-report">
       {/* Running footer — fixed, so it repeats on every printed page. Carries
@@ -916,10 +946,30 @@ function CertificateOccupancyBody({
 
       {/* Verdict + the two scores + reconciliation. Left accent + the
           occupancy-score meter carry the severity colour. */}
-      <section className="occ-verdict" style={{ borderLeftColor: sevColor }}>
+      <section className="occ-verdict" style={{ borderLeftColor: accent }}>
         <div className="occ-verdict-main">
           <div className="occ-eyebrow">Finding</div>
-          <div className="occ-verdict-headline">{r.caseArchetype}</div>
+          {sigMeta && sigVars ? (
+            <>
+              <div className="occ-verdict-headline" style={{ color: sigVars.ink }}>
+                <span
+                  className="occ-signal-dot"
+                  style={{ background: sigVars.dot }}
+                  aria-hidden
+                />
+                {sigMeta.label}
+                <span
+                  className="occ-signal-strength"
+                  style={{ color: sigVars.ink, borderColor: sigVars.dot }}
+                >
+                  {sig.strength} signal
+                </span>
+              </div>
+              <div className="occ-case-type">Case type: {r.caseArchetype}</div>
+            </>
+          ) : (
+            <div className="occ-verdict-headline">{r.caseArchetype}</div>
+          )}
           {match && (
             <div className="occ-recon">
               <span className="occ-recon-label">Intended occupancy</span>
@@ -932,15 +982,37 @@ function CertificateOccupancyBody({
           )}
         </div>
         <div className="occ-scores">
-          <OccMeter label="Occupancy score" value={r.score} max={r.scoreMax} color={sevColor} />
+          <OccMeter label="Occupancy score" value={r.score} max={r.scoreMax} color={accent} />
           <OccMeter label="Evidence clarity" value={r.clarityScore} max={r.clarityMax} color="var(--brand-deep)" />
         </div>
       </section>
 
-      {/* Do this next — carries the severity accent so the recommended action
+      {/* Combined read — the listing-scan verdict and the records read, side
+          by side, with the one-line synthesis tying them together. */}
+      {sig && sigMeta && (
+        <section className="occ-combined">
+          <div className="occ-lens">
+            <div className="occ-lens-label">Listing scan</div>
+            <div className="occ-lens-value">
+              {listingLabel} · {listingPct}%
+            </div>
+            <div className="occ-lens-hint">Airbnb, Vrbo &amp; Facebook matches</div>
+          </div>
+          <div className="occ-lens">
+            <div className="occ-lens-label">Records</div>
+            <div className="occ-lens-value">
+              {sigMeta.label} · {sig.strength}
+            </div>
+            <div className="occ-lens-hint">{recordsLine || 'Public-records investigation'}</div>
+          </div>
+          {synthesis && <p className="occ-combined-synthesis">{synthesis}</p>}
+        </section>
+      )}
+
+      {/* Do this next — carries the signal accent so the recommended action
           reads at the same glance as the verdict. */}
       {nextStep && (
-        <section className="occ-next" style={{ borderLeftColor: sevColor }}>
+        <section className="occ-next" style={{ borderLeftColor: accent }}>
           <div className="occ-eyebrow occ-eyebrow--brand">Do this next</div>
           <p className="occ-next-body">
             <span className="occ-next-lead">{nextStep.lead}.</span> {nextStep.detail}
@@ -1038,7 +1110,10 @@ function CertificateOccupancyBody({
           <div className="occ-checks">
             {r.detailedAnalysis.map((c: any, i: number) => (
               <div className="occ-check" key={i}>
-                <div className="occ-check-title">{c.title}</div>
+                <div className="occ-check-title">
+                  {c.title}
+                  {drivingIds.has(c.id) && <span className="occ-key-check">Key check</span>}
+                </div>
                 <div className="occ-check-takeaway">{c.takeaway}</div>
                 <p className="occ-check-detail">{c.detail}</p>
                 {c.evidenceCount > 0 && (

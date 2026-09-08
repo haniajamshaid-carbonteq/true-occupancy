@@ -611,8 +611,35 @@
 .occ-report .occ-meter-track { height: 5pt; border-radius: 3pt; background: var(--surface-2); overflow: hidden; }
 .occ-report .occ-meter-fill { height: 100%; border-radius: 3pt; }
 
+/* --- Occupancy signal headline + combined read --- */
+.occ-report .occ-signal-dot { display: inline-block; width: 8pt; height: 8pt; border-radius: 50%; margin-right: 6pt; vertical-align: 2pt; }
+.occ-report .occ-signal-strength {
+  display: inline-block; margin-left: 8pt; padding: 1.5pt 7pt; border-radius: 999pt;
+  border: 0.75pt solid; font-size: 7pt; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; vertical-align: 4pt;
+}
+.occ-report .occ-case-type { margin-top: 4pt; font-size: 8.5pt; color: var(--ink-3); }
+.occ-report .occ-combined {
+  margin-top: 12pt;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10pt;
+  break-inside: avoid;
+}
+.occ-report .occ-lens { border: 0.6pt solid var(--line); border-radius: 5pt; padding: 8pt 10pt; }
+.occ-report .occ-lens-label { text-transform: uppercase; font-size: 7pt; letter-spacing: 0.12em; color: var(--ink-3); font-weight: 600; }
+.occ-report .occ-lens-value { margin-top: 2pt; font-size: 10pt; font-weight: 700; color: var(--navy); }
+.occ-report .occ-lens-hint { margin-top: 1.5pt; font-size: 7.5pt; color: var(--ink-3); }
+.occ-report .occ-combined-synthesis { grid-column: 1 / -1; margin: 2pt 0 0; font-size: 9.5pt; color: var(--ink-2); line-height: 1.45; }
+.occ-report .occ-key-check {
+  display: inline-block; margin-left: 6pt; padding: 1pt 6pt; border-radius: 999pt;
+  background: var(--brand-soft); color: var(--brand-deep);
+  font-size: 6.5pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  vertical-align: 1.5pt;
+}
+
 /* --- Do this next --- */
-.occ-report .occ-next { margin-top: 14pt; }
+.occ-report .occ-next { margin-top: 14pt; border-left: 4pt solid var(--brand-deep); padding-left: 12pt; }
 .occ-report .occ-next-body { margin: 0; font-size: 10pt; color: var(--ink-2); line-height: 1.45; }
 .occ-report .occ-next-lead { color: var(--navy); font-weight: 700; }
 

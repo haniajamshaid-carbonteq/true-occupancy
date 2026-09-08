@@ -257,7 +257,9 @@ const INTENDED_OCCUPANCY_LABEL: Record<IntendedOccupancy, string> = {
 // CSV parser plugs into; the prototype seeds already-canonical values.
 function normalizeIntent(raw: string): IntendedOccupancy | null {
   const s = (raw || '').trim().toLowerCase();
-  if (!s) return 'not-sure';
+  // A blank cell is NOT "Not sure" — Universal intended behaviour pre-fills
+  // it with the org's default type. Only an explicit marker maps to not-sure.
+  if (!s) return DEFAULT_OCC_CONFIG.defaultIntent;
   if (['owner-occupied', 'owner occupied', 'owner', 'primary', 'primary residence', 'oo', 'o', 'p', '1'].includes(s)) return 'owner-occupied';
   if (['rental', 'investment', 'investment property', 'investor', 'non-owner', 'nonowner', 'noo', 'i', '3'].includes(s)) return 'rental';
   if (['second-home', 'second home', '2nd home', 'secondary', 'vacation', 'seasonal', 's', '2'].includes(s)) return 'second-home';
@@ -268,9 +270,11 @@ function normalizeIntent(raw: string): IntendedOccupancy | null {
 // ---- Declared-occupancy resolver (Trello #34) ---------------------------
 // The declared twin of occMatchForRisk: one source of truth for "what was
 // this address intended as", consumed by every list column and run row.
-// Never returns blank — an undeclared address resolves to 'not-sure'.
+// Never returns blank — an undeclared address resolves to the org's default
+// type (Universal intended behaviour pre-fills every scan), never to
+// 'not-sure': Not sure is only ever an explicit declaration.
 function resolveIntent(row: { intent?: IntendedOccupancy } | undefined, defaultIntent?: IntendedOccupancy): IntendedOccupancy {
-  return row?.intent ?? defaultIntent ?? 'not-sure';
+  return row?.intent ?? defaultIntent ?? DEFAULT_OCC_CONFIG.defaultIntent;
 }
 
 // Summarise a batch's declared side for a one-row list cell: every address
@@ -287,7 +291,7 @@ function summarizeBatchIntent(
   });
   const keys = Object.keys(counts);
   if (keys.length <= 1) {
-    return { kind: 'uniform', intent: (keys[0] as IntendedOccupancy) ?? defaultIntent ?? 'not-sure', counts };
+    return { kind: 'uniform', intent: (keys[0] as IntendedOccupancy) ?? defaultIntent ?? DEFAULT_OCC_CONFIG.defaultIntent, counts };
   }
   return { kind: 'mixed', counts };
 }
@@ -508,15 +512,18 @@ const SEED_HISTORY: HistoryEntry[] = [
   { id: 'h06', kind: 'single', address: '301 Merrimon Ave, Asheville, NC 28804',      scenario: 'medium', platforms: 1, scannedAt: seedTime('7h'), intent: 'owner-occupied'    },
   { id: 'h07', kind: 'single', address: '145 Westchester Dr, Asheville, NC 28803',    scenario: 'high',   platforms: 3, scannedAt: seedTime('1d'), intent: 'owner-occupied', configVersion: 2, thresholds: SEED_THRESHOLDS_V2 },
   { id: 'h08', kind: 'single', address: '23 Tunnel Rd, Asheville, NC 28805',          scenario: 'low',    platforms: 0, scannedAt: seedTime('1d') },
-  { id: 'h09', kind: 'single', address: '215 Edgewood Rd, Asheville, NC 28804',       scenario: 'medium', platforms: 1, scannedAt: seedTime('1d') },
+  // Explicit "Not sure" declarations (owner call, 2026-09-03): these display
+  // the finding alone — Rented / Unsure / Not rented — instead of a
+  // reconciliation. One per scenario so all three finding pills are on show.
+  { id: 'h09', kind: 'single', address: '215 Edgewood Rd, Asheville, NC 28804',       scenario: 'medium', platforms: 1, scannedAt: seedTime('1d'), intent: 'not-sure' },
   { id: 'hb2', kind: 'batch',  filename: 'lender-portfolio-jan.csv', total: 42, flagged: 9, warn: 8, clean: 25, failed: 0, status: 'complete', scannedAt: seedTime('2d'), rows: SEED_BATCH_LENDER_ROWS, defaultIntent: 'owner-occupied' },
   { id: 'hb3', kind: 'batch',  filename: 'permit-sweep-dec.csv',     total: 8,  flagged: 2, warn: 1, clean: 3, failed: 2, status: 'partial', scannedAt: seedTime('3d'), rows: SEED_BATCH_PARTIAL_ROWS, defaultIntent: 'rental' },
   { id: 'hb4', kind: 'batch',  filename: 'short-sweep-nov.csv',      total: 4,  flagged: 0, warn: 0, clean: 0, failed: 4, status: 'failed',  scannedAt: seedTime('5d'), rows: SEED_BATCH_FAILED_ROWS },
-  { id: 'h10', kind: 'single', address: '450 Patton Ave, Asheville, NC 28806',        scenario: 'high',   platforms: 2, scannedAt: seedTime('2d')   },
+  { id: 'h10', kind: 'single', address: '450 Patton Ave, Asheville, NC 28806',        scenario: 'high',   platforms: 2, scannedAt: seedTime('2d'), intent: 'not-sure' },
   { id: 'h11', kind: 'single', address: '12 Hillside St, Asheville, NC 28801',        scenario: 'low',    platforms: 0, scannedAt: seedTime('2d')   },
   { id: 'h12', kind: 'single', address: '156 Sand Hill Rd, Asheville, NC 28806',      scenario: 'high',   platforms: 3, scannedAt: seedTime('3d')   },
   { id: 'h13', kind: 'single', address: '89 Beverly Rd, Asheville, NC 28805',         scenario: 'medium', platforms: 1, scannedAt: seedTime('3d')   },
-  { id: 'h14', kind: 'single', address: '720 Haywood Rd, Asheville, NC 28806',        scenario: 'low',    platforms: 0, scannedAt: seedTime('4d')   },
+  { id: 'h14', kind: 'single', address: '720 Haywood Rd, Asheville, NC 28806',        scenario: 'low',    platforms: 0, scannedAt: seedTime('4d'), intent: 'not-sure' },
   { id: 'h15', kind: 'single', address: '301 Lakeshore Dr, Asheville, NC 28804',      scenario: 'high',   platforms: 2, scannedAt: seedTime('5d')   },
   { id: 'h16', kind: 'single', address: '44 Pine Cone Ln, Asheville, NC 28803',       scenario: 'medium', platforms: 1, scannedAt: seedTime('6d')   },
   { id: 'h17', kind: 'single', address: '987 Sunset Pkwy, Asheville, NC 28806',       scenario: 'low',    platforms: 0, scannedAt: seedTime('1w')   },

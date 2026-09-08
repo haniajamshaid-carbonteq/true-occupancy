@@ -1,6 +1,8 @@
 /* global React, ReactRouterDOM, Card, Button, Icon, Drawer, AI_INVESTIGATIONS,
    useAIInvestigator, startAIInvestigation, resetAIInvestigation,
-   parseAIDemoStatus, formatReportDate, formatUsDateTime, ServedStamp */
+   parseAIDemoStatus, formatReportDate, formatUsDateTime, ServedStamp,
+   SCENARIOS, displayConfidence, occSignalMeta, OCC_SIGNAL_TONE_VARS,
+   occRecordsSummary, occCombinedSynthesis */
 // AIInvestigator — a second-opinion module that runs after the rule-based
 // verdict has rendered. Sits between ConfidenceHero and ListingsPanel on
 // the three result screens.
@@ -110,6 +112,115 @@ const AI_BAND_NEXT_STEP: Record<AIVerdictBand, { lead: string; detail: string }>
   },
 };
 
+// -------------------------------------------------------------------------
+// Occupancy signal + Combined Read — the shared headline built from the
+// structured `occupancySignal` in the 2026-09 batch runs. Rendered full-size
+// at the top of the drawer body, and in a compact form as the digest title.
+// The signal→tone mapping lives in aiInvestigation.tsx so the digest, the
+// drawer and the PDF can never disagree on a colour.
+
+/** Scenario stamped at scan time — fallback when a caller can't pass one. */
+function occSessionScenario(): ScenarioKey | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  const s = sessionStorage.getItem('scanScenario');
+  return s === 'low' || s === 'medium' || s === 'high' ? s : null;
+}
+
+/** The listing-scan lens: verdict + confidence, derived from SCENARIOS the
+ *  same way the certificate does. Null when the scenario data isn't loaded
+ *  (spec hosts) — the header then renders the records lens alone. */
+function occListingLens(
+  scenario?: ScenarioKey | null
+): { key: 'rented' | 'likely' | 'not-rented'; label: string; pct: number } | null {
+  const sc = scenario || occSessionScenario();
+  if (!sc || typeof SCENARIOS === 'undefined' || !SCENARIOS[sc]) return null;
+  const key = sc === 'high' ? 'rented' : sc === 'medium' ? 'likely' : 'not-rented';
+  const label = key === 'rented' ? 'Rented' : key === 'likely' ? 'Likely Rented' : 'Not Rented';
+  const raw = key === 'not-rented' ? 100 - SCENARIOS[sc].score : SCENARIOS[sc].score;
+  const pct = typeof displayConfidence === 'function' ? displayConfidence(raw) : raw;
+  return { key, label, pct };
+}
+
+function OccLens({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-md border border-line px-3 py-2.5 min-w-0">
+      <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.1em] text-ink-3">
+        {label}
+      </div>
+      <div className="font-sans text-body-sm font-semibold mt-1" style={{ color: 'var(--navy)' }}>
+        {value}
+      </div>
+      {hint && <div className="font-sans text-micro text-ink-3 mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
+function OccupancySignalHeader({
+  result,
+  scenario,
+}: {
+  result: AIInvestigationResult;
+  scenario?: ScenarioKey;
+}) {
+  const sig = result.occupancySignal;
+  if (!sig) return null;
+  const meta = occSignalMeta(sig.signal, sig.strength);
+  const tone = OCC_SIGNAL_TONE_VARS[meta.tone];
+  const lens = occListingLens(scenario);
+  const records = occRecordsSummary(result);
+  const synthesis = occCombinedSynthesis(lens ? lens.key : null, sig.signal);
+  const strengthLabel = sig.strength.charAt(0).toUpperCase() + sig.strength.slice(1);
+
+  return (
+    <section className="rounded-lg border border-line overflow-hidden">
+      {/* Signal band — the colour-first headline. */}
+      <div
+        className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap"
+        style={{ background: tone.soft }}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span
+            className="w-2.5 h-2.5 rounded-full shrink-0"
+            style={{ background: tone.dot }}
+            aria-hidden
+          />
+          <span
+            className="font-sans font-semibold leading-tight"
+            style={{ fontSize: 'var(--text-h4)', color: tone.ink }}
+          >
+            {meta.label}
+          </span>
+        </div>
+        <span
+          className="inline-flex items-center h-6 px-2.5 rounded-full font-sans text-micro font-semibold uppercase tracking-[0.06em] shrink-0"
+          style={{ color: tone.ink, boxShadow: `inset 0 0 0 1px ${tone.dot}` }}
+        >
+          {strengthLabel} signal
+        </span>
+      </div>
+
+      {/* Combined read — the two lenses plus the one-line synthesis. */}
+      <div className="p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {lens && (
+            <OccLens
+              label="Listing scan"
+              value={`${lens.label} · ${lens.pct}%`}
+              hint="Airbnb, Vrbo & Facebook matches"
+            />
+          )}
+          <OccLens
+            label="Records"
+            value={`${meta.label} · ${sig.strength}`}
+            hint={records || 'Public-records investigation'}
+          />
+        </div>
+        <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-3">{synthesis}</p>
+      </div>
+    </section>
+  );
+}
+
 function AIInvestigator({
   scenario,
   forcedStatus,
@@ -162,6 +273,7 @@ function AIInvestigator({
       <ReportCard
         result={AI_INVESTIGATIONS[scenario]}
         generatedAt={new Date().toISOString()}
+        scenario={scenario}
       />
     );
   }
@@ -170,7 +282,9 @@ function AIInvestigator({
   // is generated once per scan and survives navigation away and back.
   const stored = bus.reports[scenario];
   if (stored) {
-    return <ReportCard result={stored.result} generatedAt={stored.generatedAt} />;
+    return (
+      <ReportCard result={stored.result} generatedAt={stored.generatedAt} scenario={scenario} />
+    );
   }
 
   const status = bus.scenario === scenario ? bus.status : 'idle';
@@ -195,6 +309,7 @@ function AIInvestigator({
       <ReportCard
         result={bus.result}
         generatedAt={bus.reports[scenario]?.generatedAt || new Date().toISOString()}
+        scenario={scenario}
       />
     );
   }
@@ -549,15 +664,31 @@ function Spinner({ size = 14 }: { size?: number }) {
 function ReportCard({
   result,
   generatedAt,
+  scenario,
   renderInline = false,
 }: {
   result: AIInvestigationResult;
   generatedAt: string;
+  /** Scenario for the listing-scan lens in the combined read. Optional —
+   *  falls back to the scan stamp in sessionStorage; absent both, the digest
+   *  renders the records lens alone. */
+  scenario?: ScenarioKey;
   /** Spec-only: render the full report inline beneath the digest instead of
    *  behind the Drawer portal, so a static handoff frame can show both. */
   renderInline?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
+
+  // Occupancy-signal takeover of the digest headline: the structured signal
+  // (with its RAG tone + strength) replaces the jargon archetype string, and
+  // the combined-read synthesis ties it to the listing-scan verdict shown in
+  // the hero above. Archetype still titles the drawer, and cases without a
+  // signal fall back to it here.
+  const sig = result.occupancySignal;
+  const sigMeta = sig ? occSignalMeta(sig.signal, sig.strength) : null;
+  const sigTone = sigMeta ? OCC_SIGNAL_TONE_VARS[sigMeta.tone] : null;
+  const sigLens = sig ? occListingLens(scenario) : null;
+  const sigSynthesis = sig ? occCombinedSynthesis(sigLens ? sigLens.key : null, sig.signal) : null;
 
   return (
     <Card padded={false} className="card-rise" allowOverflow>
@@ -569,12 +700,39 @@ function ReportCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <SlotEyebrow />
-            <SlotTitle>{result.caseArchetype}</SlotTitle>
+            {sig && sigMeta && sigTone ? (
+              <div className="flex items-center gap-2.5 flex-wrap mt-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ background: sigTone.dot }}
+                  aria-hidden
+                />
+                <h2
+                  className="font-sans font-semibold m-0 leading-tight tracking-[-0.008em]"
+                  style={{ fontSize: 'var(--text-h4)', color: 'var(--navy)' }}
+                >
+                  {sigMeta.label}
+                </h2>
+                <span
+                  className="inline-flex items-center h-5 px-2 rounded-full font-sans text-micro font-semibold uppercase tracking-[0.06em] shrink-0"
+                  style={{ background: sigTone.soft, color: sigTone.ink }}
+                >
+                  {sig.strength} signal
+                </span>
+              </div>
+            ) : (
+              <SlotTitle>{result.caseArchetype}</SlotTitle>
+            )}
           </div>
         </div>
         <div className="mt-2">
           <ServedStamp />
         </div>
+        {sigSynthesis && (
+          <p className="font-sans text-caption text-ink-2 leading-relaxed m-0 mt-2 max-w-2xl">
+            {sigSynthesis}
+          </p>
+        )}
 
         <div className="mt-5 flex flex-wrap items-baseline gap-x-6 gap-y-2">
           <DigestStat label="Occupancy score" value={`${result.score}/${result.scoreMax}`} />
@@ -603,7 +761,7 @@ function ReportCard({
         <div className="border-t border-line p-card">
           {/* Inline (spec) mode: the digest header just above carries the
               date, so the body renders on its own. */}
-          <ReportBody result={result} />
+          <ReportBody result={result} scenario={scenario} />
         </div>
       ) : (
         <>
@@ -636,7 +794,7 @@ function ReportCard({
             title={<span className="block">{result.caseArchetype}</span>}
             width={600}
           >
-            <ReportBody result={result} />
+            <ReportBody result={result} scenario={scenario} />
           </Drawer>
         </>
       )}
@@ -664,10 +822,21 @@ function DigestStat({ label, value }: { label: string; value: string }) {
 // The full report body — the five sections. Rendered inside the Drawer (or
 // inline in spec mode); the container supplies the surrounding padding, so
 // this adds none of its own.
-function ReportBody({ result }: { result: AIInvestigationResult }) {
+function ReportBody({
+  result,
+  scenario,
+}: {
+  result: AIInvestigationResult;
+  scenario?: ScenarioKey;
+}) {
   return (
     <div>
-      {/* Key findings, summarized — leads the drawer so the answer is legible
+      {/* The occupancy signal + combined read — the colour-first headline
+          from the structured batch-run adjudication, tying the listing-scan
+          verdict to the records read. First thing visible on open. */}
+      <OccupancySignalHeader result={result} scenario={scenario} />
+
+      {/* Key findings, summarized — leads the prose so the answer is legible
           the moment it opens (Jim/Erin, 2026-09-03). */}
       <ExecutiveSummary result={result} />
 
@@ -939,6 +1108,10 @@ const ANALYSIS_DIRECTION: Record<
 function DetailedAnalysisSection({ result }: { result: AIInvestigationResult }) {
   const items = result.detailedAnalysis;
   if (!items.length) return null;
+  // Checks that actually drove the adjudication (occupancySignal.
+  // drivingHeuristicIds) get a "Key check" badge so the reader can separate
+  // the checks that mattered from the ones that merely ran.
+  const driving = new Set(result.occupancySignal?.drivingHeuristicIds || []);
   return (
     <section className="mt-10">
       <SectionHeading>Detailed analysis</SectionHeading>
@@ -947,7 +1120,7 @@ function DetailedAnalysisSection({ result }: { result: AIInvestigationResult }) 
       </p>
       <div className="mt-3 rounded-lg border border-line">
         {items.map((item, i) => (
-          <AnalysisRow key={item.id} item={item} isFirst={i === 0} />
+          <AnalysisRow key={item.id} item={item} isFirst={i === 0} isKey={driving.has(item.id)} />
         ))}
       </div>
     </section>
@@ -957,9 +1130,12 @@ function DetailedAnalysisSection({ result }: { result: AIInvestigationResult }) 
 function AnalysisRow({
   item,
   isFirst,
+  isKey,
 }: {
   item: AIInvestigationResult['detailedAnalysis'][number];
   isFirst?: boolean;
+  /** This check is one of the adjudicator's driving heuristics. */
+  isKey?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const visual = ANALYSIS_DIRECTION[item.direction];
@@ -980,11 +1156,21 @@ function AnalysisRow({
         </span>
         <span className="flex-1 min-w-0">
           <span className="flex items-center justify-between gap-2">
-            <span
-              className="font-sans font-medium text-ink"
-              style={{ fontSize: 'var(--text-body-sm)' }}
-            >
-              {item.title}
+            <span className="flex items-center gap-2 min-w-0">
+              <span
+                className="font-sans font-medium text-ink"
+                style={{ fontSize: 'var(--text-body-sm)' }}
+              >
+                {item.title}
+              </span>
+              {isKey && (
+                <span
+                  className="inline-flex items-center h-5 px-2 rounded-full font-sans text-micro font-semibold uppercase tracking-[0.06em] shrink-0"
+                  style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}
+                >
+                  Key check
+                </span>
+              )}
             </span>
             <span
               className={`w-5 h-5 grid place-items-center text-ink-3 shrink-0 transition-transform ${

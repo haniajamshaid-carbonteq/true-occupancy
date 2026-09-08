@@ -216,10 +216,14 @@ const VERDICT_TEXT: Record<ScenarioKey, string> = {
 };
 
 // Tone → the ink colour used for the small status dot in the "why" block.
-const TONE_INK: Record<'clean' | 'warn' | 'risk', string> = {
+const TONE_INK: Record<string, string> = {
   clean: 'var(--clean-ink)',
   warn: 'var(--warn-deep)',
   risk: 'var(--risk-ink)',
+  // Categorical verdict tones — the Not-sure finding display (occMatchForRisk).
+  'verdict-high': 'var(--verdict-high-ink)',
+  'verdict-med': 'var(--verdict-med-ink)',
+  'verdict-low': 'var(--verdict-low-ink)',
 };
 
 // The session keys that together describe "which report is this page showing".
