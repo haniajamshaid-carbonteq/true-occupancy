@@ -30,14 +30,13 @@ function BatchDetailScreen() {
 
   return (
     <AppShell>
-      {/* Back — batches are reached from History (or Scheduled); goBack keeps
-          the origin, falling back to History on a cold/deep link. */}
+      {/* Back — always lands on the batches table (History), regardless of
+          whether the user arrived from Dashboard, Scheduled, or a deep link.
+          "Back" on a batch means "back to the batch table", so it pushes
+          rather than popping the browser stack. */}
       <button
         type="button"
-        onClick={() => {
-          if (routerHistory.length > 1) routerHistory.goBack();
-          else routerHistory.push('/history');
-        }}
+        onClick={() => routerHistory.push('/history')}
         className="group inline-flex items-center gap-1 h-9 px-2.5 -ml-2.5 mb-stack rounded-md bg-transparent border-0 text-label text-ink-2 hover:bg-hover-bg transition-colors cursor-pointer"
         aria-label="Back"
       >

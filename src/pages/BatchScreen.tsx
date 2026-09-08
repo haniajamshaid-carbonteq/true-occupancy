@@ -90,7 +90,48 @@ function BatchScreen() {
   //   - BatchResults renders the editable batch title + identity strip.
   // Keeping it inside each branch lets the loaded state replace the page
   // header copy entirely instead of stacking two headings.
-  return <AppShell>{liveBatch ? <BatchResults batch={liveBatch} /> : <BatchUpload />}</AppShell>;
+  return (
+    <AppShell>
+      {liveBatch ? (
+        <>
+          {/* Back — same affordance as BatchDetailScreen so the live batch
+              view is never a dead end. Always lands on the batches table
+              (History), never wherever the browser stack happens to point. */}
+          <BackToTableButton />
+          <BatchResults batch={liveBatch} />
+        </>
+      ) : (
+        <BatchUpload />
+      )}
+    </AppShell>
+  );
+}
+
+// The Back control shared in shape with BatchDetailScreen's — lives here for
+// the live-batch state, which previously had no way back to the batches table.
+// Deliberately push (not goBack): the browser stack behind a live batch is
+// often a single-scan page or the upload form, and "Back" here means "back to
+// the batches table", so it always routes to History.
+function BackToTableButton() {
+  const routerHistory = ReactRouterDOM.useHistory();
+  return (
+    <button
+      type="button"
+      onClick={() => routerHistory.push('/history')}
+      className="group inline-flex items-center gap-1 h-9 px-2.5 -ml-2.5 mb-stack rounded-md bg-transparent border-0 text-label text-ink-2 hover:bg-hover-bg transition-colors cursor-pointer"
+      aria-label="Back"
+    >
+      <span
+        className="grid place-items-center w-4 h-4 transition-transform group-hover:-translate-x-0.5 [&>svg]:w-3.5 [&>svg]:h-3.5"
+        aria-hidden
+      >
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+          <path d="m10 4-4 4 4 4" />
+        </svg>
+      </span>
+      <span>Back</span>
+    </button>
+  );
 }
 
 // ---------- Empty state: upload form ----------
