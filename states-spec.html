@@ -179,6 +179,11 @@
     'src/components/notification/NotificationPill.tsx',
     'src/components/notification/NotificationDock.tsx',
     // 6. Pages used by the states spec
+    // RedFlag + BatchRedBadge live here and are rendered by DataTable rows on
+    // HomeScreen, HistoryScreen and ScheduledScreen below. Not a screen this
+    // host routes to — loaded for those two exports. Its own deps (AppShell,
+    // DataTable, ScreenEmpty/Error, the OCC_* labels) are all above.
+    'src/pages/RedAddressesScreen.tsx',
     'src/pages/HomeScreen.tsx',
     'src/pages/HistoryScreen.tsx',
     'src/pages/ScheduledScreen.tsx',
