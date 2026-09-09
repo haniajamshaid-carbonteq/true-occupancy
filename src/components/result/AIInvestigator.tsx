@@ -2,7 +2,9 @@
    useAIInvestigator, startAIInvestigation, resetAIInvestigation,
    parseAIDemoStatus, formatReportDate, formatUsDateTime, ServedStamp,
    SCENARIOS, displayConfidence, occSignalMeta, OCC_SIGNAL_TONE_VARS,
-   occRecordsSummary, occCombinedSynthesis, OCC_STRENGTH_DEF */
+   occRecordsSummary, occCombinedSynthesis, OCC_STRENGTH_DEF,
+   occStrengthCategory, OCC_SCAN_VERDICT_LABEL, OCC_CORROBORATION_META,
+   occCorroborationLine */
 // AIInvestigator — a second-opinion module that runs after the rule-based
 // verdict has rendered. Sits between ConfidenceHero and ListingsPanel on
 // the three result screens.
@@ -86,9 +88,13 @@ const AI_BAND_COPY: Record<AIVerdictBand, { variant: 'clean' | 'warn' | 'risk' |
 // describe the action to take, never grade the finding as good or bad.
 const AI_BAND_NEXT_STEP: Record<AIVerdictBand, { lead: string; detail: string }> = {
   high_priority_review: {
+    // Band copy, not case copy: it must hold for every high-priority case,
+    // including a conflicting one where the owner is still present on paper.
+    // The old wording asserted "an absentee-owner property", which the
+    // 2026-09-08 mixed-evidence run directly contradicts.
     lead: 'Priority review',
     detail:
-      'A strong non-owner-occupancy pattern at an absentee-owner property. Move this to the top of the queue for a person to work.',
+      'Non-owner occupancy is corroborated strongly enough to act on, whatever the owner records say. Move this to the top of the queue for a person to work.',
   },
   review: {
     lead: 'Manual review',
@@ -164,12 +170,23 @@ function OccupancySignalHeader({
 }) {
   const sig = result.occupancySignal;
   if (!sig) return null;
-  const meta = occSignalMeta(sig.signal, sig.strength);
+  const cat = occStrengthCategory(sig);
+  const meta = occSignalMeta(sig.signal, cat);
   const tone = OCC_SIGNAL_TONE_VARS[meta.tone];
-  const lens = occListingLens(scenario);
+  // The backend's own corroboration verdict wins over the client-derived
+  // listing lens; older runs without one fall back to the derived pair.
+  const cor = result.corroboration;
+  const corMeta = cor ? OCC_CORROBORATION_META[cor.state] : null;
+  const lens = cor ? null : occListingLens(scenario);
   const records = occRecordsSummary(result);
-  const synthesis = occCombinedSynthesis(lens ? lens.key : null, sig.signal);
-  const strengthLabel = sig.strength.charAt(0).toUpperCase() + sig.strength.slice(1);
+  const synthesis = cor
+    ? occCorroborationLine(cor.state)
+    : occCombinedSynthesis(lens ? lens.key : null, sig.signal);
+  const strengthLabel = cat.charAt(0).toUpperCase() + cat.slice(1);
+  const strengthChip =
+    typeof sig.strengthScore === 'number'
+      ? `${strengthLabel} signal · ${sig.strengthScore}/10`
+      : `${strengthLabel} signal`;
 
   return (
     <section className="rounded-lg border border-line overflow-hidden">
@@ -195,25 +212,38 @@ function OccupancySignalHeader({
           className="inline-flex items-center h-6 px-2.5 rounded-full font-sans text-micro font-semibold uppercase tracking-[0.06em] shrink-0"
           style={{ color: tone.ink, boxShadow: `inset 0 0 0 1px ${tone.dot}` }}
         >
-          {strengthLabel} signal
+          {strengthChip}
         </span>
       </div>
 
       {/* Combined read — the two lenses plus the one-line synthesis. */}
       <div className="p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {lens && (
+        <div className={`grid grid-cols-1 gap-3 ${cor ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+          {cor ? (
+            <OccLens
+              label="Listing scan"
+              value={OCC_SCAN_VERDICT_LABEL[cor.scanVerdict] || cor.scanVerdict}
+              hint="Property scan verdict"
+            />
+          ) : lens ? (
             <OccLens
               label="Listing scan"
               value={`${lens.label} · ${lens.pct}%`}
               hint="Airbnb, Vrbo & Facebook matches"
             />
-          )}
+          ) : null}
           <OccLens
             label="Records"
-            value={`${meta.label} · ${sig.strength}`}
+            value={`${meta.label} · ${cat}`}
             hint={records || 'Public-records investigation'}
           />
+          {cor && corMeta && (
+            <OccLens
+              label="Agreement"
+              value={`${cor.agreement}/100 · ${corMeta.shortLabel}`}
+              hint="Listing scan vs. records"
+            />
+          )}
         </div>
         <p className="font-sans text-body-sm text-ink-2 leading-relaxed m-0 mt-3">{synthesis}</p>
         {/* The strength grade, defined in place — "moderate signal" must
@@ -222,7 +252,7 @@ function OccupancySignalHeader({
           <span className="font-semibold" style={{ color: 'var(--ink-2)' }}>
             {strengthLabel} signal:
           </span>{' '}
-          {OCC_STRENGTH_DEF[sig.strength]}
+          {OCC_STRENGTH_DEF[cat]}
         </p>
       </div>
     </section>
@@ -693,17 +723,24 @@ function ReportCard({
   // the hero above. Archetype still titles the drawer, and cases without a
   // signal fall back to it here.
   const sig = result.occupancySignal;
-  const sigMeta = sig ? occSignalMeta(sig.signal, sig.strength) : null;
+  const sigCat = sig ? occStrengthCategory(sig) : null;
+  const sigMeta = sig && sigCat ? occSignalMeta(sig.signal, sigCat) : null;
   const sigTone = sigMeta ? OCC_SIGNAL_TONE_VARS[sigMeta.tone] : null;
-  const sigLens = sig ? occListingLens(scenario) : null;
-  const sigSynthesis = sig ? occCombinedSynthesis(sigLens ? sigLens.key : null, sig.signal) : null;
+  const sigCor = result.corroboration;
+  const sigCorMeta = sigCor ? OCC_CORROBORATION_META[sigCor.state] : null;
+  const sigCorTone = sigCorMeta ? OCC_SIGNAL_TONE_VARS[sigCorMeta.tone] : null;
+  const sigLens = sig && !sigCor ? occListingLens(scenario) : null;
+  const sigSynthesis = sig
+    ? sigCor
+      ? occCorroborationLine(sigCor.state)
+      : occCombinedSynthesis(sigLens ? sigLens.key : null, sig.signal)
+    : null;
 
   return (
     <Card padded={false} className="card-rise" allowOverflow>
-      {/* Digest. Header leads with the finding, then the two headline scores
-          on one compact line (not the full ScoreTile boxes — those are the
-          drawer's job), then the single action. Enough to act on or to decide
-          to open; not the whole report. */}
+      {/* Digest. Header leads with the finding, then the agreement figure on
+          one compact line, then the single action. Enough to act on or to
+          decide to open; not the whole report. */}
       <div className="p-card">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -725,7 +762,9 @@ function ReportCard({
                   className="inline-flex items-center h-5 px-2 rounded-full font-sans text-micro font-semibold uppercase tracking-[0.06em] shrink-0"
                   style={{ background: sigTone.soft, color: sigTone.ink }}
                 >
-                  {sig.strength} signal
+                  {typeof sig.strengthScore === 'number'
+                    ? `${sigCat} signal · ${sig.strengthScore}/10`
+                    : `${sigCat} signal`}
                 </span>
               </div>
             ) : (
@@ -736,16 +775,44 @@ function ReportCard({
         <div className="mt-2">
           <ServedStamp />
         </div>
-        {sigSynthesis && (
-          <p className="font-sans text-caption text-ink-2 leading-relaxed m-0 mt-2 max-w-2xl">
-            {sigSynthesis}
-          </p>
+        {sigCor && sigCorMeta && sigCorTone && (
+          <div className="mt-3 flex items-center gap-2 flex-wrap font-sans text-caption">
+            <span className="text-ink-3">Property scan</span>
+            <span className="font-semibold" style={{ color: 'var(--navy)' }}>
+              {OCC_SCAN_VERDICT_LABEL[sigCor.scanVerdict] || sigCor.scanVerdict}
+            </span>
+            <span className="text-ink-4" aria-hidden>·</span>
+            {/* Tone follows the corroboration state, not a fixed amber:
+                agree reads clean, mixed warn, disagree risk. */}
+            <span className="font-semibold" style={{ color: sigCorTone.ink }}>
+              {sigCorMeta.label}
+            </span>
+          </div>
         )}
-
-        <div className="mt-5 flex flex-wrap items-baseline gap-x-6 gap-y-2">
-          <DigestStat label="Occupancy score" value={`${result.score}/${result.scoreMax}`} />
-          <DigestStat label="Evidence clarity" value={`${result.clarityScore}/${result.clarityMax}`} />
-        </div>
+        {/* The one score this card carries, in the same shape ConfidenceHero
+            gives the confidence figure: tracked eyebrow, then the number in
+            bold folded into the clause it qualifies. The calibrated occupancy
+            score and evidence-clarity grade were dropped (client ask,
+            2026-09-09) — the run emits neither. The figure appears once: the
+            synthesis prose that used to restate it now says only what the
+            tie means, and renders in the drawer rather than here. */}
+        {sigCor && sigCorMeta ? (
+          <div className="mt-4">
+            <div className="font-sans text-eyebrow font-semibold uppercase tracking-eyebrow-loose text-ink-3">
+              Agreement
+            </div>
+            <div className="mt-1 font-sans text-label text-ink-3 tabular-nums">
+              <span className="font-semibold text-ink-2">{sigCor.agreement}/100</span>{' '}
+              {sigCorMeta.line}
+            </div>
+          </div>
+        ) : (
+          sigSynthesis && (
+            <p className="font-sans text-caption text-ink-2 leading-relaxed m-0 mt-2 max-w-2xl">
+              {sigSynthesis}
+            </p>
+          )
+        )}
 
         <div className="mt-5 flex items-baseline gap-2 flex-wrap">
           <span className="font-sans text-eyebrow font-semibold uppercase tracking-[0.1em] text-ink-3 shrink-0">
@@ -807,23 +874,6 @@ function ReportCard({
         </>
       )}
     </Card>
-  );
-}
-
-// Compact inline stat for the digest: value-first, label trailing. Lighter
-// than the drawer's ScoreTile boxes on purpose — the digest summarises, the
-// drawer carries the full treatment.
-function DigestStat({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="inline-flex items-baseline gap-1.5">
-      <span
-        className="font-sans font-semibold tabular-nums leading-none"
-        style={{ color: 'var(--navy)', fontSize: 'var(--text-body)' }}
-      >
-        {value}
-      </span>
-      <span className="font-sans text-caption text-ink-3">{label}</span>
-    </span>
   );
 }
 
@@ -908,26 +958,11 @@ function ReportBody({
         </div>
       </div>
 
-      {/* Scores — below the findings (client ask, 2026-09-08) under a
-          proper heading: the numbers support the findings rather than lead
-          them, and each one is defined so neither reads as a bare figure. */}
-      <section className="mt-10">
-        <SectionHeading>Scores</SectionHeading>
-        <p className="font-sans text-caption text-ink-3 leading-relaxed m-0 mt-1">
-          Occupancy score grades how strongly the records point to non-owner use.
-          Evidence clarity grades how well the records support a determination at all.
-        </p>
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <ScoreTile
-            label="Occupancy score"
-            value={`${result.score}/${result.scoreMax}`}
-          />
-          <ScoreTile
-            label="Evidence clarity"
-            value={`${result.clarityScore}/${result.clarityMax}`}
-          />
-        </div>
-      </section>
+      {/* The Scores section that used to sit here — a calibrated occupancy
+          score and an evidence-clarity grade, both out of 10 — was removed
+          (client ask, 2026-09-09). Neither figure exists in the run; the one
+          0-100 score it does emit is `corroboration.agreement`, which the
+          combined read at the top of this drawer already carries. */}
 
       {/* Supporting sections. Separated by space, not rules. */}
       <DataGapsSection result={result} />
@@ -1308,32 +1343,6 @@ function AnalysisRow({
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-// Numeral-first stat tile. The value carries --navy rather than a band
-// tone: colouring it would put the status layer on a number that already
-// has a band pill's worth of meaning elsewhere, and the three colour
-// layers stay separate (harness §2).
-function ScoreTile({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-lg border border-brand-2 px-6 py-5 text-center min-w-0">
-      <div
-        className="font-sans font-semibold text-h2 leading-none tabular-nums"
-        style={{ color: 'var(--navy)' }}
-      >
-        {value}
-      </div>
-      <div className="font-sans text-eyebrow font-semibold uppercase tracking-[0.14em] text-ink-3 mt-2.5 whitespace-nowrap">
-        {label}
-      </div>
     </div>
   );
 }

@@ -551,6 +551,26 @@
  *  NOT use .certificate-sheet — that carries page-break-inside: avoid, which
  *  would clip a long report onto one page. Page 1 is a self-contained
  *  executive brief; .occ-break forces the dossier onto a fresh page.
+ *
+ *  PAGE BUDGET — the spacing below is tuned to it, so check before loosening.
+ *  Letter minus the @page margins (0.4in top, 0.62in bottom) leaves 718.6pt
+ *  of content per page.
+ *
+ *    Page 1  subject + verdict + combined read + do-this-next + callout +
+ *            "What we found". Every block here carries break-inside: avoid,
+ *            so one point of overflow banishes a whole section to page 2 and
+ *            leaves a hand-sized hole behind it — which is exactly what
+ *            happened to "What we found" (229.7pt needing 163.8pt) before
+ *            this pass. Measured headroom after it: 25pt on the high case,
+ *            82pt on medium, 122pt on clean.
+ *    Page 2  gaps + records examined + people connected. "People" is 338pt
+ *            and was 9.5pt too tall to fit, which cost ~350pt of blank page.
+ *            Measured tail now: 17pt.
+ *
+ *  To re-measure: run the occupancy report, then in the console reveal the
+ *  sheet (`document.querySelector('.cert-print-root').style.display='block'`),
+ *  dispatch `new CustomEvent('halcyon:certvariant',{detail:'occupancy'})`,
+ *  and compare each block's offset inside .occ-report against 718.6pt.
  */
 .occ-report {
   color: var(--ink);
@@ -576,18 +596,18 @@
 .occ-report .occ-id { font-family: var(--mono); font-size: 10pt; font-weight: 600; color: var(--navy); letter-spacing: 0.04em; }
 .occ-report .occ-head-stamp { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 8pt; }
 .occ-report .occ-head-kind { text-transform: uppercase; letter-spacing: 0.12em; font-size: 7.5pt; color: var(--brand-deep); margin-top: 2pt; font-weight: 600; }
-.occ-report .occ-rule { height: 1pt; background: var(--navy); opacity: 0.85; margin-top: 10pt; }
+.occ-report .occ-rule { height: 1pt; background: var(--navy); opacity: 0.85; margin-top: 8pt; }
 
 /* --- Eyebrows + subject --- */
 .occ-report .occ-eyebrow { text-transform: uppercase; font-size: 7.5pt; letter-spacing: 0.14em; color: var(--ink-3); font-weight: 600; margin-bottom: 4pt; }
 .occ-report .occ-eyebrow--brand { color: var(--brand-deep); }
-.occ-report .occ-subject { margin-top: 14pt; }
-.occ-report .occ-address { font-size: 15pt; font-weight: 600; color: var(--navy); letter-spacing: -0.005em; line-height: 1.25; }
+.occ-report .occ-subject { margin-top: 10pt; }
+.occ-report .occ-address { font-size: 14pt; font-weight: 600; color: var(--navy); letter-spacing: -0.005em; line-height: 1.25; }
 .occ-report .occ-meta { margin-top: 4pt; font-size: 9pt; color: var(--ink-3); }
 
 /* --- Verdict + scores --- */
 .occ-report .occ-verdict {
-  margin-top: 14pt;
+  margin-top: 10pt;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 18pt;
@@ -595,9 +615,9 @@
   border: 0.75pt solid var(--line);
   border-left: 4pt solid var(--brand-deep);
   border-radius: 6pt;
-  padding: 12pt 16pt;
+  padding: 10pt 14pt;
 }
-.occ-report .occ-verdict-headline { font-size: 18pt; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; color: var(--navy); }
+.occ-report .occ-verdict-headline { font-size: 16.5pt; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; color: var(--navy); }
 .occ-report .occ-recon { margin-top: 6pt; display: flex; align-items: baseline; flex-wrap: wrap; gap: 6pt; font-size: 9.5pt; }
 .occ-report .occ-recon-label { color: var(--ink-3); }
 .occ-report .occ-recon-value { color: var(--navy); font-weight: 600; }
@@ -620,13 +640,13 @@
 }
 .occ-report .occ-case-type { margin-top: 4pt; font-size: 8.5pt; color: var(--ink-3); }
 .occ-report .occ-combined {
-  margin-top: 12pt;
+  margin-top: 9pt;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10pt;
   break-inside: avoid;
 }
-.occ-report .occ-lens { border: 0.6pt solid var(--line); border-radius: 5pt; padding: 8pt 10pt; }
+.occ-report .occ-lens { border: 0.6pt solid var(--line); border-radius: 5pt; padding: 7pt 9pt; }
 .occ-report .occ-lens-label { text-transform: uppercase; font-size: 7pt; letter-spacing: 0.12em; color: var(--ink-3); font-weight: 600; }
 .occ-report .occ-lens-value { margin-top: 2pt; font-size: 10pt; font-weight: 700; color: var(--navy); }
 .occ-report .occ-lens-hint { margin-top: 1.5pt; font-size: 7.5pt; color: var(--ink-3); }
@@ -641,7 +661,7 @@
 }
 
 /* --- Do this next --- */
-.occ-report .occ-next { margin-top: 14pt; border-left: 4pt solid var(--brand-deep); padding-left: 12pt; }
+.occ-report .occ-next { margin-top: 10pt; border-left: 4pt solid var(--brand-deep); padding-left: 12pt; }
 .occ-report .occ-next-body { margin: 0; font-size: 10pt; color: var(--ink-2); line-height: 1.45; }
 .occ-report .occ-next-lead { color: var(--navy); font-weight: 700; }
 
@@ -649,50 +669,50 @@
 .occ-report .occ-section-title {
   display: flex; align-items: baseline; justify-content: space-between;
   font-size: 11pt; font-weight: 600; color: var(--navy);
-  border-bottom: 0.75pt solid var(--line); padding-bottom: 4pt; margin-bottom: 7pt;
+  border-bottom: 0.75pt solid var(--line); padding-bottom: 3pt; margin-bottom: 5pt;
 }
 .occ-report .occ-section-count { font-size: 8.5pt; font-weight: 500; color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; }
-.occ-report .occ-note { margin: 0 0 7pt; font-size: 8.5pt; color: var(--ink-3); font-style: italic; }
+.occ-report .occ-note { margin: 0 0 6pt; font-size: 8.5pt; color: var(--ink-3); font-style: italic; }
 .occ-report .occ-para { margin: 0; font-size: 10pt; color: var(--ink-2); line-height: 1.5; }
-.occ-report .occ-bullets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5pt; }
-.occ-report .occ-bullets li { position: relative; padding-left: 12pt; font-size: 9.5pt; color: var(--ink-2); line-height: 1.45; }
+.occ-report .occ-bullets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4pt; }
+.occ-report .occ-bullets li { position: relative; padding-left: 12pt; font-size: 9.5pt; color: var(--ink-2); line-height: 1.36; }
 .occ-report .occ-bullets li::before { content: ""; position: absolute; left: 2pt; top: 4.5pt; width: 3.5pt; height: 3.5pt; border-radius: 50%; background: var(--brand-deep); }
 /* Per-point direction tones (executive summary): amber = raises concern,
    teal = cuts against it. Plain bullets keep the brand dot. */
 .occ-report .occ-bullets li.occ-b--concern::before { background: var(--warn); }
 .occ-report .occ-bullets li.occ-b--mitig::before { background: var(--clean); }
 
-.occ-report .occ-block { margin-top: 18pt; break-inside: avoid; }
+.occ-report .occ-block { margin-top: 10pt; break-inside: avoid; }
 
 /* --- Executive-summary callout — the elevated TL;DR --- */
 .occ-report .occ-callout {
-  margin-top: 14pt;
+  margin-top: 10pt;
   background: var(--brand-tint, var(--surface-2));
   border: 0.6pt solid var(--brand-2, var(--line));
   border-left: 4pt solid var(--brand-deep);
   border-radius: 6pt;
-  padding: 11pt 14pt;
+  padding: 9pt 12pt;
   break-inside: avoid;
 }
 .occ-report .occ-callout-title {
   font-size: 8pt; text-transform: uppercase; letter-spacing: 0.14em;
-  color: var(--brand-deep); font-weight: 700; margin-bottom: 7pt;
+  color: var(--brand-deep); font-weight: 700; margin-bottom: 5pt;
 }
 
 /* --- Two-column findings — colour-coded like a pros/cons split --- */
 .occ-report .occ-twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 12pt; }
-.occ-report .occ-col { border-radius: 6pt; padding: 10pt 12pt; }
-.occ-report .occ-col-head { font-size: 9.5pt; font-weight: 700; margin-bottom: 6pt; }
+.occ-report .occ-col { border-radius: 6pt; padding: 8pt 11pt; }
+.occ-report .occ-col-head { font-size: 9.5pt; font-weight: 700; margin-bottom: 5pt; }
 .occ-report .occ-col--concern { background: var(--warn-soft); border: 0.6pt solid var(--warn); }
 .occ-report .occ-col--concern .occ-col-head { color: var(--warn-ink); }
 .occ-report .occ-col--concern .occ-bullets li::before { background: var(--warn); }
 .occ-report .occ-col--mitig { background: var(--clean-soft); border: 0.6pt solid var(--clean); }
 .occ-report .occ-col--mitig .occ-col-head { color: var(--clean-ink); }
 .occ-report .occ-col--mitig .occ-bullets li::before { background: var(--clean); }
-.occ-report .occ-col .occ-bullets li { color: var(--ink); }
+.occ-report .occ-col .occ-bullets li { color: var(--ink); font-size: 9pt; }
 
 /* --- Gaps --- */
-.occ-report .occ-gap-group { margin-top: 8pt; break-inside: avoid; }
+.occ-report .occ-gap-group { margin-top: 6pt; break-inside: avoid; }
 .occ-report .occ-gap-group:first-of-type { margin-top: 0; }
 .occ-report .occ-gap-group-title { font-size: 9.5pt; font-weight: 600; color: var(--navy); margin-bottom: 5pt; }
 
@@ -704,13 +724,13 @@
 
 /* --- People --- */
 .occ-report .occ-people { display: flex; flex-direction: column; }
-.occ-report .occ-person { padding: 6pt 0; border-top: 0.4pt solid var(--line); break-inside: avoid; }
+.occ-report .occ-person { padding: 5pt 0; border-top: 0.4pt solid var(--line); break-inside: avoid; }
 .occ-report .occ-person:first-child { border-top: none; padding-top: 0; }
 .occ-report .occ-person-head { display: flex; align-items: baseline; gap: 6pt; flex-wrap: wrap; }
 .occ-report .occ-person-name { font-size: 10pt; font-weight: 600; color: var(--navy); }
 .occ-report .occ-tag { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--brand-deep); border: 0.5pt solid var(--brand-deep); border-radius: 3pt; padding: 1pt 5pt; }
 .occ-report .occ-tag--muted { color: var(--ink-3); border-color: var(--ink-4); }
-.occ-report .occ-person-summary { margin: 2pt 0 0; font-size: 9pt; color: var(--ink-2); line-height: 1.4; }
+.occ-report .occ-person-summary { margin: 1.5pt 0 0; font-size: 9pt; color: var(--ink-2); line-height: 1.3; }
 
 /* --- Detailed analysis --- */
 .occ-report .occ-checks { display: flex; flex-direction: column; gap: 10pt; }

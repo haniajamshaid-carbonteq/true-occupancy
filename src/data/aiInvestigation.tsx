@@ -16,12 +16,13 @@ type AIClarityLabel = 'Low' | 'Medium' | 'High';
 interface AIInvestigationResult {
   verdictBand: AIVerdictBand;
   recommendationLabel: string;
-  score: number;
-  scoreMax: number;
+  /** The run's own `score_breakdown.final_score` (risk + mitigation +
+   *  quality points). Internal: it is what `verdictBand` is banded from, and
+   *  it is NOT rendered. The calibrated occupancy score and evidence-clarity
+   *  grade that used to sit beside it were dropped from every surface
+   *  (client ask, 2026-09-09) in favour of `corroboration.agreement`, the
+   *  only 0-100 figure the run actually emits. */
   rawScore: number;
-  clarityScore: number;
-  clarityMax: number;
-  clarityLabel: AIClarityLabel;
   caseArchetype: string;
   summary: string;
   /** The recommendation directive (lead + detail) is NOT stored per case —
@@ -85,7 +86,12 @@ interface AIInvestigationResult {
    *  three-page backing. Each bullet may carry a `tone` so the one-pager can
    *  mark, point by point, whether it aligns with the occupancy concern
    *  ('concern'), cuts against it ('mitigating'), or is context ('info') —
-   *  plain strings render as context for backward compatibility. */
+   *  plain strings render as context for backward compatibility.
+   *
+   *  Do NOT close these with a "Next step: …" bullet. The directive is
+   *  derived once from `verdictBand` (AI_BAND_NEXT_STEP) and rendered as its
+   *  own block on every surface — on PDF page 1 it sat ten points above the
+   *  callout saying the same thing twice. */
   executiveSummary?: Array<string | { text: string; tone: 'concern' | 'mitigating' | 'info' }>;
   /** Records examined per source — for the PDF's "Records examined" block
    *  and a breadth line. Straight from the run's
@@ -125,9 +131,23 @@ interface AIInvestigationResult {
    *  list can badge them as key checks. */
   occupancySignal?: {
     signal: 'owner_occupancy' | 'non_owner_occupancy' | 'conflicting' | 'no_signal';
-    strength: 'weak' | 'moderate' | 'strong';
+    /** Categorical strength (older runs). Newer runs carry the numeric
+     *  strengthScore instead; occStrengthCategory() resolves either. */
+    strength?: 'weak' | 'moderate' | 'strong';
+    /** 0-10 nonowner_occupancy_strength from the WITH-AGREEMENT run shape. */
+    strengthScore?: number;
     reasoning: string;
     drivingHeuristicIds: string[];
+  };
+  /** The backend's own scan-vs-records tie (top-level `corroboration` in the
+   *  WITH-AGREEMENT run shape): the listing-scan verdict, a 0-100 agreement
+   *  figure, and a categorical state. When present it REPLACES the
+   *  client-derived listing lens and synthesis in the combined read; older
+   *  runs without it fall back to the derived pair. */
+  corroboration?: {
+    scanVerdict: 'rented' | 'likely' | 'not_rented' | 'inconclusive';
+    agreement: number;
+    state: 'agree' | 'mixed' | 'disagree';
   };
   runMeta: {
     jobId: string;
@@ -191,6 +211,62 @@ const OCC_STRENGTH_DEF: Record<'weak' | 'moderate' | 'strong', string> = {
   strong: 'Multiple independent sources agree, and nothing meaningful points the other way.',
 };
 
+/** Resolve a strength category from either shape: the categorical field
+ *  (older runs) or the 0-10 nonowner_occupancy_strength (WITH-AGREEMENT
+ *  runs). Bands: 8+ strong, 4-7 moderate, under 4 weak. */
+function occStrengthCategory(sig: {
+  strength?: 'weak' | 'moderate' | 'strong';
+  strengthScore?: number;
+}): 'weak' | 'moderate' | 'strong' {
+  if (typeof sig.strengthScore === 'number') {
+    return sig.strengthScore >= 8 ? 'strong' : sig.strengthScore >= 4 ? 'moderate' : 'weak';
+  }
+  return sig.strength || 'weak';
+}
+
+/** Display label for a backend scan verdict. */
+const OCC_SCAN_VERDICT_LABEL: Record<string, string> = {
+  rented: 'Rented',
+  likely: 'Likely Rented',
+  not_rented: 'Not Rented',
+  inconclusive: 'Inconclusive',
+};
+
+const OCC_CORROBORATION_META: Record<
+  'agree' | 'mixed' | 'disagree',
+  { label: string; shortLabel: string; tone: OccSignalTone; line: string }
+> = {
+  agree: {
+    label: 'Aligned evidence',
+    shortLabel: 'Aligned',
+    tone: 'clean',
+    line: 'the listing scan and the records agree',
+  },
+  mixed: {
+    label: 'Mixed evidence',
+    shortLabel: 'Mixed',
+    tone: 'warn',
+    line: 'the listing scan and the records partly agree',
+  },
+  disagree: {
+    label: 'Conflicting evidence',
+    shortLabel: 'Conflicting',
+    tone: 'risk',
+    line: 'the listing scan and the records disagree',
+  },
+};
+
+/** Synthesis line when the backend supplies its own corroboration verdict.
+ *  Says what the tie MEANS; it deliberately does not restate the agreement
+ *  figure, which every surface now renders as a score of its own. Printing
+ *  it in both places put the same number on screen twice. */
+function occCorroborationLine(state: 'agree' | 'mixed' | 'disagree'): string {
+  if (state === 'agree') return 'The listing scan and the records agree.';
+  if (state === 'disagree')
+    return 'The listing scan and the records disagree. Review before acting.';
+  return 'The listing scan and the records partly agree, so a person should review.';
+}
+
 /** "51 records across 5 sources" — trust-through-volume line, derived from
  *  sourceCounts so it always matches the Records-examined block. */
 function occRecordsSummary(result: AIInvestigationResult): string | null {
@@ -243,14 +319,9 @@ const AI_STEP_2_MS = 2800; // "Analyzing evidence & generating report"
 const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   verdictBand: 'review',
   recommendationLabel: 'Review',
-  // Scores follow the NEWER full run of this address (demo-response-full,
-  // 2026-09): calibrated 7 (raw 11), clarity 5 — not the older 8/4 summary.
-  score: 7,
-  scoreMax: 10,
+  // Raw score follows the NEWER full run of this address
+  // (demo-response-full, 2026-09), not the older summary.
   rawScore: 11,
-  clarityScore: 5,
-  clarityMax: 10,
-  clarityLabel: 'Medium',
   caseArchetype: 'Ambiguous non-owner occupancy',
   summary:
     'The tax and base records confirm the owners (the Lee couple) at the address, with the mailing address on the property itself plus a 2016 purchase and 2018 refinance. Against that, 16 utility and 29 trace records place nine or more unrelated people at a single-family home, corroborated by a non-owner vehicle registration and two Airbnb listings. The pattern fits either active rental operation or dense multi-occupancy, but the records that would settle it are undated or stale (the tax record is from 2018), so current occupancy cannot be determined automatically.',
@@ -278,7 +349,6 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
     { text: 'The owners (the Lee couple) are documented at the address, but nine or more unrelated people also appear as occupants. The case cannot be settled automatically.', tone: 'concern' },
     { text: 'Two Airbnb listings and a non-owner vehicle registration at the address point to possible rental use.', tone: 'concern' },
     { text: 'The records that would confirm current occupancy are undated or stale (tax record is from 2018), so present-day status is unproven.', tone: 'mitigating' },
-    { text: 'Next step: manual review before any determination.', tone: 'info' },
   ],
   checks: [
     { id: 'property_tax_context', label: 'Property tax context', status: 'context', confidence: 'High', score: 0, evidenceCount: 4, caveatCount: 0 },
@@ -476,6 +546,7 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
   occupancySignal: {
     signal: 'conflicting',
     strength: 'moderate',
+    strengthScore: 6,
     reasoning:
       'Tax and identity records establish the Lee couple at the subject with the mailing address on the property itself, while utility and address-history records document nine or more unrelated occupants. Both readings rest on substantive records; missing service dates make it impossible to order them in time.',
     drivingHeuristicIds: [
@@ -484,6 +555,7 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
       'case_quality_and_synthesis',
     ],
   },
+  corroboration: { scanVerdict: 'likely', agreement: 60, state: 'mixed' },
   runMeta: {
     jobId: '7cc36da0-7760-4ae5-ad0b-60ae7d33f252',
     runAt: '2026-09-02 16:22 UTC',
@@ -494,52 +566,57 @@ const AI_INVESTIGATION_DEEP_DIVE: AIInvestigationResult = {
 };
 
 // -------------------------------------------------------------------------
-// 934 Dayton Ave — the RED case from the 2026-09 batch: a trust-held
-// absentee rental with a strong non-owner signal. Paired with the 'high'
-// listing scenario so the combined read demonstrates corroboration
-// (listings AND records both point to non-owner use).
-const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
+// 1105 Clovelly Ct, Lexington KY 40517 — the RED case, from the 2026-09-08
+// WITH-AGREEMENT run. The tax owner holds title and mails to the subject
+// itself, but six unrelated people hold the utility accounts and one of
+// them filed a mortgage application reporting "OWN". Both readings rest on
+// real rows and nothing is dated, so the records read `conflicting` while
+// the band still lands at high_priority_review.
+//
+// Paired with the 'high' listing scenario: the scan says Rented, the
+// records say conflicting, and the run's own `corroboration` block ties the
+// two at 60 — mixed. That agreement figure is the score this case surfaces;
+// the run emits no clarity grade and its raw 27 points are internal.
+const AI_INVESTIGATION_MIXED: AIInvestigationResult = {
   verdictBand: 'high_priority_review',
   recommendationLabel: 'Priority review',
-  score: 8,
-  scoreMax: 10,
+  // score_breakdown: risk 27 + mitigation 0 + quality 0 = 27, band
+  // high_priority_review. Kept for the record; the surfaced score is
+  // `corroboration.agreement`, which is the only 0-100 figure the run emits.
   rawScore: 27,
-  clarityScore: 6,
-  clarityMax: 10,
-  clarityLabel: 'Medium',
-  caseArchetype: 'Clear absentee rental',
+  caseArchetype: 'Mixed evidence',
   summary:
-    'The property is owned by a trust with a mailing address in a different ZIP code and a portfolio of 33 properties: an absentee-ownership pattern. At least 15 unrelated people appear at the address across identity, vehicle-registration, driver-license, mortgage-application, utility and address-history records, with no owner-occupancy evidence anywhere. Occupants have filed conflicting own-vs-rent claims on loan applications, indicating occupancy-misrepresentation risk.',
+    'The property-tax owner (Catherine Furry) maintains a mailing address at the subject and holds title with a high homeowner-probability rating and a 4-year residence tenure, but appears absent from occupancy records. Six unrelated individuals occupy the property with corroborating utility service accounts and address-history records, and a non-owner (Brett Richardson) filed a mortgage application claiming ownership status: a direct tenure mismatch. The records present substantive evidence of both owner presence and non-owner occupancy, creating a conflicting occupancy signal that the available data cannot resolve. Stale tax records (2017), identity ambiguity for Brett Richardson, and the absence of occupancy dates prevent a definitive determination.',
   scopeNote:
     'These are investigative leads, not a fraud determination. Local records support an occupancy review only; none of them determines rental status on its own.',
   riskSignals: [
-    'No owner-occupancy evidence exists in any source, while the trust owner mails to a different ZIP and holds 33 properties. A clear absentee pattern.',
-    'At least 15 unrelated occupants are corroborated across five independent source families.',
-    'Non-owners filed conflicting own-vs-rent claims on loan applications: one occupant claimed to own the home on 6 applications and to rent it on 9.',
+    'A non-owner (Brett Richardson) filed a mortgage application at this address reporting "OWN" status, contradicting the owner named on the tax record.',
+    'Six unrelated people hold utility service accounts here — Brett Richardson, Brent Music, Michael D. Smith, Thomas Richardson, Sheila L. Richardson and Sarah Anne Novotny — corroborated across 35 address-history records.',
+    'The same non-owner holds three Kentucky driver licences at the address. The tax owner holds none, and has no utility or address-history presence at all.',
   ],
   mitigatingSignals: [
-    'The occupancy density (17 unrelated people) could indicate a rooming house or informal arrangement rather than a standard concealed rental.',
-    'The tax record is 15+ years stale (2008); the ownership structure and financing may since have changed.',
+    'The tax owner, Catherine Furry, mails to the subject address itself and carries a homeowner-probability rating of 9 with a 4-year residence tenure in identity records.',
+    'No portfolio pattern exists: a search of every Furry-surname tax record in Lexington returned this address only, and no lien, foreclosure or distress marker appears.',
   ],
   whyNotHigher: [
-    'Occupancy density and conflicting own/rent claims suggest a possible rooming-house or informal arrangement rather than a standard rental, limiting clarity on intent.',
-    'The tax record is 15+ years stale; no mortgage or lien records exist to confirm current encumbrance or refinance activity.',
+    'Identity ambiguity for Brett Richardson — conflicting birth years across base versus trace and utility records — and the absence of dated occupancy records prevent escalation to a clear absentee rental.',
+    'The tax record is stale (September 2017); current ownership and mortgage status are unknown, which limits confidence in the owner-presence signal.',
   ],
   whyNotLower: [
-    'Non-owner occupancy is corroborated across five independent source families, establishing a strong occupancy signal.',
-    'Owner mailing in a different ZIP, a 33-property portfolio, and a complete absence of owner-occupancy evidence establish a clear absentee-ownership pattern.',
+    'A non-owner loan application claiming ownership, corroborated by driver-licence and utility records, is a direct occupancy-tenure risk that warrants priority review.',
+    'Multiple unrelated occupants with utility accounts and address-history records corroborate non-owner occupancy across independent source types.',
   ],
   executiveSummary: [
-    { text: 'The owner is a trust with a 33-property portfolio, mailing to a different ZIP. No owner presence appears in any record at this address.', tone: 'concern' },
-    { text: 'At least 15 unrelated people are documented here across identity, vehicle, driver-license, loan, utility and address-history records.', tone: 'concern' },
-    { text: 'Occupants filed conflicting loan claims: one person claimed to own the home on 6 applications and to rent it on 9.', tone: 'concern' },
-    { text: 'Next step: top of the review queue.', tone: 'info' },
+    { text: 'A non-owner living at this address filed a mortgage application claiming to own it. The tax record names someone else.', tone: 'concern' },
+    { text: 'Six unrelated people hold utility accounts at this single-family home. None of them is the owner.', tone: 'concern' },
+    { text: 'The owner, Catherine Furry, still mails to this address and reads as a homeowner in identity records, so owner presence is not ruled out.', tone: 'mitigating' },
+    { text: 'Nothing in the occupancy records carries a date, so owner presence and non-owner occupancy cannot be ordered in time.', tone: 'info' },
   ],
   occupancySignal: {
-    signal: 'non_owner_occupancy',
-    strength: 'strong',
+    signal: 'conflicting',
+    strengthScore: 6,
     reasoning:
-      'Identity, vehicle-registration, driver-license, mortgage-application, utility and address-history records document at least 15 unrelated non-owner individuals at the subject address, with no owner-occupancy evidence and the owner mailing in a different ZIP code.',
+      'Property-tax records establish Catherine Furry as the owner with mailing address at the subject, and base identity records show high homeowner probability and 4 years of residence, supporting owner presence. Simultaneously six unrelated individuals appear in utility service accounts and address-history records at the same address, and Brett Richardson filed a mortgage application claiming ownership status. Both readings rest on real rows; the records cannot be ordered in time to determine which occupancy is current.',
     drivingHeuristicIds: [
       'owner_identity_and_mailing',
       'subject_occupancy_surfaces',
@@ -547,37 +624,41 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
       'loan_tenure',
     ],
   },
+  corroboration: { scanVerdict: 'rented', agreement: 60, state: 'mixed' },
   checks: [
-    { id: 'property_tax_context', label: 'Property tax context', status: 'context', confidence: 'High', score: 0, evidenceCount: 40, caveatCount: 2 },
-    { id: 'owner_identity_and_mailing', label: 'Owner identity and mailing', status: 'triggered', confidence: 'High', score: 8, evidenceCount: 40, caveatCount: 2 },
-    { id: 'subject_occupancy_surfaces', label: 'Subject occupancy surfaces', status: 'triggered', confidence: 'High', score: 8, evidenceCount: 40, caveatCount: 2 },
-    { id: 'legal_address_presence', label: 'Legal-address presence', status: 'triggered', confidence: 'High', score: 6, evidenceCount: 40, caveatCount: 1 },
-    { id: 'loan_tenure', label: 'Loan tenure', status: 'triggered', confidence: 'Medium', score: 4, evidenceCount: 40, caveatCount: 2 },
-    { id: 'portfolio_and_primary_comparison', label: 'Portfolio and primary comparison', status: 'triggered', confidence: 'Medium', score: 4, evidenceCount: 38, caveatCount: 1 },
-    { id: 'case_quality_and_synthesis', label: 'Case quality and synthesis', status: 'inconclusive', confidence: 'Medium', score: 0, evidenceCount: 40, caveatCount: 5 },
+    { id: 'property_tax_context', label: 'Property tax context', status: 'context', confidence: 'Medium', score: 3, evidenceCount: 40, caveatCount: 5 },
+    { id: 'owner_identity_and_mailing', label: 'Owner identity and mailing', status: 'triggered', confidence: 'High', score: 7, evidenceCount: 40, caveatCount: 4 },
+    { id: 'subject_occupancy_surfaces', label: 'Subject occupancy surfaces', status: 'triggered', confidence: 'High', score: 7, evidenceCount: 40, caveatCount: 5 },
+    { id: 'legal_address_presence', label: 'Legal-address presence', status: 'triggered', confidence: 'High', score: 6, evidenceCount: 40, caveatCount: 4 },
+    { id: 'loan_tenure', label: 'Loan tenure', status: 'triggered', confidence: 'High', score: 7, evidenceCount: 21, caveatCount: 5 },
+    { id: 'portfolio_and_primary_comparison', label: 'Portfolio and primary comparison', status: 'not_triggered', confidence: 'High', score: 0, evidenceCount: 40, caveatCount: 4 },
+    { id: 'case_quality_and_synthesis', label: 'Case quality and synthesis', status: 'inconclusive', confidence: 'Medium', score: 0, evidenceCount: 40, caveatCount: 6 },
   ],
   dataGaps: [
     {
       group: 'Contradictions',
       kind: 'conflict',
       items: [
-        'Non-owner occupants claim both to own and to rent the property across loan applications.',
-        '17 unrelated occupants is inconsistent with the single-family classification on the tax record.',
+        'A non-owner reports "OWN" status on a mortgage application while the tax record names a different owner.',
+        'Owner-presence evidence (tax mailing match, homeowner probability 9) and six unrelated utility account holders sit on real records at the same address.',
       ],
     },
     {
       group: 'Records that disagree',
       kind: 'inconsistency',
       items: [
-        'Duplicate person records carry conflicting attributes across sources and could not all be reconciled.',
+        'Nine base records for Brett Richardson carry birth years of 1945, 1949 or none, while trace and utility records consistently show 1976-04-01: one name, possibly more than one person.',
+        'Loan records under that name list different employers and occupations across three applications.',
+        'Thomas Richardson appears in 11 near-identical trace records sharing one phone number, which reads as data redundancy rather than distinct occupancy events.',
       ],
     },
     {
       group: 'Missing or undated evidence',
       kind: 'gap',
       items: [
-        'The tax record is 15+ years old (Sep 2008); no current mortgage or lien records exist.',
-        'Loan applications carry no dates, so the conflicting tenure claims cannot be sequenced.',
+        'The tax record is from September 2017; no mortgage, lien or valuation detail is on file.',
+        'Trace and utility records carry no service dates, so occupancy cannot be sequenced against the owner.',
+        'No vehicle registration exists at the address for anyone, removing one route to corroborating who lives here.',
       ],
     },
   ],
@@ -585,156 +666,167 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
     {
       id: 'property_tax_context',
       title: 'Property tax context',
-      takeaway: 'A single-family home held by a trust with a 33-property portfolio. Investor ownership.',
+      takeaway: 'A single-family home owned by an individual, with no liens — but the tax record is seven years old.',
       detail:
-        'The subject is a residential single-family home owned by a trust entity (the Schilling Trust, Tyler Lee Schilling) that holds a portfolio of 33 properties. Portfolio-scale ownership, combined with the owner mailing to a different ZIP, frames this as absentee investor ownership rather than owner-occupancy. The tax record on file dates to September 2008.',
+        'The subject is a residential single-family home (not a condo) with no visible liens, foreclosure markers or distress indicators in tax records. The owner is an individual, Catherine Diane Furry, not an entity or trust. The tax recording date is September 2017, seven-plus years old, and base records show Catherine Furry with a homeowner probability of 9 and 4 years of residence, with no mortgage or refinance amounts populated. The presence of multiple unrelated occupants with utility and loan records suggests possible rental use, but the stale recording date limits confidence in current ownership status.',
       direction: 'context',
       evidenceCount: 40,
     },
     {
       id: 'owner_identity_and_mailing',
       title: 'Owner identity and mailing',
-      takeaway: 'The trust owner mails to a different ZIP and never appears in any occupancy record.',
+      takeaway: 'The owner mails to the property itself, yet six unrelated people hold records here.',
       detail:
-        'The owner of record is the Schilling Trust with a mailing address at 222 Walton Ave, Lexington KY 40502, distinct from the subject at 934 Dayton Ave, 40505. The owner maintains a 33-property portfolio and has no presence in identity, utility, driver or address-history records at the subject, while multiple unrelated non-owners occupy it with strong corroboration.',
+        'Tax records identify Catherine Diane Furry as the sole owner with a mailing address matching the subject (1105 Clovelly Ct, Lexington KY 40517), which indicates active owner presence. Against that, the property shows substantial non-owner occupancy: Brett Richardson appears across base, driver-licence, loan and utility records with a loan application claiming ownership; Michael D. Smith appears in base and utility with a high homeowner probability and 15-year residence; Brent Music appears across ten-plus trace records and utility; and Thomas Richardson, Sheila L. Richardson and Sarah Anne Novotny appear in utility records. The Richardsons share a phone number, suggesting a family relationship among themselves, but no surname bridge connects any of them to the owner.',
       direction: 'risk',
       evidenceCount: 40,
     },
     {
       id: 'subject_occupancy_surfaces',
       title: 'Subject occupancy surfaces',
-      takeaway: 'At least 12 unrelated people appear in trace and utility records; the owner appears in none.',
+      takeaway: 'Six non-owners hold utility accounts; the owner has no utility or address-history presence.',
       detail:
-        'Multiple unrelated non-owners appear in both trace and utility records at the subject, indicating active non-owner occupancy. The tax owner has no occupancy evidence at the subject and maintains a mailing address elsewhere, consistent with absentee ownership over a dense, multi-occupant household.',
+        'Multiple unrelated non-owners occupy the subject address with strong corroborating evidence while the tax owner shows no occupancy presence. Six distinct non-owner individuals appear in utility service records with dates of birth and phone numbers, indicating active accounts: Sheila Richardson, Brent Music, Brett Richardson, Thomas Richardson, Sarah Novotny and Michael Smith. Address-history records document repeated occupancy by Thomas Richardson, Brent Music and "Brent & Jamie Music". Brett Richardson shows the strongest non-owner presence, appearing across identity records, driver licences, loan applications and utility accounts.',
       direction: 'risk',
       evidenceCount: 40,
     },
     {
       id: 'legal_address_presence',
       title: 'Legal-address presence',
-      takeaway: 'Non-owners hold driver-license and vehicle records here: 92 driver records for one occupant alone.',
+      takeaway: 'A non-owner holds three Kentucky driver licences at the address; the owner holds none.',
       detail:
-        'Multiple unrelated non-owners hold driver-license and vehicle-registration records at the subject address, establishing non-owner legal-address presence. Gary Hiles alone appears in 92 driver-license records at the address. The tax owner has no driver or vehicle evidence at the subject.',
+        'Brett Richardson, an unrelated non-owner, holds three Kentucky driver licences with addresses at the subject property. Those records are correlated with the loan applications in which he reports "OWN" status, and are further corroborated by identity records and utility accounts. The tax owner has no driver-licence or vehicle-registration record at the subject, and no vehicle registrations exist there for anyone. A non-owner holding the legal address while claiming ownership on a loan file is the occupancy-fraud shape.',
       direction: 'risk',
       evidenceCount: 40,
     },
     {
       id: 'loan_tenure',
       title: 'Loan tenure',
-      takeaway: 'Occupants filed conflicting own-vs-rent claims: the occupancy-misrepresentation flag.',
+      takeaway: 'A non-owner filed a mortgage application at this address reporting "OWN".',
       detail:
-        'Non-owner occupants claim conflicting tenure across loan applications. Gary Hiles, who is not the tax owner, submitted at least six applications claiming ownership and nine claiming rental at the same address. Carol Robbins, Mary Hiles and Nick McComber, also non-owners, submitted applications claiming ownership.',
+        'Brett Richardson, who is not the property-tax owner, filed a loan application at 1105 Clovelly Ct reporting "OWN" status, with a loan amount of $700 against a monthly income of $2,300. That is a direct occupancy-tenure mismatch and the primary risk signal in this case. The identity is confirmed across loan, identity/residence, address-history, utility and licence records, and the address match is exact. The tax owner is present in identity and address-history records at the same address, but owner presence does not neutralise a false ownership claim on a loan file.',
       direction: 'risk',
-      evidenceCount: 40,
+      evidenceCount: 21,
     },
     {
       id: 'portfolio_and_primary_comparison',
       title: 'Portfolio and primary comparison',
-      takeaway: 'A 33-property portfolio with no owner presence at the subject: a rental-inventory pattern.',
+      takeaway: 'No portfolio pattern: the owner is linked to this property and no other.',
       detail:
-        'The trust is linked to 33 residential properties across Lexington, Kentucky. Its mailing address differs materially from the subject, and the subject shows no owner-presence evidence in any source. It is the profile of one unit inside a rental portfolio rather than a primary residence.',
-      direction: 'risk',
-      evidenceCount: 38,
+        'This heuristic does not trigger. Catherine Furry is linked to only one residential property in the local dataset. A search of every Furry-surname tax record in Lexington returned 1105 Clovelly Ct alone, so there is no second liened property and no competing owner-linked property whose owner-presence evidence could outweigh the subject. Her presence here is direct and canonical: tax owner with a matching mailing address, plus a base identity record carrying homeowner probability 9 and 4 years of tenure.',
+      direction: 'mitigation',
+      evidenceCount: 40,
     },
     {
       id: 'case_quality_and_synthesis',
       title: 'Case quality and synthesis',
-      takeaway: 'Strong non-owner signal, but stale tax data and undated applications limit sequencing.',
+      takeaway: 'Stale tax data, an unresolved identity collision and undated records cap what this case can conclude.',
       detail:
-        'Case quality is limited by stale tax data (2008), missing mortgage/lien anchors, absent application dates, duplicate person records with conflicting attributes, and an occupancy density (17 unrelated persons) inconsistent with the single-family classification. The property reads as an absentee-owned rental or rooming house; the non-owner signal itself is strongly corroborated.',
+        'Case quality is compromised by material gaps. The tax record is stale (September 2017) with no mortgage or lien detail. A critical identity ambiguity exists for Brett Richardson: nine base records show birth years of 1945, 1949 or none, while trace and utility records consistently show 1976-04-01, indicating either data corruption or two people conflated under one name. Occupancy timing cannot be established at all — trace and utility records carry no dates, and base supplies only a snapshot length-of-residence figure. Nine distinct people appear across record types, with "Brent & Jamie Music" recorded jointly in five trace rows and Thomas Richardson in 11 duplicates. Without dated occupancy records or a resolution of the identity collision, the case cannot support a defensible determination either way.',
       direction: 'quality',
       evidenceCount: 40,
     },
   ],
   occupancyHistory: [
     {
-      name: 'Schilling Trust (Tyler Lee Schilling)',
+      name: 'Catherine Diane Furry',
       relationship: 'owner',
-      sources: ['TAX'],
+      sources: ['TAX', 'BASE', 'TRACE'],
       summary:
-        'Owner of record; mails to 222 Walton Ave, Lexington (a different ZIP); holds a 33-property portfolio; no occupancy evidence at this address.',
+        'Owner of record since September 2017; the mailing address on the tax record is the subject property itself. Homeowner probability 9. No utility, driver-licence or vehicle presence here.',
+      lengthOfResidence: '4 years',
+      primary: true,
     },
     {
-      name: 'Gary Hiles',
+      name: 'Brett Richardson',
       relationship: 'unrelated',
-      sources: ['DRIVE', 'LOAN', 'TRACE'],
+      sources: ['BASE', 'DRIVE', 'LOAN', 'TRACE', 'UTILITY'],
       summary:
-        'The dominant occupant on record: 92 driver-license records here, plus 15 loan applications: 6 claiming to own the home, 9 claiming to rent it.',
+        'The strongest non-owner presence: three Kentucky driver licences, three loan applications (one reporting "OWN"), plus identity, address-history and utility records. Birth year conflicts between base (1945/1949) and utility (1976).',
     },
     {
-      name: 'Bobby R. Payne',
+      name: 'Thomas Richardson',
       relationship: 'unrelated',
       sources: ['TRACE', 'UTILITY'],
-      summary: 'Appears across address-history and multiple utility service records at the subject.',
+      summary:
+        'Utility account (DOB 1947-01-01, phone 606-271-8638) and repeated address-history records. Also recorded as "Tom Richardson".',
     },
     {
-      name: 'Brenda L. Payne',
+      name: 'Brent Music',
       relationship: 'unrelated',
       sources: ['TRACE', 'UTILITY'],
-      summary: 'Appears across address-history and multiple utility service records at the subject.',
+      summary:
+        'Utility account (DOB 1956-09-01) and ten-plus address-history records; also recorded jointly as "Brent & Jamie Music", with no independent record for Jamie.',
     },
     {
-      name: 'Carol Robbins',
+      name: 'Michael D. Smith',
       relationship: 'unrelated',
-      sources: ['LOAN'],
-      summary: 'Non-owner who filed loan applications claiming ownership at the subject address.',
+      sources: ['BASE', 'TRACE', 'UTILITY'],
+      summary:
+        'Identity, address-history and utility records (DOB 1951-06-01), carrying a high homeowner probability and a 15-year residence tenure of his own.',
+      lengthOfResidence: '15 years',
     },
     {
-      name: 'Mary Hiles',
+      name: 'Sheila L. Richardson',
       relationship: 'unrelated',
-      sources: ['LOAN'],
-      summary: 'Non-owner who filed loan applications claiming ownership at the subject address.',
+      sources: ['TRACE', 'UTILITY'],
+      summary:
+        'Utility account (DOB 1949-07-01) sharing the phone number 859-271-8638 with Brett and Thomas Richardson.',
     },
     {
-      name: 'Nick McComber',
+      name: 'Sarah Anne Novotny',
       relationship: 'unrelated',
-      sources: ['LOAN'],
-      summary: 'Non-owner who filed loan applications claiming ownership at the subject address.',
+      sources: ['TRACE', 'UTILITY'],
+      summary: 'Utility account (DOB 1979-07-10) plus address-history records at the subject.',
     },
   ],
   evidenceRecords: [
-    { source: 'TAX', rowid: null, tone: 'risk', summary: 'Owner: Schilling Trust; mailing 222 Walton Ave, Lexington KY 40502; does not match subject; recorded Sep 2008.' },
-    { source: 'LOAN', rowid: null, tone: 'risk', summary: 'Gary Hiles; 15 loan applications at the subject: 6 claiming ownership, 9 claiming rental.' },
-    { source: 'DRIVE', rowid: null, tone: 'risk', summary: 'Gary Hiles; 92 driver-license records at the subject address; the owner has none.' },
-    { source: 'UTILITY', rowid: null, tone: 'risk', summary: 'Eight non-owner utility accounts at the subject; no owner utility presence.' },
+    { source: 'LOAN', rowid: 0, tone: 'risk', summary: 'Brett Richardson; mortgage application at 1105 Clovelly Ct reporting "OWN" status; loan amount $700, monthly income $2,300.' },
+    { source: 'DRIVE', rowid: null, tone: 'risk', summary: 'Brett Richardson; three Kentucky driver licences at the subject address. The owner holds none.' },
+    { source: 'UTILITY', rowid: null, tone: 'risk', summary: 'Six non-owner utility accounts at the subject; the owner has no utility presence.' },
+    { source: 'TAX', rowid: 0, tone: 'mitigating', summary: 'Catherine Diane Furry; sole owner; mailing 1105 Clovelly Ct, Lexington KY 40517 — matches the subject; recorded 27 Sep 2017.' },
+    { source: 'AUTO', rowid: null, tone: 'neutral', summary: 'No vehicle registration records exist at the subject address for any person.' },
   ],
   sourceCounts: [
-    { label: 'Loan', count: 123 },
-    { label: 'Drive', count: 92 },
-    { label: 'Trace', count: 22 },
-    { label: 'Base', count: 9 },
+    { label: 'Trace', count: 35 },
+    { label: 'Base', count: 11 },
     { label: 'Utility', count: 8 },
-    { label: 'Auto', count: 3 },
+    { label: 'Drive', count: 3 },
+    { label: 'Loan', count: 3 },
     { label: 'Tax', count: 1 },
+    { label: 'Auto', count: 0 },
   ],
   evidencePack: [
-    { source: 'TAX', summary: 'Owner: Schilling Trust (Tyler Lee Schilling); mailing 222 Walton Ave, Lexington KY 40502; does not match the subject; recorded Sep 2008.' },
-    { source: 'PORTFOLIO', summary: 'The trust is linked to 33 residential properties across Lexington, KY.' },
-    { source: 'LOAN', summary: 'Gary Hiles; 15 loan applications at the subject: 6 claiming ownership, 9 claiming rental.' },
-    { source: 'DRIVE', summary: 'Gary Hiles; 92 driver-license records at the subject address; the owner holds none here.' },
-    { source: 'LOAN', summary: 'Carol Robbins, Mary Hiles and Nick McComber; non-owners filing loan applications claiming ownership at the subject.' },
-    { source: 'UTILITY', summary: 'Eight non-owner utility accounts at the subject; no owner utility presence.' },
+    { source: 'TAX', summary: 'Catherine Diane Furry; sole owner; mailing 1105 Clovelly Ct, Lexington KY 40517, matching the subject; recorded 27 Sep 2017; residential single-family, no liens or foreclosure markers.' },
+    { source: 'LOAN', summary: 'Brett Richardson; mortgage application at 1105 Clovelly Ct reporting "OWN" status; loan amount $700, monthly income $2,300.' },
+    { source: 'DRIVE', summary: 'Brett Richardson; three Kentucky driver licences at the subject (293003492, 2930996372, 6108098493), correlated with the loan records.' },
+    { source: 'UTILITY', summary: 'Utility accounts at the subject for Brett Richardson (DOB 1976-04-01), Brent Music (1956-09-01), Thomas Richardson (1947-01-01), Sheila L. Richardson (1949-07-01), Sarah Anne Novotny (1979-07-10) and Michael D. Smith (1951-06-01).' },
+    { source: 'BASE', summary: 'Catherine Furry; homeowner probability 9, length of residence 4 years. Michael D. Smith; high homeowner probability, 15-year residence. Nine Brett Richardson records with conflicting birth years.' },
+    { source: 'TRACE', summary: '35 address-history records at the subject, led by Thomas Richardson and Brent Music; Thomas Richardson accounts for 11 near-identical rows.' },
+    { source: 'PORTFOLIO', summary: 'A search of every Furry-surname tax record in Lexington returned 1105 Clovelly Ct only. No second property is linked to the owner.' },
+    { source: 'AUTO', summary: 'No vehicle registration records exist at the subject address for any person.' },
   ],
   ownershipTimeline: {
-    currentOwner: 'Schilling Trust (Tyler Lee Schilling)',
-    currentStatus: 'rental',
-    currentStatusLabel: 'Non-owner occupied',
+    currentOwner: 'Catherine Diane Furry',
+    currentStatus: 'inconclusive',
+    currentStatusLabel: 'Occupancy unresolved',
     segments: [
-      { label: 'Trust-held · absentee owner', sublabel: '2008 – today', status: 'rental', weight: 100 },
+      { label: 'Owner of record · mails to the subject', sublabel: 'Sep 2017 – today', status: 'owner', weight: 45 },
+      { label: 'Unrelated occupants on utility & trace', sublabel: 'Undated', status: 'inconclusive', weight: 55 },
     ],
     events: [
-      { at: '2008', title: 'Tax record: Schilling Trust, mailing in a different ZIP (last record on file)' },
-      { at: 'Since 2008', title: '15+ unrelated occupants across identity, driver, loan, utility and trace records' },
-      { at: 'Undated', title: 'Conflicting own-vs-rent loan claims filed by non-owner occupants' },
-      { at: 'Today', title: 'Owner of record remains the trust; no owner presence in any record' },
+      { at: 'Sep 2017', title: 'Tax record: Catherine Diane Furry, mailing at the subject (last record on file)' },
+      { at: 'Undated', title: 'Six unrelated people open utility service accounts at the address' },
+      { at: 'Undated', title: 'Brett Richardson files a mortgage application reporting "OWN" status' },
+      { at: 'Today', title: 'Owner presence and non-owner occupancy both stand on real records; neither can be dated' },
     ],
   },
   runMeta: {
-    jobId: '934-dayton-ave-40505',
-    runAt: '2026-09-06 14:05 UTC',
-    durationLabel: '1 min 58 sec',
+    jobId: '1105-clovelly-ct-40517',
+    runAt: '2026-09-08 11:16 UTC',
+    durationLabel: '1 min 30 sec',
     sourcesChecked: ['Tax', 'Base', 'Loan', 'Drive', 'Auto', 'Trace', 'Utility'],
-    evidenceRefsCount: 258,
+    evidenceRefsCount: 261,
   },
 };
 
@@ -745,12 +837,7 @@ const AI_INVESTIGATION_ABSENTEE: AIInvestigationResult = {
 const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
   verdictBand: 'low_evidence',
   recommendationLabel: 'No action needed',
-  score: 2,
-  scoreMax: 10,
   rawScore: 0,
-  clarityScore: 3,
-  clarityMax: 10,
-  clarityLabel: 'Low',
   caseArchetype: 'Insufficient ownership data',
   summary:
     'No property-tax owner record exists for this address, eliminating the primary anchor for ownership verification. Identity and address-history records show two residents with 8–10 years of tenure, and utility records identify four individuals, but nothing in tax, mortgage, loan or vehicle records carries an ownership claim, so owner-occupancy versus rental use cannot be determined.',
@@ -776,11 +863,13 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
     { text: 'No property-tax owner record exists for this address, so there is no anchor to establish who owns it.', tone: 'info' },
     { text: 'Two long-tenured residents (8–10 years) appear in identity and address-history records; two more appear in utility accounts only.', tone: 'mitigating' },
     { text: 'Nothing distinguishes owner from renter: no tax, mortgage, loan or vehicle record carries an ownership claim.', tone: 'info' },
-    { text: 'Next step: none. Revisit only if stronger records surface.', tone: 'info' },
   ],
+  // No `corroboration` block on purpose: exercises the fallback path where
+  // the combined read derives the listing lens client-side.
   occupancySignal: {
     signal: 'no_signal',
     strength: 'weak',
+    strengthScore: 2,
     reasoning:
       'Identity and address-history records show two individuals with 8–10 years of tenure and utility records identify four individuals, but no property-tax owner record exists to establish who owns the property or whether any resident is the owner.',
     drivingHeuristicIds: [
@@ -911,13 +1000,13 @@ const AI_INVESTIGATION_LOW_EVIDENCE: AIInvestigationResult = {
 
 // Route → case mapping. Each listing scenario is paired with the batch-run
 // case that exercises a different arm of the combined read:
-//   high   (listings: Rented)        × non-owner·strong  → corroboration, RED
+//   high   (listings: Rented)        × conflicting·6/10  → 60% mixed, RED band
 //   medium (listings: Likely Rented) × conflicting·mod   → review, AMBER
 //   low    (listings: Not Rented)    × no-signal·weak    → both quiet, GREY
 const AI_INVESTIGATIONS: Record<ScenarioKey, AIInvestigationResult> = {
   low: AI_INVESTIGATION_LOW_EVIDENCE,
   medium: AI_INVESTIGATION_DEEP_DIVE,
-  high: AI_INVESTIGATION_ABSENTEE,
+  high: AI_INVESTIGATION_MIXED,
 };
 
 /**

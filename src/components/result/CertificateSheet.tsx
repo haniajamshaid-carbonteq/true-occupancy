@@ -1,7 +1,8 @@
 /* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState,
    occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG, displayConfidence,
    formatReportDate, AI_BAND_NEXT_STEP, occSignalMeta, OCC_SIGNAL_TONE_VARS,
-   occRecordsSummary, occCombinedSynthesis, OCC_STRENGTH_DEF */
+   occRecordsSummary, occCombinedSynthesis, OCC_STRENGTH_DEF,
+   occStrengthCategory, OCC_SCAN_VERDICT_LABEL, occCorroborationLine */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -917,8 +918,12 @@ function CertificateOccupancyBody({
   // read identically; the band-based severity above is the fallback for
   // older cases without one.
   const sig = r.occupancySignal;
+  const sigCat =
+    sig && typeof occStrengthCategory === 'function'
+      ? occStrengthCategory(sig)
+      : (sig && sig.strength) || 'weak';
   const sigMeta =
-    sig && typeof occSignalMeta === 'function' ? occSignalMeta(sig.signal, sig.strength) : null;
+    sig && typeof occSignalMeta === 'function' ? occSignalMeta(sig.signal, sigCat) : null;
   const sigVars = sigMeta ? (OCC_SIGNAL_TONE_VARS as any)[sigMeta.tone] : null;
   const accent = sigVars ? sigVars.dot : sevColor;
   // Listing-scan lens for the combined read — same derivation as the
@@ -931,10 +936,15 @@ function CertificateOccupancyBody({
     listingKey === 'not-rented' ? 100 - SCENARIOS[scenario].score : SCENARIOS[scenario].score
   );
   const recordsLine = typeof occRecordsSummary === 'function' ? occRecordsSummary(r) : null;
-  const synthesis =
-    sig && typeof occCombinedSynthesis === 'function'
-      ? occCombinedSynthesis(listingKey as any, sig.signal)
-      : null;
+  // Backend corroboration wins over the scenario-derived lens when present.
+  const cor = r.corroboration;
+  const synthesis = !sig
+    ? null
+    : cor && typeof occCorroborationLine === 'function'
+    ? occCorroborationLine(cor.state)
+    : typeof occCombinedSynthesis === 'function'
+    ? occCombinedSynthesis(listingKey as any, sig.signal)
+    : null;
   const drivingIds = new Set((sig && sig.drivingHeuristicIds) || []);
 
   return (
@@ -963,8 +973,8 @@ function CertificateOccupancyBody({
         </div>
       </section>
 
-      {/* Verdict + the two scores + reconciliation. Left accent + the
-          occupancy-score meter carry the severity colour. */}
+      {/* Verdict + the agreement score + reconciliation. Left accent + the
+          meter carry the severity colour. */}
       <section className="occ-verdict" style={{ borderLeftColor: accent }}>
         <div className="occ-verdict-main">
           <div className="occ-eyebrow">Finding</div>
@@ -981,7 +991,9 @@ function CertificateOccupancyBody({
                   className="occ-signal-strength"
                   style={{ color: sigVars.ink, borderColor: sigVars.dot }}
                 >
-                  {sig.strength} signal
+                  {typeof sig.strengthScore === 'number'
+                    ? `${sigCat} signal · ${sig.strengthScore}/10`
+                    : `${sigCat} signal`}
                 </span>
               </div>
               <div className="occ-case-type">Case type: {r.caseArchetype}</div>
@@ -1000,10 +1012,15 @@ function CertificateOccupancyBody({
             </div>
           )}
         </div>
-        <div className="occ-scores">
-          <OccMeter label="Occupancy score" value={r.score} max={r.scoreMax} color={accent} />
-          <OccMeter label="Evidence clarity" value={r.clarityScore} max={r.clarityMax} color="var(--brand-deep)" />
-        </div>
+        {/* One score, out of 100: the run's own listing-scan-vs-records
+            agreement. The calibrated occupancy score and evidence-clarity
+            grade that used to sit here were dropped (client ask,
+            2026-09-09) — the run emits neither. */}
+        {cor && (
+          <div className="occ-scores">
+            <OccMeter label="Agreement" value={cor.agreement} max={100} color={accent} />
+          </div>
+        )}
       </section>
 
       {/* Combined read — the listing-scan verdict and the records read, side
@@ -1013,22 +1030,28 @@ function CertificateOccupancyBody({
           <div className="occ-lens">
             <div className="occ-lens-label">Listing scan</div>
             <div className="occ-lens-value">
-              {listingLabel} · {listingPct}%
+              {cor
+                ? (OCC_SCAN_VERDICT_LABEL as any)[cor.scanVerdict] || cor.scanVerdict
+                : `${listingLabel} · ${listingPct}%`}
             </div>
-            <div className="occ-lens-hint">Airbnb, Vrbo &amp; Facebook matches</div>
+            <div className="occ-lens-hint">
+              {cor
+                ? 'Property scan verdict'
+                : 'Airbnb, Vrbo & Facebook matches'}
+            </div>
           </div>
           <div className="occ-lens">
             <div className="occ-lens-label">Records</div>
             <div className="occ-lens-value">
-              {sigMeta.label} · {sig.strength}
+              {sigMeta.label} · {sigCat}
             </div>
             <div className="occ-lens-hint">{recordsLine || 'Public-records investigation'}</div>
           </div>
           {synthesis && <p className="occ-combined-synthesis">{synthesis}</p>}
-          {typeof OCC_STRENGTH_DEF !== 'undefined' && (OCC_STRENGTH_DEF as any)[sig.strength] && (
+          {typeof OCC_STRENGTH_DEF !== 'undefined' && (OCC_STRENGTH_DEF as any)[sigCat] && (
             <p className="occ-strength-def">
-              <strong>{sig.strength.charAt(0).toUpperCase() + sig.strength.slice(1)} signal:</strong>{' '}
-              {(OCC_STRENGTH_DEF as any)[sig.strength]}
+              <strong>{sigCat.charAt(0).toUpperCase() + sigCat.slice(1)} signal:</strong>{' '}
+              {(OCC_STRENGTH_DEF as any)[sigCat]}
             </p>
           )}
         </section>
