@@ -1,6 +1,7 @@
 /* global React, ReactRouterDOM, AppShell, AppStateContext, Card, ChipRow, Input, Toggle, Button, Pill, Modal,
-   Tabs, Drawer, ScreenEmpty, Icon, OCC_INTENTS, OCC_VERDICTS, OCC_STATUSES, OCC_INTENT_LABEL,
-   OCC_VERDICT_LABEL, OCC_STATUS_LABEL, OCC_STATUS_TONE, OCC_CADENCE_LABEL,
+   Tabs, Drawer, ScreenEmpty, Icon, OCC_INTENTS, OCC_STATUSES, OCC_INTENT_LABEL,
+   OCC_STATUS_LABEL, OCC_STATUS_TONE, OCC_CADENCE_LABEL,
+   OCC_CONCLUSIVITIES, OCC_CONCLUSIVITY_LABEL, occMatchIsRented,
    DEFAULT_OCC_CONFIG, formatUsDate */
 
 // Threshold change audit log (prototype seed). Every save appends a dated
@@ -69,17 +70,14 @@ function clampMinutes(raw: string): number {
   return Math.max(1, n);
 }
 
-// Outcome-matrix labels. Per the owner, the matrix reads as the reconciliation
-// labels (Consistent / Needs review / Inconclusive) rather than the raw
-// scan-finding verdicts — in the column headers *and* in the expanded per-row
-// editor ("If consistent — treat as"), which used to restate the raw verdict
-// and so read as a second, contradicting vocabulary. Scoped to this screen so
-// OCC_VERDICT_LABEL — used across the result page and lists — is untouched.
-const MATRIX_HEADER_LABEL: Record<string, string> = {
-  'not-rented': 'Consistent',
-  'possibly-rented': 'Needs review',
-  rented: 'Inconclusive',
-};
+// The outcome matrix's columns ARE the reconciliation outcomes — see
+// OccConclusivity in OccupancyConfig.tsx. This screen used to hold a flat
+// verdict->word map here (not-rented→Consistent, possibly→Needs review,
+// rented→Inconclusive) and index the matrix by verdict, which cannot be right
+// for every row at once: `rented` contradicts Owner-occupied but matches
+// Rental. That map is deleted; nothing needs translating now that the columns
+// mean what they say, and OCC_CONCLUSIVITY_LABEL is the single source the
+// headers and the expanded per-row editor both read.
 
 // ---- Confidence thresholds: two declare-confidence questions -------------
 // Owner decision 2026-09-01: the editor asks exactly TWO questions per
@@ -136,7 +134,7 @@ function clamp51to100(raw: string): number {
  *  an explicit Not sure has no match axis (owner call, 2026-09-03). A blank
  *  declaration never gets here — Universal intended behaviour pre-fills it. */
 function intentMatchIsRented(intent: string): boolean {
-  return intent === 'rental';
+  return occMatchIsRented(intent as any);
 }
 
 /** What a match means, in words, for the per-type list. */
@@ -306,10 +304,12 @@ function ConfigSection({
 // that has changed. A status no cell currently uses shows no example.
 //
 // Deliberately does NOT gloss the statuses with their downstream labels
-// (green = "Consistent", red = "Needs review"). Those words are already the
-// column headers here, keyed to a different axis — see the collision noted on
-// MATRIX_HEADER_LABEL — so restating them would make one screen use the same
-// three words two ways. Described by consequence instead.
+// (green = "Consistent", red = "Needs review"). Those same three words are
+// the column headers here, naming the matrix's INPUT (what the finding did to
+// the declaration) while the statuses are its OUTPUT (what the org decided to
+// do about it). One vocabulary, two axes — so restating them in the key would
+// make one screen use the same three words two ways. Described by consequence
+// instead.
 //
 // A disclosure: the one-line summary is always visible and is itself the
 // toggle; the colour key expands below on demand. The ⓘ glyph marks it as
@@ -341,11 +341,10 @@ function MatrixLegend({
   // Not-sure is skipped: it has no matrix row above, so an example naming it
   // would point at a pairing that is not on screen.
   OCC_INTENTS.filter((i: string) => i !== 'not-sure').forEach((intent: string) => {
-    OCC_VERDICTS.forEach((v: string) => {
-      const s = matrix[intent]?.[v];
+    OCC_CONCLUSIVITIES.forEach((c: string) => {
+      const s = matrix[intent]?.[c];
       if (s && !EXAMPLE[s]) {
-        const col = MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v];
-        EXAMPLE[s] = `declared ${OCC_INTENT_LABEL[intent]}, returned ${col}`;
+        EXAMPLE[s] = `declared ${OCC_INTENT_LABEL[intent]}, returned ${OCC_CONCLUSIVITY_LABEL[c]}`;
       }
     });
   });
@@ -599,8 +598,8 @@ function ScanConfigScreen({
           style={{ gridTemplateColumns: '1.3fr 1fr 1fr 1fr', color: 'var(--ink-3)' }}
         >
           <span>Declared</span>
-          {OCC_VERDICTS.map((v: string) => (
-            <span key={v}>{MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v]}</span>
+          {OCC_CONCLUSIVITIES.map((c: string) => (
+            <span key={c}>{OCC_CONCLUSIVITY_LABEL[c]}</span>
           ))}
         </div>
 
@@ -629,7 +628,7 @@ function ScanConfigScreen({
                   </span>
                   {OCC_INTENT_LABEL[intent]}
                 </span>
-                {OCC_VERDICTS.map((v: string) => {
+                {OCC_CONCLUSIVITIES.map((v: string) => {
                   const status = matrix[intent][v];
                   return (
                     <span key={v}>
@@ -643,10 +642,10 @@ function ScanConfigScreen({
 
               {expanded && (
                 <div className="pb-stack-md pl-5 flex flex-col gap-stack">
-                  {OCC_VERDICTS.map((v: string) => (
+                  {OCC_CONCLUSIVITIES.map((v: string) => (
                     <ChipRow
                       key={v}
-                      label={`If ${(MATRIX_HEADER_LABEL[v] ?? OCC_VERDICT_LABEL[v]).toLowerCase()}, treat as`}
+                      label={`If ${OCC_CONCLUSIVITY_LABEL[v].toLowerCase()}, treat as`}
                       value={matrix[intent][v]}
                       onChange={(next: string) => setCell(intent, v, next)}
                       options={OCC_STATUSES.map((s: string) => ({

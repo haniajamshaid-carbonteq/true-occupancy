@@ -34,6 +34,18 @@ type OccVerdict = 'not-rented' | 'possibly-rented' | 'rented';
 // colourable layer.
 type OccStatus = 'green' | 'yellow' | 'red';
 
+// Whether the finding AGREES with the declaration, CONTRADICTS it, or fails
+// to settle it. This is the axis the outcome matrix is keyed on.
+//
+// It is not a property of the finding alone — it depends on the row as much
+// as the column. `rented` is needs-review under Owner-occupied and consistent
+// under Rental. Keying the matrix by raw verdict instead is what landed the
+// owner's 2026-08-10 table in the wrong columns and made a property declared
+// owner-occupied and found rented render "Inconclusive". Recorded on
+// Trello #1 (1dMoACW7) and #18; fixed in production by deriving conclusivity
+// first, then looking the org's policy up for it. This is that fix.
+type OccConclusivity = 'consistent' | 'inconclusive' | 'needs-review';
+
 // How hard we work before returning a verdict. 'deep-ambiguous' spends the
 // expensive image-match / full-web-search budget only on yellow results.
 type OccDepth = 'standard' | 'deep-ambiguous' | 'deep-always';
@@ -41,6 +53,8 @@ type OccDepth = 'standard' | 'deep-ambiguous' | 'deep-always';
 const OCC_INTENTS: OccIntent[] = ['owner-occupied', 'second-home', 'rental', 'not-sure'];
 const OCC_VERDICTS: OccVerdict[] = ['not-rented', 'possibly-rented', 'rented'];
 const OCC_STATUSES: OccStatus[] = ['green', 'yellow', 'red'];
+// Column order of the owner's table, and so of the matrix editor.
+const OCC_CONCLUSIVITIES: OccConclusivity[] = ['consistent', 'needs-review', 'inconclusive'];
 
 const OCC_INTENT_LABEL: Record<OccIntent, string> = {
   'owner-occupied': 'Owner-occupied',
@@ -67,6 +81,17 @@ const OCC_STATUS_LABEL: Record<OccStatus, string> = {
   green: 'Green',
   yellow: 'Yellow',
   red: 'Red',
+};
+
+// The reconciliation words. They name the matrix's INPUT here (what the
+// finding did to the declaration); OCC_STATUS_MATCH_LABEL below uses the same
+// three words for its OUTPUT (what the org decided to do about it). Same
+// vocabulary, two axes — which is why the matrix editor's columns read as
+// these and its cells read as colours, never as words.
+const OCC_CONCLUSIVITY_LABEL: Record<OccConclusivity, string> = {
+  consistent: 'Consistent',
+  'needs-review': 'Needs review',
+  inconclusive: 'Inconclusive',
 };
 
 // Status -> the existing clean/warn/risk palette. The status layer IS the
@@ -110,8 +135,10 @@ interface OccConfig {
   thresholds: OccThresholds;
   /** Optional per-category override. Absent = inherit `thresholds`. */
   categoryThresholds: Partial<Record<OccIntent, OccThresholds>>;
-  /** declared x verdict -> status. The configurable heart of the product. */
-  outcomeMatrix: Record<OccIntent, Record<OccVerdict, OccStatus>>;
+  /** declared x conclusivity -> status. The configurable heart of the product.
+   *  Keyed on what the finding DID to the declaration, never on the raw
+   *  verdict — see OccConclusivity. */
+  outcomeMatrix: Record<OccIntent, Record<OccConclusivity, OccStatus>>;
   /** Which statuses re-scan, and how often. */
   recurring: Record<OccStatus, OccCadence>;
   /** Days before a served report is flagged stale. */
@@ -160,17 +187,21 @@ const DEFAULT_OCC_CONFIG: OccConfig = {
   notSureResolveAs: 'owner-occupied',
   thresholds: { rentedAtOrAbove: 70, notRentedAtOrBelow: 30 },
   categoryThresholds: {},
+  // The owner's table of 2026-08-10, verbatim, in the columns it was written
+  // in. Ratified on Trello #1; it was never the values that were wrong, only
+  // the axis they were stored against.
   outcomeMatrix: {
-    'owner-occupied': { 'not-rented': 'green', 'possibly-rented': 'red', rented: 'yellow' },
-    'second-home': { 'not-rented': 'green', 'possibly-rented': 'red', rented: 'yellow' },
+    'owner-occupied': { consistent: 'green', 'needs-review': 'red', inconclusive: 'yellow' },
+    'second-home': { consistent: 'green', 'needs-review': 'red', inconclusive: 'yellow' },
     // Non-owner occupancy is expected here, so nothing this row finds clears
-    // the property outright — a Not-rented finding is not fraud, it is absent
-    // expected income, which is still worth a look.
-    rental: { 'not-rented': 'yellow', 'possibly-rented': 'red', rented: 'yellow' },
+    // the property outright — even a consistent finding stays yellow. The
+    // contradicting finding for this row is Not rented: not fraud, but absent
+    // expected income, and still red per the owner's table.
+    rental: { consistent: 'yellow', 'needs-review': 'red', inconclusive: 'yellow' },
     // 'Not sure' mirrors the default intended occupancy (see
     // effectiveOutcomeIntent), so this stored row is only a fallback for the
     // edge case where the default is itself 'not-sure'.
-    'not-sure': { 'not-rented': 'yellow', 'possibly-rented': 'red', rented: 'red' },
+    'not-sure': { consistent: 'yellow', 'needs-review': 'red', inconclusive: 'red' },
   },
   recurring: { red: 'monthly', yellow: 'none', green: 'none' },
   stalenessDays: 30,
@@ -204,9 +235,29 @@ function effectiveOutcomeIntent(config: OccConfig, intent: OccIntent): OccIntent
   return as === 'not-sure' ? 'owner-occupied' : as;
 }
 
-/** Declared x verdict -> status. A pure matrix lookup; 'not-sure' mirrors the default. */
+/** Whether a MATCH for this declared type means the property is rented. True
+ *  for a rental — non-owner occupancy is the declaration being met, so the
+ *  match axis flips; false for owner-occupied and second home. 'Not sure' is
+ *  resolved to a real type before this is asked (effectiveOutcomeIntent), so
+ *  it never reaches here with no match axis of its own. */
+function occMatchIsRented(intent: OccIntent): boolean {
+  return intent === 'rental';
+}
+
+/** (declared intent, finding) -> what the finding did to the declaration.
+ *  A middle-band finding settles nothing, whatever was declared. */
+function occConclusivityFor(intent: OccIntent, verdict: OccVerdict): OccConclusivity {
+  if (verdict === 'possibly-rented') return 'inconclusive';
+  const matches = occMatchIsRented(intent) ? verdict === 'rented' : verdict === 'not-rented';
+  return matches ? 'consistent' : 'needs-review';
+}
+
+/** Declared x verdict -> status. Conclusivity first, then the org's policy for
+ *  it; 'not-sure' mirrors the default. Both steps use the EFFECTIVE intent —
+ *  reconciling against 'not-sure' itself has no match axis. */
 function deriveOccStatus(config: OccConfig, intent: OccIntent, verdict: OccVerdict): OccStatus {
-  return config.outcomeMatrix[effectiveOutcomeIntent(config, intent)][verdict];
+  const effective = effectiveOutcomeIntent(config, intent);
+  return config.outcomeMatrix[effective][occConclusivityFor(effective, verdict)];
 }
 
 /** The two together — what nearly every consumer actually wants. */
