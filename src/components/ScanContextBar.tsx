@@ -151,8 +151,14 @@ function ScanContextBar({
   // older report opened from the corroboration links). Rendered only where the
   // drawer component is actually loaded (app.html / design-spec.html); the
   // spec hosts that load this bar in isolation simply omit the trigger.
+  //
+  // ⚠ The TOP-BAR TRIGGER is switched off (owner call, 2026-09-09): the
+  // product has no property-timeline surface, so the prototype should not
+  // offer one from the report chrome. The drawer itself, its host entries and
+  // the state below are intentionally left in place — flip this back to
+  // `typeof PropertyTimelineDrawer !== 'undefined'` to restore the control.
   const [timelineOpen, setTimelineOpen] = React.useState(false);
-  const timelineAvailable = typeof PropertyTimelineDrawer !== 'undefined';
+  const timelineAvailable = false;
 
   // Automate flow — encapsulated in <AutomationControl>. It looks up an
   // existing schedule for this address and either offers the create CTA

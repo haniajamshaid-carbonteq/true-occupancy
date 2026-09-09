@@ -452,12 +452,22 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   // only explicable against the policy that was live when it ran, and editing
   // the matrix never recomputes a completed run. Reads the run's stamped
   // `configVersion`; renders nothing when the run predates the stamp.
+  // Opening the page directly (a fresh scan, or /result/high straight from the
+  // URL) stamps no scanHistoryId, and an unstamped run used to render nothing
+  // at all — the line was invisible on the most common route onto the page.
+  // A run with no stamped id IS the current scan, so by definition it ran
+  // under the config in force now. An archived run that carries an id but no
+  // configVersion still renders nothing: that one genuinely predates the
+  // stamp, and guessing a policy for it would be a fabrication.
   const currentRun = currentHistoryId
     ? getHistoryForAddress(heroAddress).find((h: any) => h.id === currentHistoryId)
     : null;
+  const runConfigVersion = currentHistoryId
+    ? (currentRun as any)?.configVersion
+    : DEFAULT_OCC_CONFIG.version;
   const provenance =
     match && typeof occProvenance === 'function'
-      ? occProvenance(intent as any, match.verdict, (currentRun as any)?.configVersion)
+      ? occProvenance(intent as any, match.verdict, runConfigVersion)
       : null;
   const hasProvenance = Boolean(provenance && provenance.versionLabel);
 
