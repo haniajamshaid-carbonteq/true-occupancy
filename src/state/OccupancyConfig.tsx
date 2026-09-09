@@ -270,6 +270,108 @@ function resolveOccupancy(
   return { verdict, status: deriveOccStatus(config, intent, verdict) };
 }
 
+// ---- Config provenance --------------------------------------------------
+// A verdict is only explicable against the policy that was live when the scan
+// ran. Editing the outcome matrix never recomputes a completed run, so two
+// runs of one property can differ because the POLICY moved, not because the
+// property did. Committed by Aayan in the weekly of 2026-09-03: keep a log of
+// what changed, and let a reader see the configuration a given result was
+// scored under.
+//
+// Runs already stamp `configVersion` (see AppState). This registry is what
+// that number resolves to. Confidence bands are deliberately absent — they
+// left the product on 2026-09-04 (Trello #89) — so provenance is the declared
+// intent and the outcome matrix, which is the whole of the decision now.
+//
+// ⚠ Prototype seed. A real deployment reads these rows from the append-only
+// config-version store, and `deriveOccStatus` resolves the run's version
+// rather than the current one. Neither exists yet: this surfaces the
+// indicator, it does not re-derive historical verdicts.
+
+interface OccConfigVersion {
+  version: number;
+  /** Epoch ms the version was saved. Relative to now, like every other seed. */
+  savedAt: number;
+  actor: string;
+  /** One line naming what this version changed, for the run-history seam. */
+  note: string;
+}
+
+const OCC_CONFIG_VERSIONS: OccConfigVersion[] = [
+  {
+    version: 2,
+    savedAt: Date.now() - 45 * 24 * 60 * 60 * 1000,
+    actor: 'A. Chen',
+    note: 'Owner-occupied and Second home: a contradicting finding became Needs review.',
+  },
+  {
+    version: 1,
+    savedAt: Date.now() - 210 * 24 * 60 * 60 * 1000,
+    actor: 'A. Chen',
+    note: 'Initial policy.',
+  },
+];
+
+/** Resolve a stamped `configVersion` to the policy it names. */
+function occConfigVersion(version?: number): OccConfigVersion | null {
+  if (typeof version !== 'number') return null;
+  return OCC_CONFIG_VERSIONS.find((v) => v.version === version) || null;
+}
+
+/** Conclusivity in the words the provenance line uses. It names what the
+ *  FINDING did to the DECLARATION — not what the org decided about it, which
+ *  is the status and reads in the same three words (see the note on
+ *  OCC_CONCLUSIVITY_LABEL). */
+const OCC_CONCLUSIVITY_VERB: Record<OccConclusivity, string> = {
+  consistent: 'matches',
+  'needs-review': 'contradicts',
+  inconclusive: 'neither confirms nor contradicts',
+};
+
+/** The decision chain behind one reconciliation label, in the order it was
+ *  made: declared intent → finding → what that did to it → the org's policy
+ *  for that pairing → the label shown. Everything a reader needs to see why
+ *  this result says what it says. */
+function occProvenance(
+  intent: OccIntent | undefined,
+  verdict: OccVerdict,
+  configVersion?: number,
+  config: OccConfig = DEFAULT_OCC_CONFIG
+): {
+  intent: OccIntent;
+  intentLabel: string;
+  verdictLabel: string;
+  conclusivity: OccConclusivity;
+  verb: string;
+  status: OccStatus;
+  statusLabel: string;
+  version: OccConfigVersion | null;
+  /** "configuration v2, saved Jul 26, 2026 by A. Chen" — null when the run
+   *  carries no stamped version, which is every run made before the stamp
+   *  existed. Callers must render nothing rather than guessing. */
+  versionLabel: string | null;
+} {
+  const effective = effectiveOutcomeIntent(config, intent || config.defaultIntent);
+  const conclusivity = occConclusivityFor(effective, verdict);
+  const status = config.outcomeMatrix[effective][conclusivity];
+  const version = occConfigVersion(configVersion);
+  return {
+    intent: effective,
+    intentLabel: OCC_INTENT_LABEL[effective],
+    verdictLabel: OCC_VERDICT_LABEL[verdict],
+    conclusivity,
+    verb: OCC_CONCLUSIVITY_VERB[conclusivity],
+    status,
+    statusLabel: OCC_STATUS_MATCH_LABEL[status],
+    version,
+    versionLabel: version
+      ? `configuration v${version.version}, saved ${formatUsDate(
+          new Date(version.savedAt).toISOString()
+        )} by ${version.actor}`
+      : null,
+  };
+}
+
 // ---- Reconciliation label — the ONE display of "declared vs found" ------
 // Every card, table and result page shows THIS instead of the raw verdict.
 // It is the outcomeMatrix status (green/yellow/red) relabelled. Deliberately

@@ -1,6 +1,7 @@
 /* global React, Pill, DataTable, Icon, ReactRouterDOM, useAppState, timeAgo, occMatchForRisk,
    SCENARIOS, HOME_VERDICT_LABEL, BATCH_STATUS_LABEL, BATCH_STATUS_VARIANT,
-   OCC_INTENT_SHORT, summarizeBatchIntent, batchIntentBreakdown */
+   OCC_INTENT_SHORT, summarizeBatchIntent, batchIntentBreakdown,
+   formatUsDate, occConfigVersion */
 // RunHistory — the "same target, scanned again" log. Instead of History growing
 // a new row every re-scan, History shows ONE row per property/batch (the latest)
 // and the prior runs live here, at the bottom of the detail view. Each row is
@@ -82,8 +83,24 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
 
   // Threshold provenance used to be explained here — a dated seam saying two
   // eras of verdicts came from a policy change, not a contradiction. Confidence
-  // thresholds are out of the product for now, so the seam goes with them.
-  // Runs still carry their stamped pair in data; nothing surfaces it.
+  // thresholds are out of the product (2026-09-04, Trello #89) and the seam
+  // went with them; runs still carry their stamped pair in data, unrendered.
+  //
+  // The seam is back on the axis that survived: the OUTCOME MATRIX. Committed
+  // by Aayan in the weekly of 2026-09-03 — editing the matrix never recomputes
+  // a completed run, so one timeline can hold two verdicts that differ because
+  // the policy moved, not because the property did. Say it once, dated, above
+  // the table. DataTable still has no divider-row API (growing one is an owner
+  // call), and a caption is the quieter surface anyway: this is provenance,
+  // not a finding, and must not compete with the runs themselves.
+  const configEras: number[] = runs.reduce((acc: number[], r: any) => {
+    if (typeof r.configVersion === 'number' && !acc.includes(r.configVersion)) acc.push(r.configVersion);
+    return acc;
+  }, []);
+  // runs are sorted newest-first, so era [0] is the version in force now.
+  const configSeam = props.kind === 'single' && configEras.length >= 2;
+  const eraNow = configSeam ? occConfigVersion(configEras[0]) : null;
+  const eraThen = configSeam ? occConfigVersion(configEras[configEras.length - 1]) : null;
 
   function openSingle(r: any) {
     sessionStorage.setItem('scanScenario', r.scenario);
@@ -250,6 +267,13 @@ function RunHistory(props: { kind: 'single'; address?: string } | { kind: 'batch
           items-start + a flexible text span, NOT flex-wrap: at mobile width the
           sentence is wider than the row, and wrapping it as a whole flex item
           drops the glyph onto its own line above the copy. */}
+      {configSeam && eraNow && eraThen && (
+        <p className="font-sans text-caption text-ink-3 m-0 mb-stack-md">
+          Configuration changed{' '}
+          {formatUsDate(new Date(eraNow.savedAt).toISOString())}: v{eraThen.version} → v
+          {eraNow.version}. {eraNow.note} Every run keeps the policy it ran under.
+        </p>
+      )}
       {hasAutomatedRun && (
         <p className="font-sans text-caption text-ink-3 m-0 mb-stack-md flex items-start gap-inline">
           <span className="inline-flex shrink-0 mt-0.5 text-brand [&>svg]:w-3.5 [&>svg]:h-3.5" aria-hidden>

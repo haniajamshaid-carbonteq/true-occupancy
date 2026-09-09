@@ -1,7 +1,7 @@
 /* global React, ReactRouterDOM, Card, Icon, SCENARIOS, PROPERTY, ReferenceCell, useAppState,
    ServedStamp, formatUsDateTime, formatUsDate, timeAgo, occMatchForRisk,
    INTENDED_OCCUPANCY_LABEL, OCC_VERDICT_LABEL, OCC_INTENT_SHORT,
-   DEFAULT_OCC_CONFIG, displayConfidence */
+   DEFAULT_OCC_CONFIG, displayConfidence, occProvenance */
 // ConfidenceHero — promotes the composite confidence score to the top of the
 // result page and exposes the factor breakdown ("Why this score") as an
 // accordion underneath.
@@ -448,6 +448,19 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
   );
   const hasPriorSameResult = priorRecentFirst.length > 0;
 
+  // Config provenance for THIS run (weekly, 2026-09-03 — Aayan): a verdict is
+  // only explicable against the policy that was live when it ran, and editing
+  // the matrix never recomputes a completed run. Reads the run's stamped
+  // `configVersion`; renders nothing when the run predates the stamp.
+  const currentRun = currentHistoryId
+    ? getHistoryForAddress(heroAddress).find((h: any) => h.id === currentHistoryId)
+    : null;
+  const provenance =
+    match && typeof occProvenance === 'function'
+      ? occProvenance(intent as any, match.verdict, (currentRun as any)?.configVersion)
+      : null;
+  const hasProvenance = Boolean(provenance && provenance.versionLabel);
+
   // The single most recent EARLIER run regardless of its result — the "last
   // scan" line always states it (result + the intent it reconciled against),
   // and its result differing from today's marks the movement.
@@ -617,7 +630,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                   links to earlier same-result reports. Nothing about the
                   property's past is visible until the reviewer asks for it. The
                   toggle appears whenever there's any history worth revealing. */}
-              {(resultChanged || hasPriorSameResult) && (
+              {(resultChanged || hasPriorSameResult || hasProvenance) && (
                 <div className="mt-1.5">
                   <button
                     type="button"
@@ -700,6 +713,47 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                                 ? OCC_INTENT_SHORT[mostRecentPriorAny.intent as keyof typeof OCC_INTENT_SHORT]
                                 : 'not declared'}
                             </span>.
+                          </span>
+                        </li>
+                      )}
+                      {/* • 3 — what policy scored this run. Last, and inside
+                          a reveal that is closed by default: it is provenance,
+                          not a finding, and must not compete with the verdict
+                          above it. Reads the decision in the order it was
+                          made, then names the configuration version. */}
+                      {provenance && provenance.versionLabel && (
+                        <li className="flex items-start gap-2">
+                          <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
+                          <span className="text-ink-3">
+                            Declared{' '}
+                            <span className="font-semibold text-ink-2">{provenance.intentLabel}</span>,
+                            found{' '}
+                            <span className="font-semibold text-ink-2">{provenance.verdictLabel}</span>
+                            {' — '}{provenance.verb}, so your policy reads it as{' '}
+                            <span className="font-semibold text-ink-2">{provenance.statusLabel}</span>.
+                            {' '}Scored under {provenance.versionLabel}.{' '}
+                            {/* The return path: lands the audit log on the day
+                                this policy was saved, rather than on today,
+                                which is a different day's changes. */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (provenance.version && typeof sessionStorage !== 'undefined') {
+                                  sessionStorage.setItem(
+                                    'configAuditDate',
+                                    new Date(provenance.version.savedAt).toISOString().slice(0, 10)
+                                  );
+                                }
+                                history.push('/settings/scan');
+                              }}
+                              className="inline-flex items-center gap-1 rounded border-0 bg-transparent p-0 cursor-pointer font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
+                              style={{ color: 'var(--brand-link)' }}
+                            >
+                              See configuration history
+                              <span className="inline-flex [&>svg]:w-3 [&>svg]:h-3" aria-hidden>
+                                <Icon name="arrow-right" size={12} />
+                              </span>
+                            </button>
                           </span>
                         </li>
                       )}

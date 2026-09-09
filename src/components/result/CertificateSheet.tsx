@@ -1,8 +1,9 @@
 /* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState,
    occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG, displayConfidence,
-   formatReportDate, AI_BAND_NEXT_STEP, occSignalMeta, OCC_SIGNAL_TONE_VARS,
+   formatReportDate, formatUsDate, AI_BAND_NEXT_STEP, occSignalMeta, OCC_SIGNAL_TONE_VARS,
    occRecordsSummary, occCombinedSynthesis, OCC_STRENGTH_DEF,
-   occStrengthCategory, OCC_SCAN_VERDICT_LABEL, occCorroborationLine */
+   occStrengthCategory, OCC_SCAN_VERDICT_LABEL, occCorroborationLine,
+   occProvenance, occConfigVersion */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -179,7 +180,8 @@ function CertificateBody({
   reference,
   scanId,
   timestamp,
-}: CertificateSheetProps & { scanId: string; timestamp: string }) {
+  provenance,
+}: CertificateSheetProps & { scanId: string; timestamp: string; provenance?: any }) {
   const s = SCENARIOS[scenario];
   const listings = certFlattenListings(scenario);
   const MAX_ROWS = 8;
@@ -367,6 +369,16 @@ function CertificateBody({
           <div className="cert-foot-line">
             Verifiable at <span className="mono">halcyon.app/verify/{scanId}</span>
           </div>
+          {/* Config provenance. Deliberately in the footer's muted band and
+              deliberately last: it explains the verdict, it is not the
+              verdict, and a reader scanning this page should reach it only
+              when they go looking for it. */}
+          {provenance && (
+            <div className="cert-foot-line muted">
+              Scored under {provenance.versionLabel} · declared{' '}
+              {provenance.intentLabel}, found {provenance.verdictLabel} — {provenance.verb}
+            </div>
+          )}
           <div className="cert-foot-line muted">
             Generated {timestamp} · Halcyon TrueOccupancy · halcyon.app
           </div>
@@ -401,12 +413,15 @@ function CertificateHistoryBody({
   scanId,
   timestamp,
   rows,
+  configEras,
 }: {
   address: string;
   reference?: string;
   scanId: string;
   timestamp: string;
   rows: CertificateHistoryRow[];
+  /** Set only when these rows span two config versions — see the caption. */
+  configEras?: { now: any; then: any } | null;
 }) {
   return (
     <article className="certificate-sheet">
@@ -444,6 +459,19 @@ function CertificateHistoryBody({
             {rows.length} {rows.length === 1 ? 'scan' : 'scans'}
           </span>
         </div>
+
+        {/* Two eras of verdicts in one document. Said once, dated, before the
+            rows — otherwise a reader compares a Needs review against an
+            Inconclusive and reads the product as contradicting itself. Same
+            seam the on-screen Run history carries. */}
+        {configEras && (
+          <div className="cert-empty" style={{ fontStyle: 'normal' }}>
+            Configuration changed{' '}
+            {formatUsDate(new Date(configEras.now.savedAt).toISOString())}: v
+            {configEras.then.version} → v{configEras.now.version}. {configEras.now.note} Every
+            scan keeps the policy it ran under.
+          </div>
+        )}
 
         {rows.length === 0 ? (
           <div className="cert-empty">No prior scans recorded for this property.</div>
@@ -1350,6 +1378,42 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
     });
   }, [variant, resolvedAddress, getHistoryForAddress]);
 
+  // Config provenance (weekly, 2026-09-03 — Aayan). The single certificate
+  // prints the policy this run was scored under; the scan-history report notes
+  // the seam when its rows span two versions. Both read the run's stamped
+  // configVersion and print nothing when a run predates the stamp — a
+  // certificate must never assert a policy it cannot evidence.
+  const certRunId =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanHistoryId') : null;
+  const certProvenance = React.useMemo(() => {
+    if (typeof occProvenance !== 'function') return null;
+    const runs = getHistoryForAddress(resolvedAddress) as any[];
+    const run = (certRunId && runs.find((h) => h.id === certRunId)) || runs[0];
+    const intent = (run && run.intent) || DEFAULT_OCC_CONFIG.defaultIntent;
+    const m = occMatchForRisk(intent, SCENARIOS[scenario as CertScenarioKey].risk);
+    if (!m) return null;
+    const prov = occProvenance(intent, m.verdict, run && run.configVersion);
+    return prov.versionLabel ? prov : null;
+  }, [resolvedAddress, certRunId, scenario, getHistoryForAddress]);
+
+  const certConfigEras = React.useMemo(() => {
+    if (variant !== 'history' || typeof occConfigVersion !== 'function') return null;
+    const versions = (getHistoryForAddress(resolvedAddress) as any[]).reduce(
+      (acc: number[], h: any) => {
+        if (typeof h.configVersion === 'number' && !acc.includes(h.configVersion)) {
+          acc.push(h.configVersion);
+        }
+        return acc;
+      },
+      []
+    );
+    if (versions.length < 2) return null;
+    // Rows are newest-first, so [0] is the version in force now.
+    const now = occConfigVersion(versions[0]);
+    const then = occConfigVersion(versions[versions.length - 1]);
+    return now && then ? { now, then } : null;
+  }, [variant, resolvedAddress, getHistoryForAddress]);
+
   // Snapshot payload — listings + capture date come through sessionStorage,
   // written by SavedSnapshotDrawer immediately before the variant flip.
   // Parsed lazily so an empty/invalid payload renders an empty-state row
@@ -1396,6 +1460,7 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
           scanId={scanId}
           timestamp={timestamp}
           rows={historyRows}
+          configEras={certConfigEras}
         />
       ) : variant === 'snapshot' ? (
         <CertificateSnapshotBody
@@ -1423,6 +1488,7 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
           kind={kind}
           scanId={scanId}
           timestamp={timestamp}
+          provenance={certProvenance}
         />
       )}
     </div>,
@@ -1447,6 +1513,18 @@ function CertificatePreview({ scenario = 'high', address, kind, reference }: Par
       : 'LOAN-2026-0042');
   const scanId = `TO-${certShortHash(resolvedAddress + ':' + scenario)}`;
   const timestamp = certTimestamp(new Date());
+  // The canvas has no AppState, so there is no stamped run to read. Build the
+  // populated sample the same way the rest of this component does — org
+  // default intent, this scenario's finding, current config version — so
+  // reviewers see the provenance line rather than its absence.
+  const previewProvenance = React.useMemo(() => {
+    if (typeof occProvenance !== 'function') return null;
+    const intent = DEFAULT_OCC_CONFIG.defaultIntent;
+    const m = occMatchForRisk(intent, SCENARIOS[scenario as CertScenarioKey].risk);
+    if (!m) return null;
+    const prov = occProvenance(intent, m.verdict, DEFAULT_OCC_CONFIG.version);
+    return prov.versionLabel ? prov : null;
+  }, [scenario]);
   return (
     <div className="cert-preview-host">
       <CertificateBody
@@ -1456,6 +1534,7 @@ function CertificatePreview({ scenario = 'high', address, kind, reference }: Par
         kind={kind}
         scanId={scanId}
         timestamp={timestamp}
+        provenance={previewProvenance}
       />
     </div>
   );
