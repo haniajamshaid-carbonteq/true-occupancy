@@ -183,10 +183,12 @@ function OccupancySignalHeader({
     ? occCorroborationLine(cor.state)
     : occCombinedSynthesis(lens ? lens.key : null, sig.signal);
   const strengthLabel = cat.charAt(0).toUpperCase() + cat.slice(1);
-  const strengthChip =
-    typeof sig.strengthScore === 'number'
-      ? `${strengthLabel} signal · ${sig.strengthScore}/10`
-      : `${strengthLabel} signal`;
+  // Grade only. The 0-10 strength used to print here as `· 9/10`, which read
+  // as a second score next to the agreement figure in the same block — and the
+  // two track each other closely enough to look like one number stated twice.
+  // The figure went (owner call, 2026-09-09); the grade it resolves to stays,
+  // and the definition line below still says what the grade means.
+  const strengthChip = `${strengthLabel} signal`;
 
   return (
     <section className="rounded-lg border border-line overflow-hidden">
@@ -762,9 +764,8 @@ function ReportCard({
                   className="inline-flex items-center h-5 px-2 rounded-full font-sans text-micro font-semibold uppercase tracking-[0.06em] shrink-0"
                   style={{ background: sigTone.soft, color: sigTone.ink }}
                 >
-                  {typeof sig.strengthScore === 'number'
-                    ? `${sigCat} signal · ${sig.strengthScore}/10`
-                    : `${sigCat} signal`}
+                  {/* Grade only — see the note on strengthChip above. */}
+                  {`${sigCat} signal`}
                 </span>
               </div>
             ) : (

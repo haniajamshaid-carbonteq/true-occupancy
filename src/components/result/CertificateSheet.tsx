@@ -3,7 +3,7 @@
    formatReportDate, formatUsDate, AI_BAND_NEXT_STEP, occSignalMeta, OCC_SIGNAL_TONE_VARS,
    occRecordsSummary, occCombinedSynthesis, OCC_STRENGTH_DEF,
    occStrengthCategory, OCC_SCAN_VERDICT_LABEL, occCorroborationLine,
-   occProvenance, occConfigVersion */
+   occConfigVersion */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -26,10 +26,16 @@ type CertScenarioKey = 'low' | 'medium' | 'high';
  *                  captured at scan time, with the platform URL preserved
  *                  as a clickable <a href>. Triggered by the Download
  *                  button in SavedSnapshotDrawer.
+ *   - 'combined' — the listing scan and the occupancy report as ONE document,
+ *                  offered only once both have run. Two reads of the same
+ *                  property that a lender would otherwise have to staple
+ *                  together themselves. Composed, not re-authored: it renders
+ *                  the two existing bodies with a forced page break between
+ *                  them, so neither can drift from its standalone version.
  *  The variant is picked by the caller right before triggering
  *  window.print() (sessionStorage.certVariant), so all three share one
  *  cert chrome and one print path. */
-type CertVariant = 'single' | 'history' | 'snapshot' | 'occupancy';
+type CertVariant = 'single' | 'history' | 'snapshot' | 'occupancy' | 'combined';
 
 interface CertificateSheetProps {
   scenario: CertScenarioKey;
@@ -180,8 +186,7 @@ function CertificateBody({
   reference,
   scanId,
   timestamp,
-  provenance,
-}: CertificateSheetProps & { scanId: string; timestamp: string; provenance?: any }) {
+}: CertificateSheetProps & { scanId: string; timestamp: string }) {
   const s = SCENARIOS[scenario];
   const listings = certFlattenListings(scenario);
   const MAX_ROWS = 8;
@@ -369,16 +374,6 @@ function CertificateBody({
           <div className="cert-foot-line">
             Verifiable at <span className="mono">halcyon.app/verify/{scanId}</span>
           </div>
-          {/* Config provenance. Deliberately in the footer's muted band and
-              deliberately last: it explains the verdict, it is not the
-              verdict, and a reader scanning this page should reach it only
-              when they go looking for it. */}
-          {provenance && (
-            <div className="cert-foot-line muted">
-              Scored under {provenance.versionLabel} · declared{' '}
-              {provenance.intentLabel}, found {provenance.verdictLabel} — {provenance.verb}
-            </div>
-          )}
           <div className="cert-foot-line muted">
             Generated {timestamp} · Halcyon TrueOccupancy · halcyon.app
           </div>
@@ -1019,9 +1014,9 @@ function CertificateOccupancyBody({
                   className="occ-signal-strength"
                   style={{ color: sigVars.ink, borderColor: sigVars.dot }}
                 >
-                  {typeof sig.strengthScore === 'number'
-                    ? `${sigCat} signal · ${sig.strengthScore}/10`
-                    : `${sigCat} signal`}
+                  {/* Grade only, no figure — it duplicated the agreement
+                      score in the same block (owner call, 2026-09-09). */}
+                  {`${sigCat} signal`}
                 </span>
               </div>
               <div className="occ-case-type">Case type: {r.caseArchetype}</div>
@@ -1310,6 +1305,7 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
         d === 'history' ? 'history'
         : d === 'snapshot' ? 'snapshot'
         : d === 'occupancy' ? 'occupancy'
+        : d === 'combined' ? 'combined'
         : 'single';
       setVariant(v);
     };
@@ -1378,24 +1374,12 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
     });
   }, [variant, resolvedAddress, getHistoryForAddress]);
 
-  // Config provenance (weekly, 2026-09-03 — Aayan). The single certificate
-  // prints the policy this run was scored under; the scan-history report notes
-  // the seam when its rows span two versions. Both read the run's stamped
-  // configVersion and print nothing when a run predates the stamp — a
-  // certificate must never assert a policy it cannot evidence.
-  const certRunId =
-    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scanHistoryId') : null;
-  const certProvenance = React.useMemo(() => {
-    if (typeof occProvenance !== 'function') return null;
-    const runs = getHistoryForAddress(resolvedAddress) as any[];
-    const run = (certRunId && runs.find((h) => h.id === certRunId)) || runs[0];
-    const intent = (run && run.intent) || DEFAULT_OCC_CONFIG.defaultIntent;
-    const m = occMatchForRisk(intent, SCENARIOS[scenario as CertScenarioKey].risk);
-    if (!m) return null;
-    const prov = occProvenance(intent, m.verdict, run && run.configVersion);
-    return prov.versionLabel ? prov : null;
-  }, [resolvedAddress, certRunId, scenario, getHistoryForAddress]);
-
+  // Config provenance is NOT printed on the single-scan certificate: prod
+  // already ships it via hot fix (owner, 2026-09-09), so the prototype would
+  // be specifying a second version of something that exists. It stays on the
+  // property page, and the scan-history report keeps its era seam — that
+  // document spans two policies by construction and would otherwise read as
+  // contradicting itself.
   const certConfigEras = React.useMemo(() => {
     if (variant !== 'history' || typeof occConfigVersion !== 'function') return null;
     const versions = (getHistoryForAddress(resolvedAddress) as any[]).reduce(
@@ -1440,7 +1424,9 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
   // exists, so a null here is the defensive path (renders an empty-state
   // sheet rather than throwing on print).
   const occReport = React.useMemo(() => {
-    if (variant !== 'occupancy' || typeof sessionStorage === 'undefined') return null;
+    // 'combined' prints the same body, so it needs the same payload.
+    if ((variant !== 'occupancy' && variant !== 'combined') || typeof sessionStorage === 'undefined')
+      return null;
     try {
       const raw = sessionStorage.getItem('occupancyReports');
       return raw ? JSON.parse(raw)?.[scenario] ?? null : null;
@@ -1471,6 +1457,28 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
           capturedAt={snapshotPayload.capturedAt}
           listings={snapshotPayload.listings}
         />
+      ) : variant === 'combined' ? (
+        <>
+          <CertificateBody
+            scenario={scenario}
+            address={resolvedAddress}
+            reference={resolvedReference}
+            kind={kind}
+            scanId={scanId}
+            timestamp={timestamp}
+          />
+          {/* The occupancy report always starts on its own page — the two are
+              separate findings and must never share a sheet. */}
+          <div className="cert-combined-break" />
+          <CertificateOccupancyBody
+            scenario={scenario}
+            address={resolvedAddress}
+            reference={resolvedReference}
+            scanId={scanId}
+            timestamp={timestamp}
+            report={occReport}
+          />
+        </>
       ) : variant === 'occupancy' ? (
         <CertificateOccupancyBody
           scenario={scenario}
@@ -1488,7 +1496,6 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
           kind={kind}
           scanId={scanId}
           timestamp={timestamp}
-          provenance={certProvenance}
         />
       )}
     </div>,
@@ -1513,18 +1520,6 @@ function CertificatePreview({ scenario = 'high', address, kind, reference }: Par
       : 'LOAN-2026-0042');
   const scanId = `TO-${certShortHash(resolvedAddress + ':' + scenario)}`;
   const timestamp = certTimestamp(new Date());
-  // The canvas has no AppState, so there is no stamped run to read. Build the
-  // populated sample the same way the rest of this component does — org
-  // default intent, this scenario's finding, current config version — so
-  // reviewers see the provenance line rather than its absence.
-  const previewProvenance = React.useMemo(() => {
-    if (typeof occProvenance !== 'function') return null;
-    const intent = DEFAULT_OCC_CONFIG.defaultIntent;
-    const m = occMatchForRisk(intent, SCENARIOS[scenario as CertScenarioKey].risk);
-    if (!m) return null;
-    const prov = occProvenance(intent, m.verdict, DEFAULT_OCC_CONFIG.version);
-    return prov.versionLabel ? prov : null;
-  }, [scenario]);
   return (
     <div className="cert-preview-host">
       <CertificateBody
@@ -1534,7 +1529,6 @@ function CertificatePreview({ scenario = 'high', address, kind, reference }: Par
         kind={kind}
         scanId={scanId}
         timestamp={timestamp}
-        provenance={previewProvenance}
       />
     </div>
   );

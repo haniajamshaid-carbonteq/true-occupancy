@@ -109,7 +109,7 @@ function ScanContextBar({
     return () => window.removeEventListener('halcyon:occupancyreport', onReport);
   }, [scenarioForTarget]);
 
-  function printCertificate(v: 'single' | 'history' | 'occupancy') {
+  function printCertificate(v: 'single' | 'history' | 'occupancy' | 'combined') {
     if (typeof sessionStorage !== 'undefined') {
       if (v === 'single') sessionStorage.removeItem('certVariant');
       else sessionStorage.setItem('certVariant', v);
@@ -283,6 +283,18 @@ function ScanContextBar({
                 : 'Run the occupancy report first',
               disabled: !hasOccupancyReport,
               onClick: () => printCertificate('occupancy'),
+            },
+            {
+              // Both reads of one property in a single document. Offered only
+              // once the occupancy report exists — before that there is
+              // nothing to combine, and the item says so rather than hiding.
+              label: 'Scan + occupancy report',
+              icon: <Icon name="pdf" />,
+              hint: hasOccupancyReport
+                ? 'Both reports in one document'
+                : 'Run the occupancy report first',
+              disabled: !hasOccupancyReport,
+              onClick: () => printCertificate('combined'),
             },
           ]}
         />

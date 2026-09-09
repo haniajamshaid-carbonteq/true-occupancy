@@ -756,6 +756,7 @@
 .occ-report .occ-runfoot { display: none; }
 .occ-report .occ-empty { margin-top: 24pt; font-size: 10pt; color: var(--ink-3); font-style: italic; }
 .occ-report .occ-break { height: 0; }
+.cert-combined-break { height: 0; }
 
 /* Inline preview host (design-spec) — show the report on screen too. */
 .cert-preview-host .occ-report {
@@ -807,6 +808,14 @@
   }
   /* Keep links clickable but not styled with browser-default underlines. */
   .certificate-sheet a { text-decoration: none; }
+
+  /* Combined report: the listing certificate and the occupancy report in one
+     document. The certificate keeps page-break-inside: avoid, so it holds its
+     single sheet; this seam starts the occupancy report on the next page. */
+  .cert-combined-break {
+    break-after: page;
+    page-break-after: always;
+  }
 
   /* --- Occupancy report: flowing multi-page --- */
   .occ-report { display: block; }
