@@ -471,6 +471,15 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
       : null;
   const hasProvenance = Boolean(provenance);
 
+  // The bands this run was scored under, for the second provenance bullet.
+  // Stored on the raw rented-probability axis; the line reads on the
+  // declare-confidence axis the config screen asks in, so Consistent is
+  // 100 − notRentedAtOrBelow. Same conversion the certificate does.
+  const provThresholds =
+    (currentRun as any)?.thresholds || DEFAULT_OCC_CONFIG.thresholds || null;
+  const provFlagAt = provThresholds ? provThresholds.rentedAtOrAbove : null;
+  const provConsistentAt = provThresholds ? 100 - provThresholds.notRentedAtOrBelow : null;
+
   // The single most recent EARLIER run regardless of its result — the "last
   // scan" line always states it (result + the intent it reconciled against),
   // and its result differing from today's marks the movement.
@@ -726,23 +735,53 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                           </span>
                         </li>
                       )}
-                      {/* • 3 — the policy this result follows from. Last, and
-                          inside a reveal closed by default: it explains the
-                          verdict, it is not the verdict. No actor, no version
-                          number and no link out (owner call, 2026-09-09) —
-                          the reader needs to know the result follows from a
-                          setting they control, not who last touched it. */}
+                      {/* • 3 — the policy this result follows from. A lead
+                          line naming the configuration and when it last
+                          changed, then two sub-points: what the matrix did
+                          with the finding, and the bands that decided where
+                          the score landed. Owner, 2026-09-09: the reader
+                          needs the thresholds AND the timestamp of the config
+                          change, not just the outcome.
+                          ⚠ This puts threshold numbers back on the result
+                          page, which TO-89 took out of the product. Owner's
+                          call; recorded, not resolved. */}
                       {provenance && (
                         <li className="flex items-start gap-2">
                           <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
                           <span className="text-ink-3">
-                            Declared{' '}
-                            <span className="font-semibold text-ink-2">{provenance.intentLabel}</span>,
-                            found{' '}
-                            <span className="font-semibold text-ink-2">{provenance.verdictLabel}</span>
-                            {' — '}{provenance.verb}, so your policy reads it as{' '}
-                            <span className="font-semibold text-ink-2">{provenance.statusLabel}</span>.
-                            {' '}This comes from your outcome matrix in Configuration.
+                            As per your configuration settings
+                            {provenance.version
+                              ? `, last changed ${formatUsDate(
+                                  new Date(provenance.version.savedAt).toISOString()
+                                )}`
+                              : ''}
+                            :
+                            <span className="mt-1 flex flex-col gap-1">
+                              <span className="flex items-start gap-2">
+                                <span className="mt-[5px] w-1 h-1 rounded-full shrink-0" style={{ background: 'var(--ink-4)' }} aria-hidden />
+                                <span>
+                                  Declared{' '}
+                                  <span className="font-semibold text-ink-2">{provenance.intentLabel}</span>,
+                                  found{' '}
+                                  <span className="font-semibold text-ink-2">{provenance.verdictLabel}</span>
+                                  {' — '}{provenance.verb}, so this reads as{' '}
+                                  <span className="font-semibold text-ink-2">{provenance.statusLabel}</span>.
+                                </span>
+                              </span>
+                              {provFlagAt != null && provConsistentAt != null && (
+                                <span className="flex items-start gap-2">
+                                  <span className="mt-[5px] w-1 h-1 rounded-full shrink-0" style={{ background: 'var(--ink-4)' }} aria-hidden />
+                                  <span>
+                                    Needs review is flagged at{' '}
+                                    <span className="font-semibold text-ink-2">{provFlagAt}%</span>{' '}
+                                    confidence or above, Consistent declared at{' '}
+                                    <span className="font-semibold text-ink-2">{provConsistentAt}%</span>{' '}
+                                    or above. This scan scored{' '}
+                                    <span className="font-semibold text-ink-2">{confidenceValue}%</span>.
+                                  </span>
+                                </span>
+                              )}
+                            </span>
                           </span>
                         </li>
                       )}
