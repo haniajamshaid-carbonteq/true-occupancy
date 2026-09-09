@@ -1,9 +1,8 @@
 /* global React, ReactDOM, SCENARIOS, PROPERTY, PLATFORMS, useAppState,
    occMatchForRisk, INTENDED_OCCUPANCY_LABEL, DEFAULT_OCC_CONFIG, displayConfidence,
-   formatReportDate, formatUsDate, AI_BAND_NEXT_STEP, occSignalMeta, OCC_SIGNAL_TONE_VARS,
+   formatReportDate, AI_BAND_NEXT_STEP, occSignalMeta, OCC_SIGNAL_TONE_VARS,
    occRecordsSummary, occCombinedSynthesis, OCC_STRENGTH_DEF,
-   occStrengthCategory, OCC_SCAN_VERDICT_LABEL, occCorroborationLine,
-   occConfigVersion */
+   occStrengthCategory, OCC_SCAN_VERDICT_LABEL, occCorroborationLine */
 // CertificateSheet — Halcyon-branded single-page PDF report.
 //
 // Design spec: docs/pdf-certificate-spec.md. This component is the ONLY
@@ -243,6 +242,41 @@ function CertificateBody({
       : s.score
   );
 
+  // "Single Family" from the SINGLE_FAMILY enum, title-cased for print.
+  const certPropertyType = String(PROPERTY.propertyType || '')
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+
+  // When this scan actually ran, distinct from when the PDF was generated.
+  // Both print in the header, as prod does.
+  const certScannedAt =
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('resultServedAt') : null;
+  const scannedStamp = certScannedAt ? certTimestamp(new Date(certScannedAt)) : timestamp;
+
+  // The confidence bands this run was scored under, stamped on the row when
+  // it ran. Absent for runs made before the stamp existed — print nothing
+  // then rather than implying today's bands applied.
+  //
+  // The stored pair is on the RAW rented-probability axis
+  // ({rentedAtOrAbove, notRentedAtOrBelow}); the printed line is on the
+  // declare-confidence axis the config screen asks in (#74). Needs review
+  // maps straight across, but Consistent is confidence in the MATCHING
+  // finding, so it is 100 − notRentedAtOrBelow. Printing the raw number read
+  // "declare Consistent at 30%", which is the opposite of what it means.
+  const certThresholds = (() => {
+    if (typeof sessionStorage === 'undefined') return null;
+    try {
+      const raw = sessionStorage.getItem('scanThresholds');
+      const t = raw ? JSON.parse(raw) : null;
+      return t && typeof t.rentedAtOrAbove === 'number' ? t : null;
+    } catch {
+      return null;
+    }
+  })();
+
   return (
     <article className="certificate-sheet">
       <header className="cert-head">
@@ -253,19 +287,21 @@ function CertificateBody({
             <div className="cert-product">TrueOccupancy Certificate</div>
           </div>
         </div>
+        {/* Header block matches the shipped prod certificate
+            (scan-f6a7b65b, 2026-09-09): the scan ID leads in mono, then the
+            scanned and generated stamps in UTC either side of the scan kind.
+            Both stamps live here now, which is why prod carries no footer —
+            see the note where ours used to be. A user-supplied reference is
+            additive: prod's sample had none, but the May-2026 lender spec
+            still wants a loan number findable at a glance. */}
         <div className="cert-head-right">
-          {/* Top-corner identifier — prefers the user-supplied reference
-              when set (lenders look for their loan number first), falls
-              back to the scan ID so the corner is never empty. Either way,
-              the internal scan ID is still printed in the footer for audit. */}
-          <div
-            className="cert-id"
-            aria-label={reference ? 'Reference' : 'Scan ID'}
-          >
-            {reference || scanId}
-          </div>
-          <div className="cert-stamp">{timestamp}</div>
+          <div className="cert-id" aria-label="Scan ID">{scanId}</div>
+          {reference && (
+            <div className="cert-stamp" aria-label="Reference">Reference {reference}</div>
+          )}
+          <div className="cert-stamp">Scanned {scannedStamp}</div>
           <div className="cert-kind">{kind === 'batch' ? 'Batch Scan' : 'Single-Property Scan'}</div>
+          <div className="cert-stamp muted">Generated {timestamp}</div>
         </div>
       </header>
 
@@ -274,8 +310,12 @@ function CertificateBody({
       <section className="cert-property">
         <div className="cert-eyebrow">Subject property</div>
         <div className="cert-address">{address || PROPERTY.address}</div>
+        {/* Property facts, as prod prints them — type, layout, size, year.
+            Parcel / zoning / permit status moved off: a lender reads the
+            property, not the assessor's filing. */}
         <div className="cert-meta">
-          Parcel {PROPERTY.parcel} · {PROPERTY.zoning} · {PROPERTY.permitStatus}
+          {certPropertyType} · {PROPERTY.bedrooms} bed · {PROPERTY.bathrooms} bath ·{' '}
+          {PROPERTY.area} · Built {PROPERTY.yearBuilt}
         </div>
       </section>
 
@@ -296,6 +336,19 @@ function CertificateBody({
               <span className="cert-recon-status" style={{ color: CERT_TONE_INK[match.tone] }}>
                 {match.label}
               </span>
+            </div>
+          )}
+          {/* Thresholds at scan. Prod prints this (shipped via hot fix) and
+              it reads off the pair stamped on the run, so a later threshold
+              edit can never re-band a completed certificate.
+              ⚠ Tension with TO-89, which took confidence thresholds out of
+              the product: they are gone from the UI but still print here,
+              because the shipped artifact does. Owner's call, recorded not
+              resolved. */}
+          {certThresholds && (
+            <div className="cert-thresholds">
+              Thresholds at scan: flag Needs review at {certThresholds.rentedAtOrAbove}%, declare
+              Consistent at {100 - certThresholds.notRentedAtOrBelow}%
             </div>
           )}
           {/* AI provenance, ink-only: print drops background fills, so this
@@ -363,23 +416,11 @@ function CertificateBody({
         )}
       </section>
 
-      <footer className="cert-foot">
-        <div className="cert-foot-left">
-          {/* Internal UUID is always present per spec, regardless of whether
-              the lender attached a user-facing Reference. Serves as audit /
-              cross-reference, not primary identification. */}
-          <div className="cert-foot-line">
-            Scan ID: <span className="mono">{scanId}</span>
-          </div>
-          <div className="cert-foot-line">
-            Verifiable at <span className="mono">halcyon.app/verify/{scanId}</span>
-          </div>
-          <div className="cert-foot-line muted">
-            Generated {timestamp} · Halcyon TrueOccupancy · halcyon.app
-          </div>
-        </div>
-        <div className="cert-foot-right">Page 1 of 1</div>
-      </footer>
+      {/* No footer. Prod carries none: the scan ID and both timestamps moved
+          into the header block above, which is where a reader looks for
+          identifiers, and repeating them at the foot of a one-page artifact
+          was the only thing the footer did. Dropping it also removes the
+          "Page 1 of 1" line, which was never true of the combined report. */}
     </article>
   );
 }
@@ -408,15 +449,12 @@ function CertificateHistoryBody({
   scanId,
   timestamp,
   rows,
-  configEras,
 }: {
   address: string;
   reference?: string;
   scanId: string;
   timestamp: string;
   rows: CertificateHistoryRow[];
-  /** Set only when these rows span two config versions — see the caption. */
-  configEras?: { now: any; then: any } | null;
 }) {
   return (
     <article className="certificate-sheet">
@@ -455,19 +493,10 @@ function CertificateHistoryBody({
           </span>
         </div>
 
-        {/* Two eras of verdicts in one document. Said once, dated, before the
-            rows — otherwise a reader compares a Needs review against an
-            Inconclusive and reads the product as contradicting itself. Same
-            seam the on-screen Run history carries. */}
-        {configEras && (
-          <div className="cert-empty" style={{ fontStyle: 'normal' }}>
-            Configuration changed{' '}
-            {formatUsDate(new Date(configEras.now.savedAt).toISOString())}: v
-            {configEras.then.version} → v{configEras.now.version}. {configEras.now.note} Every
-            scan keeps the policy it ran under.
-          </div>
-        )}
-
+        {/* No config-era seam here. Provenance is a screen affordance only
+            (owner, 2026-09-09): the single-scan PDF already ships it in prod
+            via hot fix, and nothing else in print carries it. The on-screen
+            Run history keeps the seam. */}
         {rows.length === 0 ? (
           <div className="cert-empty">No prior scans recorded for this property.</div>
         ) : (
@@ -1377,26 +1406,7 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
   // Config provenance is NOT printed on the single-scan certificate: prod
   // already ships it via hot fix (owner, 2026-09-09), so the prototype would
   // be specifying a second version of something that exists. It stays on the
-  // property page, and the scan-history report keeps its era seam — that
-  // document spans two policies by construction and would otherwise read as
-  // contradicting itself.
-  const certConfigEras = React.useMemo(() => {
-    if (variant !== 'history' || typeof occConfigVersion !== 'function') return null;
-    const versions = (getHistoryForAddress(resolvedAddress) as any[]).reduce(
-      (acc: number[], h: any) => {
-        if (typeof h.configVersion === 'number' && !acc.includes(h.configVersion)) {
-          acc.push(h.configVersion);
-        }
-        return acc;
-      },
-      []
-    );
-    if (versions.length < 2) return null;
-    // Rows are newest-first, so [0] is the version in force now.
-    const now = occConfigVersion(versions[0]);
-    const then = occConfigVersion(versions[versions.length - 1]);
-    return now && then ? { now, then } : null;
-  }, [variant, resolvedAddress, getHistoryForAddress]);
+  // property page and in the on-screen Run history — nowhere in print.
 
   // Snapshot payload — listings + capture date come through sessionStorage,
   // written by SavedSnapshotDrawer immediately before the variant flip.
@@ -1446,7 +1456,6 @@ function CertificateSheet({ scenario, address, kind, reference }: CertificateShe
           scanId={scanId}
           timestamp={timestamp}
           rows={historyRows}
-          configEras={certConfigEras}
         />
       ) : variant === 'snapshot' ? (
         <CertificateSnapshotBody

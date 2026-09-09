@@ -1,7 +1,7 @@
 /* global React, ReactRouterDOM, AppShell, AppStateContext, Card, ChipRow, Input, Toggle, Button, Pill, Modal,
    Tabs, Drawer, ScreenEmpty, Icon, OCC_INTENTS, OCC_STATUSES, OCC_INTENT_LABEL,
    OCC_STATUS_LABEL, OCC_STATUS_TONE, OCC_CADENCE_LABEL,
-   OCC_CONCLUSIVITIES, OCC_CONCLUSIVITY_LABEL, occMatchIsRented, occConfigVersion,
+   OCC_CONCLUSIVITIES, OCC_CONCLUSIVITY_LABEL, occMatchIsRented,
    DEFAULT_OCC_CONFIG, formatUsDate */
 
 // Threshold change audit log (prototype seed). Every save appends a dated
@@ -467,45 +467,7 @@ function ScanConfigScreen({
   const [auditOpen, setAuditOpen] = React.useState(false);
   const [auditDate, setAuditDate] = React.useState(AUDIT_TODAY);
   const [appliedDate, setAppliedDate] = React.useState(AUDIT_TODAY);
-  // Arriving from a result's provenance line: open the log on the day that
-  // run's policy was saved, not on today. Single-shot — the key is cleared so
-  // a later visit to this screen opens normally.
-  React.useEffect(() => {
-    if (typeof sessionStorage === 'undefined') return;
-    const requested = sessionStorage.getItem('configAuditDate');
-    if (!requested) return;
-    sessionStorage.removeItem('configAuditDate');
-    setAuditDate(requested);
-    setAppliedDate(requested);
-    setAuditOpen(true);
-  }, []);
-
-  // The log the provenance line links into. Threshold rows are seeded history;
-  // the outcome-matrix row is DERIVED from the config-version registry, so the
-  // date here can never drift from the date a result cites as the policy it
-  // was scored under. Without it the link lands on a day holding nothing about
-  // the thing the reader followed it to see.
-  const auditEvents = React.useMemo(() => {
-    const v2 = typeof occConfigVersion === 'function' ? occConfigVersion(2) : null;
-    const matrixRow = v2
-      ? [
-          {
-            at: new Date(v2.savedAt).toISOString().slice(0, 16),
-            actor: v2.actor,
-            changes: [
-              {
-                label: 'Outcome matrix · Owner-occupied, Second home',
-                from: 'A contradicting finding → Inconclusive',
-                to: 'A contradicting finding → Needs review',
-              },
-            ],
-          },
-        ]
-      : [];
-    return [...matrixRow, ...THRESHOLD_AUDIT].sort((a: any, b: any) => (a.at < b.at ? 1 : -1));
-  }, []);
-
-  const auditForDate = auditEvents
+  const auditForDate = THRESHOLD_AUDIT
     .filter((e) => e.at.slice(0, 10) === appliedDate)
     .sort((a, b) => (a.at < b.at ? 1 : -1));
   const [matrix, setMatrix] = React.useState(seed.outcomeMatrix);
@@ -823,14 +785,13 @@ function ScanConfigScreen({
       <Drawer
         open={auditOpen}
         onClose={() => setAuditOpen(false)}
-        title="Configuration change log"
+        title="Threshold change log"
         width={440}
       >
         <div className="flex flex-col gap-stack-md">
           <p className="font-sans text-caption m-0" style={{ color: 'var(--ink-3)' }}>
-            Configuration changes over time, so the same finding can read differently by date. Pick
-            a date to see the changes made that day. Every completed run keeps the policy it ran
-            under.
+            Thresholds change over time, so the same score can read differently by date. Pick a date
+            to see the changes made that day.
           </p>
 
           {/* Date picker (single date, defaults to today) + Apply. */}

@@ -469,7 +469,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
     match && typeof occProvenance === 'function'
       ? occProvenance(intent as any, match.verdict, runConfigVersion)
       : null;
-  const hasProvenance = Boolean(provenance && provenance.versionLabel);
+  const hasProvenance = Boolean(provenance);
 
   // The single most recent EARLIER run regardless of its result — the "last
   // scan" line always states it (result + the intent it reconciled against),
@@ -726,12 +726,13 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                           </span>
                         </li>
                       )}
-                      {/* • 3 — what policy scored this run. Last, and inside
-                          a reveal that is closed by default: it is provenance,
-                          not a finding, and must not compete with the verdict
-                          above it. Reads the decision in the order it was
-                          made, then names the configuration version. */}
-                      {provenance && provenance.versionLabel && (
+                      {/* • 3 — the policy this result follows from. Last, and
+                          inside a reveal closed by default: it explains the
+                          verdict, it is not the verdict. No actor, no version
+                          number and no link out (owner call, 2026-09-09) —
+                          the reader needs to know the result follows from a
+                          setting they control, not who last touched it. */}
+                      {provenance && (
                         <li className="flex items-start gap-2">
                           <span className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--ink-3)' }} aria-hidden />
                           <span className="text-ink-3">
@@ -741,29 +742,7 @@ function ConfidenceHero({ scenario, defaultOpen = true }: ConfidenceHeroProps) {
                             <span className="font-semibold text-ink-2">{provenance.verdictLabel}</span>
                             {' — '}{provenance.verb}, so your policy reads it as{' '}
                             <span className="font-semibold text-ink-2">{provenance.statusLabel}</span>.
-                            {' '}Scored under {provenance.versionLabel}.{' '}
-                            {/* The return path: lands the audit log on the day
-                                this policy was saved, rather than on today,
-                                which is a different day's changes. */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (provenance.version && typeof sessionStorage !== 'undefined') {
-                                  sessionStorage.setItem(
-                                    'configAuditDate',
-                                    new Date(provenance.version.savedAt).toISOString().slice(0, 10)
-                                  );
-                                }
-                                history.push('/settings/scan');
-                              }}
-                              className="inline-flex items-center gap-1 rounded border-0 bg-transparent p-0 cursor-pointer font-sans text-caption font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
-                              style={{ color: 'var(--brand-link)' }}
-                            >
-                              See configuration history
-                              <span className="inline-flex [&>svg]:w-3 [&>svg]:h-3" aria-hidden>
-                                <Icon name="arrow-right" size={12} />
-                              </span>
-                            </button>
+                            {' '}This comes from your outcome matrix in Configuration.
                           </span>
                         </li>
                       )}

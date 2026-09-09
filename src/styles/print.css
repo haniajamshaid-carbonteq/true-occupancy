@@ -96,6 +96,20 @@
   color: var(--ink-3);
   margin-top: 1pt;
 }
+/* The generated stamp sits under the scan kind and reads quieter than the
+   scanned stamp above it — one is when the finding was made, the other only
+   when this copy was printed. */
+.certificate-sheet .cert-stamp.muted { color: var(--ink-4); }
+
+/* Thresholds at scan — the bands this run was scored under, printed under
+   the reconciliation line. Hairline, like the AI note it sits beside: it
+   qualifies the finding, it is not part of it. */
+.certificate-sheet .cert-thresholds {
+  margin-top: 5pt;
+  font-size: 8pt;
+  line-height: 1.35;
+  color: var(--ink-3);
+}
 
 .certificate-sheet .cert-rule {
   height: 1pt;
